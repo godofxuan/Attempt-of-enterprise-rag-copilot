@@ -1,0 +1,102 @@
+[
+  {
+    "id": "q1",
+    "question": "退款期限是多少？",
+    "gold_answer": "客户可在下单后14天内申请退款。",
+    "model_answer": "",
+    "correctness": null,
+    "groundedness": null,
+    "completeness": null,
+    "notes": ""
+  },
+  {
+    "id": "q2",
+    "question": "什么情况下不支持退款？",
+    "gold_answer": "已开封的定制商品不支持退款；超过14天且无质量问题的订单不支持退款。",
+    "model_answer": "",
+    "correctness": null,
+    "groundedness": null,
+    "completeness": null,
+    "notes": ""
+  },
+  {
+    "id": "q3",
+    "question": "已开封的定制商品可以退款吗？",
+    "gold_answer": "不可以，已开封的定制商品不支持退款。",
+    "model_answer": "",
+    "correctness": null,
+    "groundedness": null,
+    "completeness": null,
+    "notes": ""
+  },
+  {
+    "id": "q4",
+    "question": "超过14天但没有质量问题的订单可以退款吗？",
+    "gold_answer": "不可以，超过14天且无质量问题的订单不支持退款。",
+    "model_answer": "",
+    "correctness": null,
+    "groundedness": null,
+    "completeness": null,
+    "notes": ""
+  },
+  {
+    "id": "q5",
+    "question": "退款审核流程里财务处理需要多久？",
+    "gold_answer": "客服初审后，财务将在3个工作日内处理。",
+    "model_answer": "",
+    "correctness": null,
+    "groundedness": null,
+    "completeness": null,
+    "notes": ""
+  },
+  {
+    "id": "q8",
+    "question": "出差报销要在多久内提交？",
+    "gold_answer": "出差报销需要在出差结束后7天内提交。",
+    "model_answer": "",
+    "correctness": null,
+    "groundedness": null,
+    "completeness": null,
+    "notes": ""
+  },
+  {
+    "id": "q10",
+    "question": "新员工入职需要提交哪些资料？",
+    "gold_answer": "新员工需要提交身份证复印件、银行卡信息和学历证明。",
+    "model_answer": "",
+    "correctness": null,
+    "groundedness": null,
+    "completeness": null,
+    "notes": ""
+  },
+  {
+    "id": "q11",
+    "question": "VPN 报错 691 怎么处理？",
+    "gold_answer": "如果 VPN 报错691，请联系 IT 管理员重置凭证。",
+    "model_answer": "",
+    "correctness": null,
+    "groundedness": null,
+    "completeness": null,
+    "notes": ""
+  },
+  {
+    "id": "q17",
+    "question": "延迟发货可能因为什么发生？",
+    "gold_answer": "如遇节假日或库存不足，发货时间可能延长至5个工作日。",
+    "model_answer": "",
+    "correctness": null,
+    "groundedness": null,
+    "completeness": null,
+    "notes": ""
+  },
+  {
+    "id": "q19",
+    "question": "退款期限和出差报销提交期限分别是多少？",
+    "gold_answer": "退款期限是下单后14天内；出差报销提交期限是出差结束后7天内。",
+    "model_answer": "",
+    "correctness": null,
+    "groundedness": null,
+    "completeness": null,
+    "notes": ""
+  }
+]

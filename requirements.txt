@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+streamlit
+requests
+pydantic
+pydantic-settings
+python-dotenv
+openai
+faiss-cpu
+rank-bm25
+numpy
+jieba

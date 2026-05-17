@@ -1,0 +1,36 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Local databases and generated runtime artifacts
+data/app.db
+data/*.db
+data/indexes/*
+!data/indexes/.gitkeep
+data/parsed_docs/*
+!data/parsed_docs/.gitkeep
+
+# Generated evaluation outputs
+data/eval_retrieval_results.json
+data/eval_answer_results.json
+
+# Logs and OS/editor files
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Streamlit local secrets
+.streamlit/secrets.toml
