@@ -116,4 +116,3 @@ Current retrieval result on the sample dataset:
 - `data/indexes/` is generated locally after indexing.
 - `data/app.db` is generated locally for feedback storage.
 - `.env` should stay local and should not be committed.
-
