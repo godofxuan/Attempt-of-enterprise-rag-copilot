@@ -1,0 +1,14 @@
+{
+  "name": "enterprise_rag_golden_set_v1",
+  "language": "zh-CN",
+  "dataset_type": "synthetic enterprise-style RAG golden set",
+  "doc_count": 15,
+  "question_count": 120,
+  "intended_use": "Evaluate enterprise knowledge-base RAG retrieval, ranking, answer groundedness, refusal, and prompt-injection robustness.",
+  "fields": {
+    "gold_sources": "List of source document, section, and evidence string. Prefer source+section+evidence over chunk_id so the set remains stable after changing chunk size.",
+    "must_include": "Answer should include these semantic points.",
+    "must_not_include": "Answer should not contain these unsupported or incorrect claims."
+  },
+  "warning": "This dataset is synthetic and does not contain real company confidential information."
+}

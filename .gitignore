@@ -24,6 +24,7 @@ data/parsed_docs/*
 # Generated evaluation outputs
 data/eval_retrieval_results.json
 data/eval_answer_results.json
+data/eval_outputs/
 
 # Logs and OS/editor files
 *.log
