@@ -1,0 +1,993 @@
+[
+  {
+    "id": "qa_001",
+    "question": "正式员工每年有多少天年假？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "正式员工通过试用期后每个自然年度享有 10 个工作日年假。",
+    "gold_sources": [
+      {
+        "source": "hr_leave_policy.md",
+        "section": "年假规则",
+        "evidence": "正式员工通过试用期后，每个自然年度享有 10 个工作日年假。"
+      }
+    ],
+    "must_include": [
+      "10个工作日",
+      "通过试用期"
+    ],
+    "must_not_include": [
+      "15天"
+    ],
+    "difficulty": "easy",
+    "tags": [
+      "hr",
+      "leave"
+    ]
+  },
+  {
+    "id": "qa_002",
+    "question": "试用期员工可以休年假吗？",
+    "type": "constraint",
+    "answerable": true,
+    "gold_answer": "试用期员工原则上不享受年假，但可按事假流程申请无薪假。",
+    "gold_sources": [
+      {
+        "source": "hr_leave_policy.md",
+        "section": "年假规则",
+        "evidence": "试用期员工原则上不享受年假，但可以按事假流程申请无薪假。"
+      }
+    ],
+    "must_include": [
+      "试用期",
+      "不享受年假",
+      "无薪假"
+    ],
+    "must_not_include": [
+      "可以正常休年假"
+    ],
+    "difficulty": "medium",
+    "tags": [
+      "negation",
+      "hr"
+    ]
+  },
+  {
+    "id": "qa_003",
+    "question": "年假最多能结转几天，什么时候前用完？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "当年未休年假最多可结转 5 个工作日，并须在次年 3 月 31 日前使用完毕。",
+    "gold_sources": [
+      {
+        "source": "hr_leave_policy.md",
+        "section": "年假结转",
+        "evidence": "当年未使用完的年假最多可结转 5 个工作日，并须在次年 3 月 31 日前使用完毕。"
+      }
+    ],
+    "must_include": [
+      "5个工作日",
+      "次年3月31日"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "deadline"
+    ]
+  },
+  {
+    "id": "qa_004",
+    "question": "连续病假超过2天需要提交什么？",
+    "type": "constraint",
+    "answerable": true,
+    "gold_answer": "连续病假超过 2 个工作日时，需要提交二级及以上医院或公司认可医疗机构的诊断证明。",
+    "gold_sources": [
+      {
+        "source": "hr_leave_policy.md",
+        "section": "病假规则",
+        "evidence": "连续病假超过 2 个工作日时，员工须提交二级及以上医院或公司认可医疗机构出具的诊断证明。"
+      }
+    ],
+    "must_include": [
+      "诊断证明",
+      "二级及以上医院"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "sick_leave"
+    ]
+  },
+  {
+    "id": "qa_005",
+    "question": "连续请假超过3个工作日的审批流程是什么？",
+    "type": "process",
+    "answerable": true,
+    "gold_answer": "员工先在 OA 提交申请，主管审批后还需流转至 HR 备案。",
+    "gold_sources": [
+      {
+        "source": "hr_leave_policy.md",
+        "section": "请假审批流程",
+        "evidence": "请假 3 个工作日以内由直属主管审批；超过 3 个工作日时，需主管审批后流转至 HR 备案。"
+      }
+    ],
+    "must_include": [
+      "OA",
+      "主管审批",
+      "HR备案"
+    ],
+    "must_not_include": [],
+    "difficulty": "medium",
+    "tags": [
+      "process"
+    ]
+  },
+  {
+    "id": "qa_006",
+    "question": "事假每年原则上最多多少天？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "每名员工每自然年度累计事假原则上不超过 10 个工作日。",
+    "gold_sources": [
+      {
+        "source": "hr_leave_policy.md",
+        "section": "事假规则",
+        "evidence": "每名员工每自然年度累计事假原则上不超过 10 个工作日。"
+      }
+    ],
+    "must_include": [
+      "10个工作日"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "hr"
+    ]
+  },
+  {
+    "id": "qa_007",
+    "question": "新员工入职前需要提交哪些材料？",
+    "type": "list",
+    "answerable": true,
+    "gold_answer": "需要提交身份证明、最高学历证明、银行卡信息、紧急联系人信息和个人证件照；特殊岗位还需健康证明。",
+    "gold_sources": [
+      {
+        "source": "hr_onboarding_probation.md",
+        "section": "入职材料",
+        "evidence": "新员工入职前须提交身份证明、最高学历证明、银行卡信息、紧急联系人信息和个人证件照。"
+      }
+    ],
+    "must_include": [
+      "身份证明",
+      "学历证明",
+      "银行卡",
+      "紧急联系人",
+      "证件照"
+    ],
+    "must_not_include": [
+      "护照必须"
+    ],
+    "difficulty": "medium",
+    "tags": [
+      "list",
+      "onboarding"
+    ]
+  },
+  {
+    "id": "qa_008",
+    "question": "入职材料不完整时需要多久补齐？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "HR 可先办理临时入职，但员工须在 5 个工作日内补齐材料。",
+    "gold_sources": [
+      {
+        "source": "hr_onboarding_probation.md",
+        "section": "入职材料",
+        "evidence": "材料不完整时，HR 可先办理临时入职，但员工须在 5 个工作日内补齐。"
+      }
+    ],
+    "must_include": [
+      "5个工作日"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "deadline"
+    ]
+  },
+  {
+    "id": "qa_009",
+    "question": "IT 通常什么时候完成企业邮箱和 VPN 初始权限开通？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "IT 通常在入职日 T+1 个工作日内完成企业邮箱、OA、IM 和 VPN 初始权限开通。",
+    "gold_sources": [
+      {
+        "source": "hr_onboarding_probation.md",
+        "section": "账号与设备开通",
+        "evidence": "IT 通常在 T+1 个工作日内完成企业邮箱、OA、IM 和 VPN 初始权限开通。"
+      }
+    ],
+    "must_include": [
+      "T+1",
+      "企业邮箱",
+      "VPN"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "it",
+      "onboarding"
+    ]
+  },
+  {
+    "id": "qa_010",
+    "question": "标准试用期多久，可以延长吗？",
+    "type": "constraint",
+    "answerable": true,
+    "gold_answer": "标准试用期为 3 个月；可延长一次，延长期最长不超过 1 个月。",
+    "gold_sources": [
+      {
+        "source": "hr_onboarding_probation.md",
+        "section": "试用期规则",
+        "evidence": "标准试用期为 3 个月。若员工试用期表现未达到岗位要求但仍具备培养可能，部门可申请延长试用期一次，延长期最长不超过 1 个月。"
+      }
+    ],
+    "must_include": [
+      "3个月",
+      "延长一次",
+      "最长不超过1个月"
+    ],
+    "must_not_include": [
+      "无限延长"
+    ],
+    "difficulty": "medium",
+    "tags": [
+      "probation"
+    ]
+  },
+  {
+    "id": "qa_011",
+    "question": "什么情况下可以申请提前转正？",
+    "type": "constraint",
+    "answerable": true,
+    "gold_answer": "员工连续两个月绩效评价为 A，且直属主管与部门负责人共同确认时，可以申请提前转正。",
+    "gold_sources": [
+      {
+        "source": "hr_onboarding_probation.md",
+        "section": "试用期规则",
+        "evidence": "若员工连续两个月绩效评价为 A，且直属主管与部门负责人共同确认，可申请提前转正。"
+      }
+    ],
+    "must_include": [
+      "连续两个月",
+      "A",
+      "主管",
+      "部门负责人"
+    ],
+    "must_not_include": [],
+    "difficulty": "medium",
+    "tags": [
+      "condition"
+    ]
+  },
+  {
+    "id": "qa_012",
+    "question": "转正申请应在什么时候发起？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "转正申请应在试用期结束前 10 个工作日发起。",
+    "gold_sources": [
+      {
+        "source": "hr_onboarding_probation.md",
+        "section": "转正流程",
+        "evidence": "转正申请应在试用期结束前 10 个工作日发起。"
+      }
+    ],
+    "must_include": [
+      "10个工作日"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "deadline"
+    ]
+  },
+  {
+    "id": "qa_013",
+    "question": "VPN 权限如何开通？",
+    "type": "process",
+    "answerable": true,
+    "gold_answer": "员工通过 IT 工单提交申请，说明访问系统、场景和期限；直属主管审批后，IT 在 1 个工作日内完成开通。",
+    "gold_sources": [
+      {
+        "source": "it_vpn_support.md",
+        "section": "VPN 开通条件",
+        "evidence": "员工须通过 IT 工单系统提交申请，说明访问系统、使用场景和预计使用期限。直属主管审批后，IT 在 1 个工作日内完成开通。"
+      }
+    ],
+    "must_include": [
+      "IT工单",
+      "主管审批",
+      "1个工作日"
+    ],
+    "must_not_include": [],
+    "difficulty": "medium",
+    "tags": [
+      "vpn",
+      "process"
+    ]
+  },
+  {
+    "id": "qa_014",
+    "question": "VPN 报错 691 一般表示什么？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "VPN 报错 691 通常表示用户名或密码错误，或账号因连续失败登录被临时锁定。",
+    "gold_sources": [
+      {
+        "source": "it_vpn_support.md",
+        "section": "VPN 错误 691 处理",
+        "evidence": "VPN 报错 691 通常表示用户名或密码错误，或账号因连续失败登录被临时锁定。"
+      }
+    ],
+    "must_include": [
+      "用户名或密码错误",
+      "账号锁定"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "vpn",
+      "error_code"
+    ]
+  },
+  {
+    "id": "qa_015",
+    "question": "VPN 报错 691 应该怎么处理？",
+    "type": "process",
+    "answerable": true,
+    "gold_answer": "先确认使用企业邮箱前缀作为用户名，再在账号中心重置密码，等待 15 分钟后重试；仍失败则提交 IT 工单并附截图。",
+    "gold_sources": [
+      {
+        "source": "it_vpn_support.md",
+        "section": "VPN 错误 691 处理",
+        "evidence": "处理步骤为：第一，确认使用企业邮箱前缀作为用户名；第二，在账号中心重置密码；第三，等待 15 分钟后重新尝试登录；第四，若仍失败，提交 IT 工单并附上报错截图。"
+      }
+    ],
+    "must_include": [
+      "邮箱前缀",
+      "重置密码",
+      "15分钟",
+      "IT工单",
+      "截图"
+    ],
+    "must_not_include": [
+      "联系财务"
+    ],
+    "difficulty": "medium",
+    "tags": [
+      "process",
+      "error_code"
+    ]
+  },
+  {
+    "id": "qa_016",
+    "question": "更换手机导致 MFA 不能用，可以让同事代办重置吗？",
+    "type": "constraint",
+    "answerable": true,
+    "gold_answer": "不可以。更换或丢失手机时，必须由员工本人提交 MFA 重置工单，IT 不接受他人代办。",
+    "gold_sources": [
+      {
+        "source": "it_vpn_support.md",
+        "section": "MFA 验证异常",
+        "evidence": "更换手机或丢失手机时，须由员工本人提交 MFA 重置工单，IT 不接受他人代办。"
+      }
+    ],
+    "must_include": [
+      "本人提交",
+      "不接受他人代办"
+    ],
+    "must_not_include": [
+      "可以同事代办"
+    ],
+    "difficulty": "medium",
+    "tags": [
+      "mfa",
+      "negation"
+    ]
+  },
+  {
+    "id": "qa_017",
+    "question": "远程访问客户数据系统是否只要有 VPN 就可以？",
+    "type": "constraint",
+    "answerable": true,
+    "gold_answer": "不是。涉及客户数据、财务数据或生产环境的系统，远程访问还需要额外的数据权限审批。",
+    "gold_sources": [
+      {
+        "source": "it_vpn_support.md",
+        "section": "远程接入限制",
+        "evidence": "涉及客户数据、财务数据或生产环境的系统，远程访问还需要额外的数据权限审批。"
+      }
+    ],
+    "must_include": [
+      "额外的数据权限审批"
+    ],
+    "must_not_include": [
+      "只要有VPN即可"
+    ],
+    "difficulty": "hard",
+    "tags": [
+      "security",
+      "permission"
+    ]
+  },
+  {
+    "id": "qa_018",
+    "question": "VPN 故障什么情况下会升级为 P1 事件？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "影响范围超过 20 人或持续超过 30 分钟时，应升级为 P1 事件。",
+    "gold_sources": [
+      {
+        "source": "it_vpn_support.md",
+        "section": "故障升级",
+        "evidence": "若影响范围超过 20 人或持续超过 30 分钟，IT 应升级为 P1 事件并通知信息安全负责人。"
+      }
+    ],
+    "must_include": [
+      "超过20人",
+      "超过30分钟",
+      "P1"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "incident"
+    ]
+  },
+  {
+    "id": "qa_019",
+    "question": "企业邮箱首次登录后必须做什么？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "员工首次登录后必须修改密码并绑定 MFA。",
+    "gold_sources": [
+      {
+        "source": "it_email_account.md",
+        "section": "邮箱初始开通",
+        "evidence": "员工首次登录后必须修改密码并绑定 MFA。"
+      }
+    ],
+    "must_include": [
+      "修改密码",
+      "绑定MFA"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "email",
+      "mfa"
+    ]
+  },
+  {
+    "id": "qa_020",
+    "question": "邮箱连续输错几次密码会被锁定多久？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "连续 5 次输入错误密码，账号会被锁定 15 分钟。",
+    "gold_sources": [
+      {
+        "source": "it_email_account.md",
+        "section": "登录失败处理",
+        "evidence": "若连续 5 次输入错误密码，账号会被锁定 15 分钟。"
+      }
+    ],
+    "must_include": [
+      "5次",
+      "15分钟"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "email"
+    ]
+  },
+  {
+    "id": "qa_021",
+    "question": "邮箱登录失败时应该怎么处理？",
+    "type": "process",
+    "answerable": true,
+    "gold_answer": "先确认使用完整邮箱地址登录；如账号被锁可等待或通过账号中心重置密码；账号中心无法访问时提交 IT 工单并说明错误提示。",
+    "gold_sources": [
+      {
+        "source": "it_email_account.md",
+        "section": "登录失败处理",
+        "evidence": "邮箱登录失败时，员工应先确认是否使用完整邮箱地址登录。若连续 5 次输入错误密码，账号会被锁定 15 分钟。员工可以通过账号中心自助重置密码；若账号中心无法访问，应提交 IT 工单并说明错误提示。"
+      }
+    ],
+    "must_include": [
+      "完整邮箱地址",
+      "账号中心",
+      "IT工单"
+    ],
+    "must_not_include": [],
+    "difficulty": "medium",
+    "tags": [
+      "process"
+    ]
+  },
+  {
+    "id": "qa_022",
+    "question": "普通员工邮箱容量是多少？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "普通员工邮箱容量为 20GB。",
+    "gold_sources": [
+      {
+        "source": "it_email_account.md",
+        "section": "邮箱容量",
+        "evidence": "普通员工邮箱容量为 20GB，部门共享邮箱容量为 50GB。"
+      }
+    ],
+    "must_include": [
+      "20GB"
+    ],
+    "must_not_include": [
+      "50GB"
+    ],
+    "difficulty": "easy",
+    "tags": [
+      "email"
+    ]
+  },
+  {
+    "id": "qa_023",
+    "question": "离职后个人邮箱什么时候停止登录？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "员工离职后，个人邮箱会在离职日 18:00 停止登录。",
+    "gold_sources": [
+      {
+        "source": "it_email_account.md",
+        "section": "离职与停用",
+        "evidence": "员工离职后，个人邮箱会在离职日 18:00 停止登录。"
+      }
+    ],
+    "must_include": [
+      "离职日18:00"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "offboarding"
+    ]
+  },
+  {
+    "id": "qa_024",
+    "question": "IT 会通过邮件索要员工密码吗？",
+    "type": "constraint",
+    "answerable": true,
+    "gold_answer": "不会。制度明确说明 IT 不会通过邮件索要员工密码。",
+    "gold_sources": [
+      {
+        "source": "it_email_account.md",
+        "section": "账号安全",
+        "evidence": "IT 不会通过邮件索要员工密码。"
+      }
+    ],
+    "must_include": [
+      "不会",
+      "不会通过邮件索要密码"
+    ],
+    "must_not_include": [
+      "会索要密码"
+    ],
+    "difficulty": "easy",
+    "tags": [
+      "security",
+      "negation"
+    ]
+  },
+  {
+    "id": "qa_025",
+    "question": "出差前需要在 OA 提交哪些信息？",
+    "type": "list",
+    "answerable": true,
+    "gold_answer": "需要说明目的地、时间、客户或项目名称和预算。",
+    "gold_sources": [
+      {
+        "source": "reimbursement_travel.md",
+        "section": "出差申请",
+        "evidence": "员工出差前须在 OA 系统提交出差申请，说明目的地、时间、客户或项目名称和预算。"
+      }
+    ],
+    "must_include": [
+      "目的地",
+      "时间",
+      "客户或项目名称",
+      "预算"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "travel",
+      "list"
+    ]
+  },
+  {
+    "id": "qa_026",
+    "question": "国内航班和高铁的交通标准是什么？",
+    "type": "comparison",
+    "answerable": true,
+    "gold_answer": "国内航班原则上选择经济舱，高铁或动车原则上选择二等座。",
+    "gold_sources": [
+      {
+        "source": "reimbursement_travel.md",
+        "section": "交通标准",
+        "evidence": "国内航班原则上选择经济舱，高铁或动车原则上选择二等座。"
+      }
+    ],
+    "must_include": [
+      "经济舱",
+      "二等座"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "travel",
+      "comparison"
+    ]
+  },
+  {
+    "id": "qa_027",
+    "question": "北京出差住宿每晚报销上限是多少？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "北京、上海、深圳、广州的住宿标准上限为每晚 600 元。",
+    "gold_sources": [
+      {
+        "source": "reimbursement_travel.md",
+        "section": "住宿标准",
+        "evidence": "北京、上海、深圳、广州的住宿标准上限为每晚 600 元；其他城市上限为每晚 450 元。"
+      }
+    ],
+    "must_include": [
+      "600元"
+    ],
+    "must_not_include": [
+      "450元"
+    ],
+    "difficulty": "easy",
+    "tags": [
+      "travel"
+    ]
+  },
+  {
+    "id": "qa_028",
+    "question": "其他城市出差住宿标准是多少？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "除北京、上海、深圳、广州外，其他城市住宿标准上限为每晚 450 元。",
+    "gold_sources": [
+      {
+        "source": "reimbursement_travel.md",
+        "section": "住宿标准",
+        "evidence": "北京、上海、深圳、广州的住宿标准上限为每晚 600 元；其他城市上限为每晚 450 元。"
+      }
+    ],
+    "must_include": [
+      "450元"
+    ],
+    "must_not_include": [
+      "600元"
+    ],
+    "difficulty": "easy",
+    "tags": [
+      "travel"
+    ]
+  },
+  {
+    "id": "qa_029",
+    "question": "差旅报销超过60天还能提交吗？",
+    "type": "constraint",
+    "answerable": true,
+    "gold_answer": "超过 60 个自然日提交原则上不予报销，除非经财务负责人书面批准。",
+    "gold_sources": [
+      {
+        "source": "reimbursement_travel.md",
+        "section": "发票与提交时限",
+        "evidence": "超过 60 个自然日提交的，原则上不予报销，除非经财务负责人书面批准。"
+      }
+    ],
+    "must_include": [
+      "原则上不予报销",
+      "财务负责人书面批准"
+    ],
+    "must_not_include": [
+      "一定可以报销"
+    ],
+    "difficulty": "medium",
+    "tags": [
+      "deadline",
+      "negation"
+    ]
+  },
+  {
+    "id": "qa_030",
+    "question": "哪些差旅费用不予报销？",
+    "type": "list",
+    "answerable": true,
+    "gold_answer": "个人娱乐、非工作餐饮、违章罚款、私人购物和未经批准的升舱费用不予报销。",
+    "gold_sources": [
+      {
+        "source": "reimbursement_travel.md",
+        "section": "不予报销项目",
+        "evidence": "个人娱乐、非工作餐饮、违章罚款、私人购物和未经批准的升舱费用不予报销。"
+      }
+    ],
+    "must_include": [
+      "个人娱乐",
+      "非工作餐饮",
+      "违章罚款",
+      "私人购物",
+      "未经批准的升舱"
+    ],
+    "must_not_include": [],
+    "difficulty": "medium",
+    "tags": [
+      "list"
+    ]
+  },
+  {
+    "id": "qa_031",
+    "question": "办公费用报销适用于哪些支出？",
+    "type": "list",
+    "answerable": true,
+    "gold_answer": "适用于办公用品、低值耗材、小额软件订阅和临时会议物料。",
+    "gold_sources": [
+      {
+        "source": "reimbursement_office_expense.md",
+        "section": "适用范围",
+        "evidence": "办公费用报销适用于办公用品、低值耗材、小额软件订阅和临时会议物料。"
+      }
+    ],
+    "must_include": [
+      "办公用品",
+      "低值耗材",
+      "小额软件订阅",
+      "临时会议物料"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "expense",
+      "list"
+    ]
+  },
+  {
+    "id": "qa_032",
+    "question": "单笔办公费用不超过500元由谁审批？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "单笔办公费用不超过 500 元时，可由直属主管审批后报销。",
+    "gold_sources": [
+      {
+        "source": "reimbursement_office_expense.md",
+        "section": "金额限制",
+        "evidence": "单笔办公费用不超过 500 元时，可由直属主管审批后报销。"
+      }
+    ],
+    "must_include": [
+      "直属主管",
+      "500元"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "expense"
+    ]
+  },
+  {
+    "id": "qa_033",
+    "question": "超过2000元的办公支出应该走什么流程？",
+    "type": "constraint",
+    "answerable": true,
+    "gold_answer": "超过 2000 元的办公支出原则上应转入采购申请流程。",
+    "gold_sources": [
+      {
+        "source": "reimbursement_office_expense.md",
+        "section": "金额限制",
+        "evidence": "超过 2000 元的办公支出原则上应转入采购申请流程。"
+      }
+    ],
+    "must_include": [
+      "采购申请流程",
+      "超过2000元"
+    ],
+    "must_not_include": [
+      "个人报销即可"
+    ],
+    "difficulty": "medium",
+    "tags": [
+      "procurement",
+      "threshold"
+    ]
+  },
+  {
+    "id": "qa_034",
+    "question": "电子发票可以上传截图吗？",
+    "type": "constraint",
+    "answerable": true,
+    "gold_answer": "不可以。电子发票须上传原始 PDF，不接受截图。",
+    "gold_sources": [
+      {
+        "source": "reimbursement_office_expense.md",
+        "section": "发票要求",
+        "evidence": "电子发票须上传原始 PDF，不接受截图。"
+      }
+    ],
+    "must_include": [
+      "原始PDF",
+      "不接受截图"
+    ],
+    "must_not_include": [
+      "可以截图"
+    ],
+    "difficulty": "easy",
+    "tags": [
+      "invoice",
+      "negation"
+    ]
+  },
+  {
+    "id": "qa_035",
+    "question": "办公费用应在多久内提交报销？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "办公费用应在费用发生后 15 个工作日内提交报销。",
+    "gold_sources": [
+      {
+        "source": "reimbursement_office_expense.md",
+        "section": "提交时限",
+        "evidence": "办公费用应在费用发生后 15 个工作日内提交报销。"
+      }
+    ],
+    "must_include": [
+      "15个工作日"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "deadline"
+    ]
+  },
+  {
+    "id": "qa_036",
+    "question": "个人会员服务可以作为办公费用报销吗？",
+    "type": "constraint",
+    "answerable": true,
+    "gold_answer": "不可以。个人会员服务属于不予报销项目。",
+    "gold_sources": [
+      {
+        "source": "reimbursement_office_expense.md",
+        "section": "不予报销项目",
+        "evidence": "未经审批的个人电子设备、家庭网络费用、个人会员服务、娱乐消费和与工作无关的物品不予报销。"
+      }
+    ],
+    "must_include": [
+      "不予报销",
+      "个人会员服务"
+    ],
+    "must_not_include": [
+      "可以报销"
+    ],
+    "difficulty": "easy",
+    "tags": [
+      "negation"
+    ]
+  },
+  {
+    "id": "qa_037",
+    "question": "标准商品无理由退款期限是多少？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "客户购买标准商品后，在商品未使用且包装完整的情况下，可在支付成功后 14 个自然日内申请无理由退款。",
+    "gold_sources": [
+      {
+        "source": "refund_policy.md",
+        "section": "退款适用范围",
+        "evidence": "客户购买标准商品后，如商品未使用且包装完整，可在支付成功后 14 个自然日内申请无理由退款。"
+      }
+    ],
+    "must_include": [
+      "14个自然日",
+      "未使用",
+      "包装完整"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "refund"
+    ]
+  },
+  {
+    "id": "qa_038",
+    "question": "定制商品支持无理由退款吗？",
+    "type": "constraint",
+    "answerable": true,
+    "gold_answer": "不支持。定制商品不支持无理由退款。",
+    "gold_sources": [
+      {
+        "source": "refund_policy.md",
+        "section": "不可退款情况",
+        "evidence": "定制商品、已拆封的软件授权、已激活的数字内容、超过有效期的服务包和已经明显使用影响二次销售的商品不支持无理由退款。"
+      }
+    ],
+    "must_include": [
+      "定制商品",
+      "不支持无理由退款"
+    ],
+    "must_not_include": [
+      "支持无理由退款"
+    ],
+    "difficulty": "easy",
+    "tags": [
+      "refund",
+      "negation"
+    ]
+  },
+  {
+    "id": "qa_039",
+    "question": "商品有质量问题，客户多久内可以申请质量问题退款？",
+    "type": "fact",
+    "answerable": true,
+    "gold_answer": "客户可在签收后 30 个自然日内提交质量问题退款申请。",
+    "gold_sources": [
+      {
+        "source": "refund_policy.md",
+        "section": "质量问题退款",
+        "evidence": "如商品存在质量问题，客户可在签收后 30 个自然日内提交质量问题退款申请，并提供照片、视频或检测说明。"
+      }
+    ],
+    "must_include": [
+      "30个自然日",
+      "质量问题"
+    ],
+    "must_not_include": [],
+    "difficulty": "easy",
+    "tags": [
+      "refund",
+      "quality"
+    ]
+  },
+  {
+    "id": "qa_040",
+    "question": "退款申请初审和财务退款分别需要多久？",
+    "type": "process",
+    "answerable": true,
+    "gold_answer": "客服在 2 个工作日内完成初审；仓库确认收货后，财务在 5 个工作日内发起退款。",
+    "gold_sources": [
+      {
+        "source": "refund_policy.md",
+        "section": "退款流程",
+        "evidence": "客户在订单中心提交退款申请，客服在 2 个工作日内完成初审。"
+      },
+      {
+        "source": "refund_policy.md",
+        "section": "退款流程",
+        "evidence": "仓库确认收货后，财务在 5 个工作日内发起退款。"
+      }
+    ],
+    "must_include": [
+      "2个工作日",
+      "5个工作日"
+    ],
+    "must_not_include": [],
+    "difficulty": "medium",
+    "tags": [
+      "process",
+      "multi_evidence"
+    ]
+  }
+]

@@ -10,3 +10,4 @@ faiss-cpu
 rank-bm25
 numpy
 jieba
+pytest

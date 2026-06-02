@@ -28,6 +28,12 @@ def _ollama_api_base_url(llm_base_url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
+def _post_ollama(url: str, payload: dict, timeout: int) -> requests.Response:
+    session = requests.Session()
+    session.trust_env = False
+    return session.post(url, json=payload, timeout=timeout)
+
+
 def _embed_text(model: str, text: str) -> list[float]:
     settings = get_settings()
     url = f"{_ollama_api_base_url(settings.llm_base_url)}/api/embed"
@@ -35,9 +41,9 @@ def _embed_text(model: str, text: str) -> list[float]:
 
     for attempt in range(1, max_attempts + 1):
         try:
-            response = requests.post(
+            response = _post_ollama(
                 url,
-                json={"model": model, "input": text},
+                {"model": model, "input": text},
                 timeout=120,
             )
             response.raise_for_status()
