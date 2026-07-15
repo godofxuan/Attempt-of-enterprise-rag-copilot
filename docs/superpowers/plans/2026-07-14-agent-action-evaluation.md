@@ -32,7 +32,7 @@
 - Consumes: current route names from `app.agent.schemas.RouteName`.
 - Produces: two lists of rows with `id: str`, `question: str`, `expected_route: str`, `expected_plan: list[str]`, and `tags: list[str]`.
 
-- [ ] **Step 1: Write the failing dataset contract test**
+- [x] **Step 1: Write the failing dataset contract test**
 
 Create `tests/test_agent_action_dataset.py` with tests that load both files and assert required keys, unique IDs/questions, disjoint splits, exactly 20 rows per split, exactly four cases per route, and the correct plan contract:
 
@@ -86,7 +86,7 @@ def test_agent_action_splits_are_disjoint():
     )
 ```
 
-- [ ] **Step 2: Run the test and verify the red state**
+- [x] **Step 2: Run the test and verify the red state**
 
 Run:
 
@@ -96,7 +96,7 @@ Run:
 
 Expected: FAIL with `FileNotFoundError` for `agent_action_dev.json`.
 
-- [ ] **Step 3: Add the development and held-out datasets**
+- [x] **Step 3: Add the development and held-out datasets**
 
 Create 20 rows per split. Every non-unsafe row uses `SAFE_PLAN`; every unsafe row uses `UNSAFE_PLAN`. Use these exact IDs, route labels, and questions:
 
@@ -147,7 +147,7 @@ Each row's `tags` must contain its expected route and `zh-CN`.
 
 Update `data/eval/metadata.json` so `intended_use` includes Agent routing/planning/tool/trace behavior and add an `agent_action_fields` object explaining `expected_route` and `expected_plan`.
 
-- [ ] **Step 4: Run the dataset test and verify green**
+- [x] **Step 4: Run the dataset test and verify green**
 
 Run:
 
@@ -169,7 +169,7 @@ Expected: `2 passed`.
 - Consumes: `AgentRunner`, `ToolRegistry`, `ToolExecutionResult`, and one dataset row.
 - Produces: `build_eval_registry() -> ToolRegistry`, `evaluate_one(item: dict) -> dict`, and `trace_is_complete(response) -> bool`.
 
-- [ ] **Step 1: Write failing tests for the real runner with deterministic tools**
+- [x] **Step 1: Write failing tests for the real runner with deterministic tools**
 
 Create `tests/test_agent_action_eval.py` with these first behaviors:
 
@@ -218,7 +218,7 @@ def test_evaluate_one_verifies_unsafe_short_circuit():
     assert row["case_pass"] == 1
 ```
 
-- [ ] **Step 2: Run the tests and verify the red state**
+- [x] **Step 2: Run the tests and verify the red state**
 
 Run:
 
@@ -228,7 +228,7 @@ Run:
 
 Expected: collection ERROR with `ModuleNotFoundError: No module named 'scripts.eval_agent_actions'`.
 
-- [ ] **Step 3: Implement the deterministic registry and per-case evaluator**
+- [x] **Step 3: Implement the deterministic registry and per-case evaluator**
 
 Create `scripts/eval_agent_actions.py` using the same `_bootstrap` import fallback as other evaluation scripts. Define:
 
@@ -285,7 +285,7 @@ Define `trace_is_complete(response)` to require equal plan/step lengths and, for
 
 Define `evaluate_one(item, runner=None)` to run `runner or AgentRunner(registry=build_eval_registry())`, compare expected and actual routes/plans/tools, calculate the six row-level checks, record elapsed milliseconds, and capture exceptions in `execution_error` rather than aborting the run.
 
-- [ ] **Step 4: Run focused tests and verify green**
+- [x] **Step 4: Run focused tests and verify green**
 
 Run:
 
@@ -307,7 +307,7 @@ Expected: `3 passed`.
 - Consumes: evaluated rows from `evaluate_one()` and validated split rows.
 - Produces: `validate_cases()`, `summarize_rows()`, `write_outputs()`, `load_cases()`, and the `python -m scripts.eval_agent_actions` CLI.
 
-- [ ] **Step 1: Add failing summary, failure-output, and validation tests**
+- [x] **Step 1: Add failing summary, failure-output, and validation tests**
 
 Append tests that assert:
 
@@ -359,7 +359,7 @@ def test_validate_cases_rejects_duplicate_ids():
 
 The helper rows in the test must include every field written by the evaluator; define them explicitly in the test file rather than relying on generated output.
 
-- [ ] **Step 2: Run the new tests and verify the red state**
+- [x] **Step 2: Run the new tests and verify the red state**
 
 Run:
 
@@ -369,7 +369,7 @@ Run:
 
 Expected: FAIL because `summarize_rows`, `write_outputs`, and `validate_cases` are missing.
 
-- [ ] **Step 3: Implement validation, aggregation, serialization, and CLI**
+- [x] **Step 3: Implement validation, aggregation, serialization, and CLI**
 
 Implement exact aggregate fields:
 
@@ -399,7 +399,7 @@ Use UTF-8 for JSON/JSONL and `utf-8-sig` for the CSV so it opens correctly in Wi
 
 The CLI accepts `--split dev|test|all`, validates each physical split with four cases per route, combines them only after validation for `all`, prints `[i/total] evaluating <id>` progress to stderr, writes outputs, and prints the summary and saved paths to stdout.
 
-- [ ] **Step 4: Run focused tests and verify green**
+- [x] **Step 4: Run focused tests and verify green**
 
 Run:
 
@@ -425,7 +425,7 @@ Expected: all focused tests pass.
 - Consumes: the completed CLI and held-out test split.
 - Produces: reproducible local evidence and user-facing documentation of capabilities and limitations.
 
-- [ ] **Step 1: Run the held-out Agent action evaluation**
+- [x] **Step 1: Run the held-out Agent action evaluation**
 
 Run:
 
@@ -435,7 +435,7 @@ Run:
 
 Expected: exit code 0, 20 progress records, printed summary, and three output files. Record the actual values exactly; do not require or manufacture 1.0 scores.
 
-- [ ] **Step 2: Inspect failure details before documenting results**
+- [x] **Step 2: Inspect failure details before documenting results**
 
 Run:
 
@@ -446,7 +446,7 @@ Get-Content data\eval_outputs\agent_action_test_failures.csv -Raw -Encoding UTF8
 
 Expected: summary counts agree with the dataset and every failed case explains expected/actual route, plan, tools, and execution error.
 
-- [ ] **Step 3: Run focused and full regression tests**
+- [x] **Step 3: Run focused and full regression tests**
 
 Run:
 
@@ -457,7 +457,7 @@ Run:
 
 Expected: both commands exit 0. Existing FastAPI/FAISS and `.pytest_cache` warnings may remain, but no test failures are accepted.
 
-- [ ] **Step 4: Update documentation with only verified facts**
+- [x] **Step 4: Update documentation with only verified facts**
 
 Add to `docs/RAG_EVAL_USAGE.md`:
 
@@ -474,7 +474,7 @@ Update `PROJECT_STATUS.md` and `README.md` with:
 - The honest boundary: this is a measured minimal Agentic RAG loop, not yet an adaptive autonomous Agent.
 - The next stage: evidence sufficiency assessment plus one bounded rewrite/retry.
 
-- [ ] **Step 5: Verify documentation claims against artifacts and review the diff**
+- [x] **Step 5: Verify documentation claims against artifacts and review the diff**
 
 Run:
 

@@ -8,6 +8,8 @@
 
 **Tech Stack:** Python 3.11.9, Pydantic 2.13.2, FastAPI, requests, pytest, local Ollama with `qwen2.5:3b`.
 
+> Post-implementation note (2026-07-15): this file preserves the original execution plan. Live debugging selected an independent `qwen3:8b` evidence model, added a bounded cross-retry evidence workspace, and disabled Ollama thinking only for structured evidence assessment. Current behavior and results are recorded in `docs/AGENTIC_RAG_EVOLUTION_LOG.md`.
+
 ## Global Constraints
 
 - Preserve `/chat` as the baseline RAG path; only `/agent/chat` adopts the adaptive controller.

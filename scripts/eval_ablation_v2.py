@@ -13,6 +13,7 @@ from typing import Any
 import numpy as np
 
 from app.config import get_settings
+from app.eval_metrics import mean_metric, retrieval_metrics
 from app.retriever import _embed_text, _l2_normalize, load_indexes
 from app.utils import tokenize_for_bm25
 
@@ -25,23 +26,18 @@ SPLIT_TO_FILE = {
     "all": "rag_eval_questions.json",
 }
 
-
-def source_key(item: dict[str, Any]) -> tuple[str, str]:
-    return item.get("source", ""), item.get("section", "")
-
-
-def compute_metrics(gold_sources: list[dict[str, Any]], retrieved: list[dict[str, Any]], top_k: int) -> dict[str, float]:
-    gold_keys = {source_key(s) for s in gold_sources}
-    retrieved_keys = [source_key(r) for r in retrieved]
-    out: dict[str, float] = {}
-    for k in (1, 3, top_k):
-        top = retrieved_keys[:k]
-        out[f"hit@{k}"] = float(any(x in gold_keys for x in top)) if gold_keys else 0.0
-        out[f"recall@{k}"] = float(len(set(top) & gold_keys) / len(gold_keys)) if gold_keys else 0.0
-        out[f"coverage@{k}"] = float(gold_keys.issubset(set(top))) if gold_keys else 0.0
-    rank = next((i for i, x in enumerate(retrieved_keys, start=1) if x in gold_keys), None)
-    out["mrr"] = 1.0 / rank if rank else 0.0
-    return out
+METRIC_NAMES = [
+    "hit@1",
+    "hit@3",
+    "hit@5",
+    "recall@5",
+    "coverage@5",
+    "precision@3",
+    "precision@5",
+    "mrr",
+    "ndcg@3",
+    "ndcg@5",
+]
 
 
 def dense_search(question: str, top_k: int, candidate_k: int, faiss_index, chunks) -> list[dict[str, Any]]:
@@ -99,6 +95,20 @@ def mean(xs: list[float]) -> float:
     return sum(xs) / len(xs) if xs else 0.0
 
 
+def retrieved_source_view(retrieved: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "rank": rank,
+            "source": item.get("source"),
+            "section": item.get("section"),
+            "chunk_id": item.get("chunk_id"),
+            "score": item.get("score"),
+            "preview": item.get("text", "")[:160],
+        }
+        for rank, item in enumerate(retrieved, start=1)
+    ]
+
+
 def run_method(name: str, questions: list[dict[str, Any]], top_k: int, candidate_k: int, faiss_index, bm25, chunks) -> dict[str, Any]:
     rows = []
     for q in questions:
@@ -112,24 +122,32 @@ def run_method(name: str, questions: list[dict[str, Any]], top_k: int, candidate
         else:
             raise ValueError(name)
         latency_ms = (time.perf_counter() - start) * 1000
+        retrieved_sources = retrieved_source_view(retrieved)
         rows.append({
+            "method": name,
             "id": q["id"],
+            "question": q["question"],
             "type": q.get("type"),
+            "difficulty": q.get("difficulty"),
+            "answerable": q.get("answerable", True),
+            "gold_sources": q.get("gold_sources", []),
             "latency_ms": latency_ms,
-            "retrieved_sources": [
-                {"rank": i, "source": r.get("source"), "section": r.get("section"), "score": r.get("score")}
-                for i, r in enumerate(retrieved, start=1)
-            ],
-            **compute_metrics(q.get("gold_sources", []), retrieved, top_k),
+            "retrieved_sources": retrieved_sources,
+            **retrieval_metrics(retrieved_sources, q.get("gold_sources", [])),
         })
-    metrics = ["hit@1", "hit@3", f"hit@{top_k}", f"recall@{top_k}", f"coverage@{top_k}", "mrr"]
     latencies = [r["latency_ms"] for r in rows]
     summary = {"method": name, "count": len(rows)}
-    for m in metrics:
-        summary[m] = mean([float(r[m]) for r in rows])
+    for metric_name in METRIC_NAMES:
+        summary[metric_name] = mean_metric(rows, metric_name)
     summary["latency_ms_avg"] = mean(latencies)
     summary["latency_ms_p50"] = statistics.median(latencies) if latencies else 0.0
     return {"summary": summary, "results": rows}
+
+
+def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    with path.open("w", encoding="utf-8") as f:
+        for row in rows:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
 def main() -> None:
@@ -147,14 +165,38 @@ def main() -> None:
     methods = ["bm25_only", "dense_only", "hybrid_rrf"]
     report = {name: run_method(name, questions, args.top_k, candidate_k, faiss_index, bm25, chunks) for name in methods}
     table = [report[name]["summary"] for name in methods]
+    detail_rows = [
+        row
+        for name in methods
+        for row in report[name]["results"]
+    ]
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = OUT_DIR / f"ablation_{args.split}_results.json"
+    details_path = OUT_DIR / f"ablation_{args.split}_details.jsonl"
     with out_path.open("w", encoding="utf-8") as f:
-        json.dump({"summary_table": table, "methods": report}, f, ensure_ascii=False, indent=2)
+        json.dump(
+            {
+                "summary_table": table,
+                "methods": {name: report[name]["summary"] for name in methods},
+                "config": {
+                    "split": args.split,
+                    "top_k": args.top_k,
+                    "candidate_k": candidate_k,
+                },
+                "output_files": {
+                    "details": str(details_path),
+                },
+            },
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
+    write_jsonl(details_path, detail_rows)
 
     print(json.dumps(table, ensure_ascii=False, indent=2))
     print(f"Saved: {out_path}")
+    print(f"Saved: {details_path}")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 
+from app.agent.runner import run_agent_chat
+from app.agent.schemas import AgentChatResponse
 from app.config import get_settings
 from app.db import init_db, save_feedback
 from app.retriever import build_indexes
@@ -52,6 +54,14 @@ def chat(payload: ChatRequest) -> ChatResponse:
             answer=result["answer"],
             sources=[SourceItem(**item) for item in result["sources"]],
         )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/agent/chat", response_model=AgentChatResponse)
+def agent_chat(payload: ChatRequest) -> AgentChatResponse:
+    try:
+        return run_agent_chat(payload.question, payload.top_k)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 

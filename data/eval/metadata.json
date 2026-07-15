@@ -4,11 +4,20 @@
   "dataset_type": "synthetic enterprise-style RAG golden set",
   "doc_count": 15,
   "question_count": 120,
-  "intended_use": "Evaluate enterprise knowledge-base RAG retrieval, ranking, answer groundedness, refusal, and prompt-injection robustness.",
+  "intended_use": "Evaluate enterprise knowledge-base RAG retrieval, ranking, answer groundedness, refusal, prompt-injection robustness, Agent routing/planning/tool/trace behavior, and bounded adaptive evidence-loop trajectories.",
   "fields": {
     "gold_sources": "List of source document, section, and evidence string. Prefer source+section+evidence over chunk_id so the set remains stable after changing chunk size.",
     "must_include": "Answer should include these semantic points.",
     "must_not_include": "Answer should not contain these unsupported or incorrect claims."
+  },
+  "agent_action_fields": {
+    "expected_route": "Expected deterministic route selected before planning.",
+    "expected_plan": "Expected ordered production tool names for planning and execution-trace comparison."
+  },
+  "agent_loop_fields": {
+    "scenario": "Expected adaptive trajectory: first-pass answer, rewrite-then-answer, rewrite-then-no-answer, or unsafe refusal.",
+    "expected_tools": "Expected ordered tools selected and executed by the bounded adaptive controller.",
+    "expected_outcome": "Expected final outcome after evidence assessment and bounded retry control."
   },
   "warning": "This dataset is synthetic and does not contain real company confidential information."
 }

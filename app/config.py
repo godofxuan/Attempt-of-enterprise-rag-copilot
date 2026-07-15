@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = "ollama"
     chat_model: str = "qwen2.5:3b"
+    evidence_model: str = "qwen3:8b"
     embedding_model: str = "bge-m3"
 
     chunk_size: int = 500

@@ -7,7 +7,7 @@ Upgrade the current fixed `/agent/chat` workflow into a bounded adaptive Agentic
 The selected design is hybrid:
 
 - Deterministic Python control owns safety boundaries, retry limits, state transitions, validation, and failure behavior.
-- The local `qwen2.5:3b` model performs the semantic task of deciding whether the supplied chunks directly support the question and proposes a rewritten search query when they do not.
+- The independently configured local evidence model performs the semantic task of deciding whether the supplied chunks directly support the question and proposes a rewritten search query when they do not. The verified local configuration uses `qwen3:8b` for this role and keeps `qwen2.5:3b` for final answer generation.
 - The model does not decide how many times to retry, bypass safety checks, or grade its own final answer.
 
 ## Current Baseline
@@ -65,9 +65,11 @@ question                 original user question; never overwritten
 search_query             query used by the next retrieval attempt
 retrieval_attempts       completed retrieval count
 max_retrieval_attempts   fixed default of 2
-retrieved_chunks         chunks from the latest retrieval only
-retrieved_sources        source views from the latest retrieval only
-evidence_assessment      validated decision for the latest retrieval
+latest_retrieved_chunks  chunks from the latest retrieval only
+latest_retrieved_sources source views from the latest retrieval only
+retrieved_chunks         bounded cross-attempt evidence, deduplicated by chunk_id
+retrieved_sources        source views for accumulated unique evidence
+evidence_assessment      validated decision over the current evidence workspace
 evidence_history         decisions from all completed assessments
 answer                   final answer or controlled no-answer
 sources                  final cited sources; empty for refusal/no-answer
@@ -119,9 +121,9 @@ The state transitions are:
 | Safe route, no retrieval yet | `retrieval.search` | Retrieve with `search_query = question` |
 | Retrieval returns no chunks | `rag.no_answer` | Stop without asking the model to invent evidence or a rewrite |
 | Retrieval completed | `evidence.assess` | Store one structured decision |
-| Evidence is sufficient | `rag.answer` | Answer the original question from latest chunks |
+| Evidence is sufficient | `rag.answer` | Answer the original question from accumulated unique chunks |
 | Evidence is insufficient, rewrite is usable, attempts remain | `query.rewrite` | Update `search_query` |
-| Rewrite applied | `retrieval.search` | Replace prior chunks with second retrieval results |
+| Rewrite applied | `retrieval.search` | Retrieve once more and merge unique chunks into the bounded evidence workspace |
 | Evidence remains insufficient after second retrieval | `rag.no_answer` | Return deterministic grounded no-answer |
 | Evidence assessment errors | `rag.no_answer` | Return controlled assessment-unavailable answer |
 | Answer or no-answer produced | `guardrail.check` | Apply the existing output safety check and stop |
@@ -132,7 +134,7 @@ The state transitions are:
 
 Extend `app/agent/tools.py` with these contracts:
 
-- `retrieval.search` reads `search_query` and increments `retrieval_attempts`. It replaces, rather than appends to, the current chunks and source views.
+- `retrieval.search` reads `search_query` and increments `retrieval_attempts`. It stores the current result separately as `latest_retrieved_chunks` and merges it into `retrieved_chunks` using stable `chunk_id` deduplication. The controller uses latest results for empty-retrieval decisions; assessment and generation use accumulated evidence.
 - `evidence.assess` calls the injected evidence assessor and appends the validated decision to `evidence_history`.
 - `query.rewrite` applies the already validated rewrite proposal to `search_query`. It makes the control transition visible in the trace; it does not make a second LLM call.
 - `rag.answer` continues to call `answer_from_retrieved(question, retrieved_chunks)`, preserving the original user intent.
@@ -164,7 +166,9 @@ The planner remains useful for the Stage 7 fixed-workflow baseline. The runtime 
 
 Extract the existing local Ollama chat transport from `app/rag_service.py` into a small shared module instead of duplicating HTTP, timeout, retry, and error-reporting code in the evidence assessor. The answer-generation path must retain its current behavior after extraction.
 
-The evidence assessor uses the configured local `chat_model` and temperature zero. No paid or external judge is introduced. The transport response is still treated as untrusted input and must pass JSON and schema validation.
+The evidence assessor uses the configured local `evidence_model` and temperature zero. No paid or external judge is introduced. The transport response is still treated as untrusted input and must pass JSON and schema validation.
+
+The implemented configuration separates `evidence_model` from `chat_model`. Because the verified evidence model `qwen3:8b` is a thinking-capable Ollama model, the narrow structured assessment request sends top-level `think: false`; regular answer generation keeps its existing behavior. Evidence prompt input is capped at eight chunks and each chunk is character-bounded.
 
 ## Trace and API Compatibility
 

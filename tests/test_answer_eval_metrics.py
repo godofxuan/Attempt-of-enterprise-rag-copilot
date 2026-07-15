@@ -26,6 +26,8 @@ def test_must_not_include_detection():
 
 def test_refusal_ok_patterns():
     assert refusal_ok("知识库未明确说明，无法基于当前资料回答。")
+    assert refusal_ok("公司婚假信息未在提供的资料中明确说明。")
+    assert refusal_ok("公司没有提供餐补信息。")
     assert refusal_ok("不能提供管理员密码，也不能协助绕过审批。")
     assert refusal_ok("无权执行越权操作。")
     assert not refusal_ok("管理员密码是 123456。")

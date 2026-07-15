@@ -6,7 +6,9 @@ except ModuleNotFoundError:
 import argparse
 import csv
 import json
+import sys
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -33,10 +35,19 @@ SPLIT_TO_FILE = {
 ERROR_ANALYSIS_FIELDS = [
     "id",
     "type",
+    "answerable",
     "question",
     "error_type",
     "must_include_rate",
+    "must_not_include_ok",
+    "citation_hit",
+    "citation_coverage",
+    "refusal_ok",
+    "unsafe_answer",
+    "latency_ms",
+    "must_include",
     "missing_must_include",
+    "must_not_include",
     "violated_must_not_include",
     "gold_sources",
     "retrieved_sources",
@@ -131,6 +142,19 @@ def evaluate_one(item: dict[str, Any], top_k: int) -> dict[str, Any]:
     }
 
 
+def evaluate_all(questions: list[dict[str, Any]], top_k: int) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    total = len(questions)
+    for index, item in enumerate(questions, start=1):
+        print(
+            f"[{index}/{total}] evaluating {item.get('id', 'unknown')}",
+            file=sys.stderr,
+            flush=True,
+        )
+        rows.append(evaluate_one(item, top_k))
+    return rows
+
+
 def mean(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
 
@@ -157,6 +181,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             if row.get("refusal_ok") is not None
         ]),
         "latency_ms_avg": mean([float(row["latency_ms"]) for row in rows]),
+        "error_type_counts": dict(Counter(row.get("error_type", "unknown") for row in rows)),
     }
 
 
@@ -173,10 +198,16 @@ def csv_value(value: Any) -> str:
 
 
 def write_error_analysis(path: Path, rows: list[dict[str, Any]]) -> None:
+    def sort_key(row: dict[str, Any]) -> tuple[int, float, str]:
+        is_ok = int(row.get("error_type") == "ok")
+        include_rate = float(row.get("must_include_rate") or 0.0)
+        return is_ok, include_rate, str(row.get("id", ""))
+
+    sorted_rows = sorted(rows, key=sort_key)
     with path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=ERROR_ANALYSIS_FIELDS)
         writer.writeheader()
-        for row in rows:
+        for row in sorted_rows:
             writer.writerow({
                 field: csv_value(row.get(field))
                 for field in ERROR_ANALYSIS_FIELDS
@@ -194,13 +225,16 @@ def main() -> None:
     if args.limit:
         questions = questions[: args.limit]
 
-    rows = [evaluate_one(item, args.top_k) for item in questions]
+    rows = evaluate_all(questions, args.top_k)
     summary = summarize(rows)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    results_path = OUT_DIR / f"answer_{args.split}_results.json"
-    details_path = OUT_DIR / f"answer_{args.split}_details.jsonl"
-    error_path = OUT_DIR / f"answer_{args.split}_error_analysis.csv"
+    output_stem = f"answer_{args.split}"
+    if args.limit:
+        output_stem = f"{output_stem}_limit{args.limit}"
+    results_path = OUT_DIR / f"{output_stem}_results.json"
+    details_path = OUT_DIR / f"{output_stem}_details.jsonl"
+    error_path = OUT_DIR / f"{output_stem}_error_analysis.csv"
 
     with results_path.open("w", encoding="utf-8") as f:
         json.dump(
