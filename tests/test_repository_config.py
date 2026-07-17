@@ -66,7 +66,9 @@ def test_ci_is_read_only_deterministic_and_does_not_call_live_services() -> None
         "python -m pip check",
         "python -m compileall -q app scripts streamlit_app tests",
         "verify_frozen_test_hash",
-        "python -m pytest -q",
+        'PYTHONFAULTHANDLER: "1"',
+        "python -u -X faulthandler -m pytest -vv",
+        "Publish deterministic test failure context",
         "python -m scripts.audit_public_repo",
     ]:
         assert required in workflow

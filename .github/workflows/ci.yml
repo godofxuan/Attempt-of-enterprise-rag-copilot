@@ -35,7 +35,24 @@ jobs:
         run: python -c "from pathlib import Path; from scripts.eval_enterprise_v2 import verify_frozen_test_hash; expected, actual = verify_frozen_test_hash(Path('data/v2/eval')); assert expected == actual; print(actual)"
 
       - name: Run deterministic tests
-        run: python -m pytest -q
+        env:
+          PYTHONFAULTHANDLER: "1"
+        shell: bash
+        run: |
+          set -o pipefail
+          python -u -X faulthandler -m pytest -vv 2>&1 | tee pytest.log
+
+      - name: Publish deterministic test failure context
+        if: failure()
+        shell: bash
+        run: |
+          if [[ -f pytest.log ]]; then
+            echo "::group::Last pytest output"
+            tail -n 80 pytest.log
+            echo "::endgroup::"
+            message="$(tail -n 40 pytest.log | tr '\n' ' ' | cut -c1-4000)"
+            echo "::error title=pytest crash context::$message"
+          fi
 
       - name: Audit public repository candidates
         run: python -m scripts.audit_public_repo
