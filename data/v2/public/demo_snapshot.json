@@ -1,0 +1,378 @@
+{
+  "schema_version": "public_demo_snapshot_v1",
+  "producer": "enterprise_agentic_rag_v2",
+  "snapshot_id": "public-demo-45426ec720cc",
+  "evidence_cutoff_utc": "2026-07-16T17:48:26.542435Z",
+  "quality": {
+    "deterministic": {
+      "mode": "deterministic",
+      "split": "test",
+      "cases": 28,
+      "passed": 28,
+      "failed": 0,
+      "rate": 1.0
+    },
+    "live": {
+      "mode": "live",
+      "split": "dev",
+      "cases": 24,
+      "passed": 23,
+      "failed": 1,
+      "rate": 0.9583333333333334
+    },
+    "layers": [
+      {
+        "layer": "retrieval",
+        "deterministic_rate": 1.0,
+        "live_rate": 1.0
+      },
+      {
+        "layer": "response",
+        "deterministic_rate": 1.0,
+        "live_rate": 0.9583333333333334
+      },
+      {
+        "layer": "agent",
+        "deterministic_rate": 1.0,
+        "live_rate": 0.9583333333333334
+      },
+      {
+        "layer": "security",
+        "deterministic_rate": 1.0,
+        "live_rate": 1.0
+      }
+    ],
+    "metrics": [
+      {
+        "key": "document_recall_at_5",
+        "label": "Document recall@5",
+        "layer": "retrieval",
+        "deterministic": 1.0,
+        "live": 1.0
+      },
+      {
+        "key": "ndcg_at_5",
+        "label": "NDCG@5",
+        "layer": "retrieval",
+        "deterministic": 1.0,
+        "live": 1.0
+      },
+      {
+        "key": "precision_at_5",
+        "label": "Precision@5",
+        "layer": "retrieval",
+        "deterministic": 0.2380952380952382,
+        "live": 0.24444444444444452
+      },
+      {
+        "key": "mrr",
+        "label": "MRR",
+        "layer": "retrieval",
+        "deterministic": 1.0,
+        "live": 1.0
+      },
+      {
+        "key": "authority_accuracy",
+        "label": "Authority accuracy",
+        "layer": "retrieval",
+        "deterministic": 1.0,
+        "live": 1.0
+      },
+      {
+        "key": "atomic_fact_completeness",
+        "label": "Atomic fact completeness",
+        "layer": "response",
+        "deterministic": 1.0,
+        "live": 0.9444444444444444
+      },
+      {
+        "key": "citation_correctness",
+        "label": "Citation correctness",
+        "layer": "response",
+        "deterministic": 1.0,
+        "live": 1.0
+      },
+      {
+        "key": "unsupported_claim_rate",
+        "label": "Unsupported claim rate",
+        "layer": "response",
+        "deterministic": 0.0,
+        "live": 0.0
+      },
+      {
+        "key": "final_outcome_correct",
+        "label": "Final outcome accuracy",
+        "layer": "agent",
+        "deterministic": 1.0,
+        "live": 0.9583333333333334
+      },
+      {
+        "key": "tool_choice_correct",
+        "label": "Tool choice accuracy",
+        "layer": "agent",
+        "deterministic": 1.0,
+        "live": 1.0
+      },
+      {
+        "key": "trace_complete",
+        "label": "Trace completeness",
+        "layer": "agent",
+        "deterministic": 1.0,
+        "live": 1.0
+      },
+      {
+        "key": "exact_trajectory_contract",
+        "label": "Exact trajectory contract",
+        "layer": "agent",
+        "deterministic": 0.8571428571428571,
+        "live": 0.8333333333333334
+      }
+    ]
+  },
+  "security": {
+    "direct_prompt_injection": {
+      "status": "passed",
+      "checks": 4,
+      "failures": 0,
+      "success_rate": 1.0,
+      "note": "Direct override probes were evaluated before retrieval."
+    },
+    "acl_isolation": {
+      "status": "passed",
+      "checks": 28,
+      "failures": 0,
+      "success_rate": 1.0,
+      "note": "Visible retrieval results were checked for unauthorized exposure."
+    },
+    "trace_redaction": {
+      "status": "passed",
+      "checks": 28,
+      "failures": 0,
+      "success_rate": 1.0,
+      "note": "Agent traces were checked for sensitive field disclosure."
+    },
+    "indirect_document_injection": {
+      "status": "not_run",
+      "checks": 0,
+      "failures": 0,
+      "success_rate": null,
+      "note": "No retrieved-content injection fixture exists in this corpus version."
+    }
+  },
+  "ablation": [
+    {
+      "variant": "bm25",
+      "family": "retrieval",
+      "status": "completed",
+      "reason": null,
+      "cases": 28,
+      "case_pass_rate": 0.8214285714285714,
+      "document_recall_at_5": 0.8095238095238095,
+      "ndcg_at_5": 0.4292024584514698,
+      "precision_at_5": 0.17142857142857149,
+      "acl_leakage_count": 0.0,
+      "outcome_accuracy": null,
+      "latency_ms_avg": 1.0199750000278331,
+      "model_calls": 0,
+      "tool_calls": 28,
+      "context_chars": 16304
+    },
+    {
+      "variant": "dense",
+      "family": "retrieval",
+      "status": "completed",
+      "reason": null,
+      "cases": 28,
+      "case_pass_rate": 0.8571428571428571,
+      "document_recall_at_5": 0.9047619047619048,
+      "ndcg_at_5": 0.5109875114707493,
+      "precision_at_5": 0.20000000000000004,
+      "acl_leakage_count": 0.0,
+      "outcome_accuracy": null,
+      "latency_ms_avg": 0.6144749999553564,
+      "model_calls": 0,
+      "tool_calls": 28,
+      "context_chars": 14329
+    },
+    {
+      "variant": "hybrid_rrf",
+      "family": "retrieval",
+      "status": "completed",
+      "reason": null,
+      "cases": 28,
+      "case_pass_rate": 0.8214285714285714,
+      "document_recall_at_5": 0.8333333333333334,
+      "ndcg_at_5": 0.4932655817890594,
+      "precision_at_5": 0.19047619047619052,
+      "acl_leakage_count": 0.0,
+      "outcome_accuracy": null,
+      "latency_ms_avg": 1.0623892854450137,
+      "model_calls": 0,
+      "tool_calls": 28,
+      "context_chars": 14895
+    },
+    {
+      "variant": "hybrid_metadata_temporal",
+      "family": "retrieval",
+      "status": "completed",
+      "reason": null,
+      "cases": 28,
+      "case_pass_rate": 1.0,
+      "document_recall_at_5": 1.0,
+      "ndcg_at_5": 1.0,
+      "precision_at_5": 0.2380952380952382,
+      "acl_leakage_count": 0.0,
+      "outcome_accuracy": null,
+      "latency_ms_avg": 0.7835500000510365,
+      "model_calls": 0,
+      "tool_calls": 28,
+      "context_chars": 11551
+    },
+    {
+      "variant": "hybrid_diversity_parent",
+      "family": "retrieval",
+      "status": "completed",
+      "reason": null,
+      "cases": 28,
+      "case_pass_rate": 1.0,
+      "document_recall_at_5": 1.0,
+      "ndcg_at_5": 1.0,
+      "precision_at_5": 0.2380952380952382,
+      "acl_leakage_count": 0.0,
+      "outcome_accuracy": null,
+      "latency_ms_avg": 0.8625142857324265,
+      "model_calls": 0,
+      "tool_calls": 28,
+      "context_chars": 11551
+    },
+    {
+      "variant": "hybrid_optional_reranker",
+      "family": "retrieval",
+      "status": "not_run",
+      "reason": "no_admitted_reranker",
+      "cases": 0,
+      "case_pass_rate": null,
+      "document_recall_at_5": null,
+      "ndcg_at_5": null,
+      "precision_at_5": null,
+      "acl_leakage_count": null,
+      "outcome_accuracy": null,
+      "latency_ms_avg": null,
+      "model_calls": 0,
+      "tool_calls": 0,
+      "context_chars": 0
+    },
+    {
+      "variant": "fixed_rag",
+      "family": "workflow",
+      "status": "completed",
+      "reason": null,
+      "cases": 28,
+      "case_pass_rate": null,
+      "document_recall_at_5": 1.0,
+      "ndcg_at_5": null,
+      "precision_at_5": null,
+      "acl_leakage_count": null,
+      "outcome_accuracy": 0.8571428571428571,
+      "latency_ms_avg": 0.9967785715291809,
+      "model_calls": 0,
+      "tool_calls": 28,
+      "context_chars": 11551
+    },
+    {
+      "variant": "bounded_agentic_retrieval",
+      "family": "workflow",
+      "status": "completed",
+      "reason": null,
+      "cases": 28,
+      "case_pass_rate": null,
+      "document_recall_at_5": 1.0,
+      "ndcg_at_5": null,
+      "precision_at_5": null,
+      "acl_leakage_count": null,
+      "outcome_accuracy": 1.0,
+      "latency_ms_avg": 4.970346428308403,
+      "model_calls": 0,
+      "tool_calls": 47,
+      "context_chars": 15732
+    }
+  ],
+  "load": {
+    "profile": "demo",
+    "total_requests": 31,
+    "successful": 31,
+    "failed": 0,
+    "cold_p95_ms": 1667.68,
+    "warm": [
+      {
+        "concurrency": 1,
+        "requests": 10,
+        "successful": 10,
+        "failed": 0,
+        "p50_ms": 1090.969,
+        "p95_ms": 1136.184
+      },
+      {
+        "concurrency": 5,
+        "requests": 10,
+        "successful": 10,
+        "failed": 0,
+        "p50_ms": 3901.963,
+        "p95_ms": 4406.291
+      },
+      {
+        "concurrency": 10,
+        "requests": 10,
+        "successful": 10,
+        "failed": 0,
+        "p50_ms": 4827.4,
+        "p95_ms": 8632.725
+      }
+    ],
+    "model_calls_delta": 62,
+    "rss_delta_bytes": 66097152,
+    "index": {
+      "embedding_model": "bge-m3",
+      "embedding_dimension": 1024,
+      "chunk_count": 64
+    }
+  },
+  "evidence": [
+    {
+      "label": "Deterministic quality",
+      "run_id": "20260716T135632Z_7aec4b9_test_suite",
+      "artifact": "summary.json",
+      "sha256": "42cd1344a18e946a40ca09618c518cd2d89dd1362501ec03575ca3721855cd5f"
+    },
+    {
+      "label": "Live quality",
+      "run_id": "20260716T135632Z_7aec4b9_live_dev_suite_r01",
+      "artifact": "summary.json",
+      "sha256": "57b9b00a20dd040846f60802f3cccbdceec3af4b50dd837fb8efd58808002e95"
+    },
+    {
+      "label": "Ablation study",
+      "run_id": "20260716T135632Z_7aec4b9_test_ablation",
+      "artifact": "ablation.csv",
+      "sha256": "8864c40f3e4da28cb56e288aa2e3bdb13075e9c4b3a4f6d5b66ccf4d3437d0d2"
+    },
+    {
+      "label": "Load profile",
+      "run_id": "20260716T165304Z_7aec4b9_demo_load_r2",
+      "artifact": "summary.json",
+      "sha256": "6336e2ea8da5feadfe9f40e100595a20c6257cb070907781922ea732a0776b21"
+    },
+    {
+      "label": "Load manifest",
+      "run_id": "20260716T165304Z_7aec4b9_demo_load_r2",
+      "artifact": "manifest.json",
+      "sha256": "dd58d30c678aa30e9545f2397ac58d99d694b29267881e3827fa4bbe786d8ba7"
+    }
+  ],
+  "limitations": [
+    "Metrics use a generated enterprise demo corpus.",
+    "Live quality is one local development run, not a production SLO.",
+    "The optional reranker was not admitted and remains NOT RUN.",
+    "Indirect instruction injection in retrieved content remains NOT RUN."
+  ]
+}

@@ -1,222 +1,103 @@
-# Project Status
+# Enterprise Agentic RAG - Current Status
 
-更新时间：2026-07-15
+更新时间：2026-07-17
 
-这份文档只记录当前 checkout 已实现并经过本机验证的能力。详细的问题定位、实验过程、在线资料来源和面试问答见 `docs/AGENTIC_RAG_EVOLUTION_LOG.md`。
+状态：E7 本地自动化代码/数据门禁完成；功能分支 Git 交付与 clean-clone 结果由该分支实际 commit/remote 状态作为 authority。E0-E6 的代码、数据契约、评测、API、可观测性和演示已完成；E7 重新核对静态仓库、冻结数据、索引生命周期、deterministic 评测、真实模型/API、负载和真实浏览器。50 行人工语义评分与本人代码/口述验收仍是 `NOT RUN`，不计入通过项；没有 remote run URL 时 GitHub Actions 也是 `NOT RUN`。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
 
-## 当前结论
+## 1. 当前定位
 
-项目已经从普通企业知识库 RAG 升级为一个可评测的 bounded adaptive Agentic RAG workflow：
-
-- Markdown 文档切分、BGE-M3 embedding、FAISS + BM25 检索、RRF 融合。
-- 普通 RAG：`POST /chat`。
-- 有界 Agentic RAG：`POST /agent/chat`。
-- 证据充分性判断、意图保留的查询改写、最多一次重试、grounded no-answer。
-- unsafe 请求在检索前短路。
-- route、动态 plan、工具步骤、耗时、证据历史和 final outcome trace。
-- retrieval、answer、fusion/ablation、Stage 7 action、Stage 8 loop 两层评测。
-- FastAPI 后端、Streamlit 基础 UI、SQLite feedback。
-
-准确定位：这不是完整自主 Agent 平台。它没有任意工具选择、多 Agent 委派、长期记忆、checkpoint、人类审批或生产级权限系统。
-
-## 最新本机验证
-
-### 自动化测试
-
-2026-07-15：
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest -q
-```
+项目是一个本地、可评测、受控的 Enterprise Agentic RAG 工作流：
 
 ```text
-109 passed, 6 warnings
+synthetic corpus
+-> normalized documents/chunks
+-> immutable BM25 + FAISS index
+-> ACL-aware search/find/open
+-> bounded controller + evidence ledger
+-> grounded generation + citation verification
+-> safe API/trace/metrics
+-> Ask/Trace/Evaluation demo
 ```
 
-warning 来自 FAISS/SWIG 类型、FastAPI `on_event` deprecation 和 `.pytest_cache` 写权限；没有测试失败。
+它不是生产 Agent 平台：没有真实 IAM、分布式持久 trace、增量索引、远程部署、多 Agent 委派或长期记忆。
 
-### Ollama 模型
+## 2. 已实现能力
 
-通过 `http://127.0.0.1:11434/api/tags` 验证：
+- E1：事实骨架、72/600 文档 synthetic profiles、dev/test 评估集与冻结 hash。
+- E2：多格式 parser、DocumentRecord、fixed/heading/parent-child chunks、manifest 校验、不可变 index version 与 active pointer。
+- E3：tenant/region/group ACL、BM25+dense+RRF、authority/temporal/diversity、search/find/open、EvidenceLedger、有界 controller、claim citations。
+- E4：retrieval/response/agent/security 四层 evaluator、deterministic/live 隔离、失败 taxonomy、bootstrap CI、ablation 与 immutable run artifacts。
+- E5：统一 safe error、request ID/deadline、liveness/readiness、模型 timeout/retry、trace/metrics、hash-only feedback、CI 配置与本地 load evidence。
+- E6：最小披露 evidence trace、带 source hash 的 public snapshot、类型化 UI client、7 个 canonical demo cases、Ask/Trace/Evaluation 三页、真实 desktop/mobile 验收和公开仓库审计。
+- E7：重新生成 deterministic test/ablation rc02 与 final-code load artifacts；核对 raw artifact hashes、public snapshot、active index、真实 API/browser；修复 trace 查询自覆盖和 EvidenceLedger 冲突优先级方向；强化所有 Markdown 的机器路径审计；逐条收窄 claims。
+
+## 3. 当前证据
+
+### 历史阶段基线
 
 ```text
-qwen3:8b       evidence assessor
-qwen2.5:3b     answer generation
-bge-m3:latest  embeddings
+E5 stage entry    526 passed, 3 warnings
+E6 final          569 passed, 3 warnings
 ```
 
-关键配置：
+这些数字只说明测试随阶段增长的历史，不是可以相加的指标。
+
+### E7 最终本地门禁
 
 ```text
-LLM_BASE_URL=http://127.0.0.1:11434/v1
-CHAT_MODEL=qwen2.5:3b
-EVIDENCE_MODEL=qwen3:8b
-EMBEDDING_MODEL=bge-m3
+573 passed, 3 warnings
 ```
 
-### Stage 8 Agent loop
+`pip check` 无依赖冲突，`compileall` 覆盖 `app/scripts/streamlit_app/tests`，frozen test hash 完全一致，最终 staged public repository audit 为 331 candidates / 0 findings，`git diff --cached --check` 退出 0。3 条 warning 仍只来自 FAISS SWIG 类型弃用提示。
 
-| Mode / split | Count | Route | Outcome | Retry | Tools | Trace | Unsafe | Limit | Policy | Parse | Case pass |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| deterministic dev | 16 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | n/a | 1.00 |
-| deterministic test | 16 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | n/a | 1.00 |
-| live dev | 16 | 1.00 | 1.00 | 0.75 | 0.75 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
-| live held-out test | 16 | 1.00 | 1.00 | 0.75 | 0.75 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+### 评估与负载
 
-冻结后的首次 live dev 约 147.9 秒，首次 held-out test 约 137.3 秒。独立代码审查修复通用状态/契约问题后又做了回归复跑：dev 约 155 秒，test 151.1 秒，指标保持不变。第二次 test 是回归验证，不再宣称为未见评估。
+| 证据 | 结果 | 说明 |
+|---|---:|---|
+| E7 deterministic frozen test rc02 | 28/28 | test SHA-256 `556ffed812cdde0ba7ddc7d625782b3b3bbdbcd4753670a199bd0c3c05743338`；stable hash/extractive runtime |
+| retrieval | recall@5 1.0000；precision@5 0.2381 | 找到 gold 不等于 top-5 全部相关，不能简写为“检索准确率 100%” |
+| agent trajectory | exact 24/28；outcome 28/28 | 多条合法轨迹可到达同一安全终态 |
+| canonical live dev | 23/24 | 一次本地 BGE-M3 + Qwen run；保留 1 个 system-runtime failure |
+| direct injection | 4/4 | unsafe、检索前、零工具、零 source；只覆盖 direct user prompts |
+| E7 final-code load rc02 | 31/31 | 本机 warm concurrency 1/5/10 p95 为 1.115/4.244/8.218 s；不是 SLO |
+| workflow ablation | fixed RAG 0.8571 vs bounded Agentic 1.0000 | 28 个 synthetic cases；工具调用从 28 增至 47 |
 
-`retry/tool=0.75` 的原因不是 4 题答错，而是四个预设 retry-answer 样例在第一轮已经获得足够证据并合法提前回答。live `case_pass` 检查 outcome、trace、安全、解析和有界策略，不强制执行无意义重试。
+[`data/v2/public/demo_snapshot.json`](data/v2/public/demo_snapshot.json) 是单独标注的 E4/E5 历史离线演示批次，仍显示较早的 load r2 数值；它不冒充 E7 rc02。E7 新 run 位于被 Git 忽略的 `eval_runs/` 与 `load_runs/`，其 manifest 和 artifact hashes 记录在 [E7 Final Acceptance Journal](docs/roadmap/e7_final_acceptance_implementation.md)。
 
-这些是 16 + 16 个合成样例上的回归结果，不是生产泛化率。Stage 8 的通过门槛验证 outcome、trace、安全、预算和结构化解析，不逐句评分生成文本，也尚未把 `gold_sources` 覆盖率纳入门槛；答案内容与引用质量仍由独立 answer eval 评估。
+## 4. E7 新发现和修复
 
-## Agentic RAG 运行链路
+真实 API 复验发现：如果 Trace GET 故意复用目标业务请求的 `X-Request-ID`，旧 middleware 会把“读取 trace 的请求”也以相同 ID 写入 trace buffer，第二次查询可能取到观测请求而不是原业务请求。
 
-```text
-question
--> route_query
--> AdaptiveController.next_step
--> retrieval.search
--> evidence.assess
-   -> sufficient: rag.answer
-   -> insufficient + budget: query.rewrite -> retrieval.search -> evidence.assess
-   -> insufficient/error/no result: rag.no_answer
--> guardrail.check
--> response + AgentTrace
-```
+修复位于 `app/api/middleware.py`：trace 查询仍记录 metrics、仍回显 `X-Request-ID`，但不再写回 `TraceSink`。回归测试位于 `tests/api_v2/test_observability_api.py`，同时锁定两次查询都返回原 `/agent/v2/chat`、header 一致，以及 trace 路由 metrics 计数为 2。
 
-unsafe 路由：
+独立最终审查还发现 `app/agent/evidence_ledger.py` 原来用 `support_priority != conflict_priority` 判断冲突是否解决，导致低 authority/retired 支持证据也可能压过高 authority/active 冲突。修复为严格 `support_priority > conflict_priority`，并增加两种反向 RED/GREEN 回归。公开审计也从少量 allowlist 文档扩大到所有 Markdown，清除了 13 个本机绝对路径暴露点。
 
-```text
-guardrail.refuse
-```
+## 5. 当前公开演示
 
-### 状态语义
+- Ask：真实 `/agent/v2/chat`，显示 UserContext、mode、stop、claim verification、authorized sources 和 feedback。
+- Trace：显示 evidence coverage、action sequence、budget、request spans、model calls/retries；不展示问题、身份或 source preview。
+- Evaluation：严格读取 public snapshot，展示 quality、ablation、runtime、security 与 source hashes。
+- Browser：桌面三页均为 1440/1440；移动端三页均为 390/390；图表非空、无页面级横向溢出，浏览器 error 为 0。
 
-```text
-question                    原始问题，生成时始终使用
-search_query                当前检索查询，可改写
-latest_retrieved_chunks     最新一轮结果
-retrieved_chunks            跨轮累计并按 chunk_id 去重
-retrieval_attempts          0..2
-evidence_assessment         最新结构化判断
-evidence_history            每轮判断及 rewrite_source
-final_outcome               answered / grounded_no_answer / refused / error
-```
+启动与停止步骤见 [Demo Runbook](docs/demo_runbook.md)。
 
-`latest_retrieved_chunks` 用于判断本轮是否为空；`retrieved_chunks` 用于 assessor 和 generator。两者不能合并成一个字段，否则会重新引入“覆盖历史证据”或“空重试被旧证据掩盖”的 bug。
+## 6. 明确 NOT RUN 或不能外推
 
-## 核心代码
+- Retrieved-content indirect prompt injection：`NOT RUN`，当前 corpus 没有专门 fixture。
+- Optional reranker：`NOT RUN`，没有 admitted reranker。
+- Human semantic review：`NOT RUN`；50 行表仍为空，等待本人判断。
+- Owner code experiments and oral defense：`NOT RUN`；Codex 不能代替本人完成。
+- GitHub remote CI：没有可核验 run URL 时保持 `NOT RUN`，本地通过不能替代远端 runner。
+- 当前 ACL 使用调用方自报 `UserContext`，不是 IAM；数据全部 synthetic；本地 load 不是生产吞吐/SLO。
+- 本次只推送功能分支，不自动 merge、tag、修改默认分支或仓库可见性。
 
-| 文件 | 当前职责 |
-|---|---|
-| `app/agent/router.py` | 确定性 route 分类和 unsafe 前置短路 |
-| `app/agent/controller.py` | 固定/自适应控制策略、phase 转换、两轮上限 |
-| `app/agent/runner.py` | observe-decide-act、状态合并、动态 plan 和 trace |
-| `app/agent/tools.py` | 检索、累计去重、证据判断、改写、回答、拒答、guardrail |
-| `app/agent/evidence.py` | JSON Schema、prompt、Pydantic 校验、改写护栏、本地 assessor |
-| `app/ollama_chat.py` | 共享 Ollama transport；evidence 请求支持顶层 `think:false` |
-| `app/agent/schemas.py` | API response 和 evidence trace 数据结构 |
-| `scripts/eval_agent_loop.py` | deterministic/live Stage 8 evaluator |
+## 7. 权威文档
 
-## 从零运行
-
-```powershell
-cd D:\文档\agent\RAG_try
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-ollama pull bge-m3
-ollama pull qwen2.5:3b
-ollama pull qwen3:8b
-.\.venv\Scripts\python.exe -m scripts.build_indexes
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
-```
-
-另一个终端：
-
-```powershell
-.\.venv\Scripts\python.exe -m streamlit run streamlit_app/ui.py
-```
-
-地址：
-
-```text
-FastAPI  http://127.0.0.1:8000
-Swagger  http://127.0.0.1:8000/docs
-Streamlit http://127.0.0.1:8501
-```
-
-Agent API 示例：
-
-```powershell
-$body = @{ question = "差旅费用和办公费用的报销区别在哪里？"; top_k = 5 } | ConvertTo-Json
-Invoke-RestMethod -Uri http://127.0.0.1:8000/agent/chat -Method Post -ContentType "application/json; charset=utf-8" -Body $body
-```
-
-Windows 上优先使用 `127.0.0.1`，避免 `localhost` 优先解析 IPv6 而服务只监听 IPv4 时出现连接等待。
-
-## 评测命令
-
-```powershell
-# 检索
-.\.venv\Scripts\python.exe -m scripts.eval_retrieval_v2 --split test --top-k 5
-.\.venv\Scripts\python.exe -m scripts.eval_ablation_v2 --split test --top-k 5
-.\.venv\Scripts\python.exe -m scripts.eval_fusion_ablation --split test --top-k 5
-
-# 回答与安全
-.\.venv\Scripts\python.exe -m scripts.eval_answer_v1 --split test
-.\.venv\Scripts\python.exe -m scripts.eval_answer_v1 --split adversarial
-
-# Stage 7 固定计划历史基线
-.\.venv\Scripts\python.exe -m scripts.eval_agent_actions --split test
-
-# Stage 8 自适应控制层与真实集成
-.\.venv\Scripts\python.exe -m scripts.eval_agent_loop --split dev --mode deterministic
-.\.venv\Scripts\python.exe -m scripts.eval_agent_loop --split test --mode deterministic
-.\.venv\Scripts\python.exe -m scripts.eval_agent_loop --split dev --mode live
-.\.venv\Scripts\python.exe -m scripts.eval_agent_loop --split test --mode live
-```
-
-生成结果位于 `data/eval_outputs/`，默认不提交 Git。
-
-## 历史基线如何理解
-
-Stage 7 `agent_action_test` 的历史结果：route accuracy 0.55、plan/tool 0.90、trace 1.00、unsafe no retrieval 0.50、case pass 0.55。它使用旧的 `FixedPlanController`，保留为“升级前”基线。
-
-Stage 8 新数据集评估的是四种动态轨迹：first-pass answer、retry-answer、retry-no-answer、unsafe refusal。不能直接把两个版本的百分比当成同一个数据集上的前后提升；正确比较方式是：Stage 7 证明旧流程的路由和固定计划问题，Stage 8 证明新状态机和真实 evidence loop 的行为。
-
-## 当前限制
-
-- 数据是合成企业制度，不含真实 ACL、组织层级和多租户隔离。
-- router 仍以确定性关键词为主；Stage 7 held-out route accuracy 只有 0.55。
-- 最终生成仍使用 3B 本地模型，复杂多来源答案可能遗漏条件。
-- answer evaluation 的部分检查仍是 heuristic，需要 LLM judge 和人工校准组合。
-- Streamlit 尚未展示 Agent trace。
-- trace 尚未持久化，不能跨请求回放或恢复。
-- 没有 reranker、冲突证据处理、权限过滤和文档级 prompt-injection 专项评测。
-
-## 面试时的准确介绍
-
-```text
-我先把企业知识库 RAG 做成了可评测系统，包括 BM25 + FAISS、RRF、引用和 retrieval/answer eval。随后我没有直接堆多 Agent，而是先做 action eval，发现旧流程虽然 trace 完整，但所有安全请求都走固定计划，无法根据证据改变动作。
-
-我把 runner 改成 observe-decide-act，用 Python 控制安全与两轮上限，用本地 qwen3:8b 做结构化证据判断。证据足够就回答，不足则保持原问题、改写 search query 并重试一次，仍不足就 grounded no-answer。两轮检索证据按 chunk_id 去重累计，所有动作和 evidence reason 都进入 trace。
-
-我把 deterministic controller eval 和 live model eval 分开。当前 109 个自动化测试通过；16 题 dev 与冻结后首次 16 题 held-out live test 的 outcome、policy、trace 和 case pass 都是 1.0，审查后回归结果保持一致。严格轨迹只有 0.75，因为部分预设重试题首轮已经足够。我把这个差异作为评测标签不是唯一正确策略的证据，而不是隐藏它。
-```
-
-不要说：
-
-```text
-这是一个生产级完整自主 Agent，准确率 100%。
-```
-
-## 下一步优先级
-
-P0：Streamlit 增加普通 RAG / Agentic RAG 切换，并展示 route、evidence、rewrite、tools、latency、final outcome。
-
-P1：持久化 trace，支持按 case id 回放、失败聚类和回归集自动沉淀。
-
-P2：扩大 capability eval：冲突证据、恶意文档、权限过滤、多来源长答案和真实人工评分。
-
-P3：在有基线后评估 reranker；不因为“业内常见”就直接加入。
-
-P4：再评估是否需要 checkpoint、人类审批或多 Agent；当前不优先。
+- 项目入口：[README](README.md)
+- E7 验收：[E7 Final Acceptance Journal](docs/roadmap/e7_final_acceptance_implementation.md)
+- 系统边界：[Architecture](docs/architecture.md)
+- 安全边界：[Threat Model](docs/security_threat_model.md)
+- 评估定义：[Evaluation Protocol](docs/evaluation.md)
+- 已知限制：[Known Limitations](docs/known_limitations.md)
+- E6 历史实施证据：[E6 Implementation Journal](docs/roadmap/e6_demo_public_repo_implementation.md)
+- 跨阶段恢复：[Current Execution Handoff](docs/roadmap/CURRENT_EXECUTION_HANDOFF.md)

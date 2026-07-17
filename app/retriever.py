@@ -1,6 +1,6 @@
 ﻿import json
 import pickle
-import time
+from pathlib import Path
 from urllib.parse import urlparse
 
 import faiss
@@ -10,6 +10,7 @@ from rank_bm25 import BM25Okapi
 
 from app.chunker import chunk_text
 from app.config import get_settings
+from app.runtime.model_transport import perform_model_request
 from app.utils import ensure_dir, read_text_file, tokenize_for_bm25
 
 
@@ -37,33 +38,19 @@ def _post_ollama(url: str, payload: dict, timeout: int) -> requests.Response:
 def _embed_text(model: str, text: str) -> list[float]:
     settings = get_settings()
     url = f"{_ollama_api_base_url(settings.llm_base_url)}/api/embed"
-    max_attempts = 3
-
-    for attempt in range(1, max_attempts + 1):
-        try:
-            response = _post_ollama(
-                url,
-                {"model": model, "input": text},
-                timeout=120,
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data["embeddings"][0]
-        except Exception as exc:
-            response = getattr(exc, "response", None)
-            status_code = getattr(response, "status_code", None)
-
-            if status_code == 503 and attempt < max_attempts:
-                time.sleep(attempt * 2)
-                continue
-
-            detail = ""
-            if response is not None:
-                detail = f" Ollama response: {response.text[:500]}"
-
-            raise RuntimeError(
-                f"Embedding request failed at {url} for model {model!r}: {exc}.{detail}"
-            ) from exc
+    result = perform_model_request(
+        lambda timeout: _post_ollama(
+            url,
+            {"model": model, "input": text},
+            timeout,
+        ),
+        operation="embed",
+        timeout_seconds=settings.model_request_timeout_seconds,
+        max_attempts=settings.model_max_attempts,
+        backoff_seconds=settings.model_retry_backoff_ms / 1000.0,
+    )
+    data = result.response.json()
+    return data["embeddings"][0]
 
 
 def build_indexes() -> tuple[int, int]:
@@ -130,6 +117,28 @@ def load_indexes():
     bm25 = BM25Okapi(tokenized_corpus)
 
     return faiss_index, bm25, chunks
+
+
+def load_v2_indexes(index_root: Path | None = None):
+    from app.indexing.store import load_index_version
+
+    settings = get_settings()
+    loaded = load_index_version(index_root or settings.v2_indexes_dir)
+    faiss_path = loaded.path / "faiss.index"
+    chunks_path = loaded.path / "chunks.json"
+    bm25_path = loaded.path / "bm25_tokens.pkl"
+
+    raw_bytes = faiss_path.read_bytes()
+    faiss_index = faiss.deserialize_index(
+        np.frombuffer(raw_bytes, dtype=np.uint8).copy()
+    )
+    with chunks_path.open("r", encoding="utf-8") as handle:
+        chunks = json.load(handle)
+    with bm25_path.open("rb") as handle:
+        tokenized_corpus = pickle.load(handle)
+    bm25 = BM25Okapi(tokenized_corpus)
+    return faiss_index, bm25, chunks
+
 
 def hybrid_search(question: str, top_k: int | None = None) -> list[dict]:
     settings = get_settings()

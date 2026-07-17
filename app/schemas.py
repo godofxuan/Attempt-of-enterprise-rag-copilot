@@ -1,8 +1,16 @@
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.domain.queries import UserContext
 
 
 class HealthResponse(BaseModel):
-    status: str
+    status: Literal["ok"]
+
+
+class LivenessResponse(BaseModel):
+    status: Literal["alive"]
 
 
 class IngestResponse(BaseModel):
@@ -14,6 +22,14 @@ class IngestResponse(BaseModel):
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1)
     top_k: int | None = None
+
+
+class AgentV2ChatRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(..., min_length=1, max_length=2000)
+    user_context: UserContext
+    top_k: int | None = Field(default=None, ge=1, le=20)
 
 
 class SourceItem(BaseModel):
@@ -29,6 +45,12 @@ class ChatResponse(BaseModel):
 
 
 class FeedbackRequest(BaseModel):
-    question: str
-    answer: str
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(min_length=1, max_length=2000)
+    answer: str = Field(min_length=1, max_length=20_000)
     helpful: bool
+
+
+class FeedbackResponse(BaseModel):
+    status: Literal["ok"]

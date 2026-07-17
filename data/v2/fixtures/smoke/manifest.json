@@ -1,0 +1,167 @@
+{
+  "documents": [
+    {
+      "byte_count": 279,
+      "doc_id": "auth_hr_remote_2025",
+      "fact_ids": [
+        "hr_remote_2025_days",
+        "hr_remote_2025_notice"
+      ],
+      "format": "md",
+      "metadata": {
+        "acl_groups": [
+          "all_employees"
+        ],
+        "actual_department": "hr",
+        "authority": 100,
+        "duplicate_of": null,
+        "effective_from": "2025-01-01",
+        "effective_to": "2026-01-01",
+        "filed_department": "hr",
+        "policy_id": "hr_remote",
+        "region": "cn",
+        "status": "retired",
+        "supersedes": null,
+        "tenant": "starbridge-cn",
+        "variant": "authoritative",
+        "version": "2025.1",
+        "version_id": "hr_remote@2025"
+      },
+      "path": "documents/auth_hr_remote_2025.md",
+      "sha256": "b767c05f575ccd4538ed0196fe10ecb0194731c128b87403202459bdbe43c2ee",
+      "source_type": "policy",
+      "variant": "authoritative"
+    },
+    {
+      "byte_count": 223,
+      "doc_id": "support_0002",
+      "fact_ids": [
+        "procurement_vendor_2026_threshold"
+      ],
+      "format": "txt",
+      "metadata": {
+        "acl_groups": [
+          "procurement_ops"
+        ],
+        "actual_department": "procurement",
+        "authority": 70,
+        "duplicate_of": null,
+        "effective_from": "2026-01-01",
+        "effective_to": null,
+        "filed_department": "procurement",
+        "policy_id": "procurement_vendor",
+        "region": "cn",
+        "status": "active",
+        "supersedes": "procurement_vendor@2025",
+        "tenant": "starbridge-cn",
+        "variant": "supporting",
+        "version": "2026.1",
+        "version_id": "procurement_vendor@2026"
+      },
+      "path": "documents/support_0002.txt",
+      "sha256": "0595b99cd906156f3aaf23c86871e14303b0872a9cdd9201d92af4c69217f97d",
+      "source_type": "wiki",
+      "variant": "supporting"
+    },
+    {
+      "byte_count": 386,
+      "doc_id": "support_0003",
+      "fact_ids": [
+        "security_incident_2026_channel"
+      ],
+      "format": "html",
+      "metadata": {
+        "acl_groups": [
+          "security_ops"
+        ],
+        "actual_department": "security",
+        "authority": 50,
+        "duplicate_of": null,
+        "effective_from": "2026-01-01",
+        "effective_to": null,
+        "filed_department": "security",
+        "policy_id": "security_incident",
+        "region": "cn",
+        "status": "active",
+        "supersedes": "security_incident@2025",
+        "tenant": "starbridge-cn",
+        "variant": "supporting",
+        "version": "2026.1",
+        "version_id": "security_incident@2026"
+      },
+      "path": "documents/support_0003.html",
+      "sha256": "be055e7167a2be42c176a1869a690051cdc110edeade87d49944d3ffc3dc0171",
+      "source_type": "email",
+      "variant": "supporting"
+    },
+    {
+      "byte_count": 295,
+      "doc_id": "support_0004",
+      "fact_ids": [
+        "engineering_release_2026_rollback"
+      ],
+      "format": "csv",
+      "metadata": {
+        "acl_groups": [
+          "engineering"
+        ],
+        "actual_department": "engineering",
+        "authority": 45,
+        "duplicate_of": null,
+        "effective_from": "2026-01-01",
+        "effective_to": null,
+        "filed_department": "engineering",
+        "policy_id": "engineering_release",
+        "region": "cn",
+        "status": "active",
+        "supersedes": "engineering_release@2025",
+        "tenant": "starbridge-cn",
+        "variant": "supporting",
+        "version": "2026.1",
+        "version_id": "engineering_release@2026"
+      },
+      "path": "documents/support_0004.csv",
+      "sha256": "80b1e82d1dcfd0458fe180738904f4e08a33b3601511f0f26935a1448ef8b6bc",
+      "source_type": "ticket",
+      "variant": "supporting"
+    },
+    {
+      "byte_count": 382,
+      "doc_id": "support_0005",
+      "fact_ids": [
+        "legal_contract_2026_threshold"
+      ],
+      "format": "jsonl",
+      "metadata": {
+        "acl_groups": [
+          "legal"
+        ],
+        "actual_department": "legal",
+        "authority": 60,
+        "duplicate_of": null,
+        "effective_from": "2026-01-01",
+        "effective_to": null,
+        "filed_department": "legal",
+        "policy_id": "legal_contract",
+        "region": "cn",
+        "status": "active",
+        "supersedes": "legal_contract@2025",
+        "tenant": "starbridge-cn",
+        "variant": "supporting",
+        "version": "2026.1",
+        "version_id": "legal_contract@2026"
+      },
+      "path": "documents/support_0005.jsonl",
+      "sha256": "e1d9fa84885f44f7c94727eb404a8adb4f4648cf1743d78dd054efb0e37efd22",
+      "source_type": "meeting",
+      "variant": "supporting"
+    }
+  ],
+  "facts_sha256": "5b9ea4d719e97fcc2b288e548ccdd0db971ad594bd46fb937b2d44ab6f437417",
+  "generator_version": "1.0.0",
+  "producer": "enterprise_agentic_rag_v2",
+  "profile_sha256": "47330886214c65d3421224a222c490e57c0432737ebefb337c33250af47c3438",
+  "schema_version": "enterprise_smoke_fixture_v1",
+  "seed": 20260716,
+  "source_profile_id": "demo"
+}

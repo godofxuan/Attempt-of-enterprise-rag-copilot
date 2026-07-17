@@ -19,5 +19,10 @@
     "expected_tools": "Expected ordered tools selected and executed by the bounded adaptive controller.",
     "expected_outcome": "Expected final outcome after evidence assessment and bounded retry control."
   },
+  "lifecycle": {
+    "status": "legacy_regression_only",
+    "successor": "data/v2/eval",
+    "rule": "Preserve v1 files and results as historical regression evidence; do not overwrite them with v2 labels or results."
+  },
   "warning": "This dataset is synthetic and does not contain real company confidential information."
 }

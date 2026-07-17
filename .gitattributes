@@ -1,0 +1,7 @@
+*.docx binary
+*.faiss binary
+*.pdf binary
+*.pkl binary
+*.png binary
+*.pptx binary
+*.xlsx binary

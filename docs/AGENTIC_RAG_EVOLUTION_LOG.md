@@ -1,5 +1,7 @@
 # Agentic RAG 演进与面试复盘日志
 
+> **历史工程日志：** 本文保留 2026-07-15 及更早阶段的设计、实验和故障复盘，不再承担当前状态职责。当前实现、验证结果与未完成边界只以根目录 [PROJECT_STATUS.md](../PROJECT_STATUS.md) 为准。
+
 更新时间：2026-07-15
 
 本文记录项目如何从“固定工具链 RAG”演进为“有界、证据感知、可评测的 Agentic RAG”。它不是完成清单，而是保留每次改进的工程推理：看到了什么现象、提出了什么假设、改了哪段代码、如何验证、哪些方案被实验否决，以及面试时应该怎样准确表述。
@@ -115,15 +117,15 @@ answer_from_retrieved(context["question"], context["retrieved_chunks"])
 现象：
 
 ```text
-D:\ollamamodels 下的 partial 文件 Access denied
+`<ollama-model-dir>` 下的 partial 文件 Access denied
 ```
 
 根因不是模型清单错误，而是 Windows ACL：目录由 Administrators 拥有，当前用户只有读取/执行权限，Ollama 无法写 blob 和 manifest。
 
-处理：只给当前用户在 `D:\ollamamodels` 及子目录授予 Modify，而不是给 Everyone 完全控制。验证内容包括：
+处理：只给当前用户在 `<ollama-model-dir>` 及子目录授予 Modify，而不是给 Everyone 完全控制。验证内容包括：
 
 - `OLLAMA_MODELS` 指向新目录。
-- `D:\ollamamodels\blobs` 对当前用户有 Modify。
+- `<ollama-model-dir>/blobs` 对当前用户有 Modify。
 - `ollama pull qwen3:8b` 完整写入并校验 manifest。
 - `http://127.0.0.1:11434/api/tags` 能列出模型。
 

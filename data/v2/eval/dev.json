@@ -1,0 +1,990 @@
+[
+  {
+    "answer_mode": "answered",
+    "case_id": "fact_hr_remote_2026_days",
+    "distractor_doc_ids": [],
+    "expected_answer": "3 天",
+    "expected_authority_doc_ids": [
+      "auth_hr_remote_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_hr_remote_2026"
+    ],
+    "question": "当前制度每周最多允许远程办公几天？",
+    "required_fact_ids": [
+      "hr_remote_2026_days"
+    ],
+    "tags": [
+      "current",
+      "hr",
+      "atomic_fact"
+    ],
+    "task_type": "fact_lookup",
+    "user_context": {
+      "groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_employee"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "conflict_hr_compensation",
+    "distractor_doc_ids": [
+      "auth_hr_compensation_2025"
+    ],
+    "expected_answer": "4 月",
+    "expected_authority_doc_ids": [
+      "auth_hr_compensation_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "hr_confidential"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_hr_compensation_2026"
+    ],
+    "question": "以当前生效且权威的制度为准，当前年度薪酬评审在几月进行？",
+    "required_fact_ids": [
+      "hr_compensation_2026_month"
+    ],
+    "tags": [
+      "version",
+      "conflict",
+      "hr"
+    ],
+    "task_type": "version_conflict",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "hr_confidential"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_hr"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "complete_procurement_vendor",
+    "distractor_doc_ids": [],
+    "expected_answer": "50000 元；3 家",
+    "expected_authority_doc_ids": [
+      "auth_procurement_vendor_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "procurement_ops"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_procurement_vendor_2026"
+    ],
+    "question": "请完整列出《供应商采购制度》当前版本的两项关键要求。",
+    "required_fact_ids": [
+      "procurement_vendor_2026_threshold",
+      "procurement_vendor_2026_quotes"
+    ],
+    "tags": [
+      "completeness",
+      "procurement",
+      "multi_fact"
+    ],
+    "task_type": "completeness",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "procurement_ops"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_procurement"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "compare_finance_travel_security_incident",
+    "distractor_doc_ids": [],
+    "expected_answer": "每晚 800 元；15 分钟内",
+    "expected_authority_doc_ids": [
+      "auth_finance_travel_2026",
+      "auth_security_incident_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "hr_confidential",
+        "finance_ops",
+        "security_ops",
+        "customer_success",
+        "procurement_ops",
+        "engineering",
+        "legal",
+        "audit_all"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_finance_travel_2026",
+      "auth_security_incident_2026"
+    ],
+    "question": "对比《差旅报销制度》和《安全事件响应制度》当前版本的第一项数值要求。",
+    "required_fact_ids": [
+      "finance_travel_2026_hotel",
+      "security_incident_2026_p1"
+    ],
+    "tags": [
+      "comparison",
+      "cross_policy",
+      "multi_document"
+    ],
+    "task_type": "comparison",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "hr_confidential",
+        "finance_ops",
+        "security_ops",
+        "customer_success",
+        "procurement_ops",
+        "engineering",
+        "legal",
+        "audit_all"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_auditor"
+    }
+  },
+  {
+    "answer_mode": "permission",
+    "case_id": "permission_engineering_release",
+    "distractor_doc_ids": [],
+    "expected_answer": null,
+    "expected_authority_doc_ids": [],
+    "expected_filters": {
+      "acl_groups": [
+        "external_contractors"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [
+      "auth_engineering_release_2026"
+    ],
+    "gold_doc_ids": [],
+    "question": "请告诉我《生产发布制度》当前版本的全部内部要求。",
+    "required_fact_ids": [],
+    "tags": [
+      "acl",
+      "permission",
+      "engineering"
+    ],
+    "task_type": "permission",
+    "user_context": {
+      "groups": [
+        "external_contractors"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_contractor"
+    }
+  },
+  {
+    "answer_mode": "not_found",
+    "case_id": "missing_finance_travel",
+    "distractor_doc_ids": [],
+    "expected_answer": null,
+    "expected_authority_doc_ids": [],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [],
+    "question": "《差旅报销制度》是否规定 2027 年所有额度自动翻倍？",
+    "required_fact_ids": [],
+    "tags": [
+      "no_answer",
+      "unsupported",
+      "finance"
+    ],
+    "task_type": "no_answer",
+    "user_context": {
+      "groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_employee"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "fact_finance_travel_2026_submit",
+    "distractor_doc_ids": [],
+    "expected_answer": "7 个自然日内",
+    "expected_authority_doc_ids": [
+      "auth_finance_travel_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_finance_travel_2026"
+    ],
+    "question": "当前差旅结束后多少天内要提交报销？",
+    "required_fact_ids": [
+      "finance_travel_2026_submit"
+    ],
+    "tags": [
+      "current",
+      "finance",
+      "atomic_fact"
+    ],
+    "task_type": "fact_lookup",
+    "user_context": {
+      "groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_employee"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "conflict_security_incident",
+    "distractor_doc_ids": [
+      "auth_security_incident_2025"
+    ],
+    "expected_answer": "15 分钟内",
+    "expected_authority_doc_ids": [
+      "auth_security_incident_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "security_ops"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_security_incident_2026"
+    ],
+    "question": "以当前生效且权威的制度为准，当前 P1 安全事件需要在多久内上报？",
+    "required_fact_ids": [
+      "security_incident_2026_p1"
+    ],
+    "tags": [
+      "version",
+      "conflict",
+      "security"
+    ],
+    "task_type": "version_conflict",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "security_ops"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_security"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "complete_hr_remote",
+    "distractor_doc_ids": [],
+    "expected_answer": "3 天；提前 2 个工作日",
+    "expected_authority_doc_ids": [
+      "auth_hr_remote_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_hr_remote_2026"
+    ],
+    "question": "请完整列出《远程办公制度》当前版本的两项关键要求。",
+    "required_fact_ids": [
+      "hr_remote_2026_days",
+      "hr_remote_2026_notice"
+    ],
+    "tags": [
+      "completeness",
+      "hr",
+      "multi_fact"
+    ],
+    "task_type": "completeness",
+    "user_context": {
+      "groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_employee"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "compare_hr_compensation_legal_contract",
+    "distractor_doc_ids": [],
+    "expected_answer": "4 月；200000 元",
+    "expected_authority_doc_ids": [
+      "auth_hr_compensation_2026",
+      "auth_legal_contract_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "hr_confidential",
+        "finance_ops",
+        "security_ops",
+        "customer_success",
+        "procurement_ops",
+        "engineering",
+        "legal",
+        "audit_all"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_hr_compensation_2026",
+      "auth_legal_contract_2026"
+    ],
+    "question": "对比《薪酬评审制度》和《重大合同审查制度》当前版本的第一项数值要求。",
+    "required_fact_ids": [
+      "hr_compensation_2026_month",
+      "legal_contract_2026_threshold"
+    ],
+    "tags": [
+      "comparison",
+      "cross_policy",
+      "multi_document"
+    ],
+    "task_type": "comparison",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "hr_confidential",
+        "finance_ops",
+        "security_ops",
+        "customer_success",
+        "procurement_ops",
+        "engineering",
+        "legal",
+        "audit_all"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_auditor"
+    }
+  },
+  {
+    "answer_mode": "permission",
+    "case_id": "permission_legal_contract",
+    "distractor_doc_ids": [],
+    "expected_answer": null,
+    "expected_authority_doc_ids": [],
+    "expected_filters": {
+      "acl_groups": [
+        "external_contractors"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [
+      "auth_legal_contract_2026"
+    ],
+    "gold_doc_ids": [],
+    "question": "请告诉我《重大合同审查制度》当前版本的全部内部要求。",
+    "required_fact_ids": [],
+    "tags": [
+      "acl",
+      "permission",
+      "legal"
+    ],
+    "task_type": "permission",
+    "user_context": {
+      "groups": [
+        "external_contractors"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_contractor"
+    }
+  },
+  {
+    "answer_mode": "not_found",
+    "case_id": "missing_customer_refund",
+    "distractor_doc_ids": [],
+    "expected_answer": null,
+    "expected_authority_doc_ids": [],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [],
+    "question": "《客户退款制度》是否规定 2027 年所有额度自动翻倍？",
+    "required_fact_ids": [],
+    "tags": [
+      "no_answer",
+      "unsupported",
+      "customer_success"
+    ],
+    "task_type": "no_answer",
+    "user_context": {
+      "groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_employee"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "fact_hr_compensation_2026_bonus",
+    "distractor_doc_ids": [],
+    "expected_answer": "A- 及以上",
+    "expected_authority_doc_ids": [
+      "auth_hr_compensation_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "hr_confidential"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_hr_compensation_2026"
+    ],
+    "question": "当前获得目标奖金需要达到什么绩效等级？",
+    "required_fact_ids": [
+      "hr_compensation_2026_bonus"
+    ],
+    "tags": [
+      "current",
+      "hr",
+      "atomic_fact"
+    ],
+    "task_type": "fact_lookup",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "hr_confidential"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_hr"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "conflict_finance_travel",
+    "distractor_doc_ids": [
+      "auth_finance_travel_2025"
+    ],
+    "expected_answer": "每晚 800 元",
+    "expected_authority_doc_ids": [
+      "auth_finance_travel_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_finance_travel_2026"
+    ],
+    "question": "以当前生效且权威的制度为准，当前国内差旅住宿标准上限是多少？",
+    "required_fact_ids": [
+      "finance_travel_2026_hotel"
+    ],
+    "tags": [
+      "version",
+      "conflict",
+      "finance"
+    ],
+    "task_type": "version_conflict",
+    "user_context": {
+      "groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_employee"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "complete_legal_contract",
+    "distractor_doc_ids": [],
+    "expected_answer": "200000 元；7 年",
+    "expected_authority_doc_ids": [
+      "auth_legal_contract_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "legal"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_legal_contract_2026"
+    ],
+    "question": "请完整列出《重大合同审查制度》当前版本的两项关键要求。",
+    "required_fact_ids": [
+      "legal_contract_2026_threshold",
+      "legal_contract_2026_retention"
+    ],
+    "tags": [
+      "completeness",
+      "legal",
+      "multi_fact"
+    ],
+    "task_type": "completeness",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "legal"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_legal"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "compare_hr_remote_finance_travel",
+    "distractor_doc_ids": [],
+    "expected_answer": "3 天；每晚 800 元",
+    "expected_authority_doc_ids": [
+      "auth_hr_remote_2026",
+      "auth_finance_travel_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "hr_confidential",
+        "finance_ops",
+        "security_ops",
+        "customer_success",
+        "procurement_ops",
+        "engineering",
+        "legal",
+        "audit_all"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_hr_remote_2026",
+      "auth_finance_travel_2026"
+    ],
+    "question": "对比《远程办公制度》和《差旅报销制度》当前版本的第一项数值要求。",
+    "required_fact_ids": [
+      "hr_remote_2026_days",
+      "finance_travel_2026_hotel"
+    ],
+    "tags": [
+      "comparison",
+      "cross_policy",
+      "multi_document"
+    ],
+    "task_type": "comparison",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "hr_confidential",
+        "finance_ops",
+        "security_ops",
+        "customer_success",
+        "procurement_ops",
+        "engineering",
+        "legal",
+        "audit_all"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_auditor"
+    }
+  },
+  {
+    "answer_mode": "not_found",
+    "case_id": "missing_legal_contract",
+    "distractor_doc_ids": [],
+    "expected_answer": null,
+    "expected_authority_doc_ids": [],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "legal"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [],
+    "question": "《重大合同审查制度》是否规定 2027 年所有额度自动翻倍？",
+    "required_fact_ids": [],
+    "tags": [
+      "no_answer",
+      "unsupported",
+      "legal"
+    ],
+    "task_type": "no_answer",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "legal"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_legal"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "fact_procurement_vendor_2026_threshold",
+    "distractor_doc_ids": [],
+    "expected_answer": "50000 元",
+    "expected_authority_doc_ids": [
+      "auth_procurement_vendor_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "procurement_ops"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_procurement_vendor_2026"
+    ],
+    "question": "当前采购达到多少金额需要采购委员会审批？",
+    "required_fact_ids": [
+      "procurement_vendor_2026_threshold"
+    ],
+    "tags": [
+      "current",
+      "procurement",
+      "atomic_fact"
+    ],
+    "task_type": "fact_lookup",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "procurement_ops"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_procurement"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "conflict_engineering_release",
+    "distractor_doc_ids": [
+      "auth_engineering_release_2025"
+    ],
+    "expected_answer": "周五 16:00",
+    "expected_authority_doc_ids": [
+      "auth_engineering_release_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "engineering"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_engineering_release_2026"
+    ],
+    "question": "以当前生效且权威的制度为准，当前周五发布冻结时间是几点？",
+    "required_fact_ids": [
+      "engineering_release_2026_freeze"
+    ],
+    "tags": [
+      "version",
+      "conflict",
+      "engineering"
+    ],
+    "task_type": "version_conflict",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "engineering"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_engineer"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "complete_customer_refund",
+    "distractor_doc_ids": [],
+    "expected_answer": "签收后 14 天内；3 个工作日内",
+    "expected_authority_doc_ids": [
+      "auth_customer_refund_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_customer_refund_2026"
+    ],
+    "question": "请完整列出《客户退款制度》当前版本的两项关键要求。",
+    "required_fact_ids": [
+      "customer_refund_2026_window",
+      "customer_refund_2026_process"
+    ],
+    "tags": [
+      "completeness",
+      "customer_success",
+      "multi_fact"
+    ],
+    "task_type": "completeness",
+    "user_context": {
+      "groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_employee"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "compare_legal_contract_hr_remote",
+    "distractor_doc_ids": [],
+    "expected_answer": "200000 元；3 天",
+    "expected_authority_doc_ids": [
+      "auth_legal_contract_2026",
+      "auth_hr_remote_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "hr_confidential",
+        "finance_ops",
+        "security_ops",
+        "customer_success",
+        "procurement_ops",
+        "engineering",
+        "legal",
+        "audit_all"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_legal_contract_2026",
+      "auth_hr_remote_2026"
+    ],
+    "question": "对比《重大合同审查制度》和《远程办公制度》当前版本的第一项数值要求。",
+    "required_fact_ids": [
+      "legal_contract_2026_threshold",
+      "hr_remote_2026_days"
+    ],
+    "tags": [
+      "comparison",
+      "cross_policy",
+      "multi_document"
+    ],
+    "task_type": "comparison",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "hr_confidential",
+        "finance_ops",
+        "security_ops",
+        "customer_success",
+        "procurement_ops",
+        "engineering",
+        "legal",
+        "audit_all"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_auditor"
+    }
+  },
+  {
+    "answer_mode": "not_found",
+    "case_id": "missing_security_incident",
+    "distractor_doc_ids": [],
+    "expected_answer": null,
+    "expected_authority_doc_ids": [],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "security_ops"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [],
+    "question": "《安全事件响应制度》是否规定 2027 年所有额度自动翻倍？",
+    "required_fact_ids": [],
+    "tags": [
+      "no_answer",
+      "unsupported",
+      "security"
+    ],
+    "task_type": "no_answer",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "security_ops"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_security"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "fact_customer_refund_2026_process",
+    "distractor_doc_ids": [],
+    "expected_answer": "3 个工作日内",
+    "expected_authority_doc_ids": [
+      "auth_customer_refund_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_customer_refund_2026"
+    ],
+    "question": "当前退款审核通过后多久完成原路退回？",
+    "required_fact_ids": [
+      "customer_refund_2026_process"
+    ],
+    "tags": [
+      "current",
+      "customer_success",
+      "atomic_fact"
+    ],
+    "task_type": "fact_lookup",
+    "user_context": {
+      "groups": [
+        "all_employees"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_employee"
+    }
+  },
+  {
+    "answer_mode": "answered",
+    "case_id": "fact_security_incident_2026_channel",
+    "distractor_doc_ids": [],
+    "expected_answer": "拨打内部热线 4000 并创建 SEC 工单",
+    "expected_authority_doc_ids": [
+      "auth_security_incident_2026"
+    ],
+    "expected_filters": {
+      "acl_groups": [
+        "all_employees",
+        "security_ops"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn"
+    },
+    "forbidden_doc_ids": [],
+    "gold_doc_ids": [
+      "auth_security_incident_2026"
+    ],
+    "question": "当前安全事件通过什么渠道上报？",
+    "required_fact_ids": [
+      "security_incident_2026_channel"
+    ],
+    "tags": [
+      "current",
+      "security",
+      "atomic_fact"
+    ],
+    "task_type": "fact_lookup",
+    "user_context": {
+      "groups": [
+        "all_employees",
+        "security_ops"
+      ],
+      "region": "cn",
+      "tenant": "starbridge-cn",
+      "user_id": "user_security"
+    }
+  }
+]
