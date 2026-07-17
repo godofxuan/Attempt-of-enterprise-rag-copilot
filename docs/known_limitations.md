@@ -11,7 +11,7 @@
 | Identity | `UserContext` 由浏览器/调用方声明，只做 schema 和 policy 验证 | 本地演示可以验证 ACL 逻辑，但不能证明真实用户身份 | 由可信 OIDC/IAM gateway 签发身份，并加入 token/tenant/group integration tests |
 | Data realism | 72/600 文档和 52 个 eval cases 全部 synthetic | 指标证明工程 contract，不代表真实企业分布或生产泛化 | 法务批准的去标识 pilot corpus、数据治理记录和独立 held-out evaluation |
 | Live quality | 当前 canonical live dev 为 23/24 | 一个 system-runtime failure 被保留；不能报告 100% | 先定位/复现失败，再在新冻结 split 上验证，而不是改写旧 artifact |
-| Indirect document injection | `NOT RUN` | 直接 prompt probes 通过不代表恶意检索文档安全 | 新 corpus version 加入不可信文档指令、canary 和 expected safe behavior；重建索引并运行 E4 security suite |
+| Indirect document injection | D1 threat model/protocol frozen；implementation/evaluation `NOT RUN` | 直接 prompt probes 和设计文档都不代表恶意检索文档防护已生效 | 按 [R2-S1 protocol](security/r2_s1/04_evaluation_protocol.md) 实现 Guard、建立 24 attack + 12 benign per split、运行 OFF/ON 与 R1 regression |
 | Reranker | `NOT RUN` (`no_admitted_reranker`) | 不能声称 cross-encoder/reranker 改善过排序 | 固定候选模型、license/资源预算与 latency gate；在 frozen test 上做隔离消融 |
 | Human review | `NOT RUN`；50 行、8 个人工判断列保持空白 | 自动 claim/citation/required-fact checks 不能替代语义和可用性评分 | 本人按冻结 rubric 完成 review；若用于正式质量结论，再增加第二 reviewer、分歧仲裁和 agreement 记录 |
 | Authentication/authorization | 只有本地 ACL policy，没有 SSO、token verification、policy admin 或 audit identity | 不能公网暴露为企业服务 | IAM、server-derived claims、deny-by-default policy store、admin/change audit |
@@ -51,3 +51,7 @@
 - E7 已逐条处理 claims matrix；只能使用 `approved` 原句或 `narrowed` 后的措辞，不能删掉 synthetic、deterministic/local、样本数和 `NOT RUN` 边界。
 
 下一阶段准入项与优先级见 [Industrialization Backlog](industrialization_backlog.md)。
+
+## 5. R2-S1 D1 boundary
+
+D1 only freezes what will be built and how it will be judged. It has not created a detector, blocked a payload, recovered a clean candidate, produced a `security_filtered` response, or run a fake/live generator. Public status must therefore keep indirect retrieved-content injection as `NOT RUN` until a cited immutable run exists.

@@ -109,3 +109,19 @@ OWASP LLM07:2025 的核心原则是：system prompt 不应被视为秘密，也�
 可以说：实现并测试了 pre-fusion ACL、unsafe zero-tool、typed bounded tools、统一安全错误、请求关联、内容零持久化 telemetry、hashed feedback 和不可覆盖负载证据。
 
 不可以说：真实 IAM 已完成、完全防 prompt injection、system prompt 永不泄露、hash 等于匿名化、observability 可以公网开放、已达到生产合规或 SLA。
+
+## 10. R2-S1 retrieved-content threat model status
+
+R2-S1 D1 has frozen a dedicated indirect-injection threat model without claiming implementation success. It covers document body/title/heading/table/metadata, search snippets, parent context, find/open results, legacy query-rewrite and answer sinks, citation/extractive consumers, trace, API and UI serialization.
+
+The approved target is defense in depth: deterministic quarantine, admitted-only runtime types, bounded candidate top-up, read-only capability confinement, explicit untrusted-evidence prompt boundaries, aggregate trace and separate deterministic/live evaluation. The complete documents are under [`docs/security/r2_s1/`](security/r2_s1/00_scope_and_threat_model.md).
+
+Current status:
+
+```text
+threat model and protocol   D1 FROZEN
+Guard implementation        NOT RUN
+indirect attack evaluation  NOT RUN
+```
+
+The four existing direct user-prompt probes do not satisfy this protocol and remain separately labeled.

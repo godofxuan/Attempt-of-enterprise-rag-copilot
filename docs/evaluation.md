@@ -209,3 +209,16 @@ Codex 不填写这些列，也不把空白算通过。本人完成 30-50 例后�
 9 个 run 的 `manifest.json` artifact hashes 已重新计算并全部匹配。live run 使用 active index `20260716T135632Z_7aec4b9_live_bge_m3_fixed`，manifest hash `3dc22b1765b568b878b49119a1c2f750f8a808c7d1eb838633839df0f0848d67`。
 
 详细结果、失败集合和可说/不可说边界见 `docs/ablation_report.md` 与 `docs/roadmap/e4_beginner_learning_and_interview.md`。
+
+## 13. R2-S1 indirect-injection protocol status
+
+R2-S1 uses a separate dataset and artifact namespace so it cannot mutate or overwrite E4/R1 evidence:
+
+```text
+data/v2/security/
+security_runs/<run_id>/
+```
+
+The D1-frozen protocol requires 24 attack + 12 benign cases in each of dev and test, deterministic Guard OFF/ON propagation evidence, a separately labeled local live paired trial, content-unit detection metrics, task utility, bounded-work metrics and a strict security provenance manifest. All metrics report numerator, denominator and rate.
+
+The exact formulas, case schema, R1 hashes and release gate are in [R2-S1 Evaluation Protocol](security/r2_s1/04_evaluation_protocol.md). No compliant dataset or run exists at D1, so indirect injection remains `NOT RUN`.

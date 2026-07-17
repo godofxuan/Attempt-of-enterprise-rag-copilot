@@ -185,3 +185,18 @@ Raw run directories are ignored because they contain machine/run provenance and 
 - No multi-Agent layer: current failures concern evidence, identity, indexing, and observability rather than missing Agent roles.
 
 Related documents: [API](api.md), [Threat Model](security_threat_model.md), [Evaluation](evaluation.md), [Observability](observability.md), and [Known Limitations](known_limitations.md).
+
+## 12. R2-S1 proposed retrieved-content boundary (`NOT RUN`)
+
+R2-S1 D1 has frozen a proposed boundary between raw retrieval and `Controller.observe`:
+
+```text
+ACL-visible ranked candidates
+-> bounded RetrievedContentGuard
+-> admitted-only typed tool result
+-> Controller/EvidenceLedger/generation/citation
+```
+
+It also specifies a default secure service profile that does not register legacy `/chat`, `/agent/chat`, or HTTP `/ingest`, because those routes currently bypass the proposed V2 Guard. This section describes approved design, not current runtime behavior. The current code still follows the unguarded flow documented in the R2-S1 D0 audit, and the implementation/evaluation status remains `NOT RUN`.
+
+See [R2-S1 design](superpowers/specs/2026-07-17-r2-s1-indirect-prompt-injection-design.md) and [attack-surface map](security/r2_s1/01_attack_surface_and_trust_boundaries.md).

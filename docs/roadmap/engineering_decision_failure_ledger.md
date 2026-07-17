@@ -446,3 +446,30 @@ remote CI                            PASS for 9607e55, run 29553278709
 ```
 
 最终 commit/push/clean-clone/remote CI 已完成，以 E7 implementation journal 的最终 gate table 和实际 Git remote branch 为准；本节仍不把 owner-only、indirect injection 或 reranker 的 `NOT RUN` 包装成 PASS。
+
+## 37. R2-S1 D0/D1 设计决策
+
+| ID | 白话问题 | 决策 | 当前证据 | 当前结果 | 详细记录 |
+|---|---|---|---|---|---|
+| `R2S1-D01` | 恶意文档只在生成前过滤够不够 | raw retrieval 只能进入 Guard；Controller/Ledger/generation/verifier 只接 admitted type | `[OBSERVED]` 当前 raw `registry.run -> controller.observe` 路径 | D1 contract frozen；implementation `NOT RUN` | [D01-D03](../security/r2_s1/02_design_options_and_decisions.md) |
+| `R2S1-D02` | 是否让另一个 LLM 判断注入 | enforcement 使用版本化确定性规则、有界 Unicode/Base64/split view；LLM 不参与放行 | `[OBSERVED]` 当前无 content detector；需要 CI 可复现 | D1 contract frozen；detector `NOT RUN` | [D02](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d02-使用确定性规则还是-llm-detector) |
+| `R2S1-D03` | 全部候选被过滤是否当 not found | 新 `security_filtered/evidence_filtered`，source-free | `[OBSERVED]` 当前 enum 无该状态 | D1 contract frozen；API change `NOT RUN` | [D06](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d06-全部内容被隔离时的-outcome) |
+| `R2S1-D04` | top-1 投毒被删后怎么办 | 在 top-k 截断前取得 bounded pool；quarantine 后继续剩余候选一次，不重跑 embedding | `[OBSERVED]` pipeline 当前在 Guard 前丢弃非 top-k | D1 algorithm frozen；implementation `NOT RUN` | [D07](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d07-候选补齐策略) |
+| `R2S1-D05` | Guard 出错时全部报系统错还是放行 | 单内容异常 quarantine 并继续；Guard 初始化/规则失败才 source-free system | `[PLANNED]` fail-closed semantics | D1 frozen；failure tests `NOT RUN` | [D05](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d05-guard-modes-与-fail-closed) |
+| `R2S1-D06` | 旧 `/chat`、`/agent/chat` 怎么处理 | secure profile 默认不注册 legacy generative routes 和 HTTP ingest；显式 local compatibility factory 单独保留 | `[OBSERVED]` legacy 两条生成链会绕过 V2 Guard | D0 approved；composition change `NOT RUN` | [D10](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d10-legacy-endpoint-策略) |
+| `R2S1-D07` | Trace 为了排错能否放正文/hash/ID | public aggregate only；private synthetic case IDs；必要时 run-scoped HMAC | `[OBSERVED]` 现有 trace 已删除 content/doc/chunk/path | D1 frozen；trace fields `NOT RUN` | [D09](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d09-trace-标识与内容指纹) |
+| `R2S1-D08` | 24+12 是否在 dev/test 之间平分 | 每个 split 独立 24 attack + 12 benign，共 72 | `[PLANNED]` current indirect fixtures = 0 | D1 dataset protocol frozen；data `NOT RUN` | [D11](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d11-evaluation-split-大小) |
+
+## 38. R2-S1 D1 当前边界
+
+```text
+design and threat model       FROZEN
+schema and dataset protocol   FROZEN
+business code changed         no
+R1 dataset changed            no
+Guard implementation          NOT RUN
+red baseline tests            NOT RUN
+deterministic/live runs       NOT RUN
+```
+
+D1 的冻结只说明后续实现和评测有明确合同，不把 indirect injection 从 `NOT RUN` 改写成 passed。逐项理由和回滚见 [R2-S1 design decisions](../security/r2_s1/02_design_options_and_decisions.md)。

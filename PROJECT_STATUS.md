@@ -89,7 +89,7 @@ E6 final          569 passed, 3 warnings
 
 ## 6. 明确 NOT RUN 或不能外推
 
-- Retrieved-content indirect prompt injection：`NOT RUN`，当前 corpus 没有专门 fixture。
+- Retrieved-content indirect prompt injection：D1 design/protocol 已冻结；Guard、专门 fixture、deterministic/live evaluation 均为 `NOT RUN`。
 - Optional reranker：`NOT RUN`，没有 admitted reranker。
 - Human semantic review：`NOT RUN`；50 行表仍为空，等待本人判断。
 - Owner code experiments and oral defense：`NOT RUN`；Codex 不能代替本人完成。
@@ -107,3 +107,26 @@ E6 final          569 passed, 3 warnings
 - 已知限制：[Known Limitations](docs/known_limitations.md)
 - E6 历史实施证据：[E6 Implementation Journal](docs/roadmap/e6_demo_public_repo_implementation.md)
 - 跨阶段恢复：[Current Execution Handoff](docs/roadmap/CURRENT_EXECUTION_HANDOFF.md)
+
+## 8. R2-S1 当前状态
+
+R2-S1 的 D0 只读审计和 D1 威胁模型/评测协议冻结已完成，设计基线为 `da2ba8ccd4dcce455926758a8e9fb6fad20aec38`。权威设计位于：
+
+- [R2-S1 总设计](docs/superpowers/specs/2026-07-17-r2-s1-indirect-prompt-injection-design.md)
+- [Scope and threat model](docs/security/r2_s1/00_scope_and_threat_model.md)
+- [Attack surface and trust boundaries](docs/security/r2_s1/01_attack_surface_and_trust_boundaries.md)
+- [Design decisions](docs/security/r2_s1/02_design_options_and_decisions.md)
+- [Detailed schema design](docs/security/r2_s1/03_detailed_design.md)
+- [Evaluation protocol](docs/security/r2_s1/04_evaluation_protocol.md)
+
+当前状态必须逐层表述：
+
+```text
+design/protocol                         D1 FROZEN
+RetrievedContentGuard implementation   NOT RUN
+malicious/benign security datasets     NOT RUN
+deterministic guard OFF/ON evaluation  NOT RUN
+local live guard OFF/ON evaluation     NOT RUN
+```
+
+因此 README 仍不能写“已防御 retrieved-content injection”。下一授权门是 `批准D1，执行D2红色基线测试`。

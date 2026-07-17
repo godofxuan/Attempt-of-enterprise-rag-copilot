@@ -348,4 +348,47 @@ G13           PASS, commit/push/clean-clone/remote CI evidenced
 
 E7 live/browser 已完成并清理：8000/8501 listeners 0、项目 Python 0、Ollama 保留。review findings 均已修复，本地 full 为 574、audit 331/0。第一次 GitHub clone 暴露 CRLF frozen hash 失配；第二次暴露 ignored demo corpus 依赖；第三次在 `960fa13` 得到 574 passed；第四次在代码候选 `9607e55` 再次得到 hash/compile/audit/full PASS。首次 Ubuntu CI 的 `exit 139` 已由诊断提交定位为 Streamlit AppTest 的 PyArrow-to-Pandas 反向转换，并通过收窄测试边界修复；run 29553278709 为 success。
 
+## 17. R2-S1 当前精确断点
+
+本人已批准 `批准D0，执行D1威胁模型与评测协议冻结`。R2-S1 D0/D1 基线为：
+
+```text
+branch                    codex/rag-eval-system
+D1 start/design base HEAD da2ba8ccd4dcce455926758a8e9fb6fad20aec38
+da2ba8c ancestor          yes
+tracked/staged at D0      clean
+pre-existing untracked    .superpowers/ browser companion only
+```
+
+D0 发现的关键事实：raw `SearchResult/FindResult/OpenResult` 当前直接进入 `Controller.observe`；generation 读取 matched/parent/open content；legacy `/chat` 和 `/agent/chat` 绕过 V2；pipeline 在 Guard 前裁成 top-k；context budget 在 Guard 前统计 raw text；V2 Agent 工具仍是 typed、只读、无任意外部副作用。
+
+D1 已冻结以下文档：
+
+```text
+docs/superpowers/specs/2026-07-17-r2-s1-indirect-prompt-injection-design.md
+docs/security/r2_s1/00_scope_and_threat_model.md
+docs/security/r2_s1/01_attack_surface_and_trust_boundaries.md
+docs/security/r2_s1/02_design_options_and_decisions.md
+docs/security/r2_s1/03_detailed_design.md
+docs/security/r2_s1/04_evaluation_protocol.md
+docs/roadmap/r2_s1_indirect_injection_implementation.md
+```
+
+核心冻结结论：default enforce；audit/off 只可依赖注入；per-item error quarantine；全过滤 `security_filtered/evidence_filtered`；candidate_k 内一次 bounded top-up；Controller 运行时拒绝 raw execution；public trace aggregate only；secure profile 不注册 legacy generative routes；dev/test 各 24 attack + 12 benign；R1 files 不修改。
+
+当前仍然是：
+
+```text
+Guard implementation             NOT RUN
+D2 red propagation baseline      NOT RUN
+security datasets                NOT RUN
+deterministic/live evaluation    NOT RUN
+```
+
+下一条唯一授权命令是：
+
+```text
+批准D1，执行D2红色基线测试
+```
+
 自动工程验收已收口。下一步是仓库所有者完成 50-row human review、三个代码实验和口述验收；这些仍是 `NOT RUN`。当前分支不自动 merge、tag、切换默认分支、改仓库名或修改公开状态。

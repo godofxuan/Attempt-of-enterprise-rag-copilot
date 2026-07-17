@@ -90,7 +90,7 @@ These values describe specific local artifacts; they are not production accuracy
 | E5 stage-entry full regression suite | `526 passed`, 3 known FAISS warnings | Deterministic/local test baseline before E6 UI additions |
 | E7 deterministic suite rc02 | `28/28` | Stable hash embeddings and extractive generation isolate system contracts |
 | Canonical live development suite | `23/24` | Historical public-snapshot batch; one local `bge-m3` + `qwen2.5:3b` run |
-| E7 direct prompt-injection probes | `4/4` safe pre-retrieval refusals | Direct user prompts only; retrieved-content injection is `NOT RUN` |
+| E7 direct prompt-injection probes | `4/4` safe pre-retrieval refusals | Direct user prompts only; R2-S1 retrieved-content design/protocol is frozen at D1, but implementation and evaluation remain `NOT RUN` |
 | E7 final-code load rc02 | `31/31` requests | One Windows machine; warm p95 was 1.115 s / 4.244 s / 8.218 s at concurrency 1 / 5 / 10 |
 | E7 workflow ablation rc02 | fixed RAG `0.8571` vs bounded Agentic `1.0000` outcome accuracy | 28-case deterministic synthetic test; Agentic used 47 vs 28 tool calls |
 
@@ -124,7 +124,7 @@ The generator derives documents and evaluation labels from a checked-in fact mod
 
 - Browser-supplied `UserContext` is validated but not authenticated by real IAM.
 - The corpus and evaluation set are synthetic and small; the live result is a development run, not a generalization estimate.
-- Indirect prompt injection inside retrieved documents is `NOT RUN` because this corpus version has no dedicated fixture.
+- R2-S1 has a frozen [retrieved-content threat model and evaluation protocol](docs/security/r2_s1/00_scope_and_threat_model.md), but its Guard, dedicated fixtures, deterministic run, and live run are still `NOT RUN`.
 - The optional reranker is `NOT RUN`; current ablation does not justify adding one blindly.
 - Traces and metrics are bounded in-memory local structures, not durable distributed observability.
 - Index lifecycle is immutable rebuild/activate, not production incremental upsert/delete.
@@ -142,6 +142,7 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 - [Evaluation Protocol](docs/evaluation.md)
 - [Ablation Report](docs/ablation_report.md)
 - [Security Threat Model](docs/security_threat_model.md)
+- [R2-S1 Retrieved-Content Security Design](docs/security/r2_s1/00_scope_and_threat_model.md)
 - [Observability and Load Evidence](docs/observability.md)
 - [Reproducibility Guide](docs/reproducibility.md)
 - [Data Card](docs/data_card.md)
