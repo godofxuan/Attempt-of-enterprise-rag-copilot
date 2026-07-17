@@ -165,10 +165,11 @@ def test_evaluation_page_uses_strict_public_snapshot() -> None:
         str(item.value)
         for item in [*app.markdown, *app.caption, *app.info, *app.warning]
     )
-    table_text = "\n".join(str(item.value) for item in app.dataframe)
-    assert "NOT RUN" in visible + table_text
-    assert "20260716T135632Z_7aec4b9_test_suite" in table_text
-    assert "20260716T165304Z_7aec4b9_demo_load_r2" in table_text
+    # Dataframe.value performs a PyArrow-to-Pandas test-only round trip.
+    assert len(app.dataframe) == 6
+    assert "NOT RUN" in visible
+    assert "20260716T135632Z_7aec4b9_test_suite" in visible
+    assert "20260716T165304Z_7aec4b9_demo_load_r2" in visible
 
     source = EVALUATION_PAGE.read_text(encoding="utf-8")
     assert 'st.info("Optional reranker: NOT RUN")' not in source
