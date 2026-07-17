@@ -1,6 +1,6 @@
 # R2-S1 Detailed Design and Schema Drafts
 
-状态：D1 frozen schema draft；不属于正式 Python implementation。
+状态：D1 frozen contract。D3 已按本文第 3、6、7、14、15 节实现独立 Python Guard core；第 4、5、8-13 节的数据流接入仍属于 D4-D6。实现证据见 [05_results.md](05_results.md)，不得把 D3 unit green 表述成运行时已接入。
 
 ## 1. Contract Ownership
 

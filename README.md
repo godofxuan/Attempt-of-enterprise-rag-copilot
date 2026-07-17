@@ -72,6 +72,8 @@ The result is a bounded Agentic workflow, not an open-ended autonomous agent. Th
 - Typed `search`, `find`, and `open` tools controlled by explicit budgets and deadlines.
 - Evidence ledger for completeness, conflict, permission, not-found, partial, and answer decisions.
 - Rule-first unsafe short-circuit and source-free refusals.
+- Standalone deterministic retrieved-content Guard core with bounded Unicode,
+  Base64, markup, role, secret, and egress detection; runtime integration is D4.
 - Claim-level citation verification against visible evidence.
 - Request IDs, safe errors, liveness/readiness, bounded in-memory traces, metrics, model retry counters, and hash-only feedback persistence.
 - Retrieval, response, Agent, security, ablation, and local load evaluation.
@@ -91,7 +93,8 @@ These values describe specific local artifacts; they are not production accuracy
 | E7 deterministic suite rc02 | `28/28` | Stable hash embeddings and extractive generation isolate system contracts |
 | Canonical live development suite | `23/24` | Historical public-snapshot batch; one local `bge-m3` + `qwen2.5:3b` run |
 | E7 direct prompt-injection probes | `4/4` safe pre-retrieval refusals | Direct user prompts only; this does not cover poisoned retrieved documents |
-| R2-S1 D2 retrieved-content probes | `5` expected red data-flow assertions, `3` existing boundary passes | Proves current prompt/raw-result/top-1 exposure and current trace/no-egress behavior; fake generator is not a live-model attack rate, Guard remains `NOT RUN` |
+| R2-S1 D2 retrieved-content probes | `5` expected red data-flow assertions, `3` existing boundary passes | The same five remain red after D3 because the standalone Guard is not wired until D4; fake generator is not a live-model attack rate |
+| R2-S1 D3 standalone Guard | `64 passed`; full regression excluding intentional D2 RED files `638 passed` | `rcg-v1.0.0`, deterministic and model-free; not yet connected to retrieval, Controller, generation, API, or public trace |
 | E7 final-code load rc02 | `31/31` requests | One Windows machine; warm p95 was 1.115 s / 4.244 s / 8.218 s at concurrency 1 / 5 / 10 |
 | E7 workflow ablation rc02 | fixed RAG `0.8571` vs bounded Agentic `1.0000` outcome accuracy | 28-case deterministic synthetic test; Agentic used 47 vs 28 tool calls |
 
@@ -125,7 +128,7 @@ The generator derives documents and evaluation labels from a checked-in fact mod
 
 - Browser-supplied `UserContext` is validated but not authenticated by real IAM.
 - The corpus and evaluation set are synthetic and small; the live result is a development run, not a generalization estimate.
-- R2-S1 has a frozen [retrieved-content threat model](docs/security/r2_s1/00_scope_and_threat_model.md) and a recorded [D2 red data-flow baseline](docs/security/r2_s1/05_results.md), but its Guard, full dedicated fixture set, deterministic OFF/ON run, and live run are still `NOT RUN`.
+- R2-S1 has a frozen [retrieved-content threat model](docs/security/r2_s1/00_scope_and_threat_model.md), a recorded [D2 red data-flow baseline](docs/security/r2_s1/05_results.md), and a unit-tested standalone D3 Guard core. Guarded retrieval/Controller integration, the full dedicated fixture set, deterministic OFF/ON run, and live run are still `NOT RUN`.
 - The optional reranker is `NOT RUN`; current ablation does not justify adding one blindly.
 - Traces and metrics are bounded in-memory local structures, not durable distributed observability.
 - Index lifecycle is immutable rebuild/activate, not production incremental upsert/delete.
@@ -144,7 +147,7 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 - [Ablation Report](docs/ablation_report.md)
 - [Security Threat Model](docs/security_threat_model.md)
 - [R2-S1 Retrieved-Content Security Design](docs/security/r2_s1/00_scope_and_threat_model.md)
-- [R2-S1 D2 Red Baseline Results](docs/security/r2_s1/05_results.md)
+- [R2-S1 D2/D3 Security Results](docs/security/r2_s1/05_results.md)
 - [Observability and Load Evidence](docs/observability.md)
 - [Reproducibility Guide](docs/reproducibility.md)
 - [Data Card](docs/data_card.md)

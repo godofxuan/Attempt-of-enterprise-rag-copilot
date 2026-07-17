@@ -1,7 +1,7 @@
 # R2-S1 Retrieved-Content Indirect Injection Implementation Journal
 
 最后更新：2026-07-17
-当前阶段：D2 red baseline recorded；Guard implementation `NOT RUN`
+当前阶段：D3 standalone Guard core green；D4 runtime integration `NOT RUN`
 
 ## 1. Why R2-S1 Is Next
 
@@ -101,7 +101,8 @@ R2-S1 will use `data/v2/security/` and cannot overwrite these files or their his
 |---|---|---|
 | current raw path has an indirect-injection exposure surface | `OBSERVED` | code path inspected at D0 |
 | proposed boundary is internally specified | `D1 FROZEN` | schemas, outcomes and metrics documented |
-| Guard blocks malicious retrieved content | `NOT RUN` | no implementation or red/green test exists |
+| standalone Guard classifies bounded text | `D3 UNIT GREEN` | 64 model-free schema/rule/resource/failure tests |
+| Guard blocks runtime retrieved content | `NOT RUN` | D3 is not wired to retrieval/Controller/generation |
 | top-up recovers clean evidence | `NOT RUN` | no guarded candidate path exists |
 | frozen attack set passes | `NOT RUN` | dataset/evaluator not created |
 | Qwen resists or follows attacks | `NOT RUN` | live trial requires D7 approval |
@@ -195,10 +196,77 @@ Raw outputs are retained under ignored `.private/r2_s1/` files and are not commi
 
 The main issue is not that the system prompt forgot to say “evidence is untrusted”; that sentence already exists. The missing control is a deterministic boundary before raw retrieved content reaches Controller and generation. Citation verification also cannot solve the problem because a malicious canary copied from cited evidence receives lexical support.
 
-D3 will implement the standalone deterministic detector. The five integration failures are expected to remain red until D4 connects guarded types, admitted-only evidence and bounded candidate recovery.
+D3 has now implemented the standalone deterministic detector. The five integration failures remain red exactly as expected until D4 connects guarded types, admitted-only evidence and bounded candidate recovery.
 
-## 11. Next Gate
+## 11. D3 Guard Core Implementation
+
+### 11.1 What changed
 
 ```text
-批准D2，执行D3 Guard核心实现
+app/domain/retrieved_security.py
+  - rcg-v1.0.0 identity and hard resource limits
+  - fixed rule/category/severity mapping
+  - strict, frozen, content-free GuardDecision
+
+app/security/retrieved_content.py
+  - 14k prefix + 6k suffix source/normalization views
+  - NFKC, casefold, Unicode Cf removal and limited confusables
+  - instruction/role/secret/egress proximity rules
+  - risky-markup annotation and descriptive-quote suppression
+  - one-level bounded Base64 discovery and decoded-byte threshold
+  - per-item fail-closed wrapper and complete rule provenance hash
+
+tests/security/test_retrieved_content_guard.py
+  - 64 contract, attack, benign, obfuscation, bound and exception tests
+```
+
+`app/security/__init__.py` exposes the Guard and rule hash as the stable package
+contract. D3 did not touch retrieval, tools, Controller, generation, API, model
+configuration, indexes or R1 frozen data.
+
+### 11.2 Why the design is deterministic instead of LLM-as-judge
+
+This component is a pre-model security boundary. Calling an LLM here would send
+the untrusted payload to another model, add latency/network failure modes, make
+decisions non-reproducible and still require a deterministic fail-closed policy.
+The Guard therefore uses static rule combinations and bounded normalization.
+Later evaluation can compare its false positives/negatives and a live model can
+remain a separately labeled secondary experiment.
+
+### 11.3 Difficulties and corrections
+
+The first green implementation was not accepted without adversarial review. A
+read-only reviewer found suffix loss after Unicode expansion, false quote
+suppression, missing Unicode controls, quadratic rule pairing, mutable/coercive
+decision fields and incomplete rule-hash provenance. Each became a regression
+test before correction. The review batch was `13 failed / 51 passed`, then the
+corrected core reached `64 passed`.
+
+The most important engineering lesson is that a scanner's security boundary is
+defined as much by resource accounting, normalization and immutable result types
+as by its keyword patterns. A detector that finds the obvious string but can be
+bypassed by formatting controls or exhausted by repeated tokens is not a useful
+Agent boundary.
+
+### 11.4 Actual evidence and honest boundary
+
+```text
+Guard core                                  64 passed
+security excluding intentional D2 RED       84 passed
+agent/retrieval excluding intentional D2   116 passed
+full suite excluding intentional D2 RED    638 passed
+D2 integration baseline                      5 failed / 3 passed
+detector version                            rcg-v1.0.0
+rule SHA-256                                a544f013e5570b24488220b3ba11c721a2c6e05b2a4895b027dd0601363bbdb0
+```
+
+The unchanged D2 failures are not a failed D3 acceptance. They prove the phase
+boundary is intact: no production path calls the Guard yet. D4 must make raw tool
+results unrepresentable downstream, quarantine before admitted top-k, top up from
+the same ACL-visible candidate pool, and expose only aggregate security counters.
+
+## 12. Next Gate
+
+```text
+批准D3，执行D4数据流接入与能力约束
 ```

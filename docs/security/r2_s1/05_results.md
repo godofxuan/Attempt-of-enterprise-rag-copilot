@@ -5,9 +5,9 @@ Last updated: 2026-07-17
 ## 1. Current Evidence Status
 
 ```text
-phase                                  D2 RED BASELINE RECORDED
-baseline HEAD                          ce1ec9e5adb5f9ae253e6a9423747ea618344a22
-RetrievedContentGuard                  NOT IMPLEMENTED
+phase                                  D3 STANDALONE GUARD CORE GREEN
+D3 entry HEAD                          c1c47dfe88c42c309afc32faa9bc6584e90e89ac
+RetrievedContentGuard                  IMPLEMENTED, NOT RUNTIME-INTEGRATED
 full 72-case security evaluation       NOT RUN
 local Qwen/BGE-M3 security evaluation  NOT RUN
 ```
@@ -16,7 +16,7 @@ D2 is intentionally not a release pass. It records the vulnerable data flow befo
 the Guard exists, so later D3-D5 changes must turn the relevant red tests green
 without weakening the already-green trace and no-egress boundaries.
 
-Because no Guard class exists at this baseline, the test names use `guard_off` to
+Because no Guard class existed at the D2 baseline, the test names use `guard_off` to
 mean the current unguarded path that the later evaluator's explicit OFF dependency
 injection must reproduce. No production setting was switched off.
 
@@ -274,9 +274,9 @@ Established:
 - current pre-Guard top-k selection can discard a clean recovery candidate;
 - the current public trace and tested no-egress boundary are already green.
 
-Not established:
+Not established by D2 alone:
 
-- no detector or Guard exists yet;
+- no detector or Guard existed at that baseline;
 - no malicious/benign 72-case dataset has run;
 - no Guard OFF/ON metric has been computed;
 - no Qwen/BGE-M3 live security trial has run;
@@ -295,8 +295,153 @@ Not established:
 D3 alone is not expected to turn all five D2 failures green because D3 builds the
 detector core; D4 is the phase that connects it to retrieval and Controller.
 
-## 9. Next Approval Gate
+## 9. D3 Standalone Guard Core
+
+### 9.1 Code ownership
+
+| File | D3 responsibility |
+|---|---|
+| `app/domain/retrieved_security.py` | strict immutable `GuardDecision`, fixed categories, exact rule/category/severity allowlist and resource invariants |
+| `app/security/retrieved_content.py` | bounded deterministic scanner, normalization views, rule matching, Base64 handling and fail-closed boundary |
+| `app/security/__init__.py` | stable package exports for `RetrievedContentGuard` and `RULE_SET_SHA256` |
+| `tests/security/test_retrieved_content_guard.py` | 64 schema, malicious, benign, obfuscation, resource and failure tests |
+| `docs/superpowers/plans/2026-07-17-r2-s1-d3-guard-core.md` | test-first D3 execution plan and D4 deferrals |
+
+No retrieval, Controller, generation, API, index, R1 dataset or model code was
+changed. The Guard receives one text object and returns content-free diagnostics.
+
+### 9.2 Decision contract
+
+`GuardDecision` uses Pydantic strict mode, `frozen=True`, immutable tuples and an
+exact detector-version literal. A caller cannot mutate an admitted decision after
+validation, pass numeric strings, invent an `RCG-*` ID, or pair a rule with the
+wrong category/severity. The model derives the only valid disposition from the
+strongest allowlisted rule:
 
 ```text
-批准D2，执行D3 Guard核心实现
+no rules                         -> ADMIT / none
+observe-only rules               -> ADMIT / observe
+any quarantine rule             -> QUARANTINE / quarantine
+RCG-GUARD-ERROR alone            -> QUARANTINE / error
+```
+
+The exact fail-closed object has no raw/normalized/decoded text field.
+
+### 9.3 Detection pipeline
+
+```text
+immutable original text
+-> source bound: 14,000 prefix + 6,000 suffix when over 20,000
+-> NFKC and casefold ephemeral views
+-> preserve normalized prefix and suffix if Unicode expansion exceeds 20,000
+-> remove all Unicode category Cf controls from comparison/Base64 views
+-> limited Cyrillic confusable translation
+-> action + target/role/context rule combinations
+-> markup annotation only when a risky directive is already present
+-> at most 8 strict Base64 candidates, one decode level, max 3,072 bytes
+-> immutable ADMIT/QUARANTINE decision
+```
+
+Plain `SYSTEM`, `upload`, a URL, markup, Base64, or a quoted training phrase is not
+enough by itself. The scanner is deterministic and makes no LLM, embedding, tool
+or network call.
+
+### 9.4 Resource and failure behavior
+
+- source and normalized views are each bounded to 20,000 characters;
+- Base64 candidates are 16..4,096 encoded characters with printable threshold
+  calculated over decoded bytes;
+- each regex family is capped at 256 matches and paired with a linear two-pointer
+  algorithm instead of a Cartesian product;
+- malformed input, internal exceptions and rule-budget exhaustion return the
+  exact content-free `RCG-GUARD-ERROR` quarantine decision;
+- decoded content is never recursively searched for another Base64 payload and is
+  never decompressed.
+
+## 10. TDD and Review Findings
+
+The implementation was built as observable RED/GREEN slices: missing schema,
+missing atomic scanner, Base64 handling, resource bounds, fail-closed behavior,
+Unicode/markup variants, package exports and decoded-byte threshold semantics all
+failed first and then passed.
+
+An independent read-only code review then found six issues before closeout:
+
+| Finding | Why the first implementation was unsafe | D3 correction |
+|---|---|---|
+| NFKC expansion clipped one side | a suffix directive could leave the normalized view | normalized overflow now preserves separate 14k/6k ends |
+| quote test used nearest quote characters | text between two unrelated quoted phrases could be mislabeled descriptive | only balanced unescaped enclosing pairs suppress a marked training example |
+| hand-written control set was incomplete | U+2063 and LRM/RLM could split a directive; controls could split Base64 | all Unicode `Cf` controls are annotated and removed only in ephemeral comparison views |
+| Cartesian rule pairing | repeated signals could cause quadratic CPU/memory growth | bounded match lists plus linear two-pointer pairing; overflow fails closed |
+| mutable/coercive decision model | a validated decision could be mutated or accept invented rule/version values | strict frozen model, tuples, exact version and static rule mapping |
+| incomplete rule hash | security semantics could change without provenance changing | hash now covers Unicode DB, control/bidi policy, regex flags, windows, limits and rule mappings |
+
+The reviewer regressions first produced `13 failed / 51 passed`; after correction,
+the Guard file produced `64 passed` in `0.14 s` on the local machine.
+
+## 11. D3 Actual Verification
+
+```text
+Guard core unit tests                         64 passed, 3 warnings
+security regression excluding D2 RED          84 passed, 3 warnings
+agent/retrieval regression excluding D2 RED  116 passed, 3 warnings
+full regression excluding D2 RED             638 passed, 3 warnings
+D2 integration probes unchanged                5 failed / 3 passed
+```
+
+All warnings are the existing FAISS SWIG deprecation warnings. The D2 rerun is
+stored in ignored `.private/r2_s1/d3_d2_red_unchanged.txt`; it remains red because
+D3 deliberately does not alter runtime data flow.
+
+Ignored raw evidence identity:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `d3_guard_core.txt` | 1,428 | `461d7a1936691db0bed7be01f547315af96b04faf27178735d3508f351c7a40b` |
+| `d3_full_regression.txt` | 2,728 | `2cdad99d8bf49ba6ab5253ab1968177bfb6dc4a409b5d67983e3c11f11ecdca3` |
+| `d3_d2_red_unchanged.txt` | 18,974 | `6514bebc58b79e085b03591b306e317a4b868eb918a6a2954d5766749723ee64` |
+
+Closeout checks:
+
+| Check | Result |
+|---|---|
+| public repository audit | `352 candidates, 0 findings` |
+| repository/config tests | `14 passed, 3 known FAISS warnings` |
+| compileall for D3 code/tests | exit `0` |
+| R1 dev/test/manifest SHA-256 | exact frozen values from D1/D2 |
+
+Detector identity:
+
+```text
+detector_version  rcg-v1.0.0
+rule_set_sha256   a544f013e5570b24488220b3ba11c721a2c6e05b2a4895b027dd0601363bbdb0
+```
+
+## 12. What D3 Establishes and Defers
+
+Established:
+
+- deterministic per-text classification with immutable, content-free decisions;
+- bounded Unicode, role, secret, egress, markup and one-level Base64 checks;
+- fail-closed behavior for malformed input, internal errors and rule saturation;
+- benign quoted-training and ordinary operational examples in the unit fixture
+  remain admitted;
+- no regression in the existing suite when the intentional D2 files are excluded.
+
+Deferred to D4 or later:
+
+- no raw `SearchResult`, `FindResult` or `OpenResult` is guarded yet;
+- Controller still accepts raw executions and generation still sees selected raw
+  evidence;
+- quarantine does not yet recover clean candidates after top-k displacement;
+- same-document adjacent split aggregation needs authorized document/order context
+  and is therefore a D4 concern, not a single-string D3 scanner feature;
+- the frozen 72-case OFF/ON evaluator and local Qwen/BGE-M3 run remain `NOT RUN`.
+
+The project still cannot claim end-to-end retrieved-content injection defense.
+
+## 13. Next Approval Gate
+
+```text
+批准D3，执行D4数据流接入与能力约束
 ```

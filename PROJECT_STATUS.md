@@ -2,7 +2,7 @@
 
 更新时间：2026-07-17
 
-状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。E0-E6 的代码、数据契约、评测、API、可观测性和演示已完成；E7 重新核对静态仓库、冻结数据、索引生命周期、deterministic 评测、真实模型/API、负载和真实浏览器。50 行人工语义评分与本人代码/口述验收仍是 `NOT RUN`，不计入通过项。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
+状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。R2-S1 已完成 D1 协议冻结、D2 红色数据流基线和 D3 独立 Guard 核心；D4 数据流接入尚未授权。50 行人工语义评分与本人代码/口述验收仍是 `NOT RUN`，不计入通过项。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
 
 ## 1. 当前定位
 
@@ -30,6 +30,7 @@ synthetic corpus
 - E5：统一 safe error、request ID/deadline、liveness/readiness、模型 timeout/retry、trace/metrics、hash-only feedback、CI 配置与本地 load evidence。
 - E6：最小披露 evidence trace、带 source hash 的 public snapshot、类型化 UI client、7 个 canonical demo cases、Ask/Trace/Evaluation 三页、真实 desktop/mobile 验收和公开仓库审计。
 - E7：重新生成 deterministic test/ablation rc02 与 final-code load artifacts；核对 raw artifact hashes、public snapshot、active index、真实 API/browser；修复 trace 查询自覆盖和 EvidenceLedger 冲突优先级方向；强化所有 Markdown 的机器路径审计；逐条收窄 claims；完成 feature-branch push、四轮 clean-clone 故障闭环与 Ubuntu CI。
+- R2-S1 D3：新增严格冻结的 `GuardDecision` 和 model-free `RetrievedContentGuard`；对原文建立 20,000 字符有界视图，执行 NFKC/casefold、Unicode `Cf` 控制符处理、有限同形字、结构化规则组合和单层有界 Base64 检查；单项异常与规则预算耗尽均 fail closed。该核心尚未接入 retrieval、Controller 或 generation。
 
 ## 3. 当前证据
 
@@ -49,6 +50,19 @@ E6 final          569 passed, 3 warnings
 ```
 
 `pip check` 无依赖冲突，`compileall` 覆盖 `app/scripts/streamlit_app/tests`，frozen test hash 完全一致，最终 staged public repository audit 为 331 candidates / 0 findings，`git diff --cached --check` 退出 0。3 条 warning 仍只来自 FAISS SWIG 类型弃用提示。
+
+### R2-S1 D3 本地门禁
+
+```text
+Guard core unit tests                         64 passed
+security regression excluding D2 RED          84 passed
+agent/retrieval regression excluding D2 RED  116 passed
+full regression excluding D2 RED             638 passed
+D2 data-flow probes unchanged                  5 failed / 3 passed
+public repository audit                      352 candidates / 0 findings
+```
+
+`rcg-v1.0.0` 的规则集 SHA-256 是 `a544f013e5570b24488220b3ba11c721a2c6e05b2a4895b027dd0601363bbdb0`。这组结果只证明独立核心及其回归，不表示运行时已经拦截检索投毒。
 
 ### GitHub 交付与远端复现
 
@@ -89,7 +103,7 @@ E6 final          569 passed, 3 warnings
 
 ## 6. 明确 NOT RUN 或不能外推
 
-- Retrieved-content indirect prompt injection：D1 design/protocol 已冻结，D2 已记录 `5 failed / 3 passed` 红色数据流基线；Guard、完整 fixture 集和 deterministic/live OFF/ON evaluation 仍为 `NOT RUN`。
+- Retrieved-content indirect prompt injection：D1 design/protocol 已冻结，D2 已记录 `5 failed / 3 passed` 红色数据流基线，D3 standalone Guard core 已完成 `64 passed`；D4 guarded data-flow、完整 72-case fixture 和 deterministic/live OFF/ON evaluation 仍为 `NOT RUN`。
 - Optional reranker：`NOT RUN`，没有 admitted reranker。
 - Human semantic review：`NOT RUN`；50 行表仍为空，等待本人判断。
 - Owner code experiments and oral defense：`NOT RUN`；Codex 不能代替本人完成。
@@ -110,7 +124,7 @@ E6 final          569 passed, 3 warnings
 
 ## 8. R2-S1 当前状态
 
-R2-S1 的 D0 只读审计、D1 威胁模型/评测协议冻结和 D2 红色基线已完成。D2 运行基于 `ce1ec9e5adb5f9ae253e6a9423747ea618344a22` 加未提交测试 diff；权威设计与结果位于：
+R2-S1 的 D0 只读审计、D1 威胁模型/评测协议冻结、D2 红色基线和 D3 独立 Guard 核心已完成。D3 从已提交的 D2 基线 `c1c47dfe88c42c309afc32faa9bc6584e90e89ac` 开始；权威设计与结果位于：
 
 - [R2-S1 总设计](docs/superpowers/specs/2026-07-17-r2-s1-indirect-prompt-injection-design.md)
 - [Scope and threat model](docs/security/r2_s1/00_scope_and_threat_model.md)
@@ -125,10 +139,11 @@ R2-S1 的 D0 只读审计、D1 威胁模型/评测协议冻结和 D2 红色基�
 ```text
 design/protocol                         D1 FROZEN
 D2 propagation baseline                5 EXPECTED RED / 3 EXISTING BOUNDARY PASS
-RetrievedContentGuard implementation   NOT RUN
-malicious/benign security datasets     NOT RUN
-deterministic guard OFF/ON evaluation  NOT RUN
-local live guard OFF/ON evaluation     NOT RUN
+RetrievedContentGuard standalone core  D3 GREEN / 64 TESTS
+runtime guarded data flow               NOT RUN / D4
+malicious/benign security datasets      NOT RUN
+deterministic guard OFF/ON evaluation   NOT RUN
+local live guard OFF/ON evaluation      NOT RUN
 ```
 
-D2 证明当前恶意检索文本可进入 generation context，raw Search/Open 可进入 Controller，且 top-1 poison 会挤掉 clean candidate；同时 current public trace 与 no-egress harness 已通过。假生成器只证明传播路径，不代表 Qwen 漏洞率。因此 README 仍不能写“已防御 retrieved-content injection”。下一授权门是 `批准D2，执行D3 Guard核心实现`。
+D3 实现位于 `app/domain/retrieved_security.py` 与 `app/security/retrieved_content.py`。它不调用 LLM、embedding、网络或工具，也不改写原文。D2 的五项集成失败仍保持红色，因为 D4 才负责把 raw Search/Find/Open 改为 guarded payload、在 top-k 前隔离并补位、让 Controller 运行时拒绝 raw execution。因此 README 仍不能写“已完成 retrieved-content injection 运行时防御”。下一授权门是 `批准D3，执行D4数据流接入与能力约束`。
