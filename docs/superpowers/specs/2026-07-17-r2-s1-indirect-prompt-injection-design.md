@@ -279,13 +279,16 @@ Rollback is commit-level, not a request-level `guard=off` switch. If a release c
 
 ## 12. Current Status and Approval Gate
 
-D1 freezes design only. No Guard, malicious corpus, implementation test, evaluator result or live model result exists yet. Public status therefore remains:
+This specification was frozen at D1. Implementation has since progressed without changing the D1 threat/evaluation contract:
 
 ```text
 R2-S1 design/protocol: FROZEN AT D1
-retrieved-content defense implementation: NOT RUN
-indirect injection deterministic evaluation: NOT RUN
+D2 propagation baseline: RECORDED
+D3 detector core: GREEN
+D4 guarded runtime data flow: GREEN
+D5 prompt/trace/service lifecycle: GREEN / 697 OFFLINE TESTS
+72-case deterministic OFF/ON evaluation: NOT RUN
 indirect injection live evaluation: NOT RUN
 ```
 
-The next authorized phase is D2, which writes red baseline tests and records the existing propagation path without adding a production Guard.
+D5 evidence is deterministic implementation evidence, not an attack success or false-positive rate. The next authorized phase is D6, which creates/finalizes the frozen security fixtures and runs the required deterministic and local-live evaluation protocol. Detailed implementation evidence is in [D4 Engineering Journal](../../security/r2_s1/06_d4_engineering_journal.md) and [D5 Engineering Journal](../../security/r2_s1/07_d5_engineering_journal.md).

@@ -155,4 +155,4 @@
 | adopted with repository-specific adjustment | 6 |
 | rejected entirely | 0 |
 
-No decision changes the current D1 status: implementation and evaluation remain `NOT RUN`.
+The decision set remains frozen. D3-D5 have now implemented D01-D10 without changing the chosen options; D11-D12 dataset/evaluation evidence remains D6 `NOT RUN`. Implementation mapping and evidence are in [D4 Engineering Journal](06_d4_engineering_journal.md) and [D5 Engineering Journal](07_d5_engineering_journal.md).

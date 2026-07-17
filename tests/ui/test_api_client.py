@@ -240,6 +240,7 @@ def test_readiness_accepts_structured_503_and_trace_validates_model() -> None:
     readiness = {
         "status": "not_ready",
         "checks": {"database": "ok", "index": "ok", "models": "error"},
+        "retrieved_guard": "ready",
         "index": None,
         "checked_at_utc": "2026-07-17T08:00:00Z",
     }

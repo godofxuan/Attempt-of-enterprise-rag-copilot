@@ -44,6 +44,7 @@ def test_metrics_and_trace_api_expose_only_safe_request_metadata(monkeypatch) ->
     assert trace.status_code == 200
     assert trace.json()["request_id"] == "req-observe"
     assert trace.json()["route"] == "/agent/v2/chat"
+    assert "retrieved_content_security" not in trace.json()
     assert metrics.status_code == 200
     serialized = json.dumps(
         {"trace": trace.json(), "metrics": metrics.json()},

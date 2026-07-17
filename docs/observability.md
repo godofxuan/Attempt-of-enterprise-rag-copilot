@@ -250,3 +250,11 @@ API 重启后的 r2 cold 只有 1.668s，因为 Ollama 是独立进程，仍保�
 ## 12. 何时升级到 OpenTelemetry
 
 出现多进程/多服务、持久 retention、跨服务 parent-child trace、集中告警或团队查询需求时，应增加 OTel adapter/collector 和 metrics backend。保留当前 `TraceSink` 边界可以让默认内存实现被替换，但需要重新设计认证、采样、PII policy、label cardinality 和部署，不属于 E5 已完成范围。
+
+## 13. R2-S1 D5 Security Observability
+
+每个实际 retrieval tool step 可以包含一个 `retrieved_content_security` 对象。它只允许 count、排序后的静态 category/rule ID、detector version 和 `evidence_filtered|null`；不允许正文、normalized/decoded view、title/path、doc/chunk ID、hash、nonce 或 canary。
+
+这组数据属于 Agent response trace，用于回答“Guard 是否执行、隔离后是否补位、是否全部过滤”。服务级 `RequestTrace` 保持 body-free，只记录 HTTP metadata、模型调用计数和固定 span；它不会复制 per-case Guard detail。
+
+readiness 新增顶层低敏字段 `retrieved_guard=ready|error`。`error` 只表示 policy/probe 不可用，不回显规则正文、digest、异常或本机路径。排查顺序应先确认该状态；如果是 `error`，不要通过关闭 Guard 恢复服务，应修复 ruleset/package 并重新启动 secure app。

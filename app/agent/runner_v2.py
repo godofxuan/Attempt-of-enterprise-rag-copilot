@@ -20,6 +20,7 @@ from app.domain.queries import QueryAnalysis, UserContext
 from app.domain.retrieved_security import (
     AdmittedEvidenceChunk,
     GuardedV2ToolExecution,
+    RetrievedContentSecurityTrace,
 )
 from app.security.access import redact_trace_payload
 
@@ -248,6 +249,10 @@ def _tool_step_trace(
         if isinstance(execution.result, ToolError)
         else None
     )
+    security_trace = RetrievedContentSecurityTrace.from_counters(
+        execution.security_counters,
+        stop_reason=execution.security_stop_reason,
+    )
     return {
         "sequence": execution.action.sequence,
         "tool": execution.action.tool,
@@ -257,6 +262,7 @@ def _tool_step_trace(
         "context_chars_added": execution.context_chars_added,
         "error_code": error_code,
         "budget": _budget_trace(execution.budget_state),
+        "retrieved_content_security": security_trace.model_dump(mode="json"),
     }
 
 

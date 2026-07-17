@@ -350,7 +350,7 @@ E7 live/browser 已完成并清理：8000/8501 listeners 0、项目 Python 0、O
 
 ## 17. R2-S1 当前精确断点
 
-本人已依次批准 D1-D4。R2-S1 的冻结起点和当前实现断点为：
+本人已依次批准 D1-D5。R2-S1 的冻结起点和当前实现断点为：
 
 ```text
 branch                    codex/rag-eval-system
@@ -361,7 +361,7 @@ tracked/staged at D0      clean
 pre-existing untracked    .superpowers/ browser companion only
 ```
 
-D0 当时发现 raw `SearchResult/FindResult/OpenResult` 直接进入 `Controller.observe`、pipeline 在 Guard 前裁成 top-k。D2 用 `5 failed / 3 passed` 记录该历史红色基线；D3 实现 standalone Guard；D4 已把默认 V2 路径改成 capped ranked pool -> admission -> guarded execution -> admitted-only state。legacy `/chat` 和 `/agent/chat` 仍不在 D4 claim 内。
+D0 当时发现 raw `SearchResult/FindResult/OpenResult` 直接进入 `Controller.observe`、pipeline 在 Guard 前裁成 top-k。D2 用 `5 failed / 3 passed` 记录该历史红色基线；D3 实现 standalone Guard；D4 已把默认 V2 路径改成 capped ranked pool -> admission -> guarded execution -> admitted-only state；D5 增加 nonce/JSON prompt envelope、aggregate-only public trace、secure default route profile 和 Guard startup/readiness validation。legacy `/chat` 和 `/agent/chat` 只存在于显式 compatibility app，不在 V2 security claim 内。
 
 D1 已冻结以下文档：
 
@@ -383,15 +383,15 @@ docs/roadmap/r2_s1_indirect_injection_implementation.md
 D1 design/protocol               FROZEN
 D2 red propagation baseline      RECORDED / HISTORICAL 5 FAIL + 3 PASS
 D3 standalone Guard              GREEN / 64 TESTS
-D4 guarded V2 data flow          GREEN / FULL 687 TESTS
-D5 prompt/public counters        NOT RUN
+D4 guarded V2 data flow          GREEN / 8 BOUNDARY PROBES
+D5 prompt/public counters        GREEN / FULL 697 TESTS
 D6 security datasets/evaluation  NOT RUN
 ```
 
 下一条唯一授权命令是：
 
 ```text
-批准D4，执行D5提示边界与安全可观测性
+批准D5，执行D6安全评测与门禁
 ```
 
 自动工程验收已收口。下一步是仓库所有者完成 50-row human review、三个代码实验和口述验收；这些仍是 `NOT RUN`。当前分支不自动 merge、tag、切换默认分支、改仓库名或修改公开状态。

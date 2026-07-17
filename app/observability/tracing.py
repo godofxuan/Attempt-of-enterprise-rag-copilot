@@ -20,6 +20,7 @@ SpanName = Literal[
     "readiness.database",
     "readiness.index",
     "readiness.models",
+    "readiness.retrieved_guard",
 ]
 SPAN_NAMES = {
     "agent.run",
@@ -29,6 +30,7 @@ SPAN_NAMES = {
     "readiness.database",
     "readiness.index",
     "readiness.models",
+    "readiness.retrieved_guard",
 }
 
 

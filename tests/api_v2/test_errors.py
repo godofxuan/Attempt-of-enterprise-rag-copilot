@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.main import create_app
+from app.main import create_app, create_compatibility_app
 from tests.api_v2.helpers import make_container
 
 
@@ -36,7 +36,10 @@ def test_unhandled_endpoint_error_is_generic_and_log_does_not_contain_secret(
         raise RuntimeError(secret)
 
     monkeypatch.setattr("app.main.run_agent_chat", fail)
-    response = TestClient(create_app(make_container()), raise_server_exceptions=False).post(
+    response = TestClient(
+        create_compatibility_app(make_container()),
+        raise_server_exceptions=False,
+    ).post(
         "/agent/chat",
         headers={"X-Request-ID": "req-error"},
         json={"question": "safe question", "top_k": 3},

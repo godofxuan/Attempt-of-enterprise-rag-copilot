@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.agent.schemas import AgentChatResponse, AgentTrace
-from app.main import app
+from app.main import create_compatibility_app
 
 
 def test_agent_chat_endpoint_returns_answer_sources_and_trace(monkeypatch):
@@ -23,7 +23,7 @@ def test_agent_chat_endpoint_returns_answer_sources_and_trace(monkeypatch):
 
     monkeypatch.setattr("app.main.run_agent_chat", fake_run_agent_chat)
 
-    client = TestClient(app)
+    client = TestClient(create_compatibility_app())
     response = client.post("/agent/chat", json={"question": "test question", "top_k": 3})
 
     assert response.status_code == 200

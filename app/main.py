@@ -34,6 +34,20 @@ from app.utils import ensure_dir
 
 
 def create_app(container: ServiceContainer | None = None) -> FastAPI:
+    return _create_application(container, compatibility=False)
+
+
+def create_compatibility_app(
+    container: ServiceContainer | None = None,
+) -> FastAPI:
+    return _create_application(container, compatibility=True)
+
+
+def _create_application(
+    container: ServiceContainer | None,
+    *,
+    compatibility: bool,
+) -> FastAPI:
     service = container or build_service_container(get_settings())
 
     @asynccontextmanager
@@ -57,6 +71,9 @@ def create_app(container: ServiceContainer | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     application.state.service_container = service
+    application.state.service_profile = (
+        "local_compatibility" if compatibility else "secure"
+    )
     application.add_middleware(RequestContextMiddleware, container=service)
     install_error_handlers(application)
 
@@ -82,30 +99,34 @@ def create_app(container: ServiceContainer | None = None) -> FastAPI:
             content=snapshot.model_dump(mode="json"),
         )
 
-    @application.post("/ingest", response_model=IngestResponse)
-    def ingest(request: Request) -> IngestResponse:
-        document_count, chunk_count = build_indexes()
-        request.state.outcome = "indexed"
-        return IngestResponse(
-            status="ok",
-            document_count=document_count,
-            chunk_count=chunk_count,
-        )
+    if compatibility:
+        @application.post("/ingest", response_model=IngestResponse)
+        def ingest(request: Request) -> IngestResponse:
+            document_count, chunk_count = build_indexes()
+            request.state.outcome = "indexed"
+            return IngestResponse(
+                status="ok",
+                document_count=document_count,
+                chunk_count=chunk_count,
+            )
 
-    @application.post("/chat", response_model=ChatResponse)
-    def chat(payload: ChatRequest, request: Request) -> ChatResponse:
-        result = answer_question(payload.question, payload.top_k)
-        request.state.outcome = "answered"
-        return ChatResponse(
-            answer=result["answer"],
-            sources=[SourceItem(**item) for item in result["sources"]],
-        )
+        @application.post("/chat", response_model=ChatResponse)
+        def chat(payload: ChatRequest, request: Request) -> ChatResponse:
+            result = answer_question(payload.question, payload.top_k)
+            request.state.outcome = "answered"
+            return ChatResponse(
+                answer=result["answer"],
+                sources=[SourceItem(**item) for item in result["sources"]],
+            )
 
-    @application.post("/agent/chat", response_model=AgentChatResponse)
-    def agent_chat(payload: ChatRequest, request: Request) -> AgentChatResponse:
-        response = run_agent_chat(payload.question, payload.top_k)
-        request.state.outcome = response.trace.final_outcome or "completed"
-        return response
+        @application.post("/agent/chat", response_model=AgentChatResponse)
+        def agent_chat(
+            payload: ChatRequest,
+            request: Request,
+        ) -> AgentChatResponse:
+            response = run_agent_chat(payload.question, payload.top_k)
+            request.state.outcome = response.trace.final_outcome or "completed"
+            return response
 
     @application.post("/agent/v2/chat", response_model=AnswerResponse)
     def agent_v2_chat(payload: AgentV2ChatRequest, request: Request) -> AnswerResponse:
@@ -159,4 +180,4 @@ def create_app(container: ServiceContainer | None = None) -> FastAPI:
 app = create_app()
 
 
-__all__ = ["app", "create_app"]
+__all__ = ["app", "create_app", "create_compatibility_app"]

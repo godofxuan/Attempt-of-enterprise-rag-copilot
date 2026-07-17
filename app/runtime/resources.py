@@ -16,6 +16,7 @@ from app.observability.metrics import MetricsRegistry
 from app.observability.tracing import InMemoryTraceStore
 from app.observability.tracing import trace_span
 from app.retrieval.snapshot import V2IndexSnapshot
+from app.security.retrieved_content import validate_retrieved_content_guard
 
 
 class ReadyIndexInfo(BaseModel):
@@ -34,6 +35,7 @@ class ReadinessSnapshot(BaseModel):
 
     status: Literal["ready", "not_ready"]
     checks: dict[Literal["database", "index", "models"], Literal["ok", "error"]]
+    retrieved_guard: Literal["ready", "error"]
     index: ReadyIndexInfo | None = None
     checked_at_utc: datetime
 
@@ -41,21 +43,23 @@ class ReadinessSnapshot(BaseModel):
 DatabaseProbe = Callable[[], None]
 IndexProbe = Callable[[], ReadyIndexInfo]
 ModelProbe = Callable[[], None]
+GuardProbe = Callable[[], None]
+GuardValidator = Callable[[], None]
 
-DEFAULT_ROUTE_TEMPLATES = frozenset(
+SECURE_ROUTE_TEMPLATES = frozenset(
     {
         "/health",
         "/health/live",
         "/health/ready",
-        "/ingest",
-        "/chat",
-        "/agent/chat",
         "/agent/v2/chat",
         "/feedback",
         "/observability/metrics",
         "/observability/traces/{request_id}",
     }
 )
+LEGACY_ROUTE_TEMPLATES = frozenset({"/ingest", "/chat", "/agent/chat"})
+COMPATIBILITY_ROUTE_TEMPLATES = SECURE_ROUTE_TEMPLATES | LEGACY_ROUTE_TEMPLATES
+DEFAULT_ROUTE_TEMPLATES = SECURE_ROUTE_TEMPLATES
 
 
 @dataclass(frozen=True)
@@ -66,7 +70,18 @@ class ServiceContainer:
     traces: InMemoryTraceStore
 
 
-def build_service_container(settings: Settings) -> ServiceContainer:
+def build_service_container(
+    settings: Settings,
+    *,
+    guard_validator: GuardValidator | None = None,
+) -> ServiceContainer:
+    validator = guard_validator or validate_retrieved_content_guard
+    try:
+        validator()
+    except Exception:
+        raise RuntimeError(
+            "retrieved-content guard policy validation failed"
+        ) from None
     return ServiceContainer(
         settings=settings,
         resources=RuntimeResources(settings),
@@ -86,6 +101,7 @@ class RuntimeResources:
         database_probe: DatabaseProbe | None = None,
         index_probe: IndexProbe | None = None,
         model_probe: ModelProbe | None = None,
+        guard_probe: GuardProbe | None = None,
         clock: Callable[[], float] = time.monotonic,
         utcnow: Callable[[], datetime] | None = None,
     ) -> None:
@@ -93,6 +109,7 @@ class RuntimeResources:
         self._database_probe = database_probe or self._probe_database
         self._index_probe = index_probe or self._probe_index
         self._model_probe = model_probe or self._probe_models
+        self._guard_probe = guard_probe or self._probe_guard
         self._clock = clock
         self._utcnow = utcnow or (lambda: datetime.now(timezone.utc))
         self._snapshot: ReadinessSnapshot | None = None
@@ -134,10 +151,20 @@ class RuntimeResources:
                 checks[name] = "error"
                 if name == "index":
                     index_info = None
-        ready = all(value == "ok" for value in checks.values())
+        guard_status: Literal["ready", "error"] = "ready"
+        try:
+            with trace_span("readiness.retrieved_guard"):
+                self._guard_probe()
+        except Exception:
+            guard_status = "error"
+        ready = (
+            all(value == "ok" for value in checks.values())
+            and guard_status == "ready"
+        )
         self._snapshot = ReadinessSnapshot(
             status="ready" if ready else "not_ready",
             checks=checks,
+            retrieved_guard=guard_status,
             index=index_info if ready else None,
             checked_at_utc=self._utcnow(),
         )
@@ -184,6 +211,9 @@ class RuntimeResources:
         if not required.issubset(available):
             raise RuntimeError("required models are unavailable")
 
+    def _probe_guard(self) -> None:
+        validate_retrieved_content_guard()
+
 
 def _base_model_name(value: str) -> str:
     normalized = value.strip()
@@ -191,10 +221,13 @@ def _base_model_name(value: str) -> str:
 
 
 __all__ = [
+    "COMPATIBILITY_ROUTE_TEMPLATES",
     "DEFAULT_ROUTE_TEMPLATES",
+    "LEGACY_ROUTE_TEMPLATES",
     "ReadinessSnapshot",
     "ReadyIndexInfo",
     "RuntimeResources",
+    "SECURE_ROUTE_TEMPLATES",
     "ServiceContainer",
     "build_service_container",
 ]

@@ -121,9 +121,9 @@ Current status:
 ```text
 threat model and protocol   D1 FROZEN
 standalone Guard core       D3 GREEN / 64 TESTS
-guarded V2 runtime path     D4 GREEN / FULL 687 TESTS
-prompt/public counters      D5 NOT RUN
+guarded V2 runtime path     D4 GREEN / 8 BOUNDARY PROBES
+prompt/public counters      D5 GREEN / FULL 697 TESTS
 indirect attack evaluation  NOT RUN
 ```
 
-The D4 result proves deterministic enforcement of configured rules, not universal resistance or attack success rate. The four existing direct user-prompt probes remain separately labeled, and the D6 dedicated indirect attack/benign OFF/ON runs have not started.
+The D4/D5 result proves deterministic enforcement, prompt framing, aggregate-only trace, secure service composition and policy-lifecycle contracts, not universal resistance or attack success rate. The four existing direct user-prompt probes remain separately labeled, and the D6 dedicated indirect attack/benign OFF/ON runs have not started.

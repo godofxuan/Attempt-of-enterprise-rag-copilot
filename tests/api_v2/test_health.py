@@ -53,7 +53,33 @@ def test_readiness_maps_dependency_state_to_200_or_503() -> None:
     assert not_ready.json() == {
         "status": "not_ready",
         "checks": {"database": "ok", "index": "error", "models": "ok"},
+        "retrieved_guard": "ready",
         "index": None,
         "checked_at_utc": "2026-07-17T00:00:00Z",
     }
     assert resources.refresh_calls == 2
+
+
+def test_readiness_exposes_only_safe_guard_error_status() -> None:
+    guard_failed = not_ready_snapshot().model_copy(
+        update={
+            "checks": {"database": "ok", "index": "ok", "models": "ok"},
+            "retrieved_guard": "error",
+        }
+    )
+    resources = FakeResources(guard_failed)
+
+    with TestClient(create_app(make_container(resources=resources))) as client:
+        response = client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "not_ready",
+        "checks": {"database": "ok", "index": "ok", "models": "ok"},
+        "retrieved_guard": "error",
+        "index": None,
+        "checked_at_utc": "2026-07-17T00:00:00Z",
+    }
+    assert "rule" not in response.text.casefold()
+    assert "path" not in response.text.casefold()
+    assert "sha256" not in response.text.casefold()

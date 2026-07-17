@@ -1,7 +1,7 @@
 # R2-S1 Retrieved-Content Indirect Injection Implementation Journal
 
 最后更新：2026-07-17
-当前阶段：D4 guarded runtime data flow green；等待 D5 prompt boundary 与安全可观测性审批
+当前阶段：D5 prompt boundary 与安全可观测性本地 green；等待 D6 安全评测审批
 
 ## 1. Why R2-S1 Is Next
 
@@ -331,5 +331,18 @@ R1 dev/test/manifest hashes保持冻结值不变；D4 没有调用 Ollama、embe
 ## 14. Next Gate
 
 ```text
-批准D4，执行D5提示边界与安全可观测性
+批准D5，执行D6安全评测与门禁
+
+## 15. D5 Prompt Boundary and Security Observability
+
+D5 从 `86064322fd532264623abd23e8db7a99634ab342` 开始，完成了四条冻结合同：
+
+- `app/agent/generation_v2.py` 使用 fresh per-model-call nonce、JSON admitted records、exact begin/end/reminder，并对 Unicode line separators 做额外 escape；
+- `app/domain/retrieved_security.py` 和 `app/agent/runner_v2.py` 只公开严格 allowlist 的 Guard aggregate；
+- `app/main.py` 的默认 `create_app()` 不再注册 `/ingest`、`/chat`、`/agent/chat`，legacy regression 必须显式使用 `create_compatibility_app()`；
+- `app/security/retrieved_content.py` 和 `app/runtime/resources.py` 在 startup/readiness 验证 ruleset，只公开 `retrieved_guard=ready|error`。
+
+测试经历第一轮 `17 failed / 10 passed`、focused `27 passed`、首次 full `690 passed / 6 failed`、三个额外 adversarial RED，再达到 full offline `697 passed, 3 known FAISS/SWIG warnings`。D5 没有修改 detector rule semantics，版本仍为 `rcg-v1.1.0`，ruleset SHA-256 仍为 `dcafd504a01dcc757910751503eaaf1387903827e5e0f4932fbdd7937b68da01`。
+
+完整逐文件代码讲解、问题复盘和面试问答见 [D5 Engineering Journal](../security/r2_s1/07_d5_engineering_journal.md)。这仍不是 D6 attack success/false-positive evidence；72-case dataset、OFF/ON paired run 和 local live trial 保持 `NOT RUN`。
 ```

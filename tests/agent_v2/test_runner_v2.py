@@ -209,7 +209,30 @@ def test_trace_contains_only_aggregate_step_fields() -> None:
         "context_chars_added",
         "error_code",
         "budget",
+        "retrieved_content_security",
     }
+    security = tool_step["retrieved_content_security"]
+    assert set(security) == {
+        "candidate_count",
+        "scanned_count",
+        "admitted_count",
+        "quarantined_count",
+        "scanned_chars",
+        "decoded_candidate_count",
+        "top_up_attempts",
+        "post_guard_evidence_count",
+        "risk_categories",
+        "rule_ids",
+        "detector_version",
+        "guard_error_count",
+        "stop_reason",
+    }
+    assert security["candidate_count"] == 1
+    assert security["quarantined_count"] == 0
+    assert security["post_guard_evidence_count"] == 1
+    assert security["risk_categories"] == []
+    assert security["rule_ids"] == []
+    assert security["stop_reason"] is None
     assert set(response.trace["budget"]) == {
         "search_calls",
         "find_calls",

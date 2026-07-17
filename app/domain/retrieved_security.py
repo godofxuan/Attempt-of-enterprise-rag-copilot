@@ -428,6 +428,35 @@ class SecurityCounters(_GuardedModel):
         return self
 
 
+class RetrievedContentSecurityTrace(SecurityCounters):
+    stop_reason: Literal["evidence_filtered"] | None = None
+
+    @model_validator(mode="after")
+    def validate_public_stop_reason(self) -> RetrievedContentSecurityTrace:
+        filtered = (
+            self.candidate_count > 0
+            and self.post_guard_evidence_count == 0
+            and self.quarantined_count > 0
+        )
+        if filtered != (self.stop_reason == "evidence_filtered"):
+            raise ValueError(
+                "public stop reason must exactly identify all-filtered evidence"
+            )
+        return self
+
+    @classmethod
+    def from_counters(
+        cls,
+        counters: SecurityCounters,
+        *,
+        stop_reason: Literal["evidence_filtered"] | None,
+    ) -> RetrievedContentSecurityTrace:
+        return cls(
+            **counters.model_dump(mode="python"),
+            stop_reason=stop_reason,
+        )
+
+
 class GuardedSearchResult(_GuardedModel):
     request_id: str = Field(min_length=1)
     query: str = Field(min_length=1)
@@ -576,5 +605,6 @@ __all__ = [
     "GuardSeverity",
     "QuarantineSummary",
     "RiskCategory",
+    "RetrievedContentSecurityTrace",
     "SecurityCounters",
 ]

@@ -5,12 +5,14 @@ Last updated: 2026-07-17
 ## 1. Current Evidence Status
 
 ```text
-phase                                  D4 GUARDED DATA FLOW GREEN
+phase                                  D5 PROMPT/OBSERVABILITY GREEN
 D3 entry HEAD                          c1c47dfe88c42c309afc32faa9bc6584e90e89ac
 D4 entry HEAD                          ec85cc718b3df17731fb1d9df7300a3a7c6fe5be
+D5 entry HEAD                          86064322fd532264623abd23e8db7a99634ab342
 RetrievedContentGuard                  MANDATORY ON DEFAULT V2 TOOL PATH
 guarded boundary probes                8/8 PASSED
-full offline repository suite          687 PASSED
+prompt/trace/profile/readiness          D5 GREEN
+full offline repository suite          697 PASSED
 full 72-case security evaluation       NOT RUN
 local Qwen/BGE-M3 security evaluation  NOT RUN
 ```
@@ -518,5 +520,21 @@ attack success rate. Those are D5 and D6 deliverables.
 ## 15. Next Approval Gate
 
 ```text
-批准D4，执行D5提示边界与安全可观测性
+批准D5，执行D6安全评测与门禁
+
+## 15. D5 Prompt Boundary and Security Observability
+
+D5 added defense in depth after D4 admission without changing detector rules:
+
+| Boundary | Deterministic evidence |
+|---|---|
+| prompt framing | fresh per-`chat_fn` nonce, exact markers, JSON records, trusted reminder |
+| delimiter hardening | quotes/newlines and U+0085/U+2028/U+2029 remain inside parsed JSON |
+| public Agent trace | strict aggregate projection; no content/path/IDs/hash/nonce/canary |
+| service composition | secure default excludes three legacy POST routes; explicit compatibility factory retains regression access |
+| policy lifecycle | startup rejects invalid ruleset; readiness exposes only `retrieved_guard=ready|error` |
+
+The initial D5 RED run was `17 failed / 10 passed`. After the first implementation, focused D5 was `27 passed` and the expanded Agent/security/API/runtime batch was `229 passed`. A first full run exposed six stale compatibility fixtures (`690 passed / 6 failed`), which were corrected without reopening secure routes. Three additional adversarial tests then reproduced Unicode delimiter escape, retry nonce reuse, and active-ruleset drift before their fixes.
+
+Final local deterministic evidence is `697 passed, 3 known FAISS/SWIG warnings`; the public repository audit is `362 candidates / 0 findings`. No Ollama, embedding, network, 72-case dataset, Guard OFF/ON evaluator, or live security trial was used. Therefore D5 closes implementation contracts only; it does not provide an attack success rate or benign false-positive rate. See [D5 Engineering Journal](07_d5_engineering_journal.md).
 ```

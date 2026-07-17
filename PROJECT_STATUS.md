@@ -2,7 +2,7 @@
 
 更新时间：2026-07-17
 
-状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。R2-S1 已完成 D1 协议冻结、D2 红色数据流基线、D3 独立 Guard 核心和 D4 数据流接入；D5 提示边界与安全可观测性尚未授权。50 行人工语义评分与本人代码/口述验收仍是 `NOT RUN`，不计入通过项。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
+状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。R2-S1 已完成 D1 协议冻结、D2 红色数据流基线、D3 独立 Guard 核心、D4 数据流接入和 D5 prompt/trace/secure-profile lifecycle 本地实现；D6 安全评测尚未授权。D5 当前只在本地分支，尚无对应远端 CI 证据。50 行人工语义评分与本人代码/口述验收仍是 `NOT RUN`，不计入通过项。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
 
 ## 1. 当前定位
 
@@ -32,6 +32,7 @@ synthetic corpus
 - E7：重新生成 deterministic test/ablation rc02 与 final-code load artifacts；核对 raw artifact hashes、public snapshot、active index、真实 API/browser；修复 trace 查询自覆盖和 EvidenceLedger 冲突优先级方向；强化所有 Markdown 的机器路径审计；逐条收窄 claims；完成 feature-branch push、四轮 clean-clone 故障闭环与 Ubuntu CI。
 - R2-S1 D3：新增严格冻结的 `GuardDecision` 和 model-free `RetrievedContentGuard`；对原文建立 20,000 字符有界视图，执行 NFKC/casefold、Unicode `Cf` 控制符处理、有限同形字、结构化规则组合和单层有界 Base64 检查；单项异常与规则预算耗尽均 fail closed。
 - R2-S1 D4：在 ACL 过滤后的单次 `candidate_k` 排名池与 Controller 之间加入 mandatory admission；扫描正文、parent、metadata、find/open 和有界相邻 split，隔离后从同一池最多补位一次；工具只返回 guarded execution，Controller、ledger、generation 和 citation 路径只接受 admitted 类型，raw bypass fail closed。
+- R2-S1 D5：生成器使用 fresh per-model-call nonce、JSON admitted records 和 trusted reminder；tool step 只公开 allowlisted Guard aggregate；默认 App 移除 `/ingest`、`/chat`、`/agent/chat`，legacy 仅由显式 compatibility factory 注册；startup/readiness 验证 detector policy 且只公开 `retrieved_guard=ready|error`。
 
 ## 3. 当前证据
 
@@ -78,6 +79,19 @@ public repository audit                   359 candidates / 0 findings
 
 当前 detector policy 为 `rcg-v1.1.0`，规则集 SHA-256 是 `dcafd504a01dcc757910751503eaaf1387903827e5e0f4932fbdd7937b68da01`。D4 证明默认 V2 本地运行路径在 Controller 前执行 Guard，并不等于未知攻击免疫，也不替代 D6 的 72-case OFF/ON 评估。
 
+### R2-S1 D5 本地门禁
+
+```text
+initial D5 RED                          17 failed / 10 passed
+focused D5 GREEN                       27 passed
+expanded Agent/security/API/runtime   229 passed
+final offline repository suite        697 passed
+warnings                                3 known FAISS/SWIG warnings
+public repository audit               362 candidates / 0 findings
+```
+
+D5 没有改变 detector rules，所以 version/hash 保持不变。新增 adversarial tests 覆盖普通和 Unicode delimiter escape、每个模型调用 fresh nonce、active ruleset/provenance drift、aggregate-only trace、secure route exclusion 和 low-sensitivity readiness。完整说明见 [D5 Engineering Journal](docs/security/r2_s1/07_d5_engineering_journal.md)。这些是 implementation contracts，不是攻击成功率。
+
 ### GitHub 交付与远端复现
 
 代码候选 `9607e55ec0fc12e98d1f61e199bfbf6ac12a0eee` 已推送到 `origin/codex/rag-eval-system`。第四个全新 GitHub clone 得到 frozen hash exact、compile exit 0、public audit 331/0、full pytest 574 passed。Ubuntu/Python 3.11 的 [GitHub Actions run 29553278709](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 为 `success`。这些证据覆盖当前功能分支候选，不代表已 merge、部署或达到生产 SLO。
@@ -117,7 +131,7 @@ public repository audit                   359 candidates / 0 findings
 
 ## 6. 明确 NOT RUN 或不能外推
 
-- Retrieved-content indirect prompt injection：D1 design/protocol 已冻结；D2 的历史红色基线是 `5 failed / 3 passed`；D3 standalone Guard core 和 D4 guarded data flow 已完成本地确定性验证。D5 prompt nonce/public security counters、完整 72-case fixture 和 deterministic/live OFF/ON evaluation 仍为 `NOT RUN`。
+- Retrieved-content indirect prompt injection：D1 design/protocol 已冻结；D2 的历史红色基线是 `5 failed / 3 passed`；D3 standalone Guard core、D4 guarded data flow 和 D5 prompt/public observability 已完成本地确定性验证。完整 72-case fixture 和 deterministic/live OFF/ON evaluation 仍为 `NOT RUN`。
 - Optional reranker：`NOT RUN`，没有 admitted reranker。
 - Human semantic review：`NOT RUN`；50 行表仍为空，等待本人判断。
 - Owner code experiments and oral defense：`NOT RUN`；Codex 不能代替本人完成。
@@ -133,14 +147,15 @@ public repository audit                   359 candidates / 0 findings
 - 安全边界：[Threat Model](docs/security_threat_model.md)
 - 评估定义：[Evaluation Protocol](docs/evaluation.md)
 - 已知限制：[Known Limitations](docs/known_limitations.md)
-- R2-S1 D2-D4 结果：[Security Results](docs/security/r2_s1/05_results.md)
+- R2-S1 D2-D5 结果：[Security Results](docs/security/r2_s1/05_results.md)
 - R2-S1 D4 逐步工程日志：[D4 Engineering Journal](docs/security/r2_s1/06_d4_engineering_journal.md)
+- R2-S1 D5 逐步工程日志：[D5 Engineering Journal](docs/security/r2_s1/07_d5_engineering_journal.md)
 - E6 历史实施证据：[E6 Implementation Journal](docs/roadmap/e6_demo_public_repo_implementation.md)
 - 跨阶段恢复：[Current Execution Handoff](docs/roadmap/CURRENT_EXECUTION_HANDOFF.md)
 
 ## 8. R2-S1 当前状态
 
-R2-S1 的 D0 只读审计、D1 威胁模型/评测协议冻结、D2 红色基线、D3 独立 Guard 核心和 D4 guarded data flow 已完成。D3 从已提交的 D2 基线 `c1c47dfe88c42c309afc32faa9bc6584e90e89ac` 开始；D4 从已提交的 D3 基线 `ec85cc718b3df17731fb1d9df7300a3a7c6fe5be` 开始。权威设计与结果位于：
+R2-S1 的 D0 只读审计、D1 威胁模型/评测协议冻结、D2 红色基线、D3 独立 Guard 核心、D4 guarded data flow 和 D5 prompt/security observability 已完成。D3 从已提交的 D2 基线 `c1c47dfe88c42c309afc32faa9bc6584e90e89ac` 开始；D4 从已提交的 D3 基线 `ec85cc718b3df17731fb1d9df7300a3a7c6fe5be` 开始；D5 从 `86064322fd532264623abd23e8db7a99634ab342` 开始。权威设计与结果位于：
 
 - [R2-S1 总设计](docs/superpowers/specs/2026-07-17-r2-s1-indirect-prompt-injection-design.md)
 - [Scope and threat model](docs/security/r2_s1/00_scope_and_threat_model.md)
@@ -148,8 +163,9 @@ R2-S1 的 D0 只读审计、D1 威胁模型/评测协议冻结、D2 红色基线
 - [Design decisions](docs/security/r2_s1/02_design_options_and_decisions.md)
 - [Detailed schema design](docs/security/r2_s1/03_detailed_design.md)
 - [Evaluation protocol](docs/security/r2_s1/04_evaluation_protocol.md)
-- [D2-D4 results](docs/security/r2_s1/05_results.md)
+- [D2-D5 results](docs/security/r2_s1/05_results.md)
 - [D4 step-by-step engineering journal](docs/security/r2_s1/06_d4_engineering_journal.md)
+- [D5 step-by-step engineering journal](docs/security/r2_s1/07_d5_engineering_journal.md)
 
 当前状态必须逐层表述：
 
@@ -158,11 +174,11 @@ design/protocol                         D1 FROZEN
 D2 propagation baseline                5 EXPECTED RED / 3 EXISTING BOUNDARY PASS
 RetrievedContentGuard standalone core  D3 GREEN / 64 TESTS
 runtime guarded data flow              D4 GREEN / 8 BOUNDARY PROBES
-full offline regression                D4 GREEN / 687 TESTS
-prompt nonce/public security counters   NOT RUN / D5
+full offline regression                D5 GREEN / 697 TESTS
+prompt nonce/public security counters   D5 GREEN
 malicious/benign security datasets      NOT RUN
 deterministic guard OFF/ON evaluation   NOT RUN
 local live guard OFF/ON evaluation      NOT RUN
 ```
 
-D3 detector 位于 `app/domain/retrieved_security.py` 与 `app/security/retrieved_content.py`；D4 admission 与强制接入位于 `app/security/retrieved_admission.py`、`app/retrieval/pipeline.py`、`app/agent/tools_v2.py` 和 `app/agent/controller_v2.py`。D2 的五项历史失败已被改写成 D4 enforcement regressions，八项边界/补位测试全部通过。当前可以准确表述为“默认 V2 数据流已有确定性 retrieved-content admission”；仍不能表述为“防住所有间接注入”，因为 D5 prompt boundary 和 D6 恶意/良性 OFF/ON 评估尚未运行。下一授权门是 `批准D4，执行D5提示边界与安全可观测性`。
+D3 detector 位于 `app/domain/retrieved_security.py` 与 `app/security/retrieved_content.py`；D4 admission 与强制接入位于 `app/security/retrieved_admission.py`、`app/retrieval/pipeline.py`、`app/agent/tools_v2.py` 和 `app/agent/controller_v2.py`；D5 prompt/service/trace lifecycle 位于 `app/agent/generation_v2.py`、`app/agent/runner_v2.py`、`app/main.py` 和 `app/runtime/resources.py`。当前可以准确表述为“默认 V2 数据流已有确定性 admission，并在模型输入、public trace 和 secure service composition 建立 defense in depth”；仍不能表述为“防住所有间接注入”，因为 D6 恶意/良性 OFF/ON 评估尚未运行。下一授权门是 `批准D5，执行D6安全评测与门禁`。

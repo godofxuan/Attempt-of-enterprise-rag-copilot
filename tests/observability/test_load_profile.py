@@ -83,6 +83,7 @@ class FakeHttp:
                             "index": "ok",
                             "models": "ok",
                         },
+                        "retrieved_guard": "ready",
                         "index": {
                             "run_id": "test-index",
                             "chunk_count": 64,

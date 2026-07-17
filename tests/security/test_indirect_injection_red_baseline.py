@@ -289,10 +289,22 @@ def test_public_trace_excludes_retrieved_raw_text() -> None:
     response = runner.run(QUESTION, USER)
 
     serialized_trace = json.dumps(response.trace)
+    security = response.trace["steps"][0]["retrieved_content_security"]
     assert response.mode == "answered"
+    assert security["quarantined_count"] >= 1
+    assert security["post_guard_evidence_count"] == 1
+    assert security["risk_categories"] == sorted(
+        set(security["risk_categories"])
+    )
+    assert security["rule_ids"] == sorted(set(security["rule_ids"]))
+    assert "instruction_override" in security["risk_categories"]
+    assert "RCG-INSTRUCTION-OVERRIDE-001" in security["rule_ids"]
+    assert security["detector_version"] == "rcg-v1.1.0"
     assert DOCUMENT_CANARY not in serialized_trace
     assert TRACE_CANARY not in serialized_trace
     assert ATTACK_TRIGGER not in serialized_trace
+    assert "poisoned-search-hit" not in serialized_trace
+    assert "synthetic-poisoned.md" not in serialized_trace
 
 
 def test_egress_blocker_intercepts_before_transport(

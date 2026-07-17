@@ -221,4 +221,4 @@ security_runs/<run_id>/
 
 The D1-frozen protocol requires 24 attack + 12 benign cases in each of dev and test, deterministic Guard OFF/ON propagation evidence, a separately labeled local live paired trial, content-unit detection metrics, task utility, bounded-work metrics and a strict security provenance manifest. All metrics report numerator, denominator and rate.
 
-The exact formulas, case schema, R1 hashes and release gate are in [R2-S1 Evaluation Protocol](security/r2_s1/04_evaluation_protocol.md). No compliant dataset or run exists at D1, so indirect injection remains `NOT RUN`.
+The exact formulas, case schema, R1 hashes and release gate are in [R2-S1 Evaluation Protocol](security/r2_s1/04_evaluation_protocol.md). D3-D5 implementation contracts are now locally green, but no compliant 72-case dataset or OFF/ON/live run exists yet; therefore indirect-injection effectiveness remains `NOT RUN` until D6.

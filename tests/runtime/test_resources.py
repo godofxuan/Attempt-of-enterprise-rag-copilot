@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 
-from app.runtime.resources import ReadyIndexInfo, RuntimeResources
+import pytest
+
+from app.config import Settings
+from app.runtime.resources import (
+    ReadyIndexInfo,
+    RuntimeResources,
+    build_service_container,
+)
+import app.security.retrieved_content as retrieved_content_module
 
 
 class MutableClock:
@@ -141,3 +149,104 @@ def test_close_is_idempotent_and_does_not_probe_dependencies() -> None:
     resources.close()
 
     assert resources.closed is True
+
+
+def test_guard_probe_adds_only_low_sensitivity_ready_status() -> None:
+    calls: list[str] = []
+
+    resources = RuntimeResources(
+        settings(),
+        database_probe=lambda: calls.append("database"),
+        index_probe=lambda: (calls.append("index"), index_info())[1],
+        model_probe=lambda: calls.append("models"),
+        guard_probe=lambda: calls.append("retrieved_guard"),
+        clock=lambda: 0.0,
+    )
+
+    snapshot = resources.start()
+
+    assert snapshot.status == "ready"
+    assert snapshot.retrieved_guard == "ready"
+    assert calls == ["database", "index", "models", "retrieved_guard"]
+
+
+def test_guard_probe_failure_is_safe_and_keeps_other_probe_results() -> None:
+    calls: list[str] = []
+
+    def guard_probe() -> None:
+        calls.append("retrieved_guard")
+        raise RuntimeError(
+            "invalid rules at D:/vault/private-rules.json token=never-show"
+        )
+
+    resources = RuntimeResources(
+        settings(),
+        database_probe=lambda: calls.append("database"),
+        index_probe=lambda: (calls.append("index"), index_info())[1],
+        model_probe=lambda: calls.append("models"),
+        guard_probe=guard_probe,
+        clock=lambda: 0.0,
+    )
+
+    snapshot = resources.start()
+    serialized = snapshot.model_dump_json()
+
+    assert snapshot.status == "not_ready"
+    assert snapshot.retrieved_guard == "error"
+    assert snapshot.checks == {
+        "database": "ok",
+        "index": "ok",
+        "models": "ok",
+    }
+    assert snapshot.index is None
+    assert calls == ["database", "index", "models", "retrieved_guard"]
+    assert "vault" not in serialized
+    assert "never-show" not in serialized
+    assert "private-rules" not in serialized
+
+
+def test_default_container_rejects_invalid_guard_policy_with_safe_error() -> None:
+    def invalid_guard_policy() -> None:
+        raise RuntimeError("D:/secret/rules.py api_key=never-show")
+
+    with pytest.raises(
+        RuntimeError,
+        match="retrieved-content guard policy validation failed",
+    ) as exc_info:
+        build_service_container(
+            Settings(_env_file=None),
+            guard_validator=invalid_guard_policy,
+        )
+
+    assert "secret" not in str(exc_info.value).casefold()
+    assert "never-show" not in str(exc_info.value).casefold()
+
+
+def test_detector_policy_validator_rejects_ruleset_digest_drift(
+    monkeypatch,
+) -> None:
+    validator = retrieved_content_module.validate_retrieved_content_guard
+    validator()
+    monkeypatch.setattr(
+        retrieved_content_module,
+        "RULE_SET_SHA256",
+        "0" * 64,
+    )
+
+    with pytest.raises(RuntimeError, match="retrieved-content guard policy is invalid"):
+        validator()
+
+
+def test_detector_policy_validator_rejects_missing_runtime_rule(
+    monkeypatch,
+) -> None:
+    rules = dict(retrieved_content_module.RULE_SPECS)
+    rules.pop("RCG-INSTRUCTION-OVERRIDE-001")
+    monkeypatch.setattr(
+        retrieved_content_module,
+        "RULE_SPECS",
+        MappingProxyType(rules),
+    )
+
+    with pytest.raises(RuntimeError, match="retrieved-content guard policy is invalid"):
+        retrieved_content_module.validate_retrieved_content_guard()

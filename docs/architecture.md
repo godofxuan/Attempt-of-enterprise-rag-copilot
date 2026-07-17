@@ -186,7 +186,7 @@ Raw run directories are ignored because they contain machine/run provenance and 
 
 Related documents: [API](api.md), [Threat Model](security_threat_model.md), [Evaluation](evaluation.md), [Observability](observability.md), and [Known Limitations](known_limitations.md).
 
-## 12. R2-S1 retrieved-content boundary (`D4 IMPLEMENTED`)
+## 12. R2-S1 retrieved-content boundary (`D5 IMPLEMENTED`)
 
 R2-S1 D4 implements the frozen boundary between raw retrieval and `Controller.observe` on the default V2 Agent path:
 
@@ -201,6 +201,18 @@ ACL-visible ranked candidates capped at candidate_k
 
 Ranking runs once; quarantine does not consume a top-k/diversity slot, and clean recovery stays inside the same ACL-visible pool. The tool registry checks request/global deadlines after retrieval and after Guard admission, counts only admitted prompt-reachable characters, and fails source-free on a raw execution or unavailable boundary.
 
-This claim is intentionally limited to `/agent/v2/chat` and its in-process `search/find/open` registry. The default app still registers legacy `/chat`, `/agent/chat`, and HTTP `/ingest`; D4 does not claim those legacy routes are protected by this boundary. D5 prompt nonce/public counters and D6 dedicated deterministic/live evaluation remain `NOT RUN`.
+R2-S1 D5 extends this path after admission:
 
-See [R2-S1 design](superpowers/specs/2026-07-17-r2-s1-indirect-prompt-injection-design.md), [attack-surface map](security/r2_s1/01_attack_surface_and_trust_boundaries.md), and [D4 engineering journal](security/r2_s1/06_d4_engineering_journal.md).
+```text
+admitted records -> bounded JSON serialization
+-> fresh per-model-call nonce envelope
+-> trusted system contract + post-envelope reminder
+
+GuardedV2ToolExecution -> strict aggregate-only Agent trace projection
+```
+
+The default `create_app()` now owns a fixed secure route profile: `/agent/v2/chat` is registered while legacy `/chat`, `/agent/chat`, and HTTP `/ingest` are absent. Historical regression must explicitly construct `create_compatibility_app()`; no request field or environment switch changes the secure profile. Default container construction validates the detector policy, and readiness exposes only `retrieved_guard=ready|error`.
+
+This claim remains limited to `/agent/v2/chat` and its in-process `search/find/open` registry. D5 proves deterministic composition, escaping, route, trace and lifecycle contracts; it does not provide the D6 attack success rate, false-positive rate, or live-model evidence.
+
+See [R2-S1 design](superpowers/specs/2026-07-17-r2-s1-indirect-prompt-injection-design.md), [attack-surface map](security/r2_s1/01_attack_surface_and_trust_boundaries.md), [D4 engineering journal](security/r2_s1/06_d4_engineering_journal.md), and [D5 engineering journal](security/r2_s1/07_d5_engineering_journal.md).

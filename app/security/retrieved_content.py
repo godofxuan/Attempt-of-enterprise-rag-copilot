@@ -722,14 +722,18 @@ _RULE_PROVENANCE = {
         "markdown-link",
     ],
 }
-RULE_SET_SHA256 = hashlib.sha256(
-    json.dumps(
-        _RULE_PROVENANCE,
-        ensure_ascii=True,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8")
-).hexdigest()
+def _computed_rule_set_sha256() -> str:
+    return hashlib.sha256(
+        json.dumps(
+            _RULE_PROVENANCE,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+RULE_SET_SHA256 = _computed_rule_set_sha256()
 
 
 class RetrievedContentGuard:
@@ -740,6 +744,47 @@ class RetrievedContentGuard:
             return _scan_bounded_content(content)
         except Exception:
             return _guard_error_decision(content)
+
+
+def validate_retrieved_content_guard() -> None:
+    try:
+        if re.fullmatch(r"rcg-v\d+\.\d+\.\d+", DETECTOR_VERSION) is None:
+            raise ValueError("invalid detector version")
+        if not RULE_SPECS or "RCG-GUARD-ERROR" not in RULE_SPECS:
+            raise ValueError("missing mandatory rule")
+        if RULE_SPECS["RCG-GUARD-ERROR"] != ("guard_error", "error"):
+            raise ValueError("invalid guard-error rule")
+        active_rule_specs = {
+            rule_id: {"category": category, "severity": severity}
+            for rule_id, (category, severity) in sorted(RULE_SPECS.items())
+        }
+        if active_rule_specs != _RULE_PROVENANCE.get("rule_specs"):
+            raise ValueError("runtime rule allowlist drifted from provenance")
+        if any(
+            re.fullmatch(r"RCG-[A-Z0-9-]+", rule_id) is None
+            for rule_id in RULE_SPECS
+        ):
+            raise ValueError("invalid rule ID")
+        if (
+            re.fullmatch(r"[0-9a-f]{64}", RULE_SET_SHA256) is None
+            or RULE_SET_SHA256 != _computed_rule_set_sha256()
+        ):
+            raise ValueError("invalid ruleset digest")
+
+        guard = RetrievedContentGuard()
+        clean = guard.scan("deterministic retrieved-content guard startup probe")
+        guard_error = guard.scan(object())
+        if (
+            clean.disposition != "ADMIT"
+            or clean.detector_version != DETECTOR_VERSION
+            or clean.guard_error
+            or guard_error.disposition != "QUARANTINE"
+            or guard_error.rule_ids != ("RCG-GUARD-ERROR",)
+            or not guard_error.guard_error
+        ):
+            raise ValueError("invalid detector decisions")
+    except Exception:
+        raise RuntimeError("retrieved-content guard policy is invalid") from None
 
 
 __all__ = [
@@ -753,4 +798,5 @@ __all__ = [
     "SCAN_SUFFIX_CHARS",
     "RetrievedContentGuard",
     "normalized_content_length",
+    "validate_retrieved_content_guard",
 ]

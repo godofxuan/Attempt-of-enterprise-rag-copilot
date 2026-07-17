@@ -456,9 +456,11 @@ remote CI                            PASS for 9607e55, run 29553278709
 | `R2S1-D03` | 全部候选被过滤是否当 not found | 新 `security_filtered/evidence_filtered`，source-free | `[HISTORICAL D1]` 当时 enum 无该状态 | D4 GREEN；all-quarantined regression source-free | [D06](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d06-全部内容被隔离时的-outcome) |
 | `R2S1-D04` | top-1 投毒被删后怎么办 | 在 top-k 截断前取得 bounded pool；quarantine 后继续剩余候选一次，不重跑 embedding | `[HISTORICAL D2]` top-1 displacement 已被红测复现 | D4 GREEN；same-pool recovery + dual candidate_k cap | [D07](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d07-候选补齐策略) |
 | `R2S1-D05` | Guard 出错时全部报系统错还是放行 | 单内容异常 quarantine 并继续；Guard 初始化/规则失败才 source-free system | `[PLANNED D1]` fail-closed semantics | D3/D4 GREEN；per-item and boundary failure regressions | [D05](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d05-guard-modes-与-fail-closed) |
-| `R2S1-D06` | 旧 `/chat`、`/agent/chat` 怎么处理 | secure profile 默认不注册 legacy generative routes 和 HTTP ingest；显式 local compatibility factory 单独保留 | `[OBSERVED]` legacy 两条生成链会绕过 V2 Guard | D0 approved；composition change `NOT RUN` | [D10](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d10-legacy-endpoint-策略) |
-| `R2S1-D07` | Trace 为了排错能否放正文/hash/ID | public aggregate only；private synthetic case IDs；必要时 run-scoped HMAC | `[OBSERVED]` 现有 trace 已删除 content/doc/chunk/path | D1 frozen；trace fields `NOT RUN` | [D09](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d09-trace-标识与内容指纹) |
+| `R2S1-D06` | 旧 `/chat`、`/agent/chat` 怎么处理 | secure profile 默认不注册 legacy generative routes 和 HTTP ingest；显式 local compatibility factory 单独保留 | `[OBSERVED]` legacy 两条生成链会绕过 V2 Guard | D5 GREEN；secure route exclusion + explicit compatibility tests | [D10](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d10-legacy-endpoint-策略) |
+| `R2S1-D07` | Trace 为了排错能否放正文/hash/ID | public aggregate only；private synthetic case IDs；必要时 run-scoped HMAC | `[OBSERVED]` 现有 trace 已删除 content/doc/chunk/path | D5 GREEN；strict aggregate projection + zero-leak tests | [D09](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d09-trace-标识与内容指纹) |
 | `R2S1-D08` | 24+12 是否在 dev/test 之间平分 | 每个 split 独立 24 attack + 12 benign，共 72 | `[PLANNED]` current indirect fixtures = 0 | D1 dataset protocol frozen；data `NOT RUN` | [D11](../security/r2_s1/02_design_options_and_decisions.md#r2s1-d11-evaluation-split-大小) |
+| `R2S1-D09` | Prompt 只写“忽略证据指令”是否足够 | system trust contract + fresh per-model-call nonce + JSON records + post-envelope reminder | `[OBSERVED]` D4 前是自由文本 block | D5 GREEN；ordinary/Unicode delimiter and retry lifecycle regressions | [D08](../security/r2_s1/02_design_options_and_decisions.md) |
+| `R2S1-D10` | Guard policy 损坏时是否仍可 ready | default container fail-fast；runtime readiness 只公开 `ready|error` | `[OBSERVED]` D4 无 startup/readiness Guard check | D5 GREEN；digest/active-rule/decision drift tests | [D05](../security/r2_s1/02_design_options_and_decisions.md) |
 
 ## 38. R2-S1 当前边界
 
@@ -467,10 +469,20 @@ design and threat model       FROZEN
 schema and dataset protocol   FROZEN
 D2 red baseline              RECORDED / 5 FAIL + 3 PASS
 Guard implementation         D3 GREEN / 64 TESTS
-guarded V2 data flow         D4 GREEN / FULL 687 TESTS
+guarded V2 data flow         D4 GREEN / 8 BOUNDARY PROBES
 R1 dataset changed            no
-prompt/public counters        D5 NOT RUN
+prompt/public counters        D5 GREEN / FULL 697 TESTS
 deterministic/live runs       NOT RUN
 ```
 
-D4 的 green 只证明默认 V2 本地数据流执行了确定性安全合同，不代表未知攻击免疫或 D6 攻击成功率已经测量。逐项理由和回滚见 [R2-S1 design decisions](../security/r2_s1/02_design_options_and_decisions.md)，实现与审查证据见 [D4 engineering journal](../security/r2_s1/06_d4_engineering_journal.md)。
+D4/D5 的 green 只证明默认 V2 本地数据流、prompt framing、public projection、secure route composition 和 Guard lifecycle 执行了确定性安全合同，不代表未知攻击免疫或 D6 攻击成功率已经测量。逐项理由和回滚见 [R2-S1 design decisions](../security/r2_s1/02_design_options_and_decisions.md)，实现与审查证据见 [D4 engineering journal](../security/r2_s1/06_d4_engineering_journal.md) 和 [D5 engineering journal](../security/r2_s1/07_d5_engineering_journal.md)。
+
+## 39. R2-S1 D5 实现问题
+
+| ID | 现象 | 根因 | 处理 | 当前证据 |
+|---|---|---|---|---|
+| `R2S1-I01` | Guard readiness 全部误报 error | 新 span 未注册 allowlist，在 probe 前抛错 | 注册 `readiness.retrieved_guard` | focused GREEN |
+| `R2S1-I02` | full suite 6 个兼容失败 | fake readiness/legacy route tests 仍使用旧合同 | 更新 fake body；旧 API 显式 compatibility factory | 原失败组 16 passed |
+| `R2S1-I03` | Unicode 行分隔符制造多个 end marker | JSON 保留 U+0085/U+2028/U+2029 | 序列化后显式 escape | adversarial RED/GREEN |
+| `R2S1-I04` | shape retry 复用 nonce | envelope 只在 loop 外构建 | 每个 model call 新 nonce，重复则 fail closed | adversarial RED/GREEN |
+| `R2S1-I05` | active rule 删除但 validator 通过 | 只校验 frozen provenance digest | active map 必须等于 hashed provenance | adversarial RED/GREEN |

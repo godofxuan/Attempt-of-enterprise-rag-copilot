@@ -49,6 +49,7 @@ def ready_snapshot() -> ReadinessSnapshot:
     return ReadinessSnapshot(
         status="ready",
         checks={"database": "ok", "index": "ok", "models": "ok"},
+        retrieved_guard="ready",
         index=ReadyIndexInfo(
             run_id="test-index",
             chunk_count=64,
@@ -65,6 +66,7 @@ def not_ready_snapshot() -> ReadinessSnapshot:
     return ReadinessSnapshot(
         status="not_ready",
         checks={"database": "ok", "index": "error", "models": "ok"},
+        retrieved_guard="ready",
         index=None,
         checked_at_utc=datetime(2026, 7, 17, tzinfo=timezone.utc),
     )

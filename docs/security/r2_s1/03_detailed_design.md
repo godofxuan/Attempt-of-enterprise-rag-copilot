@@ -287,3 +287,15 @@ D4 在不修改 D1 冻结评估文件的前提下，把上述设计落到了以�
 Detector policy identity changed to `rcg-v1.1.0` because D4 added the bounded
 same-document adjacent split rule. D4 does not claim the unimplemented D5 prompt
 nonce/public counter work or the D6 dataset/evaluator work.
+
+## 17. D5 Implementation Mapping
+
+| Design section | Implemented owner | D5 evidence |
+|---|---|---|
+| prompt envelope | `app/agent/generation_v2.py` | per-model-call nonce, exact markers, bounded JSON records, Unicode line-separator regressions |
+| public trace | `app/domain/retrieved_security.py`, `app/agent/runner_v2.py` | strict aggregate projection and raw/path/ID/canary zero-leak tests |
+| secure composition | `app/main.py`, `app/runtime/resources.py` | default route exclusion and explicit compatibility-factory tests |
+| policy startup | `app/security/retrieved_content.py` | version/rule/provenance/digest/decision validation and drift regressions |
+| readiness | `app/runtime/resources.py`, `app/observability/tracing.py` | low-sensitivity `retrieved_guard=ready|error`; exception/path/rule text absent |
+
+D5 retains detector identity `rcg-v1.1.0` because no rule semantics or resource bounds changed. Full offline evidence is `697 passed, 3 known FAISS/SWIG warnings`. The 72-case malicious/benign fixtures, deterministic Guard OFF/ON comparison and local live trial remain D6 `NOT RUN`; see [D5 Engineering Journal](07_d5_engineering_journal.md).

@@ -2,7 +2,7 @@
 
 更新时间：2026-07-17
 
-状态：`IMPLEMENTED AND DETERMINISTICALLY TESTED`。D5 prompt nonce/public security trace 和 D6 72-case OFF/ON evaluation 仍为 `NOT RUN`。
+状态：D4 `IMPLEMENTED AND DETERMINISTICALLY TESTED`。D5 此后已完成，见 [D5 Engineering Journal](07_d5_engineering_journal.md)；D6 72-case OFF/ON evaluation 仍为 `NOT RUN`。
 
 ## 1. D4 到底解决什么问题
 

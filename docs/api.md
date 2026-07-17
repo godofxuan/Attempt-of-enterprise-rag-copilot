@@ -71,6 +71,7 @@ X-Request-ID: client.req-123
 - `database`：SQLite schema + `SELECT 1`；
 - `index`：active V2 pointer、manifest/artifact 和 snapshot load；
 - `models`：Ollama `/api/tags` 中存在配置的 embedding/chat model。
+- `retrieved_guard`：detector policy、ruleset provenance 和 fail-closed probe 可用；只公开 `ready|error`。
 
 全部通过时 200：
 
@@ -82,6 +83,7 @@ X-Request-ID: client.req-123
     "index": "ok",
     "models": "ok"
   },
+  "retrieved_guard": "ready",
   "index": {
     "run_id": "20260716T135632Z_7aec4b9_live_bge_m3_fixed",
     "chunk_count": 64,
@@ -94,7 +96,7 @@ X-Request-ID: client.req-123
 }
 ```
 
-任一失败时 503，失败项为 `error`，`index` 为 null。响应不包含异常文本或路径。
+任一失败时 503，dependency check 为 `error` 或 `retrieved_guard` 为 `error`，`index` 为 null。响应不包含异常文本、路径、规则正文或 ruleset digest。
 
 ## 6. GET /health
 
@@ -290,13 +292,13 @@ created_at
 
 ## 11. Legacy endpoints
 
-以下接口保留兼容，但不是企业 V2 主路径：
+默认 `app.main:app` 不注册以下接口。它们只由显式 `create_compatibility_app()` 为本地历史回归注册，不是企业 V2 主路径：
 
 - `POST /ingest`：重建 legacy index；
 - `POST /chat`：legacy RAG；
 - `POST /agent/chat`：legacy adaptive Agent。
 
-它们现在也经过 request ID middleware 和统一 500 脱敏，不再返回 `str(exc)`。V2 active index 生命周期使用独立 E2 CLI，不应依靠 legacy `/ingest` 更新。
+compatibility app 中它们仍经过 request ID middleware 和统一 500 脱敏，不返回 `str(exc)`，但不具有 D4/D5 V2 retrieved-content boundary。V2 active index 生命周期使用独立 E2 CLI，不应依靠 legacy `/ingest` 更新。普通请求、query parameter 或环境变量不能把 secure app 切换到 compatibility profile。
 
 ## 12. Timeout 和 retry
 
