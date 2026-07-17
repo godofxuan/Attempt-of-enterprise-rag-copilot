@@ -77,7 +77,7 @@ E7 起始工作树包含 E0-E6 的累计修改，不得用 `reset`、`clean`、`
 | E4 | complete and accepted | 用户已用精确命令批准 E5；四层 eval、消融、9 个 immutable runs、50-row blank review |
 | E5 | complete and accepted | 用户已用精确命令批准 E6；API/安全/观测/CI/load；final full 526 passed |
 | E6 | complete and accepted | 本人已发送 `执行E7最终验收`；历史 final full 569 passed |
-| E7 | automated/local acceptance complete; owner-only NOT RUN | rc02 28/28、load 31/31、browser/API、review remediation、full 573；等待 Git/clean-clone gate |
+| E7 | automated/local acceptance complete; owner-only NOT RUN | rc02 28/28、load 31/31、browser/API、review remediation、post-EOL full 574；等待第二次 clean clone |
 
 冻结 test SHA256：
 
@@ -337,7 +337,7 @@ docs/roadmap/e7_final_acceptance_implementation.md
 
 ```text
 G00-G04       PASS
-G05           PASS, full 573 + pip/compile/frozen hash
+G05           PASS, post-EOL full 574 + pip/compile/frozen hash
 G06-G08       PASS
 G09           PASS, docs contracts + final staged audit 331/0
 G10           NOT RUN, 50-row owner semantic review
@@ -346,6 +346,6 @@ G12           PASS, 3 approved + 7 narrowed + 0 pending claims
 G13           PENDING commit/push/clean-clone
 ```
 
-E7 live/browser 已完成并清理：8000/8501 listeners 0、项目 Python 0、Ollama 保留。专项 reviewer 的 0 Critical/1 Important 已补强 trace header/metrics 测试；全仓 reviewer 的 0 Critical/4 Important 已修复 EvidenceLedger priority 方向、final 状态措辞、all-Markdown 绝对路径审计和 snapshot/E7 批次分离。修复后 deterministic/ablation 使用 rc02，focused 190 passed；两轮 final full 都是 573 passed，两轮 audit 都是当时的 330/0。staging 后又由 cached diff 发现新文件 whitespace，修复并增加 binary attributes 后，最终 staged audit 是 331/0、cached diff check 退出 0。
+E7 live/browser 已完成并清理：8000/8501 listeners 0、项目 Python 0、Ollama 保留。专项 reviewer 的 0 Critical/1 Important 与全仓 reviewer 的 0 Critical/4 Important 均已修复。两轮 pre-Git full 是 573；staging 后修复 whitespace/binary attributes。第一次 GitHub clone 又发现 Windows CRLF 让 frozen hash 失配，现已用 `.gitattributes` LF contract 和 repository test 修复；post-fix full 为 574、audit 331/0。必须使用新提交和第二个 clean clone 关闭 G13。
 
 当前唯一执行点：完成私有报告外部副本和最终只读 review，重跑全部门禁，审阅 exact public candidate，然后 commit/push `codex/rag-eval-system` 并从 GitHub 新目录 clean clone 复验。没有 remote Actions run URL 时，remote CI 必须保持 `NOT RUN`。不 merge、tag、切换默认分支、改仓库名或公开状态。

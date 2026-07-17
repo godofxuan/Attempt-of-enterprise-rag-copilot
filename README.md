@@ -81,7 +81,7 @@ These values describe specific local artifacts; they are not production accuracy
 
 | Evidence | Result | Boundary |
 |---|---:|---|
-| E7 final local regression suite | `573 passed`, 3 known FAISS warnings | Automated code/data gate only; not owner review, remote CI, or production acceptance |
+| E7 final local regression suite | `574 passed`, 3 known FAISS warnings | Automated code/data gate only; not owner review, remote CI, or production acceptance |
 | E6 final full regression suite | `569 passed`, 3 known FAISS warnings | Historical gate before the E7 trace idempotency regression |
 | E5 stage-entry full regression suite | `526 passed`, 3 known FAISS warnings | Deterministic/local test baseline before E6 UI additions |
 | E7 deterministic suite rc02 | `28/28` | Stable hash embeddings and extractive generation isolate system contracts |

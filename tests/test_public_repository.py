@@ -236,7 +236,7 @@ def test_readme_is_a_current_evidence_first_entrypoint() -> None:
     assert len(commands) == 3
     assert "synthetic" in readme.casefold()
     assert "526 passed" in readme
-    assert "573 passed" in readme
+    assert "574 passed" in readme
     for result in ["28/28", "23/24", "31/31"]:
         assert result in readme
 
@@ -250,7 +250,7 @@ def test_root_status_is_the_only_current_status_entrypoint() -> None:
     assert "更新时间：2026-07-17" in status
     assert "状态：E7" in status
     assert "526 passed" in status
-    assert "573 passed" in status
+    assert "574 passed" in status
     assert "109 passed" not in status
     assert "历史快照" in historical[:300]
     assert "../PROJECT_STATUS.md" in historical[:300]

@@ -38,7 +38,7 @@ E7 不是继续堆功能，而是回答五个更严格的问题：
 | `E7-G02` | facts/corpus/frozen hash/raw manifest/public snapshot | PASS | 72 documents；frozen hash exact；11 runs/50 artifacts match；rebuilt snapshot byte-identical |
 | `E7-G03` | parser/index lifecycle、`--help` 无副作用、active index | PASS | 116 tests；help/dry-run inventory unchanged；active bge-m3 1024D/64 chunks |
 | `E7-G04` | retrieval/response/agent/security 四层 deterministic eval 与消融 | PASS | E7 新 run：28/28；4 direct probes；8 variants；reranker NOT RUN |
-| `E7-G05` | pip/compile/full pytest/CI-equivalent | PASS | pip clean；compile/hash exit 0；fresh full 573 passed、3 known warnings |
+| `E7-G05` | pip/compile/full pytest/CI-equivalent | PASS | pip clean；compile/hash exit 0；post-EOL-contract full 574 passed、3 known warnings |
 | `E7-G06` | health/readiness/request ID/trace/live request | PASS | ready 200；answered；ID 一致；trace 2 calls/0 retry；重复 Fetch 幂等 |
 | `E7-G07` | local load profile | PASS | final-code rc02 31/31；manifest/artifact hash match；warm c=1/5/10 |
 | `E7-G08` | Ask/Trace/Evaluation desktop/mobile 浏览器 | PASS | 1440/1440 与 390/390；chart nonblank；0 browser errors；6 valid PNG |
@@ -515,3 +515,31 @@ final public findings                     0
 ```
 
 新增 `.gitattributes` 使 candidate count 从 330 变为 331；前两轮 330/0 是当时时点的准确记录，最终提交 authority 使用 331/0。这个事件说明 publication gate 必须在 staging 后再跑一次，不能只依赖 working-tree diff。
+
+### 6.17 E7-I10：第一次 GitHub clean clone 的 frozen hash 失败
+
+release-candidate 代码提交 `b8b8e8b` 成功 push 到 `origin/codex/rag-eval-system`，远端 SHA 与本地一致。第一次全新 clone 先通过：HEAD exact、tracked files 331、working tree clean、private/eval/load/index/output roots 不存在、public audit 331/0、pip clean。
+
+随后 frozen hash gate 失败：
+
+```text
+expected                                 556ffed812cdde0ba7ddc7d625782b3b3bbdbcd4753670a199bd0c3c05743338
+clean-clone actual                       f8e08082774bda52b1ad02e7066f47dac8c55fd9f810e55bca49dced1a072662
+```
+
+字节诊断：原 working tree `test.json` 为 27,773 bytes、1,146 个 LF、0 CRLF；clone 为 28,919 bytes、1,146 个 CRLF、0 bare LF。把 clone bytes 只做 CRLF -> LF 标准化后，SHA 精确恢复 expected。`git check-attr` 显示当时 `text/eol` unspecified，因此根因是 Windows checkout 的 line-ending conversion，不是 eval 数据语义变化。
+
+TDD 修复：`tests/test_repository_config.py` 先要求 `.gitattributes` 包含 `* text=auto eol=lf` 以及 binary fixture 规则，RED 1 failed；加入 EOL contract 后该测试和 frozen hash test 2 passed。这个测试让 full suite 从 573 增为 574。
+
+修复后的本地完整门禁：
+
+```text
+pip check                               exit 0
+compileall                              exit 0
+frozen hash                             556ffed812cdde0ba7ddc7d625782b3b3bbdbcd4753670a199bd0c3c05743338
+full pytest                             574 passed, 3 warnings, 16.67 s
+public audit                            331 candidates, 0 findings
+git diff --check                        exit 0
+```
+
+G13 仍保持 PENDING：必须先提交并 push EOL 修复，再从另一个全新目录 clean clone，重新执行 hash、compile、audit 和 full pytest。不能在原失败 clone 里手工改换行后称通过。

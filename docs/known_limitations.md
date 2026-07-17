@@ -46,7 +46,7 @@
 
 - README 与 UI 必须显示 live `23/24`，不能四舍五入为 100%。
 - indirect document injection 与 optional reranker 必须显示 `NOT RUN`。
-- `526 passed` 是 E5 入口、`569 passed` 是 E6 收口、`573 passed` 是 E7 自动化本地门禁；它们是不同 commit 候选的历史计数，不能相加。
+- `526 passed` 是 E5 入口、`569 passed` 是 E6 收口、`574 passed` 是 E7 自动化本地门禁；它们是不同 commit 候选的历史计数，不能相加。
 - 没有远端 run URL 时不能声称 GitHub Actions 已实际通过。
 - E7 已逐条处理 claims matrix；只能使用 `approved` 原句或 `narrowed` 后的措辞，不能删掉 synthetic、deterministic/local、样本数和 `NOT RUN` 边界。
 

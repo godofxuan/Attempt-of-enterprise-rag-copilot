@@ -43,6 +43,14 @@ def test_pytest_uses_system_temp_instead_of_shared_repository_basetemp() -> None
     assert "--import-mode=importlib" in config
 
 
+def test_git_attributes_preserve_hash_sensitive_text_bytes_across_platforms() -> None:
+    attributes = (ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
+
+    assert "* text=auto eol=lf" in attributes
+    for pattern in ["*.docx", "*.faiss", "*.pdf", "*.pkl", "*.png"]:
+        assert f"{pattern} binary" in attributes
+
+
 def test_ci_is_read_only_deterministic_and_does_not_call_live_services() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     normalized = workflow.lower()

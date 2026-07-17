@@ -45,7 +45,7 @@ E6 final          569 passed, 3 warnings
 ### E7 最终本地门禁
 
 ```text
-573 passed, 3 warnings
+574 passed, 3 warnings
 ```
 
 `pip check` 无依赖冲突，`compileall` 覆盖 `app/scripts/streamlit_app/tests`，frozen test hash 完全一致，最终 staged public repository audit 为 331 candidates / 0 findings，`git diff --cached --check` 退出 0。3 条 warning 仍只来自 FAISS SWIG 类型弃用提示。

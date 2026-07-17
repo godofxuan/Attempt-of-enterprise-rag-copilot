@@ -61,7 +61,7 @@ py -3.11 -m venv .venv
 ```text
 E5 stage entry    526 passed, 3 warnings
 E6 final          569 passed, 3 warnings
-E7 final local    573 passed, 3 warnings
+E7 final local    574 passed, 3 warnings
 ```
 
 E7 比 E6 增加 trace idempotency、两个反向 conflict-priority 案例和全 Markdown 绝对路径审计。3 条 warning 均来自 FAISS SWIG deprecation；完整全量测试不依赖正在运行的 Ollama。
@@ -242,6 +242,10 @@ foreach ($name in @('summary.json', 'details.csv')) {
 ### pytest TEMP ACL
 
 E5 移除 shared basetemp 后，本机遗留 `%TEMP%\pytest-of-xuan` 曾关闭 ACL 继承，造成所有 `tmp_path` setup WinError 5。确认路径确实位于用户 TEMP 后恢复继承，full suite 恢复。不要把这种本机 ACL 修复放进 CI 或业务代码。
+
+### Git checkout 的 LF/CRLF
+
+frozen test 和 public snapshot 的 SHA-256 针对原始 UTF-8 bytes。Windows `core.autocrlf` 若把 LF checkout 成 CRLF，会让内容语义相同但 hash 不同。仓库 `.gitattributes` 使用 `* text=auto eol=lf` 固定文本 checkout bytes，并用 `binary` 覆盖 PDF/DOCX/PNG 等 fixture。删除该规则会让 clean clone 的 frozen hash 从 `556f...` 变成另一值；这不是可以更新 manifest 掩盖的问题。
 
 ## 13. 结果复述边界
 
