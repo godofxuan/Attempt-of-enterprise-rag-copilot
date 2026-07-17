@@ -5,16 +5,19 @@ Last updated: 2026-07-17
 ## 1. Current Evidence Status
 
 ```text
-phase                                  D3 STANDALONE GUARD CORE GREEN
+phase                                  D4 GUARDED DATA FLOW GREEN
 D3 entry HEAD                          c1c47dfe88c42c309afc32faa9bc6584e90e89ac
-RetrievedContentGuard                  IMPLEMENTED, NOT RUNTIME-INTEGRATED
+D4 entry HEAD                          ec85cc718b3df17731fb1d9df7300a3a7c6fe5be
+RetrievedContentGuard                  MANDATORY ON DEFAULT V2 TOOL PATH
+guarded boundary probes                8/8 PASSED
+full offline repository suite          687 PASSED
 full 72-case security evaluation       NOT RUN
 local Qwen/BGE-M3 security evaluation  NOT RUN
 ```
 
-D2 is intentionally not a release pass. It records the vulnerable data flow before
-the Guard exists, so later D3-D5 changes must turn the relevant red tests green
-without weakening the already-green trace and no-egress boundaries.
+D2 was intentionally not a release pass. It records the vulnerable data flow before
+the Guard existed. D4 has now turned the relevant red assertions into enforcement
+regressions without weakening the already-green trace and no-egress boundaries.
 
 Because no Guard class existed at the D2 baseline, the test names use `guard_off` to
 mean the current unguarded path that the later evaluator's explicit OFF dependency
@@ -440,8 +443,80 @@ Deferred to D4 or later:
 
 The project still cannot claim end-to-end retrieved-content injection defense.
 
-## 13. Next Approval Gate
+## 13. Historical D3 Approval Gate
 
 ```text
 批准D3，执行D4数据流接入与能力约束
+```
+
+## 14. D4 Guarded Data Flow
+
+### 14.1 What changed
+
+D4 moved the Guard from a callable detector to a mandatory trust boundary:
+
+```text
+ACL-visible ranked candidate pool
+-> body/parent/metadata/find/open/split admission
+-> quarantine + bounded same-pool top-up
+-> GuardedV2ToolExecution
+-> admitted-only Controller/Ledger/Generation/Citation
+```
+
+The implementation is split by responsibility:
+
+| File | D4 responsibility |
+|---|---|
+| `app/domain/retrieved_security.py` | strict admitted, quarantine, counter and guarded execution contracts |
+| `app/retrieval/pipeline.py` | expose ranked `candidate_k` pool before diversity/top-k truncation |
+| `app/security/retrieved_admission.py` | object-level scanning, parent fallback, adjacent split handling and bounded fill |
+| `app/agent/tools_v2.py` | mandatory enforcement point and admitted-only context accounting |
+| `app/agent/controller_v2.py` | runtime rejection of raw executions and `security_filtered/evidence_filtered` outcome |
+| ledger/relevance/generation/citation modules | accept admitted wrappers instead of raw `SearchHit` |
+
+### 14.2 Why the top-up boundary matters
+
+Guarding only the already-truncated `top_k` result would remove poisoned rank 1
+but could not recover clean rank 2. D4 runs ranking once, keeps the existing
+ACL-visible pool up to `candidate_k`, scans candidates in order, and may continue
+beyond the initial top-k positions at most once. It does not re-embed, broaden ACL,
+increase candidate limits, or recursively retrieve.
+
+### 14.3 Security outcomes and fail-closed behavior
+
+If candidates exist but every usable item is quarantined, the Controller returns
+source-free `security_filtered/evidence_filtered`; this is distinct from
+`not_found`. A raw legacy execution, invalid custom Guard, or admission failure is
+converted to a source-free system outcome. Quarantine summaries contain only fixed
+rule/category aggregates, never retrieved content or normalized/decoded payloads.
+
+### 14.4 Deterministic evidence
+
+```text
+detector_version                         rcg-v1.1.0
+rule_set_sha256                          dcafd504a01dcc757910751503eaaf1387903827e5e0f4932fbdd7937b68da01
+guarded tool/no-egress focused             6 passed
+Agent V2                                  98 passed
+D2/D4 propagation and top-up               8 passed
+full offline repository suite             687 passed
+warnings                                    3 known FAISS SWIG warnings
+public repository audit                   359 candidates / 0 findings
+```
+
+Frozen R1 hashes remained exact. No Ollama model, embedding request, external
+network request, or live security trial was used for D4. The complete reasoning,
+RED/GREEN checkpoints, code walkthrough, problems, corrections, limitations, and
+interview answers are in [06_d4_engineering_journal.md](06_d4_engineering_journal.md).
+
+### 14.5 Honest boundary
+
+D4 establishes deterministic enforcement on the default V2 local data path. It
+does not establish immunity to unknown attacks, detector false-positive/negative
+rates, nonce-delimited prompt isolation, public security counters, or real-model
+attack success rate. Those are D5 and D6 deliverables.
+
+## 15. Next Approval Gate
+
+```text
+批准D4，执行D5提示边界与安全可观测性
 ```

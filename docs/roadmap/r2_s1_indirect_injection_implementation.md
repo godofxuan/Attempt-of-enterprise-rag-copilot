@@ -1,7 +1,7 @@
 # R2-S1 Retrieved-Content Indirect Injection Implementation Journal
 
 最后更新：2026-07-17
-当前阶段：D3 standalone Guard core green；D4 runtime integration `NOT RUN`
+当前阶段：D4 guarded runtime data flow green；等待 D5 prompt boundary 与安全可观测性审批
 
 ## 1. Why R2-S1 Is Next
 
@@ -265,8 +265,71 @@ boundary is intact: no production path calls the Guard yet. D4 must make raw too
 results unrepresentable downstream, quarantine before admitted top-k, top up from
 the same ACL-visible candidate pool, and expose only aggregate security counters.
 
-## 12. Next Gate
+## 12. Historical D3 Gate
 
 ```text
 批准D3，执行D4数据流接入与能力约束
+```
+
+## 13. D4 Guarded Data Flow Implementation
+
+### 13.1 Entry and objective
+
+```text
+D4 entry HEAD    ec85cc718b3df17731fb1d9df7300a3a7c6fe5be
+objective        raw retrieval must not legally enter Controller state
+non-goals        D5 prompt nonce/public counters; D6 72-case OFF/ON evaluation
+```
+
+D3 回答“单段文本如何确定性分类”；D4 回答“分类器如何成为不可跳过的数据流边界”。因此主要工作不在增加 regex，而在 retrieval 候选生命周期、admitted 类型、工具结果和 Controller state。
+
+### 13.2 Runtime path after D4
+
+```text
+ACL + metadata filtering
+-> one ranked pool capped at candidate_k
+-> body/parent/metadata/find/open/adjacent-split admission
+-> quarantine + bounded clean-candidate fill
+-> GuardedV2ToolExecution
+-> runtime guarded-type check
+-> deeply immutable admitted evidence only
+-> Ledger / Generation / Citation / Response
+```
+
+关键代码所有权：
+
+| Boundary | Owner |
+|---|---|
+| guarded/admitted contracts | `app/domain/retrieved_security.py` |
+| pre-top-k ranked pool | `app/retrieval/pipeline.py` |
+| object admission and split/top-up | `app/security/retrieved_admission.py` |
+| mandatory tool enforcement/deadline/budget | `app/agent/tools_v2.py` |
+| raw rejection and safe terminal outcome | `app/agent/controller_v2.py`, `app/agent/runner_v2.py` |
+| admitted-only sinks | ledger, relevance, generation and citation modules |
+
+### 13.3 Independent review correction loop
+
+第一轮实现曾达到 `677 passed`，但独立只读审查仍构造出 2 个 Critical 和 6 个 Important 反例：version metadata bypass、NFKC split bound、hybrid pool 上限、Guard deadline、shallow freeze、identical parent/child、mixed split contributors 和 parent context budget。全部先变成回归测试，得到 `8 failed / 28 passed`；修复后 focused batch 为 `38 passed`，全仓库为 `687 passed`。
+
+额外增加了 Admission 自己的 `candidate_k` 截断。这样即使未来 custom Navigator 违反 pipeline 合同，安全边界也不会扫描或补位到请求上限之外。
+
+### 13.4 Evidence and honest claim
+
+```text
+detector version                       rcg-v1.1.0
+rule SHA-256                           dcafd504a01dcc757910751503eaaf1387903827e5e0f4932fbdd7937b68da01
+D2/D4 propagation and top-up             8 passed
+independent-review focused               38 passed
+Agent V2                                 98 passed
+full offline repository suite           687 passed
+warnings                                   3 known FAISS SWIG warnings
+public repository audit                 359 candidates / 0 findings
+```
+
+R1 dev/test/manifest hashes保持冻结值不变；D4 没有调用 Ollama、embedding、外网或 live security trial。当前可以说“默认 V2 本地数据流在 Controller 前强制执行确定性 retrieved-content admission”，不能说“防住所有间接提示词注入”。完整逐文件讲解、问题原因和面试问答见 [D4 Engineering Journal](../security/r2_s1/06_d4_engineering_journal.md)。
+
+## 14. Next Gate
+
+```text
+批准D4，执行D5提示边界与安全可观测性
 ```

@@ -186,17 +186,21 @@ Raw run directories are ignored because they contain machine/run provenance and 
 
 Related documents: [API](api.md), [Threat Model](security_threat_model.md), [Evaluation](evaluation.md), [Observability](observability.md), and [Known Limitations](known_limitations.md).
 
-## 12. R2-S1 proposed retrieved-content boundary (`NOT RUN`)
+## 12. R2-S1 retrieved-content boundary (`D4 IMPLEMENTED`)
 
-R2-S1 D1 has frozen a proposed boundary between raw retrieval and `Controller.observe`:
+R2-S1 D4 implements the frozen boundary between raw retrieval and `Controller.observe` on the default V2 Agent path:
 
 ```text
-ACL-visible ranked candidates
--> bounded RetrievedContentGuard
--> admitted-only typed tool result
--> Controller/EvidenceLedger/generation/citation
+ACL-visible ranked candidates capped at candidate_k
+-> bounded body/parent/metadata/find/open/split admission
+-> content-free quarantine or deeply immutable admitted snapshot
+-> GuardedV2ToolExecution
+-> Controller runtime type check
+-> admitted-only EvidenceLedger/generation/citation
 ```
 
-It also specifies a default secure service profile that does not register legacy `/chat`, `/agent/chat`, or HTTP `/ingest`, because those routes currently bypass the proposed V2 Guard. This section describes approved design, not current runtime behavior. The current code still follows the unguarded flow documented in the R2-S1 D0 audit, and the implementation/evaluation status remains `NOT RUN`.
+Ranking runs once; quarantine does not consume a top-k/diversity slot, and clean recovery stays inside the same ACL-visible pool. The tool registry checks request/global deadlines after retrieval and after Guard admission, counts only admitted prompt-reachable characters, and fails source-free on a raw execution or unavailable boundary.
 
-See [R2-S1 design](superpowers/specs/2026-07-17-r2-s1-indirect-prompt-injection-design.md) and [attack-surface map](security/r2_s1/01_attack_surface_and_trust_boundaries.md).
+This claim is intentionally limited to `/agent/v2/chat` and its in-process `search/find/open` registry. The default app still registers legacy `/chat`, `/agent/chat`, and HTTP `/ingest`; D4 does not claim those legacy routes are protected by this boundary. D5 prompt nonce/public counters and D6 dedicated deterministic/live evaluation remain `NOT RUN`.
+
+See [R2-S1 design](superpowers/specs/2026-07-17-r2-s1-indirect-prompt-injection-design.md), [attack-surface map](security/r2_s1/01_attack_surface_and_trust_boundaries.md), and [D4 engineering journal](security/r2_s1/06_d4_engineering_journal.md).

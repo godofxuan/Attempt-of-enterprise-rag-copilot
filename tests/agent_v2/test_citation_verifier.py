@@ -6,9 +6,11 @@ from app.agent.citation_verifier import verify_claims
 from app.domain.documents import SourceLocator
 from app.domain.evidence import Claim
 from app.domain.queries import SearchHit
+from app.domain.retrieved_security import AdmittedEvidenceChunk
+from tests.v2_test_support import admit_search_hit
 
 
-def hit(**updates) -> SearchHit:
+def hit(**updates) -> AdmittedEvidenceChunk:
     values = {
         "index_run_id": "run-one",
         "chunk_id": "chunk-remote",
@@ -35,7 +37,7 @@ def hit(**updates) -> SearchHit:
         "bm25_rank": 1,
     }
     values.update(updates)
-    return SearchHit(**values)
+    return admit_search_hit(SearchHit(**values))
 
 
 def test_missing_citation_is_a_hard_failure() -> None:

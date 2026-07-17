@@ -4,12 +4,16 @@ import json
 
 import pytest
 
-from app.agent.controller_v2 import V2AgentController
+from app.agent.controller_v2 import ControllerState, V2AgentController
 from app.agent.evidence_ledger import build_ledger
 from app.agent.generation_v2 import GenerationV2ResponseBuilder
 from app.domain.queries import OpenResult, QueryAnalysis
 from app.runtime.model_transport import ModelRequestError
-from tests.v2_test_support import search_hit, user_context
+from tests.v2_test_support import (
+    admit_open_result,
+    admitted_search_hit,
+    user_context,
+)
 
 
 USER = user_context()
@@ -28,7 +32,7 @@ def state_with_evidence(*, include_second: bool = False, include_open: bool = Fa
         required_aspects=required,
         source="rules",
     )
-    first = search_hit(
+    first = admitted_search_hit(
         chunk_id="chunk-a",
         doc_id="doc-a",
         matched_text="Policy A allows remote work three days per month.",
@@ -37,7 +41,7 @@ def state_with_evidence(*, include_second: bool = False, include_open: bool = Fa
     evidence = {required[0]: [first]}
     if include_second:
         evidence[required[1]] = [
-            search_hit(
+            admitted_search_hit(
                 chunk_id="chunk-b",
                 doc_id="doc-b",
                 policy_id="policy-b",
@@ -54,7 +58,7 @@ def state_with_evidence(*, include_second: bool = False, include_open: bool = Fa
     open_results = []
     if include_open:
         open_results = [
-            OpenResult(
+            admit_open_result(OpenResult(
                 request_id="open-one",
                 target_type="document",
                 target_id="doc-a",
@@ -63,15 +67,23 @@ def state_with_evidence(*, include_second: bool = False, include_open: bool = Fa
                 truncated=False,
                 source_path="documents/doc-a.md",
                 section_path=[],
-            )
+            ))
         ]
-    return state.model_copy(
-        update={
-            "evidence_by_aspect": evidence,
-            "ledger": ledger,
-            "open_results": open_results,
-        }
+    return _replace_state(
+        state,
+        evidence_by_aspect=evidence,
+        ledger=ledger,
+        open_results=open_results,
     )
+
+
+def _replace_state(state: ControllerState, **updates) -> ControllerState:
+    values = {
+        field_name: getattr(state, field_name)
+        for field_name in ControllerState.model_fields
+    }
+    values.update(updates)
+    return ControllerState(**values)
 
 
 class CapturingChat:
@@ -146,20 +158,19 @@ def valid_payload(*, source_id: str = "S1", claim_text: str | None = None):
 
 def test_prompt_contains_only_ledger_selected_visible_evidence() -> None:
     state = state_with_evidence(include_open=True)
-    excluded = search_hit(
+    excluded = admitted_search_hit(
         chunk_id="excluded-secret-chunk",
         doc_id="excluded-secret-doc",
         source_path="vault/secret.md",
         matched_text="PROJECT NIGHTFALL SECRET SHOULD NEVER REACH THE MODEL",
         context_text="PROJECT NIGHTFALL SECRET SHOULD NEVER REACH THE MODEL",
     )
-    state = state.model_copy(
-        update={
-            "evidence_by_aspect": {
-                **state.evidence_by_aspect,
-                "not-required": [excluded],
-            }
-        }
+    state = _replace_state(
+        state,
+        evidence_by_aspect={
+            **state.evidence_by_aspect,
+            "not-required": [excluded],
+        },
     )
     chat = CapturingChat(valid_payload())
     builder = GenerationV2ResponseBuilder(chat_fn=chat, model="test-model")
@@ -256,17 +267,26 @@ def test_source_numbering_is_stable_and_maps_back_to_chunk_ids() -> None:
 
 def test_parent_and_open_context_are_bounded_before_prompting() -> None:
     state = state_with_evidence(include_open=True)
-    long_hit = state.evidence_by_aspect["answer"][0].model_copy(
-        update={"context_text": "H" * 1300 + "HIT_TAIL_MUST_BE_GONE"}
-    )
-    long_open = state.open_results[0].model_copy(
-        update={"content": "O" * 2100 + "OPEN_TAIL_MUST_BE_GONE"}
-    )
-    state = state.model_copy(
-        update={
-            "evidence_by_aspect": {"answer": [long_hit]},
-            "open_results": [long_open],
+    original_hit = state.evidence_by_aspect["answer"][0].hit
+    long_hit_values = original_hit.model_dump()
+    long_hit_values.update(
+        {
+            "parent_chunk_id": "parent-a",
+            "context_text": "H" * 1300 + "HIT_TAIL_MUST_BE_GONE",
+            "context_from_parent": True,
         }
+    )
+    long_hit = admitted_search_hit(**long_hit_values)
+    original_open = state.open_results[0].result
+    long_open = admit_open_result(
+        original_open.model_copy(
+            update={"content": "O" * 2100 + "OPEN_TAIL_MUST_BE_GONE"}
+        )
+    )
+    state = _replace_state(
+        state,
+        evidence_by_aspect={"answer": [long_hit]},
+        open_results=[long_open],
     )
     chat = CapturingChat(valid_payload())
 

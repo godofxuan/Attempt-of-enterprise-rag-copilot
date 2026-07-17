@@ -1,5 +1,6 @@
 from app.domain.queries import SearchRequest, UserContext
 from app.retrieval.pipeline import HybridRetrievalPipeline
+from app.security.retrieved_admission import RetrievedContentAdmission
 
 
 USER = UserContext(
@@ -51,9 +52,11 @@ def test_top_ranked_poison_is_quarantined_and_clean_candidate_is_recovered(
         include_parent=False,
     )
 
-    result = pipeline.search(request)
+    pool = pipeline.ranked_candidates_for_guard(request)
+    outcome = RetrievedContentAdmission().admit_search(pool, request)
 
-    assert result.stage_counts["dense_candidates"] == 2
-    assert [hit.chunk_id for hit in result.hits] == [
+    assert outcome.result.stage_counts["dense_candidates"] == 2
+    assert [item.hit.chunk_id for item in outcome.result.hits] == [
         "clean-recovery-candidate"
     ]
+    assert outcome.security_counters.top_up_attempts == 1

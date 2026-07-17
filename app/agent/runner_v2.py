@@ -12,11 +12,15 @@ from app.agent.controller_v2 import (
     V2AgentController,
 )
 from app.agent.query_analysis import RuleFirstQueryAnalyzer
-from app.agent.tools_v2 import V2ToolExecution, V2ToolRegistry
+from app.agent.tools_v2 import V2ToolRegistry
 from app.config import Settings, get_settings
 from app.domain.agent import AgentBudget, AgentStopReason, AnswerMode, ToolError
 from app.domain.evidence import AnswerResponse, AnswerSource, Claim, EvidenceLedger
-from app.domain.queries import QueryAnalysis, SearchHit, UserContext
+from app.domain.queries import QueryAnalysis, UserContext
+from app.domain.retrieved_security import (
+    AdmittedEvidenceChunk,
+    GuardedV2ToolExecution,
+)
 from app.security.access import redact_trace_payload
 
 
@@ -58,7 +62,8 @@ class ExtractiveResponseBuilder:
             hits = state.evidence_by_aspect.get(aspect, [])
             if not hits:
                 continue
-            hit = hits[0]
+            evidence = hits[0]
+            hit = evidence.hit
             claims.append(
                 Claim(
                     claim_id=f"claim-{index}",
@@ -234,7 +239,7 @@ class V2AgentRunner:
 
 
 def _tool_step_trace(
-    execution: V2ToolExecution,
+    execution: GuardedV2ToolExecution,
     *,
     latency_ms: float,
 ) -> dict:
@@ -333,6 +338,7 @@ def _evidence_action_for_mode(mode: AnswerMode) -> str:
         "not_found": "not_found",
         "budget": "budget",
         "system": "system",
+        "security_filtered": "security_filtered",
     }[mode]
 
 
@@ -346,13 +352,13 @@ def _budget_trace(state) -> dict[str, int]:
     }
 
 
-def _all_visible_hits(state: ControllerState) -> list[SearchHit]:
-    result: list[SearchHit] = []
+def _all_visible_hits(state: ControllerState) -> list[AdmittedEvidenceChunk]:
+    result: list[AdmittedEvidenceChunk] = []
     seen: set[str] = set()
     for hits in state.evidence_by_aspect.values():
         for hit in hits:
-            if hit.chunk_id not in seen:
-                seen.add(hit.chunk_id)
+            if hit.hit.chunk_id not in seen:
+                seen.add(hit.hit.chunk_id)
                 result.append(hit)
     return result
 
@@ -368,6 +374,9 @@ def _source_free_response(
         "not_found": "No supported answer was found in the visible knowledge base.",
         "system": "The knowledge service could not complete the request.",
         "budget": "The agent stopped before exceeding its execution budget.",
+        "security_filtered": (
+            "Available evidence was withheld by the configured safety policy."
+        ),
     }
     if mode not in messages:
         mode = "system"

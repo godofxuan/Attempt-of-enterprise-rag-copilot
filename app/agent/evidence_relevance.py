@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from app.domain.queries import SearchHit
+from app.domain.retrieved_security import AdmittedEvidenceChunk
 from app.utils import tokenize_for_bm25
 
 
@@ -43,7 +43,10 @@ _QUOTED_ENTITY_PATTERNS = (
 _YEAR_PATTERN = re.compile(r"(?<!\d)\d{4}(?!\d)")
 
 
-def has_query_anchor_support(query: str, hit: SearchHit) -> bool:
+def has_query_anchor_support(query: str, evidence: AdmittedEvidenceChunk) -> bool:
+    if not isinstance(evidence, AdmittedEvidenceChunk):
+        raise TypeError("query-anchor evidence must be an admitted chunk")
+    hit = evidence.hit
     query_tokens = _content_tokens(query)
     evidence_text = f"{hit.matched_text}\n{hit.context_text}"
     evidence_tokens = _content_tokens(evidence_text)

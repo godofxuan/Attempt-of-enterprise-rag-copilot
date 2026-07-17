@@ -350,17 +350,18 @@ E7 live/browser 已完成并清理：8000/8501 listeners 0、项目 Python 0、O
 
 ## 17. R2-S1 当前精确断点
 
-本人已批准 `批准D0，执行D1威胁模型与评测协议冻结`。R2-S1 D0/D1 基线为：
+本人已依次批准 D1-D4。R2-S1 的冻结起点和当前实现断点为：
 
 ```text
 branch                    codex/rag-eval-system
 D1 start/design base HEAD da2ba8ccd4dcce455926758a8e9fb6fad20aec38
+D3 committed base HEAD    ec85cc718b3df17731fb1d9df7300a3a7c6fe5be
 da2ba8c ancestor          yes
 tracked/staged at D0      clean
 pre-existing untracked    .superpowers/ browser companion only
 ```
 
-D0 发现的关键事实：raw `SearchResult/FindResult/OpenResult` 当前直接进入 `Controller.observe`；generation 读取 matched/parent/open content；legacy `/chat` 和 `/agent/chat` 绕过 V2；pipeline 在 Guard 前裁成 top-k；context budget 在 Guard 前统计 raw text；V2 Agent 工具仍是 typed、只读、无任意外部副作用。
+D0 当时发现 raw `SearchResult/FindResult/OpenResult` 直接进入 `Controller.observe`、pipeline 在 Guard 前裁成 top-k。D2 用 `5 failed / 3 passed` 记录该历史红色基线；D3 实现 standalone Guard；D4 已把默认 V2 路径改成 capped ranked pool -> admission -> guarded execution -> admitted-only state。legacy `/chat` 和 `/agent/chat` 仍不在 D4 claim 内。
 
 D1 已冻结以下文档：
 
@@ -376,19 +377,21 @@ docs/roadmap/r2_s1_indirect_injection_implementation.md
 
 核心冻结结论：default enforce；audit/off 只可依赖注入；per-item error quarantine；全过滤 `security_filtered/evidence_filtered`；candidate_k 内一次 bounded top-up；Controller 运行时拒绝 raw execution；public trace aggregate only；secure profile 不注册 legacy generative routes；dev/test 各 24 attack + 12 benign；R1 files 不修改。
 
-当前仍然是：
+当前精确状态：
 
 ```text
-Guard implementation             NOT RUN
-D2 red propagation baseline      NOT RUN
-security datasets                NOT RUN
-deterministic/live evaluation    NOT RUN
+D1 design/protocol               FROZEN
+D2 red propagation baseline      RECORDED / HISTORICAL 5 FAIL + 3 PASS
+D3 standalone Guard              GREEN / 64 TESTS
+D4 guarded V2 data flow          GREEN / FULL 687 TESTS
+D5 prompt/public counters        NOT RUN
+D6 security datasets/evaluation  NOT RUN
 ```
 
 下一条唯一授权命令是：
 
 ```text
-批准D1，执行D2红色基线测试
+批准D4，执行D5提示边界与安全可观测性
 ```
 
 自动工程验收已收口。下一步是仓库所有者完成 50-row human review、三个代码实验和口述验收；这些仍是 `NOT RUN`。当前分支不自动 merge、tag、切换默认分支、改仓库名或修改公开状态。

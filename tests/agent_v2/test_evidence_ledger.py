@@ -5,9 +5,11 @@ import pytest
 from app.agent.evidence_ledger import build_ledger
 from app.domain.documents import SourceLocator
 from app.domain.queries import QueryAnalysis, SearchHit
+from app.domain.retrieved_security import AdmittedEvidenceChunk
+from tests.v2_test_support import admit_search_hit
 
 
-def hit(**updates) -> SearchHit:
+def hit(**updates) -> AdmittedEvidenceChunk:
     values = {
         "index_run_id": "run-one",
         "chunk_id": "chunk-a",
@@ -34,7 +36,7 @@ def hit(**updates) -> SearchHit:
         "bm25_rank": 1,
     }
     values.update(updates)
-    return SearchHit(**values)
+    return admit_search_hit(SearchHit(**values))
 
 
 def comparison_analysis() -> QueryAnalysis:

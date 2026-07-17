@@ -8,6 +8,12 @@ from app.domain.queries import (
     SearchResult,
     UserContext,
 )
+from app.domain.retrieved_security import (
+    AdmittedEvidenceChunk,
+    AdmittedOpenResult,
+)
+from app.retrieval.pipeline import RankedSearchCandidate, RankedSearchPool
+from app.security.retrieved_content import RetrievedContentGuard
 
 
 def user_context() -> UserContext:
@@ -71,6 +77,52 @@ def search_result(
     )
 
 
+def admit_search_hit(hit: SearchHit) -> AdmittedEvidenceChunk:
+    guard = RetrievedContentGuard()
+    admitted_hit = hit
+    if hit.context_from_parent and hit.context_text == hit.matched_text:
+        admitted_hit = hit.model_copy(update={"context_from_parent": False})
+    matched_decision = guard.scan(hit.matched_text)
+    metadata_decision = guard.scan(
+        "\n".join(
+            part
+            for part in [
+                hit.source_path,
+                *hit.section_path,
+                hit.locator.label if hit.locator is not None else None,
+                hit.version,
+            ]
+            if part
+        )
+    )
+    context_decision = (
+        guard.scan(hit.context_text)
+        if hit.context_from_parent and hit.context_text != hit.matched_text
+        else None
+    )
+    return AdmittedEvidenceChunk(
+        hit=admitted_hit,
+        matched_decision=matched_decision,
+        context_decision=context_decision,
+        metadata_decision=metadata_decision,
+    )
+
+
+def admitted_search_hit(**updates) -> AdmittedEvidenceChunk:
+    return admit_search_hit(search_hit(**updates))
+
+
+def admit_open_result(result: OpenResult) -> AdmittedOpenResult:
+    guard = RetrievedContentGuard()
+    return AdmittedOpenResult(
+        result=result,
+        content_decision=guard.scan(result.content),
+        metadata_decision=guard.scan(
+            "\n".join([result.source_path, *result.section_path])
+        ),
+    )
+
+
 def find_result(*, doc_id: str = "doc-a", matches=None) -> FindResult:
     matches = matches or []
     return FindResult(
@@ -119,6 +171,33 @@ class RecordingNavigator:
             raise self.search_error
         return self.search_results.pop(0)
 
+    def search_ranked(self, request):
+        self.calls.append(("search", request))
+        if self.search_error is not None:
+            raise self.search_error
+        result = self.search_results.pop(0)
+        if not isinstance(result, SearchResult):
+            return result
+        return RankedSearchPool(
+            request_id=result.request_id,
+            query=result.query,
+            mode=result.mode,
+            index_run_id=result.index_run_id,
+            manifest_sha256=result.manifest_sha256,
+            candidates=tuple(
+                RankedSearchCandidate(
+                    rank=rank,
+                    hit=hit,
+                    document_title=None,
+                )
+                for rank, hit in enumerate(result.hits, start=1)
+            ),
+            visible_candidate_count=result.visible_candidate_count,
+            internal_denied_count=result.internal_denied_count,
+            stage_counts=dict(result.stage_counts),
+            stop_reason=result.stop_reason,
+        )
+
     def find(self, request):
         self.calls.append(("find", request))
         return self.find_results.pop(0)
@@ -130,6 +209,9 @@ class RecordingNavigator:
 
 __all__ = [
     "RecordingNavigator",
+    "admit_open_result",
+    "admit_search_hit",
+    "admitted_search_hit",
     "find_result",
     "open_result",
     "search_hit",

@@ -4,10 +4,11 @@ from collections.abc import Mapping, Sequence
 from typing import Literal
 
 from app.domain.evidence import EvidenceItem, EvidenceLedger
-from app.domain.queries import QueryAnalysis, SearchHit
+from app.domain.queries import QueryAnalysis
+from app.domain.retrieved_security import AdmittedEvidenceChunk
 
 
-EvidenceByAspect = Mapping[str, Sequence[SearchHit]]
+EvidenceByAspect = Mapping[str, Sequence[AdmittedEvidenceChunk]]
 NavigationAction = Literal["search", "find", "open"]
 
 
@@ -92,25 +93,28 @@ def build_ledger(
     )
 
 
-def _unique_hits(hits: Sequence[SearchHit]) -> list[SearchHit]:
-    result: list[SearchHit] = []
+def _unique_hits(
+    hits: Sequence[AdmittedEvidenceChunk],
+) -> list[AdmittedEvidenceChunk]:
+    result: list[AdmittedEvidenceChunk] = []
     seen: set[str] = set()
-    for hit in hits:
-        if not isinstance(hit, SearchHit):
-            raise TypeError("evidence must contain SearchHit values")
-        if hit.chunk_id in seen:
+    for evidence in hits:
+        if not isinstance(evidence, AdmittedEvidenceChunk):
+            raise TypeError("evidence must contain admitted chunk values")
+        if evidence.hit.chunk_id in seen:
             continue
-        seen.add(hit.chunk_id)
-        result.append(hit)
+        seen.add(evidence.hit.chunk_id)
+        result.append(evidence)
     return result
 
 
 def _to_item(
     aspect: str,
-    hit: SearchHit,
+    evidence: AdmittedEvidenceChunk,
     *,
     relation: Literal["supports", "conflicts"],
 ) -> EvidenceItem:
+    hit = evidence.hit
     return EvidenceItem(
         aspect=aspect,
         chunk_id=hit.chunk_id,
@@ -123,15 +127,16 @@ def _to_item(
 
 
 def _priority_resolves(
-    supporting_hits: list[SearchHit],
-    conflicting_hits: list[SearchHit],
+    supporting_hits: list[AdmittedEvidenceChunk],
+    conflicting_hits: list[AdmittedEvidenceChunk],
 ) -> bool:
     support_priority = max(_priority(hit) for hit in supporting_hits)
     conflict_priority = max(_priority(hit) for hit in conflicting_hits)
     return support_priority > conflict_priority
 
 
-def _priority(hit: SearchHit) -> tuple[int, int]:
+def _priority(evidence: AdmittedEvidenceChunk) -> tuple[int, int]:
+    hit = evidence.hit
     return hit.authority_level, 1 if hit.status == "active" else 0
 
 

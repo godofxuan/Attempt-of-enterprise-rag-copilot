@@ -166,6 +166,13 @@ def _without_format_controls(text: str) -> str:
     )
 
 
+def normalized_content_length(content: str) -> int:
+    """Return the detector's pre-bound NFKC/casefold character count."""
+    if not isinstance(content, str):
+        raise TypeError("retrieved content must be text")
+    return len(unicodedata.normalize("NFKC", content).casefold())
+
+
 def _build_detection_view(content: str) -> _DetectionView:
     source_segments = _bounded_segments(content)
     nfkc_segments = tuple(
@@ -745,4 +752,5 @@ __all__ = [
     "SCAN_PREFIX_CHARS",
     "SCAN_SUFFIX_CHARS",
     "RetrievedContentGuard",
+    "normalized_content_length",
 ]

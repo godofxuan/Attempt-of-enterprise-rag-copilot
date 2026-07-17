@@ -10,9 +10,11 @@ import numpy as np
 from app.domain.documents import ChunkRecord
 from app.domain.queries import (
     QueryFilters,
+    RetrievalMode,
     SearchHit,
     SearchRequest,
     SearchResult,
+    SearchStopReason,
 )
 from app.retrieval.snapshot import V2IndexSnapshot
 from app.security.access import AccessPolicy
@@ -32,6 +34,27 @@ class _RankedCandidate:
     bm25_rank: int | None
 
 
+@dataclass(frozen=True)
+class RankedSearchCandidate:
+    rank: int
+    hit: SearchHit
+    document_title: str | None
+
+
+@dataclass(frozen=True)
+class RankedSearchPool:
+    request_id: str
+    query: str
+    mode: RetrievalMode
+    index_run_id: str
+    manifest_sha256: str
+    candidates: tuple[RankedSearchCandidate, ...]
+    visible_candidate_count: int
+    internal_denied_count: int
+    stage_counts: dict[str, int]
+    stop_reason: SearchStopReason
+
+
 class HybridRetrievalPipeline:
     def __init__(
         self,
@@ -49,6 +72,34 @@ class HybridRetrievalPipeline:
         self.rrf_k = rrf_k
 
     def search(self, request: SearchRequest) -> SearchResult:
+        pool = self.ranked_candidates_for_guard(request)
+        selected = self._select_diverse_ranked(
+            pool.candidates,
+            top_k=request.top_k,
+            max_chunks_per_doc=request.max_chunks_per_doc,
+        )
+        hits = [candidate.hit for candidate in selected]
+        stage_counts = {**pool.stage_counts, "returned": len(hits)}
+        stop_reason: SearchStopReason = pool.stop_reason
+        if stop_reason == "ok" and not hits:
+            stop_reason = "no_match"
+        return SearchResult(
+            request_id=pool.request_id,
+            query=pool.query,
+            mode=pool.mode,
+            index_run_id=pool.index_run_id,
+            manifest_sha256=pool.manifest_sha256,
+            hits=hits,
+            visible_candidate_count=pool.visible_candidate_count,
+            internal_denied_count=pool.internal_denied_count,
+            stage_counts=stage_counts,
+            stop_reason=stop_reason,
+        )
+
+    def ranked_candidates_for_guard(
+        self,
+        request: SearchRequest,
+    ) -> RankedSearchPool:
         started = time.perf_counter()
         acl_indices, denied_count = self.access_policy.visible_indices(
             request.user,
@@ -71,7 +122,7 @@ class HybridRetrievalPipeline:
             stop_reason = (
                 "no_visible_evidence" if not acl_indices and denied_count else "no_match"
             )
-            return self._empty_result(
+            return self._empty_pool(
                 request,
                 denied_count=denied_count,
                 stage_counts=stage_counts,
@@ -101,36 +152,38 @@ class HybridRetrievalPipeline:
             dense_ranked=dense_ranked,
         )
         stage_counts["fused_candidates"] = len(candidates)
-        selected = self._select_diverse(
-            candidates,
-            top_k=request.top_k,
-            max_chunks_per_doc=request.max_chunks_per_doc,
+        candidates = candidates[: request.candidate_k]
+        ranked_candidates = tuple(
+            RankedSearchCandidate(
+                rank=rank,
+                hit=self._to_hit(candidate, request),
+                document_title=self._document_title(candidate),
+            )
+            for rank, candidate in enumerate(candidates, start=1)
         )
-        hits = [self._to_hit(candidate, request) for candidate in selected]
-        stage_counts["returned"] = len(hits)
 
         elapsed_ms = (time.perf_counter() - started) * 1000
         if elapsed_ms > request.timeout_ms:
-            return self._empty_result(
+            return self._empty_pool(
                 request,
                 denied_count=denied_count,
                 stage_counts={**stage_counts, "returned": 0},
                 stop_reason="timeout",
             )
-        if not hits:
-            return self._empty_result(
+        if not ranked_candidates:
+            return self._empty_pool(
                 request,
                 denied_count=denied_count,
                 stage_counts=stage_counts,
                 stop_reason="no_match",
             )
-        return SearchResult(
+        return RankedSearchPool(
             request_id=request.request_id,
             query=request.query,
             mode=request.mode,
             index_run_id=self.snapshot.version.manifest.run_id,
             manifest_sha256=self.snapshot.version.manifest_sha256,
-            hits=hits,
+            candidates=ranked_candidates,
             visible_candidate_count=len(metadata_indices),
             internal_denied_count=denied_count,
             stage_counts=stage_counts,
@@ -245,17 +298,17 @@ class HybridRetrievalPipeline:
             chunk.chunk_id,
         )
 
-    def _select_diverse(
+    def _select_diverse_ranked(
         self,
-        candidates: list[_RankedCandidate],
+        candidates: tuple[RankedSearchCandidate, ...],
         *,
         top_k: int,
         max_chunks_per_doc: int,
-    ) -> list[_RankedCandidate]:
-        selected: list[_RankedCandidate] = []
+    ) -> list[RankedSearchCandidate]:
+        selected: list[RankedSearchCandidate] = []
         per_doc: Counter[str] = Counter()
         for candidate in candidates:
-            doc_id = self.snapshot.chunks[candidate.index].doc_id
+            doc_id = candidate.hit.doc_id
             if per_doc[doc_id] >= max_chunks_per_doc:
                 continue
             per_doc[doc_id] += 1
@@ -263,6 +316,11 @@ class HybridRetrievalPipeline:
             if len(selected) == top_k:
                 break
         return selected
+
+    def _document_title(self, candidate: _RankedCandidate) -> str | None:
+        doc_id = self.snapshot.chunks[candidate.index].doc_id
+        document = self.snapshot.documents_by_id.get(doc_id)
+        return document.title if document is not None else None
 
     def _to_hit(
         self,
@@ -310,21 +368,21 @@ class HybridRetrievalPipeline:
             bm25_rank=candidate.bm25_rank,
         )
 
-    def _empty_result(
+    def _empty_pool(
         self,
         request: SearchRequest,
         *,
         denied_count: int,
         stage_counts: dict[str, int],
         stop_reason: str,
-    ) -> SearchResult:
-        return SearchResult(
+    ) -> RankedSearchPool:
+        return RankedSearchPool(
             request_id=request.request_id,
             query=request.query,
             mode=request.mode,
             index_run_id=self.snapshot.version.manifest.run_id,
             manifest_sha256=self.snapshot.version.manifest_sha256,
-            hits=[],
+            candidates=(),
             visible_candidate_count=stage_counts["metadata_visible"],
             internal_denied_count=denied_count,
             stage_counts=stage_counts,
@@ -358,4 +416,8 @@ def _matches_filters(chunk: ChunkRecord, filters: QueryFilters) -> bool:
     return True
 
 
-__all__ = ["HybridRetrievalPipeline"]
+__all__ = [
+    "HybridRetrievalPipeline",
+    "RankedSearchCandidate",
+    "RankedSearchPool",
+]

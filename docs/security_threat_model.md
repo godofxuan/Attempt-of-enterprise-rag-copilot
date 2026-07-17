@@ -112,7 +112,7 @@ OWASP LLM07:2025 的核心原则是：system prompt 不应被视为秘密，也�
 
 ## 10. R2-S1 retrieved-content threat model status
 
-R2-S1 D1 has frozen a dedicated indirect-injection threat model without claiming implementation success. It covers document body/title/heading/table/metadata, search snippets, parent context, find/open results, legacy query-rewrite and answer sinks, citation/extractive consumers, trace, API and UI serialization.
+R2-S1 D1 froze a dedicated indirect-injection threat model. D3 implemented the deterministic detector, and D4 made it mandatory on the default V2 `search/find/open` path before Controller state. The scope covers document body/title/version/heading/metadata, search snippets, parent context, find/open results, citation/extractive consumers, trace, API and UI serialization.
 
 The approved target is defense in depth: deterministic quarantine, admitted-only runtime types, bounded candidate top-up, read-only capability confinement, explicit untrusted-evidence prompt boundaries, aggregate trace and separate deterministic/live evaluation. The complete documents are under [`docs/security/r2_s1/`](security/r2_s1/00_scope_and_threat_model.md).
 
@@ -120,8 +120,10 @@ Current status:
 
 ```text
 threat model and protocol   D1 FROZEN
-Guard implementation        NOT RUN
+standalone Guard core       D3 GREEN / 64 TESTS
+guarded V2 runtime path     D4 GREEN / FULL 687 TESTS
+prompt/public counters      D5 NOT RUN
 indirect attack evaluation  NOT RUN
 ```
 
-The four existing direct user-prompt probes do not satisfy this protocol and remain separately labeled.
+The D4 result proves deterministic enforcement of configured rules, not universal resistance or attack success rate. The four existing direct user-prompt probes remain separately labeled, and the D6 dedicated indirect attack/benign OFF/ON runs have not started.

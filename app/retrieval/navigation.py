@@ -15,7 +15,7 @@ from app.domain.queries import (
     SearchRequest,
     SearchResult,
 )
-from app.retrieval.pipeline import HybridRetrievalPipeline
+from app.retrieval.pipeline import HybridRetrievalPipeline, RankedSearchPool
 from app.retrieval.snapshot import V2IndexSnapshot
 from app.security.access import AccessPolicy
 from app.utils import tokenize_for_bm25
@@ -24,9 +24,15 @@ from app.utils import tokenize_for_bm25
 class SearchPipeline(Protocol):
     def search(self, request: SearchRequest) -> SearchResult: ...
 
+    def ranked_candidates_for_guard(
+        self,
+        request: SearchRequest,
+    ) -> RankedSearchPool: ...
+
 
 Clock = Callable[[], float]
 SearchOutcome = SearchResult | ToolError
+RankedSearchOutcome = RankedSearchPool | ToolError
 FindOutcome = FindResult | ToolError
 OpenOutcome = OpenResult | ToolError
 
@@ -56,6 +62,22 @@ class DocumentNavigator:
             return _tool_error("timeout")
         try:
             result = self.pipeline.search(request)
+        except ValueError:
+            return _tool_error("invalid_args")
+        except Exception:
+            return _tool_error("system")
+        if self._expired(started, request.timeout_ms):
+            return _tool_error("timeout")
+        if result.stop_reason == "timeout":
+            return _tool_error("timeout")
+        return result
+
+    def search_ranked(self, request: SearchRequest) -> RankedSearchOutcome:
+        started = self.clock()
+        if self._expired(started, request.timeout_ms):
+            return _tool_error("timeout")
+        try:
+            result = self.pipeline.ranked_candidates_for_guard(request)
         except ValueError:
             return _tool_error("invalid_args")
         except Exception:
@@ -215,6 +237,7 @@ __all__ = [
     "DocumentNavigator",
     "FindOutcome",
     "OpenOutcome",
+    "RankedSearchOutcome",
     "SearchOutcome",
     "SearchPipeline",
 ]

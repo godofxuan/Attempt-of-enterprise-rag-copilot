@@ -4,7 +4,7 @@ import re
 from collections.abc import Sequence
 
 from app.domain.evidence import Claim, ClaimCitation
-from app.domain.queries import SearchHit
+from app.domain.retrieved_security import AdmittedEvidenceChunk
 from app.utils import tokenize_for_bm25
 
 
@@ -29,15 +29,15 @@ _STOP_TOKENS = {
 
 def verify_claims(
     claims: Sequence[Claim],
-    visible_hits: Sequence[SearchHit],
+    visible_hits: Sequence[AdmittedEvidenceChunk],
 ) -> list[ClaimCitation]:
-    visible_by_id: dict[str, SearchHit] = {}
-    for hit in visible_hits:
-        if not isinstance(hit, SearchHit):
-            raise TypeError("visible evidence must contain SearchHit values")
-        if hit.chunk_id in visible_by_id:
+    visible_by_id: dict[str, AdmittedEvidenceChunk] = {}
+    for evidence in visible_hits:
+        if not isinstance(evidence, AdmittedEvidenceChunk):
+            raise TypeError("visible evidence must contain admitted chunk values")
+        if evidence.hit.chunk_id in visible_by_id:
             raise ValueError("visible chunk IDs must be unique")
-        visible_by_id[hit.chunk_id] = hit
+        visible_by_id[evidence.hit.chunk_id] = evidence
 
     results: list[ClaimCitation] = []
     for claim in claims:
@@ -73,9 +73,9 @@ def verify_claims(
 
         evidence_text = "\n".join(
             (
-                visible_by_id[chunk_id].matched_text
+                visible_by_id[chunk_id].hit.matched_text
                 + "\n"
-                + visible_by_id[chunk_id].context_text
+                + visible_by_id[chunk_id].hit.context_text
             )
             for chunk_id in cited_ids
         )

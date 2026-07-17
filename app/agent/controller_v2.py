@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.agent.evidence_ledger import build_ledger
 from app.agent.evidence_relevance import has_query_anchor_support
-from app.agent.tools_v2 import V2ToolExecution
 from app.domain.agent import (
     AgentAction,
     AgentBudget,
@@ -18,14 +17,19 @@ from app.domain.agent import (
 )
 from app.domain.evidence import EvidenceLedger
 from app.domain.queries import (
-    FindResult,
     OpenRequest,
-    OpenResult,
     QueryAnalysis,
-    SearchHit,
     SearchRequest,
-    SearchResult,
     UserContext,
+)
+from app.domain.retrieved_security import (
+    AdmittedEvidenceChunk,
+    AdmittedFindMatch,
+    AdmittedOpenResult,
+    GuardedFindResult,
+    GuardedOpenAdmittedResult,
+    GuardedSearchResult,
+    GuardedV2ToolExecution,
 )
 
 
@@ -39,12 +43,15 @@ class ControllerState(BaseModel):
     user: UserContext
     top_k: int = Field(ge=1, le=20)
     budget_state: BudgetState
-    evidence_by_aspect: dict[str, list[SearchHit]] = Field(default_factory=dict)
+    evidence_by_aspect: dict[str, list[AdmittedEvidenceChunk]] = Field(
+        default_factory=dict
+    )
     attempted_search_aspects: list[str] = Field(default_factory=list)
     opened_doc_ids: list[str] = Field(default_factory=list)
-    open_results: list[OpenResult] = Field(default_factory=list)
-    find_results: list[FindResult] = Field(default_factory=list)
+    open_results: list[AdmittedOpenResult] = Field(default_factory=list)
+    find_results: list[AdmittedFindMatch] = Field(default_factory=list)
     denied_only_signal: bool = False
+    security_filtered_signal: bool = False
     ledger: EvidenceLedger | None = None
     last_error: ToolError | None = None
 
@@ -136,6 +143,17 @@ class V2AgentController:
         if open_decision is not None:
             return open_decision
 
+        if state.security_filtered_signal and not _all_visible_hits(
+            state.evidence_by_aspect
+        ):
+            return _terminal(
+                sequence,
+                tool="stop",
+                mode="security_filtered",
+                stop_reason="evidence_filtered",
+                purpose="stop because available evidence was filtered by safety policy",
+            )
+
         ledger = state.ledger or build_ledger(
             state.analysis,
             state.evidence_by_aspect,
@@ -202,8 +220,12 @@ class V2AgentController:
     def observe(
         self,
         state: ControllerState,
-        execution: V2ToolExecution,
+        execution: GuardedV2ToolExecution,
     ) -> ControllerState:
+        if not isinstance(execution, GuardedV2ToolExecution):
+            raise TypeError(
+                "Controller.observe requires a guarded tool execution"
+            )
         evidence = {
             aspect: list(hits)
             for aspect, hits in state.evidence_by_aspect.items()
@@ -213,6 +235,9 @@ class V2AgentController:
         open_results = list(state.open_results)
         find_results = list(state.find_results)
         denied_signal = state.denied_only_signal
+        security_filtered_signal = state.security_filtered_signal or (
+            execution.security_stop_reason == "evidence_filtered"
+        )
         last_error: ToolError | None = None
         action = execution.action
         result = execution.result
@@ -220,7 +245,7 @@ class V2AgentController:
         if action.tool == "search" and action.aspect is not None:
             if action.aspect not in attempted:
                 attempted.append(action.aspect)
-            if isinstance(result, SearchResult):
+            if isinstance(result, GuardedSearchResult):
                 supported_hits = [
                     hit
                     for hit in result.hits
@@ -239,26 +264,26 @@ class V2AgentController:
             target_id = action.open_request.target_id
             if target_id not in opened_doc_ids:
                 opened_doc_ids.append(target_id)
-            if isinstance(result, OpenResult):
-                open_results.append(result)
-        elif action.tool == "find" and isinstance(result, FindResult):
-            find_results.append(result)
+            if isinstance(result, GuardedOpenAdmittedResult):
+                open_results.append(result.item)
+        elif action.tool == "find" and isinstance(result, GuardedFindResult):
+            find_results.extend(result.matches)
 
         if isinstance(result, ToolError):
             if not (result.code == "not_found" and action.tool in {"find", "open"}):
                 last_error = result
 
-        next_state = state.model_copy(
-            update={
-                "budget_state": execution.budget_state,
-                "evidence_by_aspect": evidence,
-                "attempted_search_aspects": attempted,
-                "opened_doc_ids": opened_doc_ids,
-                "open_results": open_results,
-                "find_results": find_results,
-                "denied_only_signal": denied_signal,
-                "last_error": last_error,
-            }
+        next_state = _validated_state(
+            state,
+            budget_state=execution.budget_state,
+            evidence_by_aspect=evidence,
+            attempted_search_aspects=attempted,
+            opened_doc_ids=opened_doc_ids,
+            open_results=open_results,
+            find_results=find_results,
+            denied_only_signal=denied_signal,
+            security_filtered_signal=security_filtered_signal,
+            last_error=last_error,
         )
         if state.analysis.intent != "unsafe":
             ledger = build_ledger(
@@ -267,7 +292,7 @@ class V2AgentController:
                 denied_only=denied_signal and not _all_visible_hits(evidence),
                 budget_exhausted=self._hard_budget_exhausted(next_state),
             )
-            next_state = next_state.model_copy(update={"ledger": ledger})
+            next_state = _validated_state(next_state, ledger=ledger)
         return next_state
 
     def _decision_for_error(
@@ -334,7 +359,8 @@ class V2AgentController:
         if state.analysis.intent != "completeness":
             return None
         for hit in _all_visible_hits(state.evidence_by_aspect):
-            if hit.doc_id in state.opened_doc_ids:
+            raw_hit = hit.hit
+            if raw_hit.doc_id in state.opened_doc_ids:
                 continue
             remaining = (
                 state.budget_state.budget.max_context_chars
@@ -353,7 +379,7 @@ class V2AgentController:
                         request_id=f"agent-step-{sequence}",
                         user=state.user,
                         target_type="document",
-                        target_id=hit.doc_id,
+                        target_id=raw_hit.doc_id,
                         max_chars=min(4000, remaining),
                     ),
                 )
@@ -386,25 +412,42 @@ def _query_for_aspect(analysis: QueryAnalysis, aspect: str) -> str:
     return analysis.search_queries[0]
 
 
-def _merge_hits(existing: list[SearchHit], latest: list[SearchHit]) -> list[SearchHit]:
+def _merge_hits(
+    existing: list[AdmittedEvidenceChunk],
+    latest: list[AdmittedEvidenceChunk],
+) -> list[AdmittedEvidenceChunk]:
     result = list(existing)
-    seen = {hit.chunk_id for hit in result}
+    seen = {item.hit.chunk_id for item in result}
     for hit in latest:
-        if hit.chunk_id not in seen:
-            seen.add(hit.chunk_id)
+        if hit.hit.chunk_id not in seen:
+            seen.add(hit.hit.chunk_id)
             result.append(hit)
     return result
 
 
-def _all_visible_hits(evidence: dict[str, list[SearchHit]]) -> list[SearchHit]:
-    result: list[SearchHit] = []
+def _all_visible_hits(
+    evidence: dict[str, list[AdmittedEvidenceChunk]],
+) -> list[AdmittedEvidenceChunk]:
+    result: list[AdmittedEvidenceChunk] = []
     seen: set[str] = set()
     for hits in evidence.values():
         for hit in hits:
-            if hit.chunk_id not in seen:
-                seen.add(hit.chunk_id)
+            if hit.hit.chunk_id not in seen:
+                seen.add(hit.hit.chunk_id)
                 result.append(hit)
     return result
+
+
+def _validated_state(
+    state: ControllerState,
+    **updates,
+) -> ControllerState:
+    values = {
+        field_name: getattr(state, field_name)
+        for field_name in ControllerState.model_fields
+    }
+    values.update(updates)
+    return ControllerState(**values)
 
 
 __all__ = [

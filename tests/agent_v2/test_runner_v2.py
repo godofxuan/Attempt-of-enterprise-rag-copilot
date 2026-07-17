@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.agent.runner_v2 import V2AgentRunner, budget_from_settings
-from app.agent.tools_v2 import V2ToolRegistry
+from app.agent.tools_v2 import V2ToolExecution, V2ToolRegistry
 from app.config import Settings
 from tests.v2_test_support import (
     RecordingNavigator,
@@ -225,3 +225,29 @@ def test_trace_contains_only_aggregate_step_fields() -> None:
         "coverage",
         "recommended_action",
     }
+
+
+class RawBypassRegistry:
+    def run(self, action, budget_state):
+        result = search_result([search_hit()])
+        return V2ToolExecution(
+            action=action,
+            result=result,
+            budget_state=budget_state,
+            status="ok",
+            visible_count=1,
+            context_chars_added=len(result.hits[0].context_text),
+        )
+
+
+def test_runner_fails_source_free_when_registry_bypasses_guarded_type() -> None:
+    runner = V2AgentRunner(
+        registry=RawBypassRegistry(),
+        clock_ms=lambda: 0.0,
+    )
+
+    response = runner.run("What is the remote work limit?", USER)
+
+    assert response.mode == "system"
+    assert response.stop_reason == "system_error"
+    assert response.sources == []

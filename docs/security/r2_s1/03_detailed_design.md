@@ -1,6 +1,6 @@
 # R2-S1 Detailed Design and Schema Drafts
 
-状态：D1 frozen contract。D3 已按本文第 3、6、7、14、15 节实现独立 Python Guard core；第 4、5、8-13 节的数据流接入仍属于 D4-D6。实现证据见 [05_results.md](05_results.md)，不得把 D3 unit green 表述成运行时已接入。
+状态：D1 frozen contract。D3 已实现第 3、6、7、14、15 节的独立 Python Guard core；D4 已实现第 4、5、8、9、10 节的数据流接入和第 13 节的默认安全工具路径。第 11、12 节的 nonce prompt envelope 与 public security counters 属于 D5，完整 OFF/ON 评估属于 D6。实现证据见 [05_results.md](05_results.md) 和 [06_d4_engineering_journal.md](06_d4_engineering_journal.md)。
 
 ## 1. Contract Ownership
 
@@ -270,3 +270,20 @@ Startup rejects a missing/invalid detector ruleset. Readiness may expose only a 
 The initial implementation will choose an exact `detector_version` when D3 rules and constants exist. A version changes when normalization, rule semantics, thresholds, resource bounds or split aggregation changes. Pure refactors with byte-for-byte equivalent decisions may keep the version only when regression artifacts prove equivalence.
 
 No version is claimed in D1 because no detector implementation exists yet.
+
+## 16. D4 Implementation Mapping
+
+D4 在不修改 D1 冻结评估文件的前提下，把上述设计落到了以下边界：
+
+| Design section | Implemented owner | D4 evidence |
+|---|---|---|
+| guarded payload | `app/domain/retrieved_security.py` | invalid raw/quarantined combinations fail validation |
+| ranked pool/top-up | `app/retrieval/pipeline.py`, `app/security/retrieved_admission.py` | poisoned rank 1 is removed and clean rank 2 is recovered from one existing pool |
+| search/find/open admission | `app/security/retrieved_admission.py`, `app/agent/tools_v2.py` | body, parent, metadata, preview and open content are checked before state |
+| Controller invariant | `app/agent/controller_v2.py` | raw `V2ToolExecution` raises a boundary error and Runner fails source-free |
+| admitted-only sinks | ledger, relevance, generation and citation modules | quarantined content cannot become support, prompt context, citation or source |
+| capability bound | existing `search/find/open` allowlist | a URL-shaped open ID remains a local lookup and produces zero transport calls |
+
+Detector policy identity changed to `rcg-v1.1.0` because D4 added the bounded
+same-document adjacent split rule. D4 does not claim the unimplemented D5 prompt
+nonce/public counter work or the D6 dataset/evaluator work.

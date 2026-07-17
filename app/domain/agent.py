@@ -15,6 +15,7 @@ AnswerMode = Literal[
     "unsafe",
     "system",
     "budget",
+    "security_filtered",
 ]
 AgentStopReason = Literal[
     "completed",
@@ -27,6 +28,7 @@ AgentStopReason = Literal[
     "system_error",
     "budget",
     "budget_exhausted",
+    "evidence_filtered",
 ]
 AgentToolName = Literal["search", "find", "open", "answer", "refuse", "stop"]
 ToolErrorCode = Literal[

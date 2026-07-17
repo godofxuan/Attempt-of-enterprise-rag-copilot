@@ -167,6 +167,7 @@ class AnswerResponse(StrictModel):
             "not_found",
             "system",
             "budget",
+            "security_filtered",
         }
         if self.mode in source_free_modes and self.sources:
             raise ValueError(f"{self.mode} response sources must be empty")

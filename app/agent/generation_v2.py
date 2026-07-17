@@ -19,7 +19,7 @@ from app.agent.runner_v2 import ExtractiveResponseBuilder
 from app.config import get_settings
 from app.domain.agent import AgentStopReason, AnswerMode
 from app.domain.evidence import AnswerResponse, AnswerSource, Claim
-from app.domain.queries import SearchHit
+from app.domain.retrieved_security import AdmittedEvidenceChunk
 from app.ollama_chat import chat_with_ollama
 
 
@@ -103,7 +103,7 @@ class GeneratedAnswer(BaseModel):
 class _PromptSource:
     source_id: str
     aspect: str
-    hit: SearchHit
+    evidence: AdmittedEvidenceChunk
     block: str
 
 
@@ -158,7 +158,7 @@ class GenerationV2ResponseBuilder:
                 **trace,
                 "generation_attempts": generation_attempts,
             }
-            visible_hits = [source.hit for source in sources]
+            visible_hits = [source.evidence for source in sources]
             citations = verify_claims(claims, visible_hits)
             cited_source_ids = {
                 source_id
@@ -166,7 +166,7 @@ class GenerationV2ResponseBuilder:
                 for source_id in generated_claim.cited_source_ids
             }
             answer_sources = [
-                _answer_source(source.hit)
+                _answer_source(source.evidence)
                 for source in sources
                 if source.source_id in cited_source_ids
             ]
@@ -269,7 +269,8 @@ def _build_prompt_sources(state: ControllerState) -> list[_PromptSource]:
         state.budget_state.budget.max_context_chars,
     )
     for aspect in state.ledger.supported_aspects:
-        for hit in state.evidence_by_aspect.get(aspect, []):
+        for evidence in state.evidence_by_aspect.get(aspect, []):
+            hit = evidence.hit
             if hit.chunk_id in seen or len(result) >= MAX_SOURCE_COUNT:
                 continue
             source_id = f"S{len(result) + 1}"
@@ -291,7 +292,7 @@ def _build_prompt_sources(state: ControllerState) -> list[_PromptSource]:
                 _PromptSource(
                     source_id=source_id,
                     aspect=aspect,
-                    hit=hit,
+                    evidence=evidence,
                     block=block,
                 )
             )
@@ -303,9 +304,9 @@ def _build_prompt_sources(state: ControllerState) -> list[_PromptSource]:
 
 
 def _open_context_for_doc(state: ControllerState, doc_id: str) -> str:
-    for result in state.open_results:
-        if result.doc_id == doc_id:
-            return result.content[:MAX_OPEN_CONTEXT_CHARS]
+    for admitted in state.open_results:
+        if admitted.result.doc_id == doc_id:
+            return admitted.result.content[:MAX_OPEN_CONTEXT_CHARS]
     return ""
 
 
@@ -361,7 +362,10 @@ def _map_claims(
         if any(source_id not in source_by_id for source_id in source_ids):
             raise ValueError("generated claim cites an unknown source ID")
         chunk_ids = _deduplicate(
-            [source_by_id[source_id].hit.chunk_id for source_id in source_ids]
+            [
+                source_by_id[source_id].evidence.hit.chunk_id
+                for source_id in source_ids
+            ]
         )
         claims.append(
             Claim(
@@ -374,7 +378,8 @@ def _map_claims(
     return claims
 
 
-def _answer_source(hit: SearchHit) -> AnswerSource:
+def _answer_source(evidence: AdmittedEvidenceChunk) -> AnswerSource:
+    hit = evidence.hit
     return AnswerSource(
         doc_id=hit.doc_id,
         source_path=hit.source_path,
