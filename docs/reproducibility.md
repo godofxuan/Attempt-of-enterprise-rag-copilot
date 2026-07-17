@@ -101,11 +101,12 @@ CI 只校验 hash 和 deterministic suite，不用 frozen test 继续调参。
 4. `pip check`；
 5. `compileall`；
 6. frozen hash；
-7. full pytest。
+7. 带 `faulthandler` 的 full pytest，并在失败时发布末尾上下文注释；
+8. public repository audit。
 
 workflow 权限只有 `contents: read`，没有 secrets、Ollama service、live evaluator、uvicorn 或 load profile。GitHub 官方文档建议用 setup-python 明确 Python 版本，以避免 runner 默认版本变化：[Building and testing Python](https://docs.github.com/en/actions/how-tos/use-cases-and-examples/building-and-testing/building-and-testing-python)。当前 action 主版本依据官方仓库示例：[checkout](https://github.com/actions/checkout)、[setup-python](https://github.com/actions/setup-python)。
 
-本地 E7 CI-equivalent gate 退出 0 不等于 GitHub Actions 已运行。远端状态只有在功能分支推送后取得与 commit SHA 对应的 run URL 才能从 `NOT RUN` 改为 `PASS` 或 `FAIL`。
+本地 E7 CI-equivalent gate 退出 0 不等于 GitHub Actions 已运行。远端状态只有在功能分支推送后取得与 commit SHA 对应的 run URL 才能从 `NOT RUN` 改为 `PASS` 或 `FAIL`。当前代码候选 `9607e55` 的 [run 29553278709](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 在 Ubuntu/Python 3.11 上为 `PASS`；它不替代 clean-clone、本地 live/Ollama、浏览器或生产部署验证。
 
 ## 7. Live 前置检查
 

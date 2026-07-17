@@ -196,4 +196,4 @@ Stop-Process -Id <recorded-pid>
 - Raw eval/load runs 默认不可覆盖且被 Git 忽略。
 - Public Evaluation 页读取 [sanitized snapshot](../data/v2/public/demo_snapshot.json)。
 - Screenshot 规范见 [assets README](assets/README.md)。
-- 当前不运行 remote CI、不 push、不 merge、不 tag；这些动作需要仓库所有者单独授权。
+- E7 已按仓库所有者授权推送 `codex/rag-eval-system` 并取得远端 CI 证据；本 runbook 不自动 push、merge、tag 或修改默认分支。

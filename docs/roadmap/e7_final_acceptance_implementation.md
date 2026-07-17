@@ -46,7 +46,7 @@ E7 不是继续堆功能，而是回答五个更严格的问题：
 | `E7-G10` | 50-row 人工 semantic review | NOT RUN | 只能由本人填写，Codex 不代签 |
 | `E7-G11` | 本人代码实验与口述验收 | NOT RUN | 只能由本人现场完成，E7 将生成明确 checklist |
 | `E7-G12` | claims-evidence matrix 审批 | PASS | 3 approved、7 narrowed、0 rejected、0 pending；人工项不混入 claims 通过 |
-| `E7-G13` | final public candidate + release-candidate commit | PENDING | 只在可自动 gate 通过后执行 |
+| `E7-G13` | final public candidate + release-candidate commit | PASS | feature branch 已 push；code candidate `9607e55` clean-clone 574；Ubuntu CI run 29553278709 success |
 
 `PENDING` 只表示尚未执行，不是验收结论。E7 收口时必须把它们全部改成 PASS、FAIL 或 NOT RUN。
 
@@ -518,7 +518,7 @@ final public findings                     0
 
 ### 6.17 E7-I10：第一次 GitHub clean clone 的 frozen hash 失败
 
-release-candidate 代码提交 `b8b8e8b` 成功 push 到 `origin/codex/rag-eval-system`，远端 SHA 与本地一致。第一次全新 clone 先通过：HEAD exact、tracked files 331、working tree clean、private/eval/load/index/output roots 不存在、public audit 331/0、pip clean。
+release-candidate 代码提交 `b8b8e8b` 成功 push 到 `origin/codex/rag-eval-system`，远端 SHA 与本地一致。第一次全新 clone 先通过：HEAD exact、tracked files 331、working tree clean、private/eval/load/output roots 不存在、index root 只有 tracked `.gitkeep`、public audit 331/0、pip clean。
 
 随后 frozen hash gate 失败：
 
@@ -561,3 +561,40 @@ missing path                            data/generated/demo/eval/dev.json
 修复：测试从 checked-in `data/v2/facts/company_facts_v1.json` 和 `data/v2/config/demo.json` 在 pytest `tmp_path` 中调用正式 `write_corpus()`，再运行真实 fixed/heading/parent-child ablation。预期仍锁定 72 source、64 canonical、18 scored dev cases 和三种 mode。focused test 1 passed；静态扫描确认其它 `eval_runs/load_runs` 引用都在 `tmp_path` 或审计恶意 fixture。修复后的本地 full 为 574 passed、3 warnings、19.58 秒，compile/hash/audit 331/0/diff 都通过。
 
 G13 继续 PENDING：该修复必须提交、push，并在第三个新 clone 得到 full 574/574。第二个 clone 的 hash PASS 只关闭 I10，不能覆盖 I11 的 suite FAIL。
+
+### 6.19 E7-I12：第三次 clean clone 关闭 ignored corpus 依赖
+
+修复提交 `960fa13` push 后，第三个全新 clone 的 HEAD、private/raw 边界、LF bytes、frozen hash、compile 和 public audit 331/0 全部通过；full pytest 为 574 passed、3 warnings、17.20 秒。它证明 chunking ablation 不再依赖本机 `data/generated/demo`，并关闭 I11。
+
+### 6.20 E7-I13：GitHub Actions Linux `exit 139`
+
+第三次 clone 在 Windows 通过后，GitHub Actions 仍以 exit 139 失败。公开 check annotation 只能显示段错误，不能显示测试名，因此先提交 `a628dfe`：CI 启用 `PYTHONFAULTHANDLER`、`python -u -X faulthandler -m pytest -vv`、`tee` 和失败上下文 annotation。诊断 run 29553087153 的公开 annotation 精确定位：
+
+```text
+test    tests/ui/test_streamlit_pages.py::test_evaluation_page_uses_strict_public_snapshot
+line    168, DataframeElement.value
+stack   streamlit.dataframe_util -> pyarrow.pandas_compat.table_to_dataframe
+signal  SIGSEGV / exit 139
+```
+
+这排除了最初按原生扩展概率排序的 FAISS/OpenMP 假设。页面把数据序列化给 `st.dataframe` 已成功；崩溃只发生在 AppTest 把 Arrow bytes 反向转换回 Pandas 以读取 `.value`，真实浏览器不走该测试专用路径。修复提交 `9607e55` 不降级依赖、不跳过页面测试，而是继续断言页面无异常、6 个 dataframe 元素已渲染，并从相邻 caption/info/warning 验证 `NOT RUN` 与 provenance run IDs。
+
+验证：目标测试 1 passed；本地 full 574 passed；GitHub Actions [run 29553278709](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 在 Ubuntu/Python 3.11 为 success。诊断能力保留在 workflow，未来原生 crash 会给出可公开读取的末尾上下文。
+
+### 6.21 E7-G13：GitHub 交付和第四次 clean clone
+
+代码候选 `9607e55ec0fc12e98d1f61e199bfbf6ac12a0eee` 已 push 到 `origin/codex/rag-eval-system`，远端 SHA 一致。第四个全新目录 `RAG_try_e7_cleanclone_9607e55_20260717` 的证据：
+
+```text
+HEAD                                    9607e55ec0fc12e98d1f61e199bfbf6ac12a0eee
+working tree                            clean
+private/eval/load/output roots          absent
+data/indexes                            tracked .gitkeep only
+frozen hash                             exact 556ffed812cdde0ba7ddc7d625782b3b3bbdbcd4753670a199bd0c3c05743338
+compileall                              exit 0
+public audit                            331 candidates, 0 findings
+full pytest                             574 passed, 3 warnings, 19.09 s
+remote CI                               success, run 29553278709
+```
+
+因此 G13 从 PENDING 关闭为 PASS。该结论只覆盖 feature-branch public candidate 的 Git 交付、公开 clone 和 deterministic remote CI；不表示 merge、tag、默认分支修改、部署或 owner-only sign-off。

@@ -251,18 +251,18 @@ README、root `PROJECT_STATUS.md`、reproducibility、known limitations、handof
 
 确认 `.private/e7`、raw runs、browser scratch 和 active index 均不在 `git status --short` candidate 中；检查将提交的文件列表和大文件。
 
-- [ ] **Step 3: Create the release-candidate commit**
+- [x] **Step 3: Create the release-candidate commit**
 
 只在所有可自动执行 gate 为 PASS、所有人工专属项明确为 NOT RUN 后，将公开候选提交到当前 `codex/rag-eval-system`。
 
-- [ ] **Step 4: Push the current feature branch**
+- [x] **Step 4: Push the current feature branch**
 
 推送 `codex/rag-eval-system` 到 `origin`，核对 remote branch SHA 与本地 commit 一致。不 merge、tag、切换默认分支或修改仓库可见性。
 
-- [ ] **Step 5: Verify a clean GitHub clone**
+- [x] **Step 5: Verify a clean GitHub clone**
 
 从 `origin/codex/rag-eval-system` 克隆到新的临时目录，核对 clone HEAD、private/raw path 不存在、public audit、compile、frozen hash 和 full pytest。该步骤证明公开 clone 可复现，不代表 remote CI 已运行。
 
-- [ ] **Step 6: Verify the committed candidate**
+- [x] **Step 6: Verify the committed candidate**
 
 记录 commit SHA、tree 状态、branch/upstream、remote default、最终 public audit、clean-clone 结果和项目进程状态。若文档写入 commit SHA 造成自引用悖论，公开报告使用 Git commit 本身作为 authority，不把 SHA 写回同一个 commit 的被跟踪正文。

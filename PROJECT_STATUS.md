@@ -2,7 +2,7 @@
 
 更新时间：2026-07-17
 
-状态：E7 本地自动化代码/数据门禁完成；功能分支 Git 交付与 clean-clone 结果由该分支实际 commit/remote 状态作为 authority。E0-E6 的代码、数据契约、评测、API、可观测性和演示已完成；E7 重新核对静态仓库、冻结数据、索引生命周期、deterministic 评测、真实模型/API、负载和真实浏览器。50 行人工语义评分与本人代码/口述验收仍是 `NOT RUN`，不计入通过项；没有 remote run URL 时 GitHub Actions 也是 `NOT RUN`。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
+状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。E0-E6 的代码、数据契约、评测、API、可观测性和演示已完成；E7 重新核对静态仓库、冻结数据、索引生命周期、deterministic 评测、真实模型/API、负载和真实浏览器。50 行人工语义评分与本人代码/口述验收仍是 `NOT RUN`，不计入通过项。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
 
 ## 1. 当前定位
 
@@ -29,7 +29,7 @@ synthetic corpus
 - E4：retrieval/response/agent/security 四层 evaluator、deterministic/live 隔离、失败 taxonomy、bootstrap CI、ablation 与 immutable run artifacts。
 - E5：统一 safe error、request ID/deadline、liveness/readiness、模型 timeout/retry、trace/metrics、hash-only feedback、CI 配置与本地 load evidence。
 - E6：最小披露 evidence trace、带 source hash 的 public snapshot、类型化 UI client、7 个 canonical demo cases、Ask/Trace/Evaluation 三页、真实 desktop/mobile 验收和公开仓库审计。
-- E7：重新生成 deterministic test/ablation rc02 与 final-code load artifacts；核对 raw artifact hashes、public snapshot、active index、真实 API/browser；修复 trace 查询自覆盖和 EvidenceLedger 冲突优先级方向；强化所有 Markdown 的机器路径审计；逐条收窄 claims。
+- E7：重新生成 deterministic test/ablation rc02 与 final-code load artifacts；核对 raw artifact hashes、public snapshot、active index、真实 API/browser；修复 trace 查询自覆盖和 EvidenceLedger 冲突优先级方向；强化所有 Markdown 的机器路径审计；逐条收窄 claims；完成 feature-branch push、四轮 clean-clone 故障闭环与 Ubuntu CI。
 
 ## 3. 当前证据
 
@@ -49,6 +49,10 @@ E6 final          569 passed, 3 warnings
 ```
 
 `pip check` 无依赖冲突，`compileall` 覆盖 `app/scripts/streamlit_app/tests`，frozen test hash 完全一致，最终 staged public repository audit 为 331 candidates / 0 findings，`git diff --cached --check` 退出 0。3 条 warning 仍只来自 FAISS SWIG 类型弃用提示。
+
+### GitHub 交付与远端复现
+
+代码候选 `9607e55ec0fc12e98d1f61e199bfbf6ac12a0eee` 已推送到 `origin/codex/rag-eval-system`。第四个全新 GitHub clone 得到 frozen hash exact、compile exit 0、public audit 331/0、full pytest 574 passed。Ubuntu/Python 3.11 的 [GitHub Actions run 29553278709](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 为 `success`。这些证据覆盖当前功能分支候选，不代表已 merge、部署或达到生产 SLO。
 
 ### 评估与负载
 
@@ -72,6 +76,8 @@ E6 final          569 passed, 3 warnings
 
 独立最终审查还发现 `app/agent/evidence_ledger.py` 原来用 `support_priority != conflict_priority` 判断冲突是否解决，导致低 authority/retired 支持证据也可能压过高 authority/active 冲突。修复为严格 `support_priority > conflict_priority`，并增加两种反向 RED/GREEN 回归。公开审计也从少量 allowlist 文档扩大到所有 Markdown，清除了 13 个本机绝对路径暴露点。
 
+首次远端 CI 还暴露了 Windows 未复现的 Linux `exit 139`。诊断工作流用 `faulthandler` 和失败上下文注释定位到 UI 测试读取 `DataframeElement.value` 时，Streamlit 测试框架在 PyArrow-to-Pandas 反向转换中段错误。产品页面生成 Arrow 数据本身已成功，真实浏览器也不执行该反向路径；因此修复测试边界，改为验证 6 个 dataframe 元素及相邻可见 provenance/status，而不是调用测试专用 `.value`。目标测试、本地 574、clean clone 574 和远端 run 均通过。
+
 ## 5. 当前公开演示
 
 - Ask：真实 `/agent/v2/chat`，显示 UserContext、mode、stop、claim verification、authorized sources 和 feedback。
@@ -87,7 +93,7 @@ E6 final          569 passed, 3 warnings
 - Optional reranker：`NOT RUN`，没有 admitted reranker。
 - Human semantic review：`NOT RUN`；50 行表仍为空，等待本人判断。
 - Owner code experiments and oral defense：`NOT RUN`；Codex 不能代替本人完成。
-- GitHub remote CI：没有可核验 run URL 时保持 `NOT RUN`，本地通过不能替代远端 runner。
+- GitHub remote CI：当前 `9607e55` 对应 run 已通过；只证明该 feature-branch commit 的 Ubuntu CI，不外推为 branch protection、部署或生产验收。
 - 当前 ACL 使用调用方自报 `UserContext`，不是 IAM；数据全部 synthetic；本地 load 不是生产吞吐/SLO。
 - 本次只推送功能分支，不自动 merge、tag、修改默认分支或仓库可见性。
 

@@ -1,5 +1,7 @@
 # Enterprise Agentic RAG
 
+[![ci](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml/badge.svg?branch=codex%2Frag-eval-system)](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml?query=branch%3Acodex%2Frag-eval-system)
+
 An evidence-aware enterprise knowledge copilot that enforces access control before retrieval, plans bounded tools, verifies citations, and exposes auditable decisions instead of returning an opaque generated paragraph.
 
 ## Business Problem
@@ -81,7 +83,9 @@ These values describe specific local artifacts; they are not production accuracy
 
 | Evidence | Result | Boundary |
 |---|---:|---|
-| E7 final local regression suite | `574 passed`, 3 known FAISS warnings | Automated code/data gate only; not owner review, remote CI, or production acceptance |
+| E7 final local regression suite | `574 passed`, 3 known FAISS warnings | Automated code/data gate only; not owner review or production acceptance |
+| E7 GitHub Actions on `9607e55` | `success` on Ubuntu / Python 3.11 | [Verifiable run](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709); one feature-branch commit, not deployment acceptance |
+| E7 clean GitHub clone on `9607e55` | `574 passed`, frozen hash exact, audit `331/0` | New directory with ignored private/raw artifacts absent; uses the proved dependency environment |
 | E6 final full regression suite | `569 passed`, 3 known FAISS warnings | Historical gate before the E7 trace idempotency regression |
 | E5 stage-entry full regression suite | `526 passed`, 3 known FAISS warnings | Deterministic/local test baseline before E6 UI additions |
 | E7 deterministic suite rc02 | `28/28` | Stable hash embeddings and extractive generation isolate system contracts |
@@ -125,7 +129,7 @@ The generator derives documents and evaluation labels from a checked-in fact mod
 - Traces and metrics are bounded in-memory local structures, not durable distributed observability.
 - Index lifecycle is immutable rebuild/activate, not production incremental upsert/delete.
 - The 50-row human semantic review and owner code/oral sign-off are `NOT RUN`; Codex does not fill or sign those judgements.
-- A GitHub Actions workflow is checked in, but no remote run is claimed without a verifiable run URL.
+- GitHub Actions passed for feature-branch commit `9607e55`; this does not prove branch protection, deployment, production data, or an SLO.
 
 See [Known Limitations](docs/known_limitations.md) for consequences and admission criteria.
 

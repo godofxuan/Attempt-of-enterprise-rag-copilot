@@ -18,7 +18,7 @@
 | Index updates | immutable rebuild + activate；没有 incremental upsert/delete | 文档变化需要新 run，不能承诺低延迟同步 | 定义 document tombstone/version contract、idempotency、rollback 和 consistency tests |
 | Observability | bounded in-memory traces/metrics | 重启丢失，不能跨进程关联或长期查询 | OpenTelemetry SDK/collector、durable backend、retention/redaction/access policy |
 | Deployment | 本地 Windows + Ollama，未提供 production container/orchestrator | 没有证明 Linux image、network policy、resource limits 或 rolling deploy | Reproducible image/SBOM、health probes、secret injection、staging load and rollback |
-| Remote CI | workflow contract 在代码中；没有可核验 run URL 时为 `NOT RUN` | 本地通过不等于远端 runner 通过 | 功能分支推送后，核对真实 GitHub Actions run URL、commit SHA 和 artifact retention evidence |
+| Remote CI | feature-branch commit `9607e55` 的 [Ubuntu run](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 已通过 | 只证明该 commit 的 deterministic CI；没有证明 branch protection、merge、deployment 或 production runtime | 若进入协作/发布流程，把该 workflow 设为受保护分支 required check，并增加可复现 image、SBOM 与 staging gates |
 | Scale | demo index 64 chunks；benchmark 不是生产 load | FAISS/in-memory BM25 结论不能外推到 5,000+ 活跃文档与并发租户 | 规模/并发/更新率达到预设阈值后重新 profile，再决定 vector DB/caching |
 | Model robustness | direct unsafe rule-first probe 只有 4 条 | 编码、多语言、间接和新型绕过仍可能通过 | 扩展 adversarial taxonomy、人工红队、版本化 model/prompt regression |
 | Feedback | 仅保存 question/response SHA-256、helpful、request ID 和时间 | 无法直接读取正文调试；也没有用户级去重或分析平台 | 在隐私评审后建立受控 failure sampling，而不是默认保存全文 |
@@ -47,7 +47,7 @@
 - README 与 UI 必须显示 live `23/24`，不能四舍五入为 100%。
 - indirect document injection 与 optional reranker 必须显示 `NOT RUN`。
 - `526 passed` 是 E5 入口、`569 passed` 是 E6 收口、`574 passed` 是 E7 自动化本地门禁；它们是不同 commit 候选的历史计数，不能相加。
-- 没有远端 run URL 时不能声称 GitHub Actions 已实际通过。
+- 远端 CI 声明必须同时给出 run URL 和 commit；当前可核验范围仅为 `9607e55` 的 feature-branch run。
 - E7 已逐条处理 claims matrix；只能使用 `approved` 原句或 `narrowed` 后的措辞，不能删掉 synthetic、deterministic/local、样本数和 `NOT RUN` 边界。
 
 下一阶段准入项与优先级见 [Industrialization Backlog](industrialization_backlog.md)。
