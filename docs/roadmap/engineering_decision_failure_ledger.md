@@ -421,7 +421,8 @@ Ollama                               kept running
 | `E7-I07` | audit 330/0 但 reviewer 找到多份本机绝对路径 | absolute-path 只检查 8 个 allowlist surface | 新 nested Markdown test；所有 `.md` 纳入；13 个真实路径统一脱敏 | test RED -> GREEN；real audit 13 findings -> 0 |
 | `E7-I08` | README load 是历史 r2，status/repro 是 E7 rc02，却笼统共用 snapshot provenance | current E7 与历史 offline snapshot 批次未明确分隔 | README/status/repro 分别标注 snapshot E4/E5 historical 和 E7 rc02 ignored authority | repository tests/audit GREEN；最终 docs gate 待全量复核 |
 | `E7-I09` | working-tree diff check 通过，staging 后才发现新增文件 whitespace | untracked files 不在普通 `git diff --check` 范围；PDF xref 被当文本 | 清理 Markdown/test whitespace；用 `.gitattributes` 标注二进制 fixture；重跑 cached check | cached check fail -> exit 0；final staged audit 331/0 |
-| `E7-I10` | GitHub clean clone audit 331/0，但 frozen hash `556f...` -> `f8e0...` | Windows `core.autocrlf`；hash-sensitive JSON checkout 从 1146 LF 变为 1146 CRLF | `.gitattributes` 增加 `* text=auto eol=lf`；repository contract RED/GREEN；必须新 clone 重验 | first clone FAIL；local full 574 passed；second clone pending |
+| `E7-I10` | GitHub clean clone audit 331/0，但 frozen hash `556f...` -> `f8e0...` | Windows `core.autocrlf`；hash-sensitive JSON checkout 从 1146 LF 变为 1146 CRLF | `.gitattributes` 增加 `* text=auto eol=lf`；repository contract RED/GREEN；必须新 clone 重验 | first clone FAIL；second clone hash/compile/audit PASS |
+| `E7-I11` | 第二次 clone hash/compile/audit 通过，full 为 573 pass/1 fail | chunking ablation test 硬编码 ignored `data/generated/demo`，本机残留生成物掩盖依赖 | 在 `tmp_path` 从 checked-in facts/profile 调正式 `write_corpus()`，不 skip、不提交 generated output | clean clone FAIL；local full 574 passed；third clone pending |
 
 ## 36. E7 自动证据摘要与人工边界
 

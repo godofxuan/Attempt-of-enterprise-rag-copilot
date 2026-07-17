@@ -5,12 +5,15 @@ from pathlib import Path
 
 import pytest
 
+from app.corpus.artifacts import write_corpus
+from app.corpus.generator import load_facts, load_profile
 from app.corpus.schemas import EvalCase
 from scripts import eval_chunking_ablation as ablation
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEMO_CORPUS = ROOT / "data" / "generated" / "demo"
+FACTS = ROOT / "data" / "v2" / "facts" / "company_facts_v1.json"
+PROFILE = ROOT / "data" / "v2" / "config" / "demo.json"
 
 
 def eval_case(
@@ -124,8 +127,13 @@ def test_summary_reports_metrics_and_failures_per_task() -> None:
     assert by_task["comparison"]["failure_count"] == 1
 
 
-def test_real_demo_ablation_uses_same_dev_scope_and_reports_all_modes() -> None:
-    result = ablation.evaluate_ablation(DEMO_CORPUS, top_k=5)
+def test_real_demo_ablation_uses_same_dev_scope_and_reports_all_modes(
+    tmp_path: Path,
+) -> None:
+    demo_corpus = tmp_path / "demo"
+    write_corpus(demo_corpus, load_facts(FACTS), load_profile(PROFILE))
+
+    result = ablation.evaluate_ablation(demo_corpus, top_k=5)
 
     assert result["config"]["split"] == "dev"
     assert result["config"]["top_k"] == 5

@@ -543,3 +543,21 @@ git diff --check                        exit 0
 ```
 
 G13 仍保持 PENDING：必须先提交并 push EOL 修复，再从另一个全新目录 clean clone，重新执行 hash、compile、audit 和 full pytest。不能在原失败 clone 里手工改换行后称通过。
+
+### 6.18 E7-I11：第二次 clean clone 暴露 ignored corpus 测试依赖
+
+EOL 修复提交 `68731b2` push 后，第二个全新 clone 通过了此前失败点：HEAD/remote exact、331 tracked、private/raw roots absent、`test.json` 27,773 bytes/1,146 LF/0 CRLF、frozen hash `556f...`、pip/compile/audit 331/0。
+
+full pytest 仍正确失败：
+
+```text
+result                                  573 passed, 1 failed, 3 warnings
+failed test                             tests/indexing/test_chunking_ablation.py
+missing path                            data/generated/demo/eval/dev.json
+```
+
+测试把 `DEMO_CORPUS` 硬编码到被 Git 忽略的 `data/generated/demo`，因此本机有生成物时通过，公开 clone 必然失败。这不是业务 ablation 代码失败，而是测试隔离/clean-clone contract 失败；也不能用 `skip if missing` 掩盖。
+
+修复：测试从 checked-in `data/v2/facts/company_facts_v1.json` 和 `data/v2/config/demo.json` 在 pytest `tmp_path` 中调用正式 `write_corpus()`，再运行真实 fixed/heading/parent-child ablation。预期仍锁定 72 source、64 canonical、18 scored dev cases 和三种 mode。focused test 1 passed；静态扫描确认其它 `eval_runs/load_runs` 引用都在 `tmp_path` 或审计恶意 fixture。修复后的本地 full 为 574 passed、3 warnings、19.58 秒，compile/hash/audit 331/0/diff 都通过。
+
+G13 继续 PENDING：该修复必须提交、push，并在第三个新 clone 得到 full 574/574。第二个 clone 的 hash PASS 只关闭 I10，不能覆盖 I11 的 suite FAIL。
