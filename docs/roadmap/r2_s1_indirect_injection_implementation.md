@@ -1,7 +1,7 @@
 # R2-S1 Retrieved-Content Indirect Injection Implementation Journal
 
 最后更新：2026-07-17
-当前阶段：D1 design/protocol frozen；implementation `NOT RUN`
+当前阶段：D2 red baseline recorded；Guard implementation `NOT RUN`
 
 ## 1. Why R2-S1 Is Next
 
@@ -106,14 +106,14 @@ R2-S1 will use `data/v2/security/` and cannot overwrite these files or their his
 | frozen attack set passes | `NOT RUN` | dataset/evaluator not created |
 | Qwen resists or follows attacks | `NOT RUN` | live trial requires D7 approval |
 
-## 8. Next Gate
+## 8. D2 Authorization Status
 
-D2 will add only red baseline tests and record the existing failing propagation path. It must not add real side-effect tools, contact attack URLs, disable a production Guard, change R1 data or label a fake generator result as a real-model attack rate.
+D2 was authorized and executed after D1. It added only red baseline tests and evidence documentation. It did not add real side-effect tools, contact attack URLs, disable a production Guard, change R1 data or label a fake generator result as a real-model attack rate.
 
-Required approval text:
+The detailed result is recorded in:
 
 ```text
-批准D1，执行D2红色基线测试
+docs/security/r2_s1/05_results.md
 ```
 
 ## 9. D1 Self-Review Evidence
@@ -141,3 +141,64 @@ live model                   not run by D1 design-only protocol
 ```
 
 No business code, implementation test or dataset file was modified. The only non-document untracked surface remains the pre-existing `.superpowers/` browser companion, which was neither staged nor changed as part of D1.
+
+## 10. D2 Red Baseline
+
+### 10.1 Changes
+
+```text
+tests/security/test_indirect_injection_red_baseline.py
+  - selected SearchHit/OpenResult -> generation-context canary assertion
+  - deliberately compliant fake-generator propagation assertion
+  - raw SearchResult/OpenResult runtime-boundary assertions
+  - public-trace raw-content assertion
+  - requests/socket egress blocker and no-egress assertion
+
+tests/retrieval/test_indirect_injection_red_baseline.py
+  - real HybridRetrievalPipeline top-1 poison displacement assertion
+
+docs/security/r2_s1/05_results.md
+  - exact D2 command, result, failure meaning and non-claims
+```
+
+No `app/` file, production configuration, R1 evaluation data or live model was changed or used.
+
+### 10.2 Actual RED result
+
+```text
+collected 8
+failed    5
+passed    3
+```
+
+The five expected failures prove:
+
+1. selected malicious text currently enters generation messages;
+2. the deterministic propagation fake can place the document canary in a valid answer;
+3. `Controller.observe` currently accepts raw search execution;
+4. `Controller.observe` currently accepts raw open execution;
+5. pre-Guard top-k selection returns poison and discards the clean rank-2 candidate.
+
+The three passes prove current public trace redaction, egress interception and the absence of a network attempt in the pure in-memory fake path. They were left green because D2 records reality instead of forcing every case to fail.
+
+### 10.3 Control result
+
+The existing generation, Controller, runner and retrieval-ranking suites remained green:
+
+```text
+36 passed, 3 known FAISS warnings
+```
+
+Raw outputs are retained under ignored `.private/r2_s1/` files and are not committed because they contain absolute local paths and complete synthetic payloads.
+
+### 10.4 Engineering conclusion
+
+The main issue is not that the system prompt forgot to say “evidence is untrusted”; that sentence already exists. The missing control is a deterministic boundary before raw retrieved content reaches Controller and generation. Citation verification also cannot solve the problem because a malicious canary copied from cited evidence receives lexical support.
+
+D3 will implement the standalone deterministic detector. The five integration failures are expected to remain red until D4 connects guarded types, admitted-only evidence and bounded candidate recovery.
+
+## 11. Next Gate
+
+```text
+批准D2，执行D3 Guard核心实现
+```

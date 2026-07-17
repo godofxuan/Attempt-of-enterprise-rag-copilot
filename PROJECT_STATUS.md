@@ -89,7 +89,7 @@ E6 final          569 passed, 3 warnings
 
 ## 6. 明确 NOT RUN 或不能外推
 
-- Retrieved-content indirect prompt injection：D1 design/protocol 已冻结；Guard、专门 fixture、deterministic/live evaluation 均为 `NOT RUN`。
+- Retrieved-content indirect prompt injection：D1 design/protocol 已冻结，D2 已记录 `5 failed / 3 passed` 红色数据流基线；Guard、完整 fixture 集和 deterministic/live OFF/ON evaluation 仍为 `NOT RUN`。
 - Optional reranker：`NOT RUN`，没有 admitted reranker。
 - Human semantic review：`NOT RUN`；50 行表仍为空，等待本人判断。
 - Owner code experiments and oral defense：`NOT RUN`；Codex 不能代替本人完成。
@@ -110,7 +110,7 @@ E6 final          569 passed, 3 warnings
 
 ## 8. R2-S1 当前状态
 
-R2-S1 的 D0 只读审计和 D1 威胁模型/评测协议冻结已完成，设计基线为 `da2ba8ccd4dcce455926758a8e9fb6fad20aec38`。权威设计位于：
+R2-S1 的 D0 只读审计、D1 威胁模型/评测协议冻结和 D2 红色基线已完成。D2 运行基于 `ce1ec9e5adb5f9ae253e6a9423747ea618344a22` 加未提交测试 diff；权威设计与结果位于：
 
 - [R2-S1 总设计](docs/superpowers/specs/2026-07-17-r2-s1-indirect-prompt-injection-design.md)
 - [Scope and threat model](docs/security/r2_s1/00_scope_and_threat_model.md)
@@ -118,15 +118,17 @@ R2-S1 的 D0 只读审计和 D1 威胁模型/评测协议冻结已完成，设�
 - [Design decisions](docs/security/r2_s1/02_design_options_and_decisions.md)
 - [Detailed schema design](docs/security/r2_s1/03_detailed_design.md)
 - [Evaluation protocol](docs/security/r2_s1/04_evaluation_protocol.md)
+- [D2 red baseline results](docs/security/r2_s1/05_results.md)
 
 当前状态必须逐层表述：
 
 ```text
 design/protocol                         D1 FROZEN
+D2 propagation baseline                5 EXPECTED RED / 3 EXISTING BOUNDARY PASS
 RetrievedContentGuard implementation   NOT RUN
 malicious/benign security datasets     NOT RUN
 deterministic guard OFF/ON evaluation  NOT RUN
 local live guard OFF/ON evaluation     NOT RUN
 ```
 
-因此 README 仍不能写“已防御 retrieved-content injection”。下一授权门是 `批准D1，执行D2红色基线测试`。
+D2 证明当前恶意检索文本可进入 generation context，raw Search/Open 可进入 Controller，且 top-1 poison 会挤掉 clean candidate；同时 current public trace 与 no-egress harness 已通过。假生成器只证明传播路径，不代表 Qwen 漏洞率。因此 README 仍不能写“已防御 retrieved-content injection”。下一授权门是 `批准D2，执行D3 Guard核心实现`。
