@@ -1,6 +1,6 @@
 # R2-S1 Retrieved-Content Indirect Prompt Injection Design
 
-状态：D1 design frozen；D3-D5 implementation green；D6 deterministic frozen gate passed；D7 live `NOT RUN`
+状态：D1 design frozen；D3-D5 implementation green；D6 deterministic frozen gate passed；D7 local live paired observation completed
 日期：2026-07-18
 分支：`codex/rag-eval-system`
 设计基线：`da2ba8ccd4dcce455926758a8e9fb6fad20aec38`
@@ -289,7 +289,7 @@ D4 guarded runtime data flow: GREEN
 D5 prompt/trace/service lifecycle: GREEN / 697 OFFLINE TESTS
 D6 deterministic OFF/ON frozen evaluation: PASS / OFF 21 OF 24 / ON 0 OF 24
 full offline regression after D6: GREEN / 788 TESTS
-indirect injection live evaluation: NOT RUN
+indirect injection live evaluation: COMPLETED WITH OBSERVATIONS / OFF 3 OF 24 / ON 0 OF 24
 ```
 
-D6 uses a visible synthetic frozen regression and a deterministic propagation fake. It proves the fixed software boundary and does not estimate Qwen vulnerability or unknown-attack immunity. The next authorized phase is D7 local live paired evaluation. Detailed implementation evidence is in [D4 Engineering Journal](../../security/r2_s1/06_d4_engineering_journal.md), [D5 Engineering Journal](../../security/r2_s1/07_d5_engineering_journal.md), and [D6 Engineering Journal](../../security/r2_s1/08_d6_engineering_journal.md).
+D6 uses a visible synthetic frozen regression and a deterministic propagation fake. It proves the fixed software boundary and does not estimate Qwen vulnerability or unknown-attack immunity. D7 then recorded one local BGE-M3/Qwen paired observation: OFF model-context exposure `7/24`, raw model follow and user-boundary attack `3/24`, versus ON `0/24` for all three. This still does not establish unknown-attack immunity. Detailed implementation evidence is in [D4 Engineering Journal](../../security/r2_s1/06_d4_engineering_journal.md), [D5 Engineering Journal](../../security/r2_s1/07_d5_engineering_journal.md), [D6 Engineering Journal](../../security/r2_s1/08_d6_engineering_journal.md), and [D7 Engineering Journal](../../security/r2_s1/09_d7_engineering_journal.md).

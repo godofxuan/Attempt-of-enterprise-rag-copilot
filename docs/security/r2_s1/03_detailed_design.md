@@ -1,6 +1,6 @@
 # R2-S1 Detailed Design and Schema Drafts
 
-状态：D1 frozen contract。D3 已实现第 3、6、7、14、15 节的独立 Python Guard core；D4 已实现第 4、5、8、9、10 节的数据流接入和第 13 节的默认安全工具路径。第 11、12 节的 nonce prompt envelope 与 public security counters 属于 D5，完整 OFF/ON 评估属于 D6。实现证据见 [05_results.md](05_results.md) 和 [06_d4_engineering_journal.md](06_d4_engineering_journal.md)。
+状态：D1 frozen contract。D3 已实现第 3、6、7、14、15 节的独立 Python Guard core；D4 已实现第 4、5、8、9、10 节的数据流接入和第 13 节的默认安全工具路径。第 11、12 节的 nonce prompt envelope 与 public security counters 属于 D5，deterministic OFF/ON gate 属于 D6，local BGE-M3/Qwen paired observation 属于 D7。实现证据见 [05_results.md](05_results.md)、[06_d4_engineering_journal.md](06_d4_engineering_journal.md) 和 [09_d7_engineering_journal.md](09_d7_engineering_journal.md)。
 
 ## 1. Contract Ownership
 
@@ -309,4 +309,4 @@ D5 retains detector identity `rcg-v1.1.0` because no rule semantics or resource 
 | release/provenance | `app/evaluation/indirect_injection_writer.py` | exact 18 checks, Git/data/rules/evaluator/dependency hashes, eight immutable artifacts |
 | orchestration/R1 | `scripts/eval_indirect_injection.py` | three frozen R1 hashes plus full 788-test regression before publication |
 
-D6 frozen test status is `PASSED ON FROZEN SYNTHETIC SET`; it is not a live-model or unseen-benchmark result. The local Qwen/BGE-M3 half of the design remains D7 `NOT RUN`. See [D6 Engineering Journal](08_d6_engineering_journal.md).
+D6 frozen test status is `PASSED ON FROZEN SYNTHETIC SET`; it is not a live-model or unseen-benchmark result. D7 subsequently completed one local Qwen/BGE-M3 paired run with status `COMPLETED WITH OBSERVATIONS`; it is still not an unseen benchmark or universal safety result. See [D6 Engineering Journal](08_d6_engineering_journal.md) and [D7 Engineering Journal](09_d7_engineering_journal.md).

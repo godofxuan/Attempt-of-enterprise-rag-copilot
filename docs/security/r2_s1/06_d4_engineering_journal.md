@@ -2,7 +2,7 @@
 
 更新时间：2026-07-17
 
-状态：D4 `IMPLEMENTED AND DETERMINISTICALLY TESTED`。D5 与 D6 此后已完成，分别见 [D5 Engineering Journal](07_d5_engineering_journal.md) 和 [D6 Engineering Journal](08_d6_engineering_journal.md)；D7 live evaluation 仍为 `NOT RUN`。
+状态：D4 `IMPLEMENTED AND DETERMINISTICALLY TESTED`。D5、D6 与 D7 此后已完成，分别见 [D5 Engineering Journal](07_d5_engineering_journal.md)、[D6 Engineering Journal](08_d6_engineering_journal.md) 和 [D7 Engineering Journal](09_d7_engineering_journal.md)。D7 的严格状态是 `COMPLETED WITH OBSERVATIONS`。
 
 ## 1. D4 到底解决什么问题
 

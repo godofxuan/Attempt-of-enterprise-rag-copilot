@@ -569,6 +569,21 @@ def evaluate_paired(
             _evaluate_case(case, fixture, "on", active_config, nonce)
         )
 
+    return _paired_result(dataset, fixtures, off_cases, on_cases)
+
+
+def _paired_result(
+    dataset: IndirectInjectionDataset,
+    fixtures: FixtureManifest,
+    off_cases: Sequence[SecurityCaseResult],
+    on_cases: Sequence[SecurityCaseResult],
+) -> PairedSecurityResult:
+    expected_order = tuple(case.case_id for case in dataset.cases)
+    if tuple(case.case_id for case in off_cases) != expected_order:
+        raise ValueError("Guard OFF case order does not match the dataset")
+    if tuple(case.case_id for case in on_cases) != expected_order:
+        raise ValueError("Guard ON case order does not match the dataset")
+
     off_result = _mode_result("off", tuple(off_cases))
     on_result = _mode_result("on", tuple(on_cases))
     recovery_denominator = sum(
@@ -621,9 +636,7 @@ def _evaluate_case(
         fixture.fact_texts[fact_id]
         for fact_id in case.required_clean_fact_ids
     )
-    system_canary = "R2SYS_" + hashlib.sha256(
-        case.case_id.encode("utf-8")
-    ).hexdigest()[:24].upper()
+    system_canary = _system_canary(case.case_id)
     fake_chat = _DeterministicCompliantChat(
         document_canary=case.document_canary,
         system_canary=system_canary,
@@ -658,6 +671,50 @@ def _evaluate_case(
     with _NoEgressBoundary() as egress:
         response = runner.run(case.question, user, top_k=config.top_k)
 
+    model_payload = "\n".join(
+        message["content"] for message in fake_chat.effective_messages
+    )
+    model_context_exposure = _contains_structured_text(
+        _evidence_records_from_prompt(model_payload, nonce),
+        attack_texts,
+    )
+    return _build_case_result(
+        case=case,
+        fixture=fixture,
+        guard_mode=guard_mode,
+        config=config,
+        nonce=nonce,
+        input_fingerprint=input_fingerprint,
+        candidate_order=tuple(item.chunk_id for item in fixture.candidates),
+        system_canary=system_canary,
+        attack_texts=attack_texts,
+        response=response,
+        admission=admission,
+        controller=controller,
+        recording_guard=recording_guard,
+        model_context_exposure=model_context_exposure,
+        egress_attempt_count=egress.attempt_count,
+    )
+
+
+def _build_case_result(
+    *,
+    case: IndirectInjectionCase,
+    fixture: FixtureCase,
+    guard_mode: GuardMode,
+    config: DeterministicSecurityConfig,
+    nonce: str,
+    input_fingerprint: str,
+    candidate_order: tuple[str, ...],
+    system_canary: str,
+    attack_texts: tuple[str, ...],
+    response: AnswerResponse,
+    admission: _RecordingAdmission,
+    controller: _RecordingController,
+    recording_guard: _RecordingGuard,
+    model_context_exposure: bool,
+    egress_attempt_count: int,
+) -> SecurityCaseResult:
     unit_outcomes = _unit_outcomes(case, fixture, admission.outcomes)
     controller_exposure = _contains_structured_text(controller.states, attack_texts)
     attack_chunk_ids = {
@@ -669,13 +726,6 @@ def _evaluate_case(
         state.ledger is not None
         and any(item.chunk_id in attack_chunk_ids for item in state.ledger.items)
         for state in controller.states
-    )
-    model_payload = "\n".join(
-        message["content"] for message in fake_chat.effective_messages
-    )
-    model_context_exposure = _contains_structured_text(
-        _evidence_records_from_prompt(model_payload, nonce),
-        attack_texts,
     )
     response_payload = _response_text_payload(response)
     document_canary_exposure = bool(
@@ -708,7 +758,7 @@ def _evaluate_case(
             trace_canary_exposure,
             forbidden_action_followed,
             forbidden_tool_attempt,
-            egress.attempt_count > 0,
+            egress_attempt_count > 0,
         )
     )
     admitted_fact_ids, admitted_fact_chunks = _admitted_facts(admission.outcomes)
@@ -774,7 +824,7 @@ def _evaluate_case(
         guard_mode=guard_mode,
         input_fingerprint=input_fingerprint,
         nonce_fingerprint=hashlib.sha256(nonce.encode("utf-8")).hexdigest(),
-        candidate_order=tuple(item.chunk_id for item in fixture.candidates),
+        candidate_order=candidate_order,
         attack_unit_ids=case.attack_unit_ids,
         benign_unit_ids=case.benign_unit_ids,
         unit_outcomes=unit_outcomes,
@@ -791,7 +841,7 @@ def _evaluate_case(
         trace_canary_exposure=trace_canary_exposure,
         forbidden_action_followed=forbidden_action_followed,
         forbidden_tool_attempt=forbidden_tool_attempt,
-        external_egress_attempt=egress.attempt_count > 0,
+        external_egress_attempt=egress_attempt_count > 0,
         controller_exposure=controller_exposure,
         ledger_exposure=ledger_exposure,
         model_context_exposure=model_context_exposure,
@@ -887,6 +937,10 @@ def _evidence_records_from_prompt(prompt: str, nonce: str) -> list[dict[str, obj
 
 def _case_nonce(case_id: str) -> str:
     return "D6N_" + hashlib.sha256(case_id.encode("utf-8")).hexdigest()[:28]
+
+
+def _system_canary(case_id: str) -> str:
+    return "R2SYS_" + hashlib.sha256(case_id.encode("utf-8")).hexdigest()[:24].upper()
 
 
 def _input_fingerprint(

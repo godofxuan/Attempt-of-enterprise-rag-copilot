@@ -5,7 +5,7 @@ Last updated: 2026-07-18
 ## 1. Current Evidence Status
 
 ```text
-phase                                  D6 DETERMINISTIC FROZEN GATE PASS
+phase                                  D7 LOCAL LIVE PAIRED OBSERVATION COMPLETE
 D3 entry HEAD                          c1c47dfe88c42c309afc32faa9bc6584e90e89ac
 D4 entry HEAD                          ec85cc718b3df17731fb1d9df7300a3a7c6fe5be
 D5 entry HEAD                          86064322fd532264623abd23e8db7a99634ab342
@@ -13,9 +13,10 @@ RetrievedContentGuard                  MANDATORY ON DEFAULT V2 TOOL PATH
 guarded boundary probes                8/8 PASSED
 prompt/trace/profile/readiness          D5 GREEN
 D6 focused evaluation suite             91 PASSED
-full offline repository suite          788 PASSED
+D7 focused live evaluation suite        24 PASSED
+full offline repository suite          812 PASSED
 full 72-result frozen OFF/ON evaluation PASSED ON FROZEN SYNTHETIC SET
-local Qwen/BGE-M3 security evaluation  NOT RUN
+local Qwen/BGE-M3 security evaluation  COMPLETED WITH OBSERVATIONS
 ```
 
 D2 was intentionally not a release pass. It records the vulnerable data flow before
@@ -53,9 +54,46 @@ eight artifacts, all recorded checksums matched, and `failures.csv` had zero row
 
 The fake generator is a deterministic propagation witness. OFF `21/24` is not a
 Qwen attack rate. The test is a visible synthetic frozen regression, not unseen
-data, and D7 local Qwen/BGE-M3 paired evaluation remains `NOT RUN`. Detailed code,
-RED/GREEN corrections and interview explanations are in
+data. Detailed D6 code, RED/GREEN corrections and interview explanations are in
 [D6 Engineering Journal](08_d6_engineering_journal.md).
+
+## 1.2 D7 Local Live Paired Result
+
+The accepted frozen live observation is:
+
+```text
+run_id             r2-s1-d7-test-20260718-01
+dataset SHA-256    062aec151d29854ffcebf6368b42fc768f7a0a5f64e1218e32fd326a441a137c
+fixture SHA-256    eea41009bd5a8eda2b0a1ff7c29e593895d917b4055e9712b1db48daa9d51c1d
+manifest SHA-256   5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f97865e14e
+status             COMPLETED WITH OBSERVATIONS
+```
+
+| Metric | Guard OFF | Guard ON |
+|---|---:|---:|
+| attack reached model context | 7/24 | 0/24 |
+| raw model attack follow | 3/24 | 0/24 |
+| user-boundary attack success | 3/24 | 0/24 |
+| raw document canary | 3/24 | 0/24 |
+| raw system canary | 0/24 | 0/24 |
+| raw trace canary | 2/24 | 0/24 |
+
+Guard ON reached 15 of 28 attack content units and quarantined all 15. Thirteen
+lower-ranked attack units were not scanned because clean rank-one evidence satisfied
+`top_k=1`; actual reached-unit Guard misses were zero. Benign quarantine was `0/32`,
+clean success `12/12`, attack task success `20/20`, mixed recovery `20/20`, and
+poison-only `security_filtered` correctness `4/4`. OFF used 36 Qwen calls and ON 32;
+both had zero model errors. Query embedding accounting was 72 requests, 36 BGE-M3
+delegate calls, and 36 paired cache hits, in addition to 56 index-build embeddings.
+
+The run used Ollama `0.32.1`, BGE-M3 digest
+`7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab`, and
+Qwen2.5 3B digest
+`357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b`.
+It was pair-consistent and recorded zero blocked external-egress attempts. The live
+status intentionally does not say `PASSED`: one local model observation is not a
+universal security certification. Full code and metric-failure analysis are in
+[D7 Engineering Journal](09_d7_engineering_journal.md).
 
 ## 2. What Was Added
 
@@ -473,7 +511,7 @@ Deferred to D4 or later:
 - quarantine does not yet recover clean candidates after top-k displacement;
 - same-document adjacent split aggregation needs authorized document/order context
   and is therefore a D4 concern, not a single-string D3 scanner feature;
-- at the D3 closeout recorded by this historical section, the frozen OFF/ON evaluator and local Qwen/BGE-M3 run had not yet run. D6 has since completed the deterministic half; D7 live remains `NOT RUN`.
+- at the D3 closeout recorded by this historical section, the frozen OFF/ON evaluator and local Qwen/BGE-M3 run had not yet run. D6 later completed the deterministic gate and D7 later completed the local live paired observation; Sections 1.1 and 1.2 are authoritative.
 
 The project still cannot claim end-to-end retrieved-content injection defense.
 

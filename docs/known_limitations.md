@@ -38,14 +38,14 @@
 
 已经验证的是：固定 direct unsafe prompts 在 query analysis 后、retrieval 前 source-free 拒绝；ACL 测试不暴露 forbidden docs；错误/trace 不回显已知敏感字段；默认 V2 `search/find/open` 在 Controller 前执行确定性 admission，raw execution 被拒绝，已隔离内容不进入 generation/source/context budget。
 
-尚未证明的是：任意 prompt injection 都会失败、真实 Qwen 在固定或未知攻击上的成功率、system prompt 永不泄露、显式 compatibility app 中的 legacy `/chat`/`/agent/chat` 受到 V2 Guard 保护、浏览器声明身份可信、或该服务适合公网/多租户生产。D6 fake generator 只证明确定性传播。
+尚未证明的是：任意 prompt injection 都会失败、真实 Qwen 在未知攻击或其他模型上的成功率、system prompt 永不泄露、显式 compatibility app 中的 legacy `/chat`/`/agent/chat` 受到 V2 Guard 保护、浏览器声明身份可信、或该服务适合公网/多租户生产。D6 fake generator 只证明确定性传播；D7 只观察到一组固定本地 BGE-M3/Qwen 配置下的行为。
 
 完整威胁与控制映射见 [Security Threat Model](security_threat_model.md)。
 
 ## 4. 公开展示边界
 
 - README 与 UI 必须显示 live `23/24`，不能四舍五入为 100%。
-- indirect document injection 必须分层显示：D4 guarded V2 data flow、D5 prompt/public observability 和 D6 deterministic frozen OFF/ON 已完成；D7 live model 与独立 holdout 仍是 `NOT RUN`。optional reranker 也仍是 `NOT RUN`。
+- indirect document injection 必须分层显示：D4 guarded V2 data flow、D5 prompt/public observability、D6 deterministic frozen OFF/ON gate 已完成；D7 local BGE-M3/Qwen paired run 为 `COMPLETED WITH OBSERVATIONS`。独立 holdout、人工红队和 optional reranker 仍是 `NOT RUN`。
 - `526 passed` 是 E5 入口、`569 passed` 是 E6 收口、`574 passed` 是 E7 自动化本地门禁；它们是不同 commit 候选的历史计数，不能相加。
 - 远端 CI 声明必须同时给出 run URL 和 commit；当前可核验范围仅为 `9607e55` 的 feature-branch run。
 - E7 已逐条处理 claims matrix；只能使用 `approved` 原句或 `narrowed` 后的措辞，不能删掉 synthetic、deterministic/local、样本数和 `NOT RUN` 边界。
@@ -54,4 +54,4 @@
 
 ## 5. R2-S1 current boundary
 
-D1 froze the design; D3 built the model-free detector; D4 connected it to the default V2 path; D5 added prompt/trace/service defense in depth; D6 added the immutable deterministic paired gate. The frozen synthetic result is OFF attack success `21/24` versus ON `0/24`, ON benign quarantine `0/32`, with `788 passed` full regression. This is fixed-set propagation evidence, not live-model prevalence or immunity. D7 live paired evaluation remains `NOT RUN`.
+D1 froze the design; D3 built the model-free detector; D4 connected it to the default V2 path; D5 added prompt/trace/service defense in depth; D6 added the immutable deterministic paired gate. The D6 frozen synthetic result is OFF attack success `21/24` versus ON `0/24`, ON benign quarantine `0/32`, with `788 passed` full regression. D7 then observed one local BGE-M3/Qwen pair: OFF user-visible attack success `3/24` versus ON `0/24`, conditional quarantine recall `15/15`, and benign quarantine `0/32`. Neither result establishes unseen-attack prevalence, immunity, cross-model generalization or production safety.

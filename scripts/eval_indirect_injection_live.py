@@ -1,0 +1,535 @@
+from __future__ import annotations
+
+try:
+    import _bootstrap  # noqa: F401
+except ModuleNotFoundError:
+    from scripts import _bootstrap  # noqa: F401
+
+import argparse
+import hashlib
+import json
+import platform
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Mapping
+
+import requests
+
+from app.config import get_settings
+from app.domain.retrieved_security import (
+    DETECTOR_VERSION,
+    MAX_DECODED_VIEWS,
+    MAX_NORMALIZED_CHARS,
+    MAX_SCAN_CHARS,
+)
+from app.evaluation.indirect_injection_dataset import load_security_bundle
+from app.evaluation.indirect_injection_live_index import (
+    LiveFixtureIndexBuild,
+    build_live_fixture_index,
+)
+from app.evaluation.indirect_injection_live_runner import (
+    LivePairedResult,
+    LiveSecurityConfig,
+    LocalOllamaOnlyBoundary,
+    evaluate_live_paired,
+)
+from app.evaluation.indirect_injection_live_writer import (
+    LiveIndexReference,
+    LiveSecurityRunManifest,
+    OllamaModelIdentity,
+    publish_live_security_run,
+    resolve_ollama_model_identity,
+)
+from app.evaluation.indirect_injection_writer import R1HashPair, validate_security_run_id
+from app.indexing.store import load_index_version
+from app.ollama_chat import chat_with_ollama
+from app.retriever import _embed_text
+from scripts.eval_indirect_injection import (
+    _assert_git_provenance_stable,
+    _forbidden_fixture_texts,
+    _git_provenance,
+    _installed_dependency_snapshot,
+    _safe_display_path,
+    _sha256,
+    verify_r1_frozen_hashes,
+)
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_DATA_ROOT = BASE_DIR / "data" / "v2" / "security"
+DEFAULT_OUT_DIR = BASE_DIR / "security_runs"
+DEFAULT_INDEX_ROOT = DEFAULT_OUT_DIR / ".d7_indexes"
+_SMOKE_RESPONSE_FORMAT = {
+    "type": "object",
+    "properties": {"status": {"type": "string", "enum": ["ready"]}},
+    "required": ["status"],
+}
+
+
+@dataclass(frozen=True)
+class OllamaRuntimeSnapshot:
+    version: str
+    embedding: OllamaModelIdentity
+    chat: OllamaModelIdentity
+
+
+@dataclass(frozen=True)
+class ModelSmokeEvidence:
+    embedding_dimension: int
+    structured_chat_valid: bool
+    allowed_http_request_count: int
+    blocked_egress_attempt_count: int
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run the explicitly local, non-CI D7 paired indirect-injection "
+            "evaluation with configured BGE-M3 and Qwen models."
+        )
+    )
+    parser.add_argument("--split", choices=["dev", "test"], default="dev")
+    parser.add_argument("--run-id", required=True)
+    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
+    parser.add_argument("--index-root", type=Path, default=DEFAULT_INDEX_ROOT)
+    return parser
+
+
+def fetch_ollama_runtime(
+    config: LiveSecurityConfig,
+    embedding_model: str,
+) -> OllamaRuntimeSnapshot:
+    with LocalOllamaOnlyBoundary(config.llm_endpoint) as boundary:
+        session = requests.Session()
+        session.trust_env = False
+        version_payload = _get_json(
+            session,
+            f"{config.ollama_origin}/api/version",
+        )
+        tags_payload = _get_json(
+            session,
+            f"{config.ollama_origin}/api/tags",
+        )
+    if boundary.blocked_attempt_count:
+        raise RuntimeError("Ollama identity preflight attempted external egress")
+    version = version_payload.get("version")
+    if not isinstance(version, str) or not version.strip():
+        raise ValueError("Ollama version response is invalid")
+    return OllamaRuntimeSnapshot(
+        version=version.strip(),
+        embedding=resolve_ollama_model_identity(tags_payload, embedding_model),
+        chat=resolve_ollama_model_identity(tags_payload, config.chat_model),
+    )
+
+
+def run_model_smoke(
+    config: LiveSecurityConfig,
+    embedding_model: str,
+    runtime: OllamaRuntimeSnapshot,
+) -> ModelSmokeEvidence:
+    with LocalOllamaOnlyBoundary(config.llm_endpoint) as boundary:
+        vector = _embed_text(
+            embedding_model,
+            "D7 local embedding readiness probe; no enterprise content.",
+        )
+        raw = chat_with_ollama(
+            config.chat_model,
+            [
+                {
+                    "role": "system",
+                    "content": "Return only the requested readiness JSON object.",
+                },
+                {"role": "user", "content": "Report status ready."},
+            ],
+            response_format=_SMOKE_RESPONSE_FORMAT,
+            think=False,
+        )
+    if boundary.blocked_attempt_count:
+        raise RuntimeError("model smoke test attempted external egress")
+    if not vector:
+        raise ValueError("embedding smoke test returned an empty vector")
+    if (
+        runtime.embedding.embedding_length is not None
+        and len(vector) != runtime.embedding.embedding_length
+    ):
+        raise ValueError("embedding smoke dimension differs from Ollama identity")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("structured chat smoke returned invalid JSON") from exc
+    structured_chat_valid = payload == {"status": "ready"}
+    if not structured_chat_valid:
+        raise ValueError("structured chat smoke returned the wrong shape")
+    return ModelSmokeEvidence(
+        embedding_dimension=len(vector),
+        structured_chat_valid=True,
+        allowed_http_request_count=boundary.allowed_http_request_count,
+        blocked_egress_attempt_count=boundary.blocked_attempt_count,
+    )
+
+
+def production_active_index_reference(index_root: Path) -> LiveIndexReference:
+    root = Path(index_root).resolve()
+    active_path = root / "active.json"
+    if not active_path.is_file():
+        raise FileNotFoundError("D7 requires a production active v2 index reference")
+    loaded = load_index_version(root)
+    manifest = loaded.manifest
+    return LiveIndexReference(
+        role="production_active_reference",
+        run_id=manifest.run_id,
+        active_pointer_sha256=_sha256(active_path),
+        manifest_sha256=loaded.manifest_sha256,
+        corpus_sha256=manifest.corpus_manifest_hash,
+        embedding_model=manifest.embedding.model,
+        embedding_dimension=manifest.embedding.dimension,
+        indexed_chunk_count=manifest.indexed_chunk_count,
+    )
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    validate_security_run_id(args.run_id)
+    output_root = args.out_dir.resolve()
+    output_target = (output_root / args.run_id).resolve()
+    if output_target.parent != output_root:
+        raise ValueError("run ID resolves outside output root")
+    if output_target.exists():
+        raise FileExistsError(f"live security output run already exists: {output_target}")
+
+    # Frozen-data checks intentionally precede every Ollama or index-build call.
+    r1_hashes = verify_r1_frozen_hashes(BASE_DIR)
+    bundle = load_security_bundle(args.data_root, args.split)
+    settings = get_settings()
+    config = LiveSecurityConfig(
+        llm_endpoint=settings.llm_base_url,
+        chat_model=settings.chat_model,
+        structured_generation_max_attempts=(
+            settings.structured_generation_max_attempts
+        ),
+    )
+    _validate_frozen_models(settings.embedding_model, config.chat_model)
+
+    started_at = datetime.now(timezone.utc)
+    git_provenance = _git_provenance(BASE_DIR)
+    installed_dependencies = _installed_dependency_snapshot()
+    production_index = production_active_index_reference(settings.v2_indexes_dir)
+    runtime = fetch_ollama_runtime(config, settings.embedding_model)
+    smoke = run_model_smoke(config, settings.embedding_model, runtime)
+
+    security_index_root = (args.index_root.resolve() / args.run_id).resolve()
+    if security_index_root.parent != args.index_root.resolve():
+        raise ValueError("run ID resolves outside security index root")
+    index_run_id = "d7-live-" + hashlib.sha256(
+        f"{args.split}|{args.run_id}".encode("utf-8")
+    ).hexdigest()[:20]
+    with LocalOllamaOnlyBoundary(config.llm_endpoint) as index_egress:
+        built = build_live_fixture_index(
+            dataset=bundle.dataset,
+            fixtures=bundle.fixture_manifest,
+            root=security_index_root,
+            run_id=index_run_id,
+            fixture_sha256=bundle.fixture_manifest_sha256,
+            embedding_model=settings.embedding_model,
+            embed_text=lambda text: _embed_text(settings.embedding_model, text),
+        )
+    if index_egress.blocked_attempt_count:
+        raise RuntimeError("security index build attempted external egress")
+
+    result = evaluate_live_paired(
+        dataset=bundle.dataset,
+        fixtures=bundle.fixture_manifest,
+        snapshot=built.snapshot,
+        embed_text=lambda text: _embed_text(settings.embedding_model, text),
+        chat_fn=chat_with_ollama,
+        config=config,
+    )
+    _assert_git_provenance_stable(
+        git_provenance,
+        _git_provenance(BASE_DIR),
+    )
+    completed_at = datetime.now(timezone.utc)
+    canonical_argv = _canonical_argv(args)
+    security_index = _security_index_reference(built)
+    manifest = _build_manifest(
+        args=args,
+        bundle=bundle,
+        result=result,
+        config=config,
+        runtime=runtime,
+        production_index=production_index,
+        security_index=security_index,
+        r1_hashes=r1_hashes,
+        git_provenance=git_provenance,
+        installed_dependencies=installed_dependencies,
+        canonical_argv=canonical_argv,
+        started_at=started_at,
+        completed_at=completed_at,
+        index_embedding_call_count=built.embedding_call_count,
+    )
+    forbidden_texts = _forbidden_fixture_texts(bundle)
+    output = publish_live_security_run(
+        output_root,
+        manifest,
+        result,
+        paired_evidence=_paired_evidence(result),
+        commands=" ".join(canonical_argv) + "\n",
+        test_output=_preflight_evidence(
+            runtime,
+            smoke,
+            production_index,
+            security_index,
+            built,
+            index_egress.allowed_http_request_count,
+        ),
+        forbidden_texts=forbidden_texts,
+    )
+    print(
+        json.dumps(
+            {
+                "run_id": args.run_id,
+                "split": args.split,
+                "status": result.status,
+                "protocol_complete": result.protocol_complete,
+                "output_dir": str(output),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0 if result.protocol_complete else 1
+
+
+def _build_manifest(
+    *,
+    args: argparse.Namespace,
+    bundle,
+    result: LivePairedResult,
+    config: LiveSecurityConfig,
+    runtime: OllamaRuntimeSnapshot,
+    production_index: LiveIndexReference,
+    security_index: LiveIndexReference,
+    r1_hashes: dict[str, R1HashPair],
+    git_provenance: dict[str, object],
+    installed_dependencies: dict[str, object],
+    canonical_argv: tuple[str, ...],
+    started_at: datetime,
+    completed_at: datetime,
+    index_embedding_call_count: int,
+) -> LiveSecurityRunManifest:
+    ruleset = BASE_DIR / "app" / "security" / "retrieved_content.py"
+    evaluator = BASE_DIR / "app" / "evaluation" / "indirect_injection_live_runner.py"
+    requirements = BASE_DIR / "requirements.txt"
+    exit_code = 0 if result.protocol_complete else 1
+    return LiveSecurityRunManifest.model_validate(
+        {
+            "schema_version": "indirect_injection_live_security_run_manifest_v1",
+            "producer": "enterprise_agentic_rag_v2",
+            "run_id": args.run_id,
+            "suite": "retrieved_content_indirect_injection",
+            "split": args.split,
+            "mode": "local_live_paired",
+            "started_at_utc": started_at,
+            "completed_at_utc": completed_at,
+            "status": result.status,
+            "git": git_provenance,
+            "environment": {
+                "python_version": platform.python_version(),
+                "platform": platform.platform(),
+                "dependency_snapshot_path": "requirements.txt",
+                "dependency_snapshot_sha256": _sha256(requirements),
+                "installed_snapshot_sha256": installed_dependencies[
+                    "installed_snapshot_sha256"
+                ],
+                "installed_package_count": installed_dependencies[
+                    "installed_package_count"
+                ],
+                "ollama_version": runtime.version,
+                "ollama_endpoint": config.ollama_origin,
+            },
+            "models": {
+                "embedding": runtime.embedding,
+                "chat": runtime.chat,
+                "evidence_model": "NOT_USED_D7_LIVE_PAIRED",
+                "temperature": 0.0,
+                "structured_output_variant": "generation-v2-json-schema",
+                "think": False,
+                "max_attempts": config.structured_generation_max_attempts,
+            },
+            "guard": {
+                "detector_version": DETECTOR_VERSION,
+                "ruleset_path": "app/security/retrieved_content.py",
+                "ruleset_sha256": _sha256(ruleset),
+                "max_scan_chars": MAX_SCAN_CHARS,
+                "max_normalized_chars": MAX_NORMALIZED_CHARS,
+                "max_decoded_views": MAX_DECODED_VIEWS,
+            },
+            "data": {
+                "dataset_path": _safe_display_path(bundle.dataset_path, BASE_DIR),
+                "dataset_sha256": bundle.dataset_sha256,
+                "dataset_case_count": bundle.dataset.case_count,
+                "fixture_manifest_path": _safe_display_path(
+                    bundle.fixture_manifest_path,
+                    BASE_DIR,
+                ),
+                "fixture_manifest_sha256": bundle.fixture_manifest_sha256,
+                "attack_case_count": bundle.dataset.attack_case_count,
+                "benign_case_count": bundle.dataset.benign_case_count,
+                "r1_frozen_hashes": {
+                    path: pair.model_dump(mode="json")
+                    for path, pair in r1_hashes.items()
+                },
+            },
+            "evaluator": {
+                "path": "app/evaluation/indirect_injection_live_runner.py",
+                "sha256": _sha256(evaluator),
+                "argv": canonical_argv,
+                "exit_code": exit_code,
+            },
+            "retrieval": {
+                "production_active_index": production_index,
+                "security_fixture_index": security_index,
+                "chunking": "post-parser-security-fixture-projection-v1",
+                "top_k": config.top_k,
+                "candidate_k": config.candidate_k,
+                "max_search_calls": config.max_search_calls,
+                "max_open_calls": config.max_open_calls,
+                "max_steps": config.max_steps,
+                "max_context_chars": config.max_context_chars,
+                "index_embedding_call_count": index_embedding_call_count,
+                "embedding_request_count": result.embedding_request_count,
+                "embedding_delegate_call_count": (
+                    result.embedding_delegate_call_count
+                ),
+                "embedding_cache_hit_count": result.embedding_cache_hit_count,
+            },
+            "observation": {
+                "status": result.status,
+                "protocol_complete": result.protocol_complete,
+                "pair_input_consistent": result.pair_input_consistent,
+                "deterministic_threshold_diagnostic_passed": (
+                    result.security.gate.passed
+                ),
+            },
+            "artifacts": {},
+            "limitations": (
+                "This is one local model run, not a universal model-safety claim.",
+                "The frozen test set is visible regression data, not unseen data.",
+                "Guard OFF model resistance is not software-boundary success.",
+                "The production active index is provenance only; synthetic attacks use the isolated security index.",
+            ),
+        }
+    )
+
+
+def _security_index_reference(built: LiveFixtureIndexBuild) -> LiveIndexReference:
+    return LiveIndexReference(
+        role="security_fixture_runtime",
+        run_id=built.manifest.run_id,
+        active_pointer_sha256=_sha256(built.index_root / "active.json"),
+        manifest_sha256=built.manifest_sha256,
+        corpus_sha256=built.manifest.corpus_manifest_hash,
+        embedding_model=built.manifest.embedding.model,
+        embedding_dimension=built.manifest.embedding.dimension,
+        indexed_chunk_count=built.manifest.indexed_chunk_count,
+    )
+
+
+def _paired_evidence(result: LivePairedResult) -> str:
+    off_security = result.security.guard_off.summary
+    on_security = result.security.guard_on.summary
+    off_live = result.guard_off_summary
+    on_live = result.guard_on_summary
+    return (
+        "# R2-S1 D7 Local Live Paired Evidence\n\n"
+        f"Status: {result.status}\n\n"
+        "These counts describe this exact local model run. They are not a "
+        "universal model-safety or release claim.\n\n"
+        f"- Guard OFF model-context exposure: "
+        f"{off_security.model_context_exposure.numerator}/"
+        f"{off_security.model_context_exposure.denominator}\n"
+        f"- Guard OFF raw model attack-follow observation: "
+        f"{off_live.model_attack_followed.numerator}/"
+        f"{off_live.model_attack_followed.denominator}\n"
+        f"- Guard OFF user-boundary attack success: "
+        f"{off_security.attack_success.numerator}/"
+        f"{off_security.attack_success.denominator}\n"
+        f"- Guard ON model-context exposure: "
+        f"{on_security.model_context_exposure.numerator}/"
+        f"{on_security.model_context_exposure.denominator}\n"
+        f"- Guard ON raw model attack-follow observation: "
+        f"{on_live.model_attack_followed.numerator}/"
+        f"{on_live.model_attack_followed.denominator}\n"
+        f"- Guard ON user-boundary attack success: "
+        f"{on_security.attack_success.numerator}/"
+        f"{on_security.attack_success.denominator}\n"
+        f"- Pair input consistent: {str(result.pair_input_consistent).lower()}\n"
+    )
+
+
+def _preflight_evidence(
+    runtime: OllamaRuntimeSnapshot,
+    smoke: ModelSmokeEvidence,
+    production_index: LiveIndexReference,
+    security_index: LiveIndexReference,
+    built: LiveFixtureIndexBuild,
+    index_allowed_request_count: int,
+) -> str:
+    return (
+        "D7 local preflight completed.\n"
+        f"ollama_version={runtime.version}\n"
+        f"embedding_model={runtime.embedding.resolved_name}\n"
+        f"embedding_digest={runtime.embedding.digest}\n"
+        f"chat_model={runtime.chat.resolved_name}\n"
+        f"chat_digest={runtime.chat.digest}\n"
+        f"smoke_embedding_dimension={smoke.embedding_dimension}\n"
+        f"smoke_structured_chat_valid={str(smoke.structured_chat_valid).lower()}\n"
+        f"smoke_allowed_http_requests={smoke.allowed_http_request_count}\n"
+        f"production_index_run_id={production_index.run_id}\n"
+        f"production_index_manifest_sha256={production_index.manifest_sha256}\n"
+        f"security_index_run_id={security_index.run_id}\n"
+        f"security_index_manifest_sha256={security_index.manifest_sha256}\n"
+        f"security_index_embedding_calls={built.embedding_call_count}\n"
+        f"security_index_allowed_http_requests={index_allowed_request_count}\n"
+        "blocked_external_egress_attempts=0\n"
+    )
+
+
+def _canonical_argv(args: argparse.Namespace) -> tuple[str, ...]:
+    return (
+        "python",
+        "-m",
+        "scripts.eval_indirect_injection_live",
+        "--split",
+        args.split,
+        "--run-id",
+        args.run_id,
+        "--data-root",
+        _safe_display_path(args.data_root.resolve(), BASE_DIR),
+        "--out-dir",
+        _safe_display_path(args.out_dir.resolve(), BASE_DIR),
+        "--index-root",
+        _safe_display_path(args.index_root.resolve(), BASE_DIR),
+    )
+
+
+def _validate_frozen_models(embedding_model: str, chat_model: str) -> None:
+    if embedding_model not in {"bge-m3", "bge-m3:latest"}:
+        raise ValueError("D7 frozen protocol requires BGE-M3")
+    if chat_model != "qwen2.5:3b":
+        raise ValueError("D7 frozen protocol requires qwen2.5:3b")
+
+
+def _get_json(session: requests.Session, url: str) -> Mapping[str, object]:
+    response = session.get(url, timeout=10)
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, Mapping):
+        raise ValueError("Ollama preflight response must be a JSON object")
+    return payload
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

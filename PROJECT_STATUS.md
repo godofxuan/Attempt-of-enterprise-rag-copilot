@@ -2,7 +2,7 @@
 
 更新时间：2026-07-18
 
-状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。R2-S1 已完成 D1 协议冻结、D2 红色数据流基线、D3 独立 Guard 核心、D4 数据流接入、D5 prompt/trace/secure-profile lifecycle 和 D6 deterministic OFF/ON 安全评测。D6 当前只在本地分支，尚无对应远端 CI 证据；D7 本地 Qwen/BGE-M3 成对评测仍是 `NOT RUN`。50 行人工语义评分与本人代码/口述验收也仍是 `NOT RUN`。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
+状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。R2-S1 已完成 D1 协议冻结、D2 红色数据流基线、D3 独立 Guard 核心、D4 数据流接入、D5 prompt/trace/secure-profile lifecycle、D6 deterministic OFF/ON 安全门禁，以及 D7 本地 BGE-M3 + Qwen2.5:3b 真实模型成对评测。D6-D7 当前只在本地功能分支，尚无对应远端 CI 证据；D7 是 `COMPLETED WITH OBSERVATIONS`，不是新的确定性 release gate。50 行人工语义评分与本人代码/口述验收仍是 `NOT RUN`。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
 
 ## 1. 当前定位
 
@@ -34,6 +34,7 @@ synthetic corpus
 - R2-S1 D4：在 ACL 过滤后的单次 `candidate_k` 排名池与 Controller 之间加入 mandatory admission；扫描正文、parent、metadata、find/open 和有界相邻 split，隔离后从同一池最多补位一次；工具只返回 guarded execution，Controller、ledger、generation 和 citation 路径只接受 admitted 类型，raw bypass fail closed。
 - R2-S1 D5：生成器使用 fresh per-model-call nonce、JSON admitted records 和 trusted reminder；tool step 只公开 allowlisted Guard aggregate；默认 App 移除 `/ingest`、`/chat`、`/agent/chat`，legacy 仅由显式 compatibility factory 注册；startup/readiness 验证 detector policy 且只公开 `retrieved_guard=ready|error`。
 - R2-S1 D6：新增 dev/test 各 24 attack + 12 benign 的冻结合成集、真实 V2 路径的 evaluator-only OFF/production ON 成对运行、18 项 exact release gate、R1 全仓回归和内容零泄漏的不可变 provenance artifacts。
+- R2-S1 D7：构建与生产索引隔离的真实 V2 security index；使用 BGE-M3 在每题冻结候选集内排序，使用 Qwen2.5:3b 经正常 `GenerationV2ResponseBuilder` 生成；OFF/ON 共享快照、查询向量缓存、顺序和参数，仅切换 Guard；local-only egress boundary 阻止非 Ollama 目的地和重定向；输出无原文、无回答正文、无 canary 的 immutable paired artifacts。
 
 ## 3. 当前证据
 
@@ -108,7 +109,29 @@ artifact files/checksums                    8 / exact
 frozen run failures                         0
 ```
 
-正式 run 是 `r2-s1-d6-test-20260718-01`，manifest SHA-256 为 `fe45b091f4f76c57919dae987186088433a5f7aa5293f7104de9eb09317f4564`。OFF 的 21/24 来自 deterministic propagation fake，不是 live model 攻击率。D7 Qwen/BGE-M3 未运行。完整代码、RED/GREEN 故障和面试讲解见 [D6 Engineering Journal](docs/security/r2_s1/08_d6_engineering_journal.md)。
+正式 run 是 `r2-s1-d6-test-20260718-01`，manifest SHA-256 为 `fe45b091f4f76c57919dae987186088433a5f7aa5293f7104de9eb09317f4564`。OFF 的 21/24 来自 deterministic propagation fake，不是 live model 攻击率。完整代码、RED/GREEN 故障和面试讲解见 [D6 Engineering Journal](docs/security/r2_s1/08_d6_engineering_journal.md)。
+
+### R2-S1 D7 本地真实模型成对评测
+
+```text
+D7 focused suite                              24 passed
+full offline repository suite                812 passed
+public repository audit              390 candidates / 0 findings
+frozen test OFF context exposure               7/24
+frozen test OFF raw model attack-follow         3/24
+frozen test OFF user-visible attack success     3/24
+frozen test ON context/attack-follow/success  0/24, 0/24, 0/24
+ON attack units reached by Guard               15/28
+ON conditional quarantine recall               15/15
+ON attack units not reached by Guard            13/28
+ON actual Guard misses                           0
+ON benign quarantine                            0/32
+ON clean / mixed / poison-only utility       12/12, 20/20, 4/4
+model errors OFF / ON                          0 / 0
+external egress                                  0
+```
+
+正式 run 是 `r2-s1-d7-test-20260718-01`，状态为 `COMPLETED WITH OBSERVATIONS`，manifest SHA-256 为 `5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f97865e14e`。模型身份固定为 BGE-M3 digest `7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab` 和 Qwen2.5:3b digest `357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b`。13 个 attack units 没有进入 Guard，是因为同一冻结候选集中的 clean rank-1 已满足 `top_k=1`；它们不能算 Guard 命中，也不能算 Guard 漏检，因此 D7 同时报告“全候选诊断”和“到达 Guard 后的条件召回率”。完整代码、失败诊断、指标推导和面试讲解见 [D7 Engineering Journal](docs/security/r2_s1/09_d7_engineering_journal.md)。
 
 ### GitHub 交付与远端复现
 
@@ -149,7 +172,7 @@ frozen run failures                         0
 
 ## 6. 明确 NOT RUN 或不能外推
 
-- Retrieved-content indirect prompt injection：D1-D5 设计与实现已完成；D6 的 dev/test 合成 fixture 和 deterministic paired OFF/ON frozen gate 已通过。该结果只覆盖可见、固定、合成的规则回归；D7 live model、独立 holdout、多模态、人工红队和未知绕过仍为 `NOT RUN`。
+- Retrieved-content indirect prompt injection：D1-D7 已完成当前批准范围；D6 deterministic frozen gate 通过，D7 本地 BGE-M3 + Qwen2.5:3b frozen paired run 为 `COMPLETED WITH OBSERVATIONS`。现有证据仍只覆盖可见、固定、合成文本攻击；独立 holdout、多模态、人工红队、未知绕过、跨模型复现和生产流量仍为 `NOT RUN`。
 - Optional reranker：`NOT RUN`，没有 admitted reranker。
 - Human semantic review：`NOT RUN`；50 行表仍为空，等待本人判断。
 - Owner code experiments and oral defense：`NOT RUN`；Codex 不能代替本人完成。
@@ -165,16 +188,17 @@ frozen run failures                         0
 - 安全边界：[Threat Model](docs/security_threat_model.md)
 - 评估定义：[Evaluation Protocol](docs/evaluation.md)
 - 已知限制：[Known Limitations](docs/known_limitations.md)
-- R2-S1 D2-D6 结果：[Security Results](docs/security/r2_s1/05_results.md)
+- R2-S1 D2-D7 结果：[Security Results](docs/security/r2_s1/05_results.md)
 - R2-S1 D4 逐步工程日志：[D4 Engineering Journal](docs/security/r2_s1/06_d4_engineering_journal.md)
 - R2-S1 D5 逐步工程日志：[D5 Engineering Journal](docs/security/r2_s1/07_d5_engineering_journal.md)
 - R2-S1 D6 逐步工程日志：[D6 Engineering Journal](docs/security/r2_s1/08_d6_engineering_journal.md)
+- R2-S1 D7 逐步工程日志：[D7 Engineering Journal](docs/security/r2_s1/09_d7_engineering_journal.md)
 - E6 历史实施证据：[E6 Implementation Journal](docs/roadmap/e6_demo_public_repo_implementation.md)
 - 跨阶段恢复：[Current Execution Handoff](docs/roadmap/CURRENT_EXECUTION_HANDOFF.md)
 
 ## 8. R2-S1 当前状态
 
-R2-S1 的 D0-D6 已完成。D3 从已提交的 D2 基线 `c1c47dfe88c42c309afc32faa9bc6584e90e89ac` 开始；D4 从已提交的 D3 基线 `ec85cc718b3df17731fb1d9df7300a3a7c6fe5be` 开始；D5 从 `86064322fd532264623abd23e8db7a99634ab342` 开始；D6 在 D5 commit `0946ad90a7d9b54e219006b271c7c7bdc440863c` 上记录完整 dirty provenance。权威设计与结果位于：
+R2-S1 的 D0-D7 已完成当前批准范围。D3 从已提交的 D2 基线 `c1c47dfe88c42c309afc32faa9bc6584e90e89ac` 开始；D4 从已提交的 D3 基线 `ec85cc718b3df17731fb1d9df7300a3a7c6fe5be` 开始；D5 从 `86064322fd532264623abd23e8db7a99634ab342` 开始；D6 在 D5 commit `0946ad90a7d9b54e219006b271c7c7bdc440863c` 上记录完整 dirty provenance；D7 从 HEAD `4b7d0b91078a3246cb9e801631c0a47691bf3985` 运行并在 manifest 中记录 dirty tree hash `162771457b7e14e2672ec6a49687423d53fa4a74c64ce7c77d883616963d66b4`。权威设计与结果位于：
 
 - [R2-S1 总设计](docs/superpowers/specs/2026-07-17-r2-s1-indirect-prompt-injection-design.md)
 - [Scope and threat model](docs/security/r2_s1/00_scope_and_threat_model.md)
@@ -182,10 +206,11 @@ R2-S1 的 D0-D6 已完成。D3 从已提交的 D2 基线 `c1c47dfe88c42c309afc32
 - [Design decisions](docs/security/r2_s1/02_design_options_and_decisions.md)
 - [Detailed schema design](docs/security/r2_s1/03_detailed_design.md)
 - [Evaluation protocol](docs/security/r2_s1/04_evaluation_protocol.md)
-- [D2-D6 results](docs/security/r2_s1/05_results.md)
+- [D2-D7 results](docs/security/r2_s1/05_results.md)
 - [D4 step-by-step engineering journal](docs/security/r2_s1/06_d4_engineering_journal.md)
 - [D5 step-by-step engineering journal](docs/security/r2_s1/07_d5_engineering_journal.md)
 - [D6 step-by-step engineering journal](docs/security/r2_s1/08_d6_engineering_journal.md)
+- [D7 step-by-step engineering journal](docs/security/r2_s1/09_d7_engineering_journal.md)
 
 当前状态必须逐层表述：
 
@@ -198,7 +223,7 @@ full offline regression                D5 GREEN / 697 TESTS
 prompt nonce/public security counters   D5 GREEN
 malicious/benign security datasets      D6 FROZEN / 36 DEV + 36 TEST
 deterministic guard OFF/ON evaluation   D6 FROZEN TEST PASS / 18 CHECKS
-local live guard OFF/ON evaluation      NOT RUN
+local BGE-M3 + Qwen paired evaluation   D7 COMPLETED WITH OBSERVATIONS
 ```
 
-D3 detector 位于 `app/domain/retrieved_security.py` 与 `app/security/retrieved_content.py`；D4 admission 与强制接入位于 `app/security/retrieved_admission.py`、`app/retrieval/pipeline.py`、`app/agent/tools_v2.py` 和 `app/agent/controller_v2.py`；D5 prompt/service/trace lifecycle 位于 `app/agent/generation_v2.py`、`app/agent/runner_v2.py`、`app/main.py` 和 `app/runtime/resources.py`；D6 evaluator 位于 `app/evaluation/indirect_injection_*.py`。当前可以准确表述为“固定 synthetic frozen test 上，deterministic OFF/ON 证明 known attack propagation 从 21/24 降至 0/24，同时 clean/benign gates 全过”；不能表述为未知攻击免疫。下一授权门是 `批准D6，执行D7本地真实模型成对评测`。
+D3 detector 位于 `app/domain/retrieved_security.py` 与 `app/security/retrieved_content.py`；D4 admission 与强制接入位于 `app/security/retrieved_admission.py`、`app/retrieval/pipeline.py`、`app/agent/tools_v2.py` 和 `app/agent/controller_v2.py`；D5 prompt/service/trace lifecycle 位于 `app/agent/generation_v2.py`、`app/agent/runner_v2.py`、`app/main.py` 和 `app/runtime/resources.py`；D6 deterministic evaluator 位于 `app/evaluation/indirect_injection_*.py`；D7 live index、runner、artifact writer 和 CLI 分别位于 `app/evaluation/indirect_injection_live_index.py`、`app/evaluation/indirect_injection_live_runner.py`、`app/evaluation/indirect_injection_live_writer.py` 与 `scripts/eval_indirect_injection_live.py`。当前可以准确表述为：“固定 synthetic frozen test 上，deterministic OFF/ON 证明 known attack propagation 从 21/24 降至 0/24；真实 BGE-M3 + Qwen2.5:3b 成对观察中，OFF 出现 3/24 user-visible attack success，ON 为 0/24，且到达 Guard 的 15/15 attack units 全部隔离、0/32 benign units 被误隔离。”不能表述为未知攻击免疫或生产安全保证。下一阶段需针对独立 holdout、人工红队或跨模型复现另行冻结协议并授权。

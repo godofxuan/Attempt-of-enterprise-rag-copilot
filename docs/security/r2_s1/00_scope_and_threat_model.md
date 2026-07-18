@@ -1,6 +1,6 @@
 # R2-S1 Scope and Threat Model
 
-状态：D1 threat model frozen；D3-D5 implementation `GREEN`；D6 deterministic frozen evaluation `PASSED`；D7 live `NOT RUN`
+状态：D1 threat model frozen；D3-D5 implementation `GREEN`；D6 deterministic frozen evaluation `PASSED`；D7 local BGE-M3/Qwen paired evaluation `COMPLETED WITH OBSERVATIONS`（见 [D7 Engineering Journal](09_d7_engineering_journal.md)）
 权威总设计：[R2-S1 design spec](../../superpowers/specs/2026-07-17-r2-s1-indirect-prompt-injection-design.md)
 
 ## 1. Protected Asset

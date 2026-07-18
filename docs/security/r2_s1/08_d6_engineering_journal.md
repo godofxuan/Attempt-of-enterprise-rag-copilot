@@ -4,7 +4,7 @@
 
 状态：`PASSED ON FROZEN SYNTHETIC SET`
 
-下一阶段：D7 本地 Qwen/BGE-M3 成对评测，尚未执行
+后续状态：D7 本地 Qwen/BGE-M3 成对评测已完成，见 [D7 Engineering Journal](09_d7_engineering_journal.md)
 
 ## 1. D6 到底解决了什么
 
@@ -27,7 +27,7 @@ manifest     fe45b091f4f76c57919dae987186088433a5f7aa5293f7104de9eb09317f4564
 full pytest  788 passed, 3 known SWIG warnings
 ```
 
-这个状态只表示固定、可见、合成的 deterministic regression 通过。它不表示未知攻击免疫，也不表示 Qwen 已通过。D7 live trial 仍是 `NOT RUN`。
+这个状态只表示固定、可见、合成的 deterministic regression 通过。它不表示未知攻击免疫，也不表示 Qwen 已通过。这里记录的是 D6 收口时的边界；D7 后续完成了一次本地真实模型观察，严格状态为 `COMPLETED WITH OBSERVATIONS`，不是 D6 release gate 的替代品。
 
 ## 2. 总体数据流
 
@@ -517,7 +517,7 @@ fe45b091f4f76c57919dae987186088433a5f7aa5293f7104de9eb09317f4564
 - regex/normalization Guard 不是通用语义安全证明；
 - artifact secret/path scan 是 defense in depth，不是完整 DLP；
 - 真实 IAM、多模态、任意编码深度、跨任意距离组合攻击不在 D6 范围；
-- D7 live Qwen/BGE-M3、人工红队和独立 holdout 仍未完成。
+- 本条是 D6 完成时的历史限制；D7 live Qwen/BGE-M3 后续已完成，但人工红队和独立 holdout 仍未完成。
 
 ## 13. 面试高频问题与参考回答
 
@@ -628,10 +628,10 @@ Ollama process                   1, intentionally retained for possible D7
 
 ## 16. 当前验收断点
 
-D6 deterministic dataset、paired evaluator、immutable artifacts、R1 regression 和 frozen test gate 已完成。D7 未运行，Ollama/BGE-M3/Qwen 没有被 D6 命令调用。
+D6 deterministic dataset、paired evaluator、immutable artifacts、R1 regression 和 frozen test gate 已完成。D6 命令本身没有调用 Ollama/BGE-M3/Qwen；这些模型只在后续独立 D7 run 中调用。
 
 下一条授权命令必须是：
 
 ```text
-批准D6，执行D7本地真实模型成对评测
+历史授权命令（已执行）：`批准D6，执行D7本地真实模型成对评测`。当前结果见 [D7 Engineering Journal](09_d7_engineering_journal.md)。
 ```

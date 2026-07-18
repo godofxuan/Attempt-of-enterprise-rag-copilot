@@ -1,7 +1,7 @@
 # R2-S1 D5 Prompt Boundary and Security Observability Engineering Journal
 
 更新日期：2026-07-18
-阶段状态：D5 本地实现与离线回归完成；D6 deterministic frozen OFF/ON 此后已通过，见 [D6 Engineering Journal](08_d6_engineering_journal.md)；D7 live trial 尚未执行。
+阶段状态：D5 本地实现与离线回归完成；D6 deterministic frozen OFF/ON 与 D7 local live paired evaluation 此后均已完成，分别见 [D6 Engineering Journal](08_d6_engineering_journal.md) 和 [D7 Engineering Journal](09_d7_engineering_journal.md)。
 
 ## 1. D5 到底解决什么问题
 
@@ -303,4 +303,4 @@ D5 当时到此停止，随后已收到 D6 授权并完成 deterministic gate。
 批准D5，执行D6安全评测与门禁
 ```
 
-当前下一条命令见 [D6 Engineering Journal](08_d6_engineering_journal.md)：`批准D6，执行D7本地真实模型成对评测`。
+历史说明：D5 收口时的下一条授权命令是 `批准D6，执行D7本地真实模型成对评测`；该授权后来已经执行，当前结果见 [D7 Engineering Journal](09_d7_engineering_journal.md)。

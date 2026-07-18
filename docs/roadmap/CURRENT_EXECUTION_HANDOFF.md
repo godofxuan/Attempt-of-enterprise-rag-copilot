@@ -1,6 +1,6 @@
 # Enterprise Agentic RAG v2 - Current Execution Handoff
 
-最后更新：2026-07-17
+最后更新：2026-07-18
 
 用途：当 Codex 上下文压缩、任务中断或更换协作者时，从本文恢复精确状态。本文保存当前断点、验证证据和禁止越过的边界；实现细节以各阶段实施记录为准。
 
@@ -350,12 +350,14 @@ E7 live/browser 已完成并清理：8000/8501 listeners 0、项目 Python 0、O
 
 ## 17. R2-S1 当前精确断点
 
-本人已依次批准 D1-D6。R2-S1 的冻结起点和当前实现断点为：
+本人已依次批准 D1-D7。R2-S1 的冻结起点和当前实现断点为：
 
 ```text
 branch                    codex/rag-eval-system
 D1 start/design base HEAD da2ba8ccd4dcce455926758a8e9fb6fad20aec38
 D3 committed base HEAD    ec85cc718b3df17731fb1d9df7300a3a7c6fe5be
+D7 run entry HEAD         4b7d0b91078a3246cb9e801631c0a47691bf3985
+D7 run dirty-state hash   162771457b7e14e2672ec6a49687423d53fa4a74c64ce7c77d883616963d66b4
 da2ba8c ancestor          yes
 tracked/staged at D0      clean
 pre-existing untracked    .superpowers/ browser companion only
@@ -387,7 +389,8 @@ D4 guarded V2 data flow          GREEN / 8 BOUNDARY PROBES
 D5 prompt/public counters        GREEN / FULL 697 TESTS
 D6 security datasets/evaluation  PASS / FROZEN OFF 21/24 -> ON 0/24
 D6 full regression               GREEN / 788 TESTS
-D7 local live paired evaluation  NOT RUN
+D7 local live paired evaluation  COMPLETED WITH OBSERVATIONS
+D7 full regression               GREEN / 812 TESTS
 ```
 
 D6 accepted run is `r2-s1-d6-test-20260718-01`. Its dataset/fixture hashes are
@@ -399,10 +402,25 @@ The result is visible synthetic propagation evidence, not a Qwen result. Do not
 overwrite the run or tune on the frozen test. Detailed recovery context is in
 `docs/security/r2_s1/08_d6_engineering_journal.md`.
 
-下一条唯一授权命令是：
+D7 accepted run is `r2-s1-d7-test-20260718-01`; it was run exactly once after
+the frozen hashes above were rechecked. Its manifest SHA-256 is
+`5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f97865e14e`.
+The local models were BGE-M3 digest
+`7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab`
+and Qwen2.5:3b digest
+`357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b`.
+OFF user-visible attack success was `3/24`; ON was `0/24`; all `15/15`
+attack units that actually reached Guard were quarantined; `13/28` attack
+units were not scanned because a clean rank-1 already filled `top_k=1`;
+benign quarantine was `0/32`; model errors and external egress were zero.
+Do not rerun or tune from the frozen test because documentation changed.
+Detailed recovery context is in
+`docs/security/r2_s1/09_d7_engineering_journal.md`.
+
+当前没有自动授权的下一阶段。若继续安全路线，必须先单独冻结并批准独立 holdout、人工红队或跨模型复现协议。D6 时的历史授权命令是：
 
 ```text
-批准D6，执行D7本地真实模型成对评测
+批准D6，执行D7本地真实模型成对评测（已执行）
 ```
 
 自动工程验收已收口。下一步是仓库所有者完成 50-row human review、三个代码实验和口述验收；这些仍是 `NOT RUN`。当前分支不自动 merge、tag、切换默认分支、改仓库名或修改公开状态。

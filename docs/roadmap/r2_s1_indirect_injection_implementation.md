@@ -1,7 +1,7 @@
 # R2-S1 Retrieved-Content Indirect Injection Implementation Journal
 
 最后更新：2026-07-18
-当前阶段：D6 deterministic frozen security gate passed；等待 D7 live paired evaluation 审批
+当前阶段：D7 local live paired evaluation completed；等待后续独立 holdout / 人工红队授权
 
 ## 1. Why R2-S1 Is Next
 
@@ -105,7 +105,7 @@ R2-S1 will use `data/v2/security/` and cannot overwrite these files or their his
 | Guard blocks runtime retrieved content | `D4 + D6 GREEN` | admitted-only V2 path plus ON model-context exposure 0/24 |
 | top-up recovers clean evidence | `D6 GREEN` | mixed success 20/20 and recovery 14/14 inside one candidate pool |
 | frozen attack set passes | `D6 PASS` | visible synthetic frozen test, OFF 21/24 vs ON 0/24 |
-| Qwen resists or follows attacks | `NOT RUN` | live trial requires D7 approval |
+| Qwen resists or follows attacks | `D7 OBSERVED` | frozen live OFF raw follow 3/24；ON 0/24；仅代表固定本地 run |
 
 ## 8. D2 Authorization Status
 
@@ -355,8 +355,40 @@ D6 新增严格 contracts、确定性 dataset builder、真实 V2 路径 paired 
 
 dev-01 暴露 pytest URL sanitizer 误伤，dev-02 修复后又接受 independent review；最终 dev-03 和 frozen test 使用同一 evaluator hash。所有历史 run 以唯一 ID 保留，未覆盖失败或较早证据。完整代码、故障、指标和面试问答见 [D6 Engineering Journal](../security/r2_s1/08_d6_engineering_journal.md)。
 
-## 17. Current Gate
+## 17. Historical D7 Gate
 
 ```text
 批准D6，执行D7本地真实模型成对评测
 ```
+
+该授权已于 2026-07-18 执行完成。
+
+## 18. D7 Local Live Paired Evaluation
+
+D7 新增 isolated security fixture index、真实 BGE-M3 query/index embedding、真实 Qwen structured generation、loopback-only Ollama boundary、paired input fingerprint、live-only metrics 和 immutable redacted writer。生产 active index 只记录 provenance，不写入合成攻击。
+
+dev-01 首次暴露 live 排序下旧 `admitted/quarantined` 二值口径把低位未扫描攻击误称为 admitted。没有覆盖该 run；新增 reached-Guard 与 conditional recall 后运行 dev-02。冻结 test 在 dataset/fixture SHA 再次匹配后只运行一次：
+
+```text
+run_id                            r2-s1-d7-test-20260718-01
+status                            COMPLETED WITH OBSERVATIONS
+manifest SHA-256                  5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f97865e14e
+OFF model-context exposure        7/24
+OFF raw model attack follow       3/24
+OFF user-boundary attack          3/24
+ON model-context exposure         0/24
+ON raw model attack follow        0/24
+ON user-boundary attack           0/24
+ON attack units reached Guard    15/28
+ON conditional quarantine       15/15
+ON actual Guard misses             0
+ON benign quarantine              0/32
+ON clean task                    12/12
+full repository tests           812 passed
+```
+
+正式模型为 Ollama `0.32.1`、BGE-M3 digest `7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab` 和 Qwen2.5 3B digest `357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b`。完整代码、RED/GREEN、dev-01 指标故障和面试讲解见 [D7 Engineering Journal](../security/r2_s1/09_d7_engineering_journal.md)。
+
+## 19. Next Evidence Gap
+
+D7 完成后仍不能外推未知攻击免疫。下一步若继续安全路线，应先单独授权并冻结独立 holdout / 人工红队协议，而不是继续根据当前 frozen test 调规则。多模态文档、未来 write/HTTP/Shell tools 和真实部署身份认证仍需各自 threat model。
