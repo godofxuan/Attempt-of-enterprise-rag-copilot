@@ -247,7 +247,7 @@ def test_root_status_is_the_only_current_status_entrypoint() -> None:
         encoding="utf-8"
     )
 
-    assert "更新时间：2026-07-17" in status
+    assert "更新时间：2026-07-18" in status
     assert "状态：E7" in status
     assert "526 passed" in status
     assert "574 passed" in status

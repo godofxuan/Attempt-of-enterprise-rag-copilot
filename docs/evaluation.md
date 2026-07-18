@@ -1,6 +1,6 @@
 # Enterprise Agentic RAG v2 Evaluation Protocol
 
-最后更新：2026-07-16
+最后更新：2026-07-18
 
 ## 1. 评测回答什么
 
@@ -221,4 +221,4 @@ security_runs/<run_id>/
 
 The D1-frozen protocol requires 24 attack + 12 benign cases in each of dev and test, deterministic Guard OFF/ON propagation evidence, a separately labeled local live paired trial, content-unit detection metrics, task utility, bounded-work metrics and a strict security provenance manifest. All metrics report numerator, denominator and rate.
 
-The exact formulas, case schema, R1 hashes and release gate are in [R2-S1 Evaluation Protocol](security/r2_s1/04_evaluation_protocol.md). D3-D5 implementation contracts are now locally green, but no compliant 72-case dataset or OFF/ON/live run exists yet; therefore indirect-injection effectiveness remains `NOT RUN` until D6.
+The exact formulas, case schema, R1 hashes and release gate are in [R2-S1 Evaluation Protocol](security/r2_s1/04_evaluation_protocol.md). D6 now provides dev/test datasets with 24 attack + 12 benign cases per split and a deterministic paired frozen-test result: OFF attack success `21/24`, ON `0/24`, ON benign quarantine `0/32`, clean task success `12/12`, and `788 passed` full regression. The run is a visible synthetic frozen regression with a propagation fake, not a live-model or unseen-benchmark result. D7 Qwen/BGE-M3 paired evaluation remains `NOT RUN`; full evidence is in [D6 Engineering Journal](security/r2_s1/08_d6_engineering_journal.md).

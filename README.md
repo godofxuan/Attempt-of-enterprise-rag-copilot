@@ -98,7 +98,8 @@ These values describe specific local artifacts; they are not production accuracy
 | R2-S1 D2 retrieved-content probes | historical `5` expected red data-flow assertions, `3` existing boundary passes | Pre-Guard baseline proving raw propagation, raw Controller acceptance, and poisoned top-rank displacement; not a live-model attack rate |
 | R2-S1 D3 standalone Guard | `64 passed`; historical full regression excluding intentional D2 RED files `638 passed` | Historical `rcg-v1.0.0` detector-core gate before runtime integration |
 | R2-S1 D4 guarded data flow | D2/D4 boundary probes `8/8`; historical full offline suite `687 passed`, 3 known FAISS warnings | `rcg-v1.1.0`; mandatory guarded tool result, deeply immutable admitted snapshots, bounded same-pool top-up |
-| R2-S1 D5 prompt/observability boundary | full offline suite `697 passed`, 3 known FAISS warnings | Fresh per-model-call nonce + JSON envelope; aggregate-only security trace; secure default route profile; Guard startup/readiness validation. D6 OFF/ON evaluation remains `NOT RUN` |
+| R2-S1 D5 prompt/observability boundary | historical full offline suite `697 passed`, 3 known FAISS warnings | Fresh per-model-call nonce + JSON envelope; aggregate-only security trace; secure default route profile; Guard startup/readiness validation |
+| R2-S1 D6 deterministic paired security gate | frozen test OFF attack success `21/24` vs ON `0/24`; ON benign quarantine `0/32`; clean `12/12`; full suite `788 passed` | Visible 36-case synthetic frozen test, fake generator proves propagation only; manifest `fe45b091...17f4564`; D7 live models remain `NOT RUN` |
 | E7 final-code load rc02 | `31/31` requests | One Windows machine; warm p95 was 1.115 s / 4.244 s / 8.218 s at concurrency 1 / 5 / 10 |
 | E7 workflow ablation rc02 | fixed RAG `0.8571` vs bounded Agentic `1.0000` outcome accuracy | 28-case deterministic synthetic test; Agentic used 47 vs 28 tool calls |
 
@@ -132,7 +133,7 @@ The generator derives documents and evaluation labels from a checked-in fact mod
 
 - Browser-supplied `UserContext` is validated but not authenticated by real IAM.
 - The corpus and evaluation set are synthetic and small; the live result is a development run, not a generalization estimate.
-- R2-S1 has a frozen [retrieved-content threat model](docs/security/r2_s1/00_scope_and_threat_model.md), a historical [D2 red data-flow baseline](docs/security/r2_s1/05_results.md), a D3 detector core, D4 guarded retrieval/Controller integration, and D5 prompt/trace/service lifecycle hardening. The full dedicated 72-case fixture set, deterministic OFF/ON run, and live run are still `NOT RUN`; `697 passed` is an implementation-contract result, not an attack success rate.
+- R2-S1 has a frozen [retrieved-content threat model](docs/security/r2_s1/00_scope_and_threat_model.md), historical D2 RED evidence, D3-D5 enforcement, and a D6 deterministic paired gate. D6 passed one visible synthetic frozen test, but its fake generator measures propagation rather than Qwen attack prevalence; D7 live OFF/ON, independent holdout and manual red-team review remain `NOT RUN`.
 - The optional reranker is `NOT RUN`; current ablation does not justify adding one blindly.
 - Traces and metrics are bounded in-memory local structures, not durable distributed observability.
 - Index lifecycle is immutable rebuild/activate, not production incremental upsert/delete.
@@ -151,9 +152,10 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 - [Ablation Report](docs/ablation_report.md)
 - [Security Threat Model](docs/security_threat_model.md)
 - [R2-S1 Retrieved-Content Security Design](docs/security/r2_s1/00_scope_and_threat_model.md)
-- [R2-S1 D2-D5 Security Results](docs/security/r2_s1/05_results.md)
+- [R2-S1 D2-D6 Security Results](docs/security/r2_s1/05_results.md)
 - [R2-S1 D4 Engineering Journal](docs/security/r2_s1/06_d4_engineering_journal.md)
 - [R2-S1 D5 Engineering Journal](docs/security/r2_s1/07_d5_engineering_journal.md)
+- [R2-S1 D6 Engineering Journal](docs/security/r2_s1/08_d6_engineering_journal.md)
 - [Observability and Load Evidence](docs/observability.md)
 - [Reproducibility Guide](docs/reproducibility.md)
 - [Data Card](docs/data_card.md)

@@ -1,0 +1,36 @@
+{
+  "attack_case_count": 24,
+  "benign_case_count": 12,
+  "case_count": 36,
+  "dataset_bytes": 45565,
+  "dataset_path": "data/v2/security/indirect_injection_test_v1.json",
+  "dataset_sha256": "062aec151d29854ffcebf6368b42fc768f7a0a5f64e1218e32fd326a441a137c",
+  "fixture_manifest_path": "data/v2/security/fixtures_v1/test/manifest.json",
+  "fixture_manifest_sha256": "eea41009bd5a8eda2b0a1ff7c29e593895d917b4055e9712b1db48daa9d51c1d",
+  "freeze_git_head": "0946ad90a7d9b54e219006b271c7c7bdc440863c",
+  "frozen_at_utc": "2026-07-18T00:00:00Z",
+  "scenario_counts": {
+    "mixed_clean_poison": 20,
+    "parent_open_context": 4,
+    "poison_only": 4,
+    "same_chunk_fact_attack": 4,
+    "split_payload": 3,
+    "title_section_metadata": 6,
+    "top_ranked_poison": 22
+  },
+  "schema_version": "indirect_injection_test_freeze_v1",
+  "taxonomy_counts": {
+    "business_sop_action_language": 3,
+    "encoded_invisible": 3,
+    "instruction_override": 3,
+    "legitimate_encoding": 3,
+    "markup_wrapped": 3,
+    "multilingual_homoglyph": 3,
+    "role_impersonation": 3,
+    "secret_extraction": 3,
+    "security_training_quote": 3,
+    "software_role_documentation": 3,
+    "split_payload": 3,
+    "tool_egress": 3
+  }
+}

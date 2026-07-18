@@ -1,7 +1,7 @@
 # R2-S1 D5 Prompt Boundary and Security Observability Engineering Journal
 
-更新日期：2026-07-17
-阶段状态：D5 本地实现与离线回归完成；D6 数据集、OFF/ON 对照和 live trial 尚未执行。
+更新日期：2026-07-18
+阶段状态：D5 本地实现与离线回归完成；D6 deterministic frozen OFF/ON 此后已通过，见 [D6 Engineering Journal](08_d6_engineering_journal.md)；D7 live trial 尚未执行。
 
 ## 1. D5 到底解决什么问题
 
@@ -32,7 +32,7 @@ container startup/readiness
   -> low-sensitivity ready/error status
 ```
 
-完整 72-case 攻击/良性数据、Guard OFF/ON 因果对照和真实 Qwen trial 属于 D6。D5 的 `697 passed` 是代码合同证据，不是攻击成功率。
+在 D5 收口时，完整攻击/良性数据和 Guard OFF/ON 因果对照尚未运行。它们后来由 D6 deterministic gate 完成；真实 Qwen trial 被明确拆到 D7。D5 的 `697 passed` 仍只是该阶段代码合同证据。
 
 ## 2. 开工边界
 
@@ -42,7 +42,7 @@ detector version                  rcg-v1.1.0
 detector ruleset SHA-256          dcafd504a01dcc757910751503eaaf1387903827e5e0f4932fbdd7937b68da01
 D4 full offline regression        687 passed
 D5 detector-rule changes          none
-D6 evaluation                     NOT RUN
+D6 evaluation at D5 closeout      NOT RUN (historical; completed later)
 ```
 
 D5 不修改 detector rule semantics，所以 detector version 和 ruleset hash 不变。修改的是 prompt composition、public projection、service composition 和 policy lifecycle。
@@ -295,10 +295,12 @@ startup validation 检查静态 policy 身份和基本决策，失败时默认 c
 
 它证明当前代码满足已写下的 deterministic contracts，包括边界标记、escape、类型校验、路由集合、低敏 trace 和 fail-closed lifecycle。它不能证明真实攻击分布上的防御率。D6 才会冻结 72-case 数据并做 OFF/ON 和 live paired evaluation。
 
-## 8. 下一门禁
+## 8. Historical Next Gate
 
-D5 到此停止，不自动创建 D6 数据或运行 live model。下一条授权命令是：
+D5 当时到此停止，随后已收到 D6 授权并完成 deterministic gate。以下命令只保留历史：
 
 ```text
 批准D5，执行D6安全评测与门禁
 ```
+
+当前下一条命令见 [D6 Engineering Journal](08_d6_engineering_journal.md)：`批准D6，执行D7本地真实模型成对评测`。

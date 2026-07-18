@@ -1,7 +1,7 @@
 # R2-S1 Retrieved-Content Indirect Injection Implementation Journal
 
-最后更新：2026-07-17
-当前阶段：D5 prompt boundary 与安全可观测性本地 green；等待 D6 安全评测审批
+最后更新：2026-07-18
+当前阶段：D6 deterministic frozen security gate passed；等待 D7 live paired evaluation 审批
 
 ## 1. Why R2-S1 Is Next
 
@@ -102,9 +102,9 @@ R2-S1 will use `data/v2/security/` and cannot overwrite these files or their his
 | current raw path has an indirect-injection exposure surface | `OBSERVED` | code path inspected at D0 |
 | proposed boundary is internally specified | `D1 FROZEN` | schemas, outcomes and metrics documented |
 | standalone Guard classifies bounded text | `D3 UNIT GREEN` | 64 model-free schema/rule/resource/failure tests |
-| Guard blocks runtime retrieved content | `NOT RUN` | D3 is not wired to retrieval/Controller/generation |
-| top-up recovers clean evidence | `NOT RUN` | no guarded candidate path exists |
-| frozen attack set passes | `NOT RUN` | dataset/evaluator not created |
+| Guard blocks runtime retrieved content | `D4 + D6 GREEN` | admitted-only V2 path plus ON model-context exposure 0/24 |
+| top-up recovers clean evidence | `D6 GREEN` | mixed success 20/20 and recovery 14/14 inside one candidate pool |
+| frozen attack set passes | `D6 PASS` | visible synthetic frozen test, OFF 21/24 vs ON 0/24 |
 | Qwen resists or follows attacks | `NOT RUN` | live trial requires D7 approval |
 
 ## 8. D2 Authorization Status
@@ -332,6 +332,7 @@ R1 dev/test/manifest hashes保持冻结值不变；D4 没有调用 Ollama、embe
 
 ```text
 批准D5，执行D6安全评测与门禁
+```
 
 ## 15. D5 Prompt Boundary and Security Observability
 
@@ -344,5 +345,18 @@ D5 从 `86064322fd532264623abd23e8db7a99634ab342` 开始，完成了四条冻结
 
 测试经历第一轮 `17 failed / 10 passed`、focused `27 passed`、首次 full `690 passed / 6 failed`、三个额外 adversarial RED，再达到 full offline `697 passed, 3 known FAISS/SWIG warnings`。D5 没有修改 detector rule semantics，版本仍为 `rcg-v1.1.0`，ruleset SHA-256 仍为 `dcafd504a01dcc757910751503eaaf1387903827e5e0f4932fbdd7937b68da01`。
 
-完整逐文件代码讲解、问题复盘和面试问答见 [D5 Engineering Journal](../security/r2_s1/07_d5_engineering_journal.md)。这仍不是 D6 attack success/false-positive evidence；72-case dataset、OFF/ON paired run 和 local live trial 保持 `NOT RUN`。
+完整逐文件代码讲解、问题复盘和面试问答见 [D5 Engineering Journal](../security/r2_s1/07_d5_engineering_journal.md)。这是 D6 前的历史状态。
+
+## 16. D6 Security Evaluation and Gate
+
+D6 新增严格 contracts、确定性 dataset builder、真实 V2 路径 paired runner、immutable writer 和单一 CLI。dev/test 各 36 cases，包含 24 attack 和 12 benign；每题以同一输入分别运行 evaluator-only Guard OFF 和 production Guard ON。
+
+冻结 test `r2-s1-d6-test-20260718-01` 的结果是 OFF attack success `21/24`、ON `0/24`、ON quarantine recall `28/28`、benign quarantine `0/32`、clean `12/12`、mixed recovery `20/20`、poison-only `4/4`、recovery `14/14`，18 个 release checks 全通过。full pytest 为 `788 passed, 3 known SWIG warnings`，manifest SHA-256 为 `fe45b091f4f76c57919dae987186088433a5f7aa5293f7104de9eb09317f4564`。
+
+dev-01 暴露 pytest URL sanitizer 误伤，dev-02 修复后又接受 independent review；最终 dev-03 和 frozen test 使用同一 evaluator hash。所有历史 run 以唯一 ID 保留，未覆盖失败或较早证据。完整代码、故障、指标和面试问答见 [D6 Engineering Journal](../security/r2_s1/08_d6_engineering_journal.md)。
+
+## 17. Current Gate
+
+```text
+批准D6，执行D7本地真实模型成对评测
 ```

@@ -33,6 +33,7 @@ data/generated/
 data/v2/generated/
 eval_runs/
 load_runs/
+security_runs/
 
 # Logs and OS/editor files
 *.log

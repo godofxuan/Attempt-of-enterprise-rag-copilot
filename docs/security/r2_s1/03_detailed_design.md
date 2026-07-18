@@ -298,4 +298,15 @@ nonce/public counter work or the D6 dataset/evaluator work.
 | policy startup | `app/security/retrieved_content.py` | version/rule/provenance/digest/decision validation and drift regressions |
 | readiness | `app/runtime/resources.py`, `app/observability/tracing.py` | low-sensitivity `retrieved_guard=ready|error`; exception/path/rule text absent |
 
-D5 retains detector identity `rcg-v1.1.0` because no rule semantics or resource bounds changed. Full offline evidence is `697 passed, 3 known FAISS/SWIG warnings`. The 72-case malicious/benign fixtures, deterministic Guard OFF/ON comparison and local live trial remain D6 `NOT RUN`; see [D5 Engineering Journal](07_d5_engineering_journal.md).
+D5 retains detector identity `rcg-v1.1.0` because no rule semantics or resource bounds changed. Its historical full offline evidence is `697 passed, 3 known FAISS/SWIG warnings`; see [D5 Engineering Journal](07_d5_engineering_journal.md).
+
+## 18. D6 Evaluation Mapping
+
+| Design section | Implemented owner | D6 evidence |
+|---|---|---|
+| dataset/schema/freeze | `app/evaluation/indirect_injection_contracts.py`, `indirect_injection_dataset.py` | dev/test each 24 attack + 12 benign; test dataset/fixture hashes verified before evaluation |
+| deterministic OFF/ON | `app/evaluation/indirect_injection_runner.py` | same-input production-path pair; OFF attack success 21/24 vs ON 0/24 |
+| release/provenance | `app/evaluation/indirect_injection_writer.py` | exact 18 checks, Git/data/rules/evaluator/dependency hashes, eight immutable artifacts |
+| orchestration/R1 | `scripts/eval_indirect_injection.py` | three frozen R1 hashes plus full 788-test regression before publication |
+
+D6 frozen test status is `PASSED ON FROZEN SYNTHETIC SET`; it is not a live-model or unseen-benchmark result. The local Qwen/BGE-M3 half of the design remains D7 `NOT RUN`. See [D6 Engineering Journal](08_d6_engineering_journal.md).

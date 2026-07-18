@@ -1,19 +1,20 @@
 # R2-S1 Results
 
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 ## 1. Current Evidence Status
 
 ```text
-phase                                  D5 PROMPT/OBSERVABILITY GREEN
+phase                                  D6 DETERMINISTIC FROZEN GATE PASS
 D3 entry HEAD                          c1c47dfe88c42c309afc32faa9bc6584e90e89ac
 D4 entry HEAD                          ec85cc718b3df17731fb1d9df7300a3a7c6fe5be
 D5 entry HEAD                          86064322fd532264623abd23e8db7a99634ab342
 RetrievedContentGuard                  MANDATORY ON DEFAULT V2 TOOL PATH
 guarded boundary probes                8/8 PASSED
 prompt/trace/profile/readiness          D5 GREEN
-full offline repository suite          697 PASSED
-full 72-case security evaluation       NOT RUN
+D6 focused evaluation suite             91 PASSED
+full offline repository suite          788 PASSED
+full 72-result frozen OFF/ON evaluation PASSED ON FROZEN SYNTHETIC SET
 local Qwen/BGE-M3 security evaluation  NOT RUN
 ```
 
@@ -24,6 +25,37 @@ regressions without weakening the already-green trace and no-egress boundaries.
 Because no Guard class existed at the D2 baseline, the test names use `guard_off` to
 mean the current unguarded path that the later evaluator's explicit OFF dependency
 injection must reproduce. No production setting was switched off.
+
+## 1.1 D6 Deterministic Paired Result
+
+The accepted frozen run is:
+
+```text
+run_id             r2-s1-d6-test-20260718-01
+dataset SHA-256    062aec151d29854ffcebf6368b42fc768f7a0a5f64e1218e32fd326a441a137c
+fixture SHA-256    eea41009bd5a8eda2b0a1ff7c29e593895d917b4055e9712b1db48daa9d51c1d
+manifest SHA-256   fe45b091f4f76c57919dae987186088433a5f7aa5293f7104de9eb09317f4564
+status             PASSED ON FROZEN SYNTHETIC SET
+```
+
+| Metric | Guard OFF | Guard ON |
+|---|---:|---:|
+| attack success | 21/24 | 0/24 |
+| document canary exposure | 21/24 | 0/24 |
+| model-context exposure | 20/24 | 0/24 |
+| attack task success | 6/20 | 20/20 |
+
+Additional Guard ON results were quarantine recall `28/28`, benign quarantine
+`0/32`, clean success `12/12`, mixed recoverable success `20/20`, poison-only
+`security_filtered` correctness `4/4`, evidence coverage `32/32`, recovery `14/14`
+and zero resource violations. All 18 exact release checks passed. The run contains
+eight artifacts, all recorded checksums matched, and `failures.csv` had zero rows.
+
+The fake generator is a deterministic propagation witness. OFF `21/24` is not a
+Qwen attack rate. The test is a visible synthetic frozen regression, not unseen
+data, and D7 local Qwen/BGE-M3 paired evaluation remains `NOT RUN`. Detailed code,
+RED/GREEN corrections and interview explanations are in
+[D6 Engineering Journal](08_d6_engineering_journal.md).
 
 ## 2. What Was Added
 
@@ -441,7 +473,7 @@ Deferred to D4 or later:
 - quarantine does not yet recover clean candidates after top-k displacement;
 - same-document adjacent split aggregation needs authorized document/order context
   and is therefore a D4 concern, not a single-string D3 scanner feature;
-- the frozen 72-case OFF/ON evaluator and local Qwen/BGE-M3 run remain `NOT RUN`.
+- at the D3 closeout recorded by this historical section, the frozen OFF/ON evaluator and local Qwen/BGE-M3 run had not yet run. D6 has since completed the deterministic half; D7 live remains `NOT RUN`.
 
 The project still cannot claim end-to-end retrieved-content injection defense.
 
@@ -521,8 +553,9 @@ attack success rate. Those are D5 and D6 deliverables.
 
 ```text
 批准D5，执行D6安全评测与门禁
+```
 
-## 15. D5 Prompt Boundary and Security Observability
+## 16. D5 Prompt Boundary and Security Observability
 
 D5 added defense in depth after D4 admission without changing detector rules:
 
@@ -537,4 +570,3 @@ D5 added defense in depth after D4 admission without changing detector rules:
 The initial D5 RED run was `17 failed / 10 passed`. After the first implementation, focused D5 was `27 passed` and the expanded Agent/security/API/runtime batch was `229 passed`. A first full run exposed six stale compatibility fixtures (`690 passed / 6 failed`), which were corrected without reopening secure routes. Three additional adversarial tests then reproduced Unicode delimiter escape, retry nonce reuse, and active-ruleset drift before their fixes.
 
 Final local deterministic evidence is `697 passed, 3 known FAISS/SWIG warnings`; the public repository audit is `362 candidates / 0 findings`. No Ollama, embedding, network, 72-case dataset, Guard OFF/ON evaluator, or live security trial was used. Therefore D5 closes implementation contracts only; it does not provide an attack success rate or benign false-positive rate. See [D5 Engineering Journal](07_d5_engineering_journal.md).
-```

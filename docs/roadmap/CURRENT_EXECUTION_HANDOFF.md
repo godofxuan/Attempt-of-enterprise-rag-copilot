@@ -350,7 +350,7 @@ E7 live/browser 已完成并清理：8000/8501 listeners 0、项目 Python 0、O
 
 ## 17. R2-S1 当前精确断点
 
-本人已依次批准 D1-D5。R2-S1 的冻结起点和当前实现断点为：
+本人已依次批准 D1-D6。R2-S1 的冻结起点和当前实现断点为：
 
 ```text
 branch                    codex/rag-eval-system
@@ -385,13 +385,24 @@ D2 red propagation baseline      RECORDED / HISTORICAL 5 FAIL + 3 PASS
 D3 standalone Guard              GREEN / 64 TESTS
 D4 guarded V2 data flow          GREEN / 8 BOUNDARY PROBES
 D5 prompt/public counters        GREEN / FULL 697 TESTS
-D6 security datasets/evaluation  NOT RUN
+D6 security datasets/evaluation  PASS / FROZEN OFF 21/24 -> ON 0/24
+D6 full regression               GREEN / 788 TESTS
+D7 local live paired evaluation  NOT RUN
 ```
+
+D6 accepted run is `r2-s1-d6-test-20260718-01`. Its dataset/fixture hashes are
+`062aec151d29854ffcebf6368b42fc768f7a0a5f64e1218e32fd326a441a137c` and
+`eea41009bd5a8eda2b0a1ff7c29e593895d917b4055e9712b1db48daa9d51c1d`;
+manifest SHA-256 is
+`fe45b091f4f76c57919dae987186088433a5f7aa5293f7104de9eb09317f4564`.
+The result is visible synthetic propagation evidence, not a Qwen result. Do not
+overwrite the run or tune on the frozen test. Detailed recovery context is in
+`docs/security/r2_s1/08_d6_engineering_journal.md`.
 
 下一条唯一授权命令是：
 
 ```text
-批准D5，执行D6安全评测与门禁
+批准D6，执行D7本地真实模型成对评测
 ```
 
 自动工程验收已收口。下一步是仓库所有者完成 50-row human review、三个代码实验和口述验收；这些仍是 `NOT RUN`。当前分支不自动 merge、tag、切换默认分支、改仓库名或修改公开状态。

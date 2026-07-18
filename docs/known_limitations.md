@@ -1,6 +1,6 @@
 # Known Limitations
 
-最后更新：2026-07-17
+最后更新：2026-07-18
 
 本文使用三个状态：`FAILED` 表示已运行且未通过；`NOT RUN` 表示没有满足协议的 fixture/依赖或实验；“未实现”表示代码能力不存在。`NOT RUN` 不能写成通过。
 
@@ -11,7 +11,7 @@
 | Identity | `UserContext` 由浏览器/调用方声明，只做 schema 和 policy 验证 | 本地演示可以验证 ACL 逻辑，但不能证明真实用户身份 | 由可信 OIDC/IAM gateway 签发身份，并加入 token/tenant/group integration tests |
 | Data realism | 72/600 文档和 52 个 eval cases 全部 synthetic | 指标证明工程 contract，不代表真实企业分布或生产泛化 | 法务批准的去标识 pilot corpus、数据治理记录和独立 held-out evaluation |
 | Live quality | 当前 canonical live dev 为 23/24 | 一个 system-runtime failure 被保留；不能报告 100% | 先定位/复现失败，再在新冻结 split 上验证，而不是改写旧 artifact |
-| Indirect document injection | D3 detector、D4 guarded V2 data flow、D5 prompt/trace/secure-profile lifecycle 已本地确定性测试；D6 evaluation `NOT RUN` | 默认 V2 路径会隔离已知规则命中并建立 JSON/nonce prompt boundary；未知绕过、误报/漏报率和真实模型攻击成功率仍未证明 | 按 [R2-S1 protocol](security/r2_s1/04_evaluation_protocol.md) 建立 24 attack + 12 benign per split，运行 OFF/ON、R1 regression 与独立 live trial |
+| Indirect document injection | D6 visible synthetic frozen test 已完成 deterministic paired OFF/ON：OFF 21/24，ON 0/24，benign quarantine 0/32 | 已证明固定规则集上的软件传播边界和 utility；未证明未知绕过、独立分布或真实 Qwen 攻击成功率 | D7 固定本机 live paired trial；之后增加独立 holdout、人工红队和规则版本漂移评测 |
 | Reranker | `NOT RUN` (`no_admitted_reranker`) | 不能声称 cross-encoder/reranker 改善过排序 | 固定候选模型、license/资源预算与 latency gate；在 frozen test 上做隔离消融 |
 | Human review | `NOT RUN`；50 行、8 个人工判断列保持空白 | 自动 claim/citation/required-fact checks 不能替代语义和可用性评分 | 本人按冻结 rubric 完成 review；若用于正式质量结论，再增加第二 reviewer、分歧仲裁和 agreement 记录 |
 | Authentication/authorization | 只有本地 ACL policy，没有 SSO、token verification、policy admin 或 audit identity | 不能公网暴露为企业服务 | IAM、server-derived claims、deny-by-default policy store、admin/change audit |
@@ -38,14 +38,14 @@
 
 已经验证的是：固定 direct unsafe prompts 在 query analysis 后、retrieval 前 source-free 拒绝；ACL 测试不暴露 forbidden docs；错误/trace 不回显已知敏感字段；默认 V2 `search/find/open` 在 Controller 前执行确定性 admission，raw execution 被拒绝，已隔离内容不进入 generation/source/context budget。
 
-尚未证明的是：任意 prompt injection 都会失败、所有 retrieved content 都无法影响模型、system prompt 永不泄露、显式 compatibility app 中的 legacy `/chat`/`/agent/chat` 受到 V2 Guard 保护、浏览器声明身份可信、或该服务适合公网/多租户生产。
+尚未证明的是：任意 prompt injection 都会失败、真实 Qwen 在固定或未知攻击上的成功率、system prompt 永不泄露、显式 compatibility app 中的 legacy `/chat`/`/agent/chat` 受到 V2 Guard 保护、浏览器声明身份可信、或该服务适合公网/多租户生产。D6 fake generator 只证明确定性传播。
 
 完整威胁与控制映射见 [Security Threat Model](security_threat_model.md)。
 
 ## 4. 公开展示边界
 
 - README 与 UI 必须显示 live `23/24`，不能四舍五入为 100%。
-- indirect document injection 必须分层显示：D4 guarded V2 data flow 和 D5 prompt/public observability 已实现，D6 OFF/ON evaluation 为 `NOT RUN`；optional reranker 仍是 `NOT RUN`。
+- indirect document injection 必须分层显示：D4 guarded V2 data flow、D5 prompt/public observability 和 D6 deterministic frozen OFF/ON 已完成；D7 live model 与独立 holdout 仍是 `NOT RUN`。optional reranker 也仍是 `NOT RUN`。
 - `526 passed` 是 E5 入口、`569 passed` 是 E6 收口、`574 passed` 是 E7 自动化本地门禁；它们是不同 commit 候选的历史计数，不能相加。
 - 远端 CI 声明必须同时给出 run URL 和 commit；当前可核验范围仅为 `9607e55` 的 feature-branch run。
 - E7 已逐条处理 claims matrix；只能使用 `approved` 原句或 `narrowed` 后的措辞，不能删掉 synthetic、deterministic/local、样本数和 `NOT RUN` 边界。
@@ -54,4 +54,4 @@
 
 ## 5. R2-S1 current boundary
 
-D1 froze the design; D3 built the model-free detector; D4 connected it to the default V2 retrieval, tool, Controller, ledger, generation and citation path; D5 added the nonce/JSON prompt envelope, aggregate-only public trace, secure default route profile, and Guard startup/readiness validation. Current deterministic evidence is `697 passed`, including Unicode delimiter, fresh retry nonce, active-ruleset drift, route exclusion and zero-leak regressions. This is implementation evidence, not a measured attack/benign rate. D6 immutable fake/live evaluation remains `NOT RUN`.
+D1 froze the design; D3 built the model-free detector; D4 connected it to the default V2 path; D5 added prompt/trace/service defense in depth; D6 added the immutable deterministic paired gate. The frozen synthetic result is OFF attack success `21/24` versus ON `0/24`, ON benign quarantine `0/32`, with `788 passed` full regression. This is fixed-set propagation evidence, not live-model prevalence or immunity. D7 live paired evaluation remains `NOT RUN`.
