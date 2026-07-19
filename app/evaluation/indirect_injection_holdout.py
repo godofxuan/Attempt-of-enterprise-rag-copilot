@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -357,6 +358,47 @@ def verify_holdout_submission(
     return manifest
 
 
+def current_holdout_code_baseline(repo_root: Path) -> HoldoutCodeBaseline:
+    repo_root = Path(repo_root).resolve()
+    git_head = _git(repo_root, "rev-parse", "HEAD")
+    branch = _git(repo_root, "branch", "--show-current")
+    tracked_status = _git(
+        repo_root,
+        "status",
+        "--porcelain",
+        "--untracked-files=no",
+    )
+    if tracked_status:
+        raise ValueError("holdout freeze requires a clean tracked worktree")
+    artifacts: dict[str, HoldoutCodeArtifactEvidence] = {}
+    for relative in HOLDOUT_BASELINE_PATHS:
+        path = repo_root / relative
+        if not path.is_file():
+            raise FileNotFoundError(f"holdout baseline artifact not found: {relative}")
+        artifacts[relative] = HoldoutCodeArtifactEvidence(
+            path=relative,
+            sha256=_sha256_file(path),
+        )
+    return HoldoutCodeBaseline(
+        git_head=git_head,
+        branch=branch,
+        tracked_worktree_clean=True,
+        artifacts=artifacts,
+    )
+
+
+def _git(repo_root: Path, *args: str) -> str:
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    return completed.stdout.strip()
+
+
 def _build_freeze_manifest(
     inputs: HoldoutInputs,
     *,
@@ -451,6 +493,7 @@ __all__ = [
     "REQUIRED_RUBRIC_DIMENSIONS",
     "REQUIRED_SOURCE_SURFACES",
     "freeze_holdout_submission",
+    "current_holdout_code_baseline",
     "load_holdout_inputs",
     "verify_holdout_submission",
 ]
