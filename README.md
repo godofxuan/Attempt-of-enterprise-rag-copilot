@@ -100,11 +100,22 @@ These values describe specific local artifacts; they are not production accuracy
 | R2-S1 D4 guarded data flow | D2/D4 boundary probes `8/8`; historical full offline suite `687 passed`, 3 known FAISS warnings | `rcg-v1.1.0`; mandatory guarded tool result, deeply immutable admitted snapshots, bounded same-pool top-up |
 | R2-S1 D5 prompt/observability boundary | historical full offline suite `697 passed`, 3 known FAISS warnings | Fresh per-model-call nonce + JSON envelope; aggregate-only security trace; secure default route profile; Guard startup/readiness validation |
 | R2-S1 D6 deterministic paired security gate | frozen test OFF attack success `21/24` vs ON `0/24`; ON benign quarantine `0/32`; clean `12/12`; historical full suite `788 passed` | Visible 36-case synthetic frozen test; fake generator proves software propagation only; manifest `fe45b091...17f4564` |
-| R2-S1 D7 local live paired observation | real Qwen OFF model context `7/24`, raw follow/user attack `3/24`; ON all `0/24`; reached-unit quarantine `15/15`; full suite `812 passed` | BGE-M3/Qwen fixed local run, pair-consistent and zero egress; observational status, not universal certification; manifest `5bf058cf...7865e14e` |
+| R2-S1 D7 local live paired observation | real Qwen OFF model context `7/24`, raw canary/tool signal and user attack `3/24`; ON all `0/24`; reached-unit quarantine `15/15`; full suite `812 passed` | BGE-M3/Qwen fixed local run, pair-consistent and zero egress; observational status, not universal certification; manifest `5bf058cf...7865e14e` |
+| R2-S1 V1 redacted public evidence | `36` OFF/ON pairs, `72` content-free rows, `15` independently recomputed metrics; V1 full suite `832 passed` | [Eight-file standalone package](data/v2/public/r2_s1_d7/README.md); run `python verify.py` inside it; source manifest `5bf058cf...7865e14e` |
+| R2-S1 V2 actual Guard scan provenance | `54` focused and `848` full tests passed; no category-based reach inference | Immutable content-free events record actual search/find/open surfaces and exact aggregate members; historical D7 remains `15/28`, while the different hash-embedding test ordering has its own `17/28` baseline |
+| R2-S1 V3 exact local Ollama boundary | `12` boundary contracts and `859` full tests passed | Exact canonical IPv4/IPv6 address + port across HTTP/connect/connect_ex; blocks aliases, proxies, Host override, redirects, urllib, and nested/concurrent activation; process-local evaluator guard, not an OS sandbox |
+| R2-S1 V4 metric semantics versioning | `32` new contracts and `891` full tests passed | Additive mapping only: legacy live v1 schema is preserved; historical OFF `3/24` means raw canary/forbidden-action signal, while semantic attack following remains unmeasured |
+| R2-S1 V5 future arm-order protocol | `22` new contracts, `53` V5 focused, `404` expanded, and `913` full tests passed | Future v2 runs use stable SHA-256 hash-rank counterbalancing, exact `18/18` on the 36-case suite, and manifest/per-arm order evidence; formal D7 remains a fixed OFF-first observation and was not rerun |
 | E7 final-code load rc02 | `31/31` requests | One Windows machine; warm p95 was 1.115 s / 4.244 s / 8.218 s at concurrency 1 / 5 / 10 |
 | E7 workflow ablation rc02 | fixed RAG `0.8571` vs bounded Agentic `1.0000` outcome accuracy | 28-case deterministic synthetic test; Agentic used 47 vs 28 tool calls |
 
-E7 rc02 run IDs and SHA-256 references are recorded in the [E7 acceptance journal](docs/roadmap/e7_final_acceptance_implementation.md); their raw artifacts are intentionally ignored. The checked-in [public snapshot](data/v2/public/demo_snapshot.json) is a separately labeled historical E4/E5 offline-demo batch, including its earlier 1.136/4.406/8.633-second load profile. It is not the source for E7 rc02 numbers. Evaluation definitions are in [Evaluation Protocol](docs/evaluation.md).
+E7 rc02 run IDs and SHA-256 references are recorded in the [E7 acceptance journal](docs/roadmap/e7_final_acceptance_implementation.md); their raw artifacts are intentionally ignored. The checked-in [public snapshot](data/v2/public/demo_snapshot.json) is a separately labeled historical E4/E5 offline-demo batch, including its earlier 1.136/4.406/8.633-second load profile. It is not the source for E7 rc02 numbers. The separate [R2-S1 D7 public evidence package](data/v2/public/r2_s1_d7/README.md) projects the frozen live run into strict redacted rows and can recompute its security metrics without the private run directory or project dependencies. Evaluation definitions are in [Evaluation Protocol](docs/evaluation.md).
+
+R2-S1 raw-follow metric mapping: semantics ID `raw_canary_or_forbidden_action_follow_v1`; legacy serialized field: `model_attack_followed`.
+
+`raw_canary_or_forbidden_action_follow` is true only when a raw document, system, or trace canary is exposed, or a forbidden-tool attempt is recorded; semantic attack following is NOT MEASURED.
+
+R2-S1 arm-order mapping: historical formal D7 used fixed OFF then ON per case. Future live result/manifest v2 uses protocol `stable_case_hash_rank_counterbalanced_v1`, persists the full plan plus per-arm positions, and explicitly blocks reuse of the formal D7 run ID.
 
 ## Quick Start
 
@@ -134,7 +145,7 @@ The generator derives documents and evaluation labels from a checked-in fact mod
 
 - Browser-supplied `UserContext` is validated but not authenticated by real IAM.
 - The corpus and evaluation set are synthetic and small; the live result is a development run, not a generalization estimate.
-- R2-S1 has a frozen [retrieved-content threat model](docs/security/r2_s1/00_scope_and_threat_model.md), historical D2 RED evidence, D3-D5 enforcement, a D6 deterministic paired gate, and one D7 local BGE-M3/Qwen OFF/ON observation. D7 observed OFF raw model follow `3/24` versus ON `0/24`, but the set is visible synthetic regression data; independent holdout and manual red-team review remain `NOT RUN`.
+- R2-S1 has a frozen [retrieved-content threat model](docs/security/r2_s1/00_scope_and_threat_model.md), historical D2 RED evidence, D3-D5 enforcement, a D6 deterministic paired gate, one fixed OFF-first D7 local BGE-M3/Qwen observation, and V1-V5 audit hardening. D7 observed OFF raw canary/forbidden-action signal `3/24` versus ON `0/24`; this is not semantic attack-following measurement, and the set is visible synthetic regression data. V5 counterbalances future v2 runs but has not produced a new real-model result. V3 is a Python evaluator call-graph egress guard rather than an OS sandbox; independent holdout and manual red-team review remain `NOT RUN`.
 - The optional reranker is `NOT RUN`; current ablation does not justify adding one blindly.
 - Traces and metrics are bounded in-memory local structures, not durable distributed observability.
 - Index lifecycle is immutable rebuild/activate, not production incremental upsert/delete.
@@ -158,6 +169,13 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 - [R2-S1 D5 Engineering Journal](docs/security/r2_s1/07_d5_engineering_journal.md)
 - [R2-S1 D6 Engineering Journal](docs/security/r2_s1/08_d6_engineering_journal.md)
 - [R2-S1 D7 Engineering Journal](docs/security/r2_s1/09_d7_engineering_journal.md)
+- [R2-S1 V0 Auditability Verification](docs/security/r2_s1/10_auditability_verification.md)
+- [R2-S1 V1 Public Evidence Engineering Journal](docs/security/r2_s1/11_v1_public_evidence_engineering_journal.md)
+- [R2-S1 V2 Guard Scan Provenance Engineering Journal](docs/security/r2_s1/12_v2_scan_provenance_engineering_journal.md)
+- [R2-S1 V3 Exact Ollama Boundary Engineering Journal](docs/security/r2_s1/13_v3_exact_ollama_boundary_engineering_journal.md)
+- [R2-S1 V4 Metric Semantics Engineering Journal](docs/security/r2_s1/14_v4_metric_semantics_engineering_journal.md)
+- [R2-S1 V5 Counterbalanced Arm-Order Engineering Journal](docs/security/r2_s1/15_v5_counterbalanced_arm_order_engineering_journal.md)
+- [R2-S1 V0-V5 Closeout Review and Improvement Plan](docs/security/r2_s1/16_v0_v5_closeout_review_and_improvement_plan.md)
 - [Observability and Load Evidence](docs/observability.md)
 - [Reproducibility Guide](docs/reproducibility.md)
 - [Data Card](docs/data_card.md)

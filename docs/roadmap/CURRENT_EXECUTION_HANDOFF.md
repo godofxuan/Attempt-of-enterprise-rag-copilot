@@ -1,6 +1,6 @@
 # Enterprise Agentic RAG v2 - Current Execution Handoff
 
-最后更新：2026-07-18
+最后更新：2026-07-19
 
 用途：当 Codex 上下文压缩、任务中断或更换协作者时，从本文恢复精确状态。本文保存当前断点、验证证据和禁止越过的边界；实现细节以各阶段实施记录为准。
 
@@ -424,3 +424,43 @@ Detailed recovery context is in
 ```
 
 自动工程验收已收口。下一步是仓库所有者完成 50-row human review、三个代码实验和口述验收；这些仍是 `NOT RUN`。当前分支不自动 merge、tag、切换默认分支、改仓库名或修改公开状态。
+
+## 18. R2-S1 V0-V5 当前精确断点
+
+外部审查后的 auditability/measurement hardening 已按 V0-V5 顺序执行，并在提交前完成独立 closeout review。当前 branch 仍为 `codex/rag-eval-system`；V1-V5 及收口修复以 `1bf9b95917d7ae813ca6214c7ab83492b4c47aa3` 为基线。用户已经批准收口、提交和推送当前分支；仍不自动 merge、tag、切换默认分支或修改仓库公开状态，也不执行 `git add .`。
+
+```text
+V0 audit verification                  COMPLETE
+V1 redacted public evidence            VERIFIED
+V2 actual Guard scan provenance        GREEN / 848 historical full tests
+V3 exact local Ollama origin boundary  GREEN / 859 historical full tests
+V4 raw-follow metric semantics         GREEN / 891 historical full tests
+V5 future counterbalanced arm order    GREEN / 913 current full tests
+```
+
+V1 在 `data/v2/public/r2_s1_d7/` 发布 8 文件、72 行、15 指标的脱敏独立证据包。V2 删除 category-based reached 推断，改由无原文 `ScannedContentUnit` 事件驱动。V3 将 evaluator HTTP/socket 统一收紧到配置的 exact loopback origin/address/port，但不是 OS sandbox。V4 保留旧 `model_attack_followed` 序列化字段，新增 canonical `raw_canary_or_forbidden_action_follow_v1` 语义并明确 semantic attack following 未测量。
+
+V5 只修改未来 dev/new live protocol：`sha256(case_id)` 后按 hash rank 奇偶分配 OFF→ON/ON→OFF，36-case cohort 精确 18/18。`LivePairedResultV2`、`LiveSecurityRunManifestV2` 和逐 arm `arm_execution` 保存完整可审计顺序；旧 v1 parser/dump 不变。CLI 显式拒绝再次使用正式 run ID `r2-s1-d7-test-20260718-01`。
+
+当前冻结 SHA-256：
+
+```text
+dataset          062aec151d29854ffcebf6368b42fc768f7a0a5f64e1218e32fd326a441a137c
+fixture          eea41009bd5a8eda2b0a1ff7c29e593895d917b4055e9712b1db48daa9d51c1d
+freeze manifest  5c9ba8aaa8cc1a0f8f02ddf011900ed4be022ece95b343902d1ad2469838fdd4
+formal manifest  5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f97865e14e
+```
+
+V0-V5 收口验证：180 targeted cross-module、921 full，只有 3 个已知 FAISS/SWIG warning；compileall/pip/diff clean，公开审计 415 candidates/0 findings，仓库与干净 8-file public verifier 均为 VERIFIED。冻结 dataset、fixture、freeze manifest 和正式 D7 manifest hash 全部 exact。独立审查发现 `0 Critical / 6 Important / 2 Minor`；6 个 Important 已修复并加入回归测试，2 个 Minor 作为准确限制和 R2-S2 安排保留。正式 D7 没有重跑、覆盖或迁移；它仍是 fixed OFF-first observational run。新的真实模型 counterbalanced v2 run、独立 holdout、人工红队、semantic LLM judge、跨模型复现、50-row human review 和 owner 口述验收仍为 `NOT RUN`。
+
+恢复时按顺序读取：
+
+1. `docs/security/r2_s1/10_auditability_verification.md`
+2. `docs/security/r2_s1/11_v1_public_evidence_engineering_journal.md`
+3. `docs/security/r2_s1/12_v2_scan_provenance_engineering_journal.md`
+4. `docs/security/r2_s1/13_v3_exact_ollama_boundary_engineering_journal.md`
+5. `docs/security/r2_s1/14_v4_metric_semantics_engineering_journal.md`
+6. `docs/security/r2_s1/15_v5_counterbalanced_arm_order_engineering_journal.md`
+7. `docs/superpowers/specs/2026-07-19-r2-s1-v5-counterbalanced-arm-order-design.md`
+8. `docs/superpowers/plans/2026-07-19-r2-s1-v5-counterbalanced-arm-order.md`
+9. `docs/security/r2_s1/16_v0_v5_closeout_review_and_improvement_plan.md`

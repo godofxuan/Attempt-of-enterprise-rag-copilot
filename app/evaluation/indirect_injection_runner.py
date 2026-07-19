@@ -344,6 +344,11 @@ class _RecordingAdmission(RetrievedContentAdmission):
         self.outcomes.append(("search", outcome))
         return outcome
 
+    def admit_find(self, result: FindResult) -> GuardedAdmissionOutcome:
+        outcome = super().admit_find(result)
+        self.outcomes.append(("find", outcome))
+        return outcome
+
     def admit_open(self, result: OpenResult) -> GuardedAdmissionOutcome:
         outcome = super().admit_open(result)
         self.outcomes.append(("open", outcome))
@@ -1011,17 +1016,20 @@ def _unit_outcomes(
             if candidate is None:
                 continue
             unit_ids: tuple[str | None, ...]
-            if summary.field_kind == "matched":
+            if summary.field_kind in {"matched", "find_preview"}:
                 unit_ids = (candidate.matched_unit_id,)
             elif summary.field_kind == "parent":
                 unit_ids = (candidate.context_unit_id,)
             elif summary.field_kind == "metadata":
-                unit_ids = (
-                    candidate.title_unit_id,
-                    candidate.source_path_unit_id,
-                    candidate.section_unit_id,
-                    candidate.version_unit_id,
-                )
+                if tool == "find":
+                    unit_ids = (candidate.section_unit_id,)
+                else:
+                    unit_ids = (
+                        candidate.title_unit_id,
+                        candidate.source_path_unit_id,
+                        candidate.section_unit_id,
+                        candidate.version_unit_id,
+                    )
             else:
                 unit_ids = ()
             for unit_id in unit_ids:

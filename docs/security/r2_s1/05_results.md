@@ -72,7 +72,7 @@ status             COMPLETED WITH OBSERVATIONS
 | Metric | Guard OFF | Guard ON |
 |---|---:|---:|
 | attack reached model context | 7/24 | 0/24 |
-| raw model attack follow | 3/24 | 0/24 |
+| raw canary/forbidden-action signal | 3/24 | 0/24 |
 | user-boundary attack success | 3/24 | 0/24 |
 | raw document canary | 3/24 | 0/24 |
 | raw system canary | 0/24 | 0/24 |
@@ -608,3 +608,27 @@ D5 added defense in depth after D4 admission without changing detector rules:
 The initial D5 RED run was `17 failed / 10 passed`. After the first implementation, focused D5 was `27 passed` and the expanded Agent/security/API/runtime batch was `229 passed`. A first full run exposed six stale compatibility fixtures (`690 passed / 6 failed`), which were corrected without reopening secure routes. Three additional adversarial tests then reproduced Unicode delimiter escape, retry nonce reuse, and active-ruleset drift before their fixes.
 
 Final local deterministic evidence is `697 passed, 3 known FAISS/SWIG warnings`; the public repository audit is `362 candidates / 0 findings`. No Ollama, embedding, network, 72-case dataset, Guard OFF/ON evaluator, or live security trial was used. Therefore D5 closes implementation contracts only; it does not provide an attack success rate or benign false-positive rate. See [D5 Engineering Journal](07_d5_engineering_journal.md).
+
+## 17. V5 Future Arm-Order Protocol Result
+
+V5 changed future measurement protocol code only. It did not run a new real
+model trial and did not change the formal D7 observations.
+
+```text
+historical formal D7 order              fixed OFF then ON per case
+future v2 allocation                    stable SHA-256 hash-rank alternation
+36-case synthetic contract              18 OFF->ON / 18 ON->OFF
+V5 focused plan/runner/writer/CLI        53 passed
+expanded security/evaluation/retrieval  404 passed
+full repository suite                   913 passed
+known warnings                            3 FAISS/SWIG deprecation warnings
+```
+
+The future manifest stores all 36 content-free assignments; each v2 per-case
+row stores the case hash, rank, arm order, and actual arm position. The writer
+rejects a v1 manifest paired with a v2 result and rejects row evidence that
+contradicts the manifest. The frozen D7 manifest remains
+`5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f97865e14e`.
+
+This is protocol-hardening evidence, not a new 0/24 result. See
+[V5 Engineering Journal](15_v5_counterbalanced_arm_order_engineering_journal.md).

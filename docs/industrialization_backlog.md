@@ -1,6 +1,6 @@
 # Industrialization Backlog
 
-最后更新：2026-07-17
+最后更新：2026-07-19
 
 本文不是承诺清单。每个 R2 项必须由真实失败、规模或合规需求触发，并在进入实现前定义可复现基线、验收指标、回滚和成本边界。当前 R1 状态见 [Project Status](../PROJECT_STATUS.md)。
 
@@ -20,7 +20,7 @@
 | Priority | Capability | Trigger evidence | Required gate | Why not in R1 |
 |---|---|---|---|---|
 | P0 | Trusted IAM identity | 需要多人/多 tenant 访问，浏览器自报 context 不可接受 | OIDC/JWT verification、server-derived tenant/group、deny-by-default、cross-tenant integration and revocation tests | 没有可信身份就不能公网部署；本地 ACL 只验证 policy data flow |
-| P0 | Indirect document-injection defense | 新 corpus 中恶意 retrieved content 影响 route/tool/generation | Versioned malicious fixture、tool-call/source/canary assertions、human red-team rubric、zero unauthorized action gate | 当前是 `NOT RUN`，没有 fixture 时先加“防御”无法证明有效 |
+| P0 | Independent indirect-injection validation | 当前 D1-D7 与 V1-V5 只覆盖可见 synthetic cohort、单一 BGE-M3/Qwen 配置和一次 fixed-order 历史观察 | 新的 counterbalanced real-model dev replication、独立 holdout、人工红队、semantic judge calibration、跨模型矩阵和 zero unauthorized action gate | Guard 与可审计协议已经实现；现在缺的是独立分布和语义层外部有效性，不能继续靠同一可见集合调规则 |
 | P0 | Human semantic review | 需要对外报告 response quality 或用于业务 pilot | Frozen rubric、blind double review、adjudication、agreement、claim/citation/omission severity | 自动 required-fact 与 lexical checks 不能替代语义可用性判断 |
 | P1 | Incremental upsert/delete | 文档更新频率使全量 rebuild 超过 agreed freshness window | Idempotent event contract、version/tombstone、partial failure recovery、active snapshot consistency、rollback | R1 immutable rebuild 更易审计，当前 72-doc demo 没有增量压力 |
 | P1 | Durable OpenTelemetry | 需要跨进程追踪、历史检索、告警或多副本 | OTel semantic conventions、collector/backend、sampling、redaction、retention、access control、trace-to-eval correlation | 当前 bounded memory 足以本地调试，直接加平台会先增加运维面 |
@@ -41,9 +41,9 @@
 ### R2-A: Trust before scale
 
 1. Trusted IAM identity injection.
-2. Indirect document-injection corpus and security evaluation.
-3. Human semantic review protocol.
-4. Remote CI evidence after repository-owner authorization.
+2. R2-S1 current-candidate review, Git delivery, and remote CI evidence.
+3. Counterbalanced real-model development replication with a new run ID.
+4. Independent indirect-injection holdout, human red-team review, and semantic judge calibration.
 
 没有这四项，不应把本地 demo 包装成多租户服务。
 

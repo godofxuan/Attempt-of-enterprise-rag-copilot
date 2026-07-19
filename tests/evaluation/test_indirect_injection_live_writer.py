@@ -8,6 +8,10 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from app.evaluation import indirect_injection_live_writer as live_writer
+from app.evaluation.indirect_injection_arm_order import (
+    build_counterbalanced_arm_order_plan,
+)
 from app.evaluation.indirect_injection_dataset import (
     build_v1_bundle,
     load_security_bundle,
@@ -72,6 +76,28 @@ def writer_inputs(tmp_path_factory: pytest.TempPathFactory):
             chat_model="qwen2.5:3b",
         ),
         clock_ms=lambda: 1_000.0,
+    )
+    return bundle, built, result
+
+
+@pytest.fixture(scope="module")
+def writer_v2_inputs(writer_inputs):
+    bundle, built, _ = writer_inputs
+    plan = build_counterbalanced_arm_order_plan(
+        case.case_id for case in bundle.dataset.cases
+    )
+    result = evaluate_live_paired(
+        dataset=bundle.dataset,
+        fixtures=bundle.fixture_manifest,
+        snapshot=built.snapshot,
+        embed_text=_embedding,
+        chat_fn=_StructuredFixtureChat(),
+        config=LiveSecurityConfig(
+            llm_endpoint="http://127.0.0.1:11434/v1",
+            chat_model="qwen2.5:3b",
+        ),
+        clock_ms=lambda: 1_000.0,
+        arm_order=plan,
     )
     return bundle, built, result
 
@@ -218,6 +244,19 @@ def _manifest(bundle, built, result) -> LiveSecurityRunManifest:
     )
 
 
+def _manifest_v2(bundle, built, result):
+    payload = _manifest(bundle, built, result).model_dump(mode="python")
+    payload.update(
+        {
+            "schema_version": "indirect_injection_live_security_run_manifest_v2",
+            "run_id": "r2-s1-v5-live-writer-test",
+            "mode": "local_live_paired_counterbalanced",
+            "arm_order": result.arm_order,
+        }
+    )
+    return live_writer.LiveSecurityRunManifestV2.model_validate(payload)
+
+
 def _forbidden_texts(bundle) -> tuple[str, ...]:
     values: set[str] = set()
     for case in bundle.dataset.cases:
@@ -323,3 +362,168 @@ def test_live_manifest_cannot_call_observations_a_release_pass(writer_inputs) ->
 
     with pytest.raises(ValidationError):
         LiveSecurityRunManifest.model_validate(payload)
+
+
+def test_publish_v2_records_manifest_plan_and_actual_per_case_arm_positions(
+    tmp_path: Path,
+    writer_v2_inputs,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        manifest,
+        result,
+        paired_evidence="# V5 counterbalanced evidence\n",
+        commands="python -m scripts.eval_indirect_injection_live --split test\n",
+        test_output="Synthetic model/index preflight passed.\n",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+
+    serialized_manifest = json.loads(
+        (target / "manifest.json").read_text(encoding="utf-8")
+    )
+    rows = [
+        json.loads(line)
+        for line in (target / "per_case.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert serialized_manifest["schema_version"] == (
+        "indirect_injection_live_security_run_manifest_v2"
+    )
+    assert serialized_manifest["mode"] == "local_live_paired_counterbalanced"
+    assert serialized_manifest["arm_order"]["case_count"] == 36
+    assert serialized_manifest["arm_order"]["off_then_on_count"] == 18
+    assert serialized_manifest["arm_order"]["on_then_off_count"] == 18
+    assert len(serialized_manifest["arm_order"]["assignments"]) == 36
+    assert len(rows) == 72
+
+    for pair_index, assignment in enumerate(result.arm_order.assignments):
+        pair = rows[pair_index * 2 : pair_index * 2 + 2]
+        assert [row["live"]["case_id"] for row in pair] == [
+            assignment.case_id,
+            assignment.case_id,
+        ]
+        assert [row["live"]["guard_mode"] for row in pair] == list(
+            assignment.modes()
+        )
+        assert [row["arm_execution"]["arm_position"] for row in pair] == [1, 2]
+        for row in pair:
+            assert set(row) == {"arm_execution", "security", "live"}
+            assert row["security"]["guard_mode"] == row["live"]["guard_mode"]
+            assert row["arm_execution"] == {
+                "protocol_id": result.arm_order.protocol_id,
+                "case_hash": assignment.case_hash,
+                "hash_rank": assignment.hash_rank,
+                "arm_order": assignment.arm_order,
+                "execution_index": row["arm_execution"]["execution_index"],
+                "arm_position": row["arm_execution"]["arm_position"],
+            }
+            event = next(
+                event
+                for event in result.arm_execution
+                if event.case_id == assignment.case_id
+                and event.guard_mode == row["live"]["guard_mode"]
+            )
+            assert row["arm_execution"]["execution_index"] == (
+                event.execution_index
+            )
+
+
+def test_v2_per_case_validator_rejects_tampered_arm_position(
+    tmp_path: Path,
+    writer_v2_inputs,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        manifest,
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+    rows_path = target / "per_case.jsonl"
+    rows = rows_path.read_text(encoding="utf-8").splitlines()
+    first = json.loads(rows[0])
+    first["arm_execution"]["arm_position"] = 2
+    rows[0] = json.dumps(first, ensure_ascii=False, sort_keys=True)
+    tampered = tmp_path / "tampered.jsonl"
+    tampered.write_text("\n".join(rows) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="arm position"):
+        live_writer._validate_v2_per_case_rows(tampered, manifest)
+
+
+def test_v2_stage_rejects_self_consistent_hashes_with_contradictory_summary(
+    tmp_path: Path,
+    writer_v2_inputs,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        manifest,
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+    summary_path = target / "summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary["guard_off_live"]["case_count"] += 1
+    summary_path.write_bytes(live_writer._json_bytes(summary))
+
+    checksum_payload = "".join(
+        f"{live_writer._sha256(target / name)}  {name}\n"
+        for name in live_writer._CHECKSUM_CONTENT_NAMES
+    ).encode("utf-8")
+    (target / "checksums.sha256").write_bytes(checksum_payload)
+
+    published_manifest = live_writer.LiveSecurityRunManifestV2.model_validate_json(
+        (target / "manifest.json").read_bytes()
+    )
+    manifest_payload = published_manifest.model_dump(mode="python")
+    manifest_payload["artifacts"] = {
+        name: {
+            "path": name,
+            "bytes": (target / name).stat().st_size,
+            "sha256": live_writer._sha256(target / name),
+        }
+        for name in sorted(live_writer._ARTIFACT_NAMES)
+    }
+    tampered_manifest = live_writer.LiveSecurityRunManifestV2.model_validate(
+        manifest_payload
+    )
+    (target / "manifest.json").write_bytes(
+        live_writer._json_bytes(tampered_manifest.model_dump(mode="json"))
+    )
+
+    with pytest.raises(ValueError, match="summary"):
+        live_writer._validate_stage(target, tampered_manifest)
+
+
+def test_writer_rejects_v1_manifest_with_v2_result(
+    tmp_path: Path,
+    writer_v2_inputs,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    v1_manifest = _manifest(bundle, built, result).model_copy(
+        update={"run_id": "r2-s1-v5-version-mismatch"}
+    )
+
+    with pytest.raises(ValueError, match="manifest/result schema versions"):
+        publish_live_security_run(
+            tmp_path / "runs",
+            v1_manifest,
+            result,
+            paired_evidence="safe",
+            commands="safe",
+            test_output="safe",
+            forbidden_texts=_forbidden_texts(bundle),
+        )

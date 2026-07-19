@@ -1,5 +1,11 @@
 # R2-S1 D7 Local Live Paired Evaluation Engineering Journal
 
+> V5 historical-label note (2026-07-19): this formal D7 artifact is a fixed
+> OFF-then-ON-per-case observational run. It was not rerun or rewritten during
+> V5. Only future v2 runs use stable SHA-256 hash-rank counterbalancing and
+> record arm order in the manifest and per-case evidence. See
+> [V5 Engineering Journal](15_v5_counterbalanced_arm_order_engineering_journal.md).
+
 状态：D7 实现完成；dev 校准完成；唯一 frozen test live run 完成
 
 日期：2026-07-18
@@ -18,7 +24,7 @@ D7 回答的是另一类问题：在本机固定的 BGE-M3、Qwen2.5 3B、索引
 
 1. 把 D6 的 post-parser fixture 投影成生产 `V2IndexSnapshot` 能校验和加载的专用索引，真实调用 BGE-M3 建向量和查询；
 2. 同一题以相同索引、问题、候选集、预算、模型、structured schema 和 nonce 序列运行 Guard OFF 与 ON，唯一变量是 Guard；
-3. 使用真实 Qwen，分别记录攻击是否进入模型上下文、模型原始输出是否跟随、最终用户边界是否暴露；
+3. 使用真实 Qwen，分别记录攻击是否进入模型上下文、是否出现 raw canary/forbidden-action signal、最终用户边界是否暴露；
 4. 发布不可覆盖、带完整 provenance、且不含 prompt、原始证据或模型原文的运行产物。
 
 正式 test 的核心观察如下：
@@ -26,7 +32,7 @@ D7 回答的是另一类问题：在本机固定的 BGE-M3、Qwen2.5 3B、索引
 | 指标 | Guard OFF | Guard ON |
 |---|---:|---:|
 | attack content reached model context | `7/24` | `0/24` |
-| raw model followed an attack | `3/24` | `0/24` |
+| raw canary/forbidden-action signal | `3/24` | `0/24` |
 | user-boundary attack success | `3/24` | `0/24` |
 | raw document canary emission | `3/24` | `0/24` |
 | raw system canary emission | `0/24` | `0/24` |
@@ -435,7 +441,7 @@ ImportError: cannot import name eval_indirect_injection_live
 ```text
 protocol complete                 true
 ON model context                  0 / 24
-ON raw follow                     0 / 24
+ON raw canary/forbidden-action signal  0 / 24
 ON user attack                    0 / 24
 legacy quarantine recall         15 / 28
 ```
@@ -580,7 +586,7 @@ ON 的 15 个 reached attack units 在 Controller 前全部 quarantine，13 个�
 
 ```text
 attack in model context      0 / 24
-raw model attack follow      0 / 24
+raw canary/forbidden-action signal  0 / 24
 user-boundary attack         0 / 24
 forbidden tool               0 / 24
 external egress              0 / 24
@@ -629,7 +635,7 @@ deterministic_threshold_diagnostic_passed = false
 ### 8.1 好的结果
 
 - OFF 确实暴露真实 Qwen 跟随行为，不是一个全拒绝、没有区分度的基线；
-- ON 把 model-context、raw follow 和 user-boundary attack 全部降到 0；
+- ON 把 model-context、raw canary/forbidden-action signal 和 user-boundary attack 全部降到 0；
 - reached Guard 的攻击条件隔离率为 100%；
 - benign false positive 为 0；
 - clean、mixed recovery 和 poison-only mode 全部保持；

@@ -63,6 +63,7 @@ def test_parser_has_no_force_guard_or_model_override_switches() -> None:
     assert "--guard-off" not in options
     assert "--chat-model" not in options
     assert "--embedding-model" not in options
+    assert "--arm-order-protocol" not in options
     assert {"--split", "--run-id", "--data-root", "--out-dir", "--index-root"}.issubset(options)
 
 
@@ -143,6 +144,98 @@ def test_frozen_test_mismatch_aborts_before_any_model_or_index_call(
                 str(tmp_path / "indexes"),
             ]
         )
+
+    assert called == []
+
+
+def test_self_consistent_alternative_test_bundle_is_not_the_frozen_cohort(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data_root = _bundle_root(tmp_path)
+    dataset_path = data_root / "indirect_injection_test_v1.json"
+    dataset = json.loads(dataset_path.read_text(encoding="utf-8"))
+    dataset["cases"][0]["question"] += " altered"
+    dataset_path.write_text(
+        json.dumps(dataset, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    freeze_path = data_root / "indirect_injection_test_v1.manifest.json"
+    freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
+    freeze["dataset_sha256"] = eval_indirect_injection_live._sha256(dataset_path)
+    freeze["dataset_bytes"] = dataset_path.stat().st_size
+    freeze_path.write_text(
+        json.dumps(freeze, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    called: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "verify_r1_frozen_hashes",
+        lambda _root: {},
+    )
+
+    def unexpected_settings_call():
+        called.append("settings")
+        raise AssertionError("alternative test data reached runtime setup")
+
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "get_settings",
+        unexpected_settings_call,
+    )
+
+    with pytest.raises(ValueError, match="official frozen test cohort"):
+        eval_indirect_injection_live.main(
+            [
+                "--split",
+                "test",
+                "--run-id",
+                "r2-s1-v5-alternative-test",
+                "--data-root",
+                str(data_root),
+                "--out-dir",
+                str(tmp_path / "runs"),
+                "--index-root",
+                str(tmp_path / "indexes"),
+            ]
+        )
+
+    assert called == []
+
+
+@pytest.mark.parametrize("option", ["--out-dir", "--index-root"])
+def test_future_run_cannot_write_inside_the_frozen_formal_run_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    option: str,
+) -> None:
+    frozen = (
+        eval_indirect_injection_live.DEFAULT_OUT_DIR
+        / eval_indirect_injection_live.FROZEN_FORMAL_D7_RUN_ID
+    )
+    called: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "verify_r1_frozen_hashes",
+        lambda _root: called.append("frozen-check"),
+    )
+    argv = [
+        "--split",
+        "dev",
+        "--run-id",
+        "r2-s1-v5-frozen-directory-probe",
+        "--data-root",
+        str(tmp_path / "unused-data"),
+        "--out-dir",
+        str(tmp_path / "safe-runs"),
+        "--index-root",
+        str(tmp_path / "safe-indexes"),
+    ]
+    argv[argv.index(option) + 1] = str(frozen)
+
+    with pytest.raises(ValueError, match="frozen formal D7 directory"):
+        eval_indirect_injection_live.main(argv)
 
     assert called == []
 
@@ -263,11 +356,78 @@ def test_completed_live_observation_publishes_and_returns_zero_even_with_attacks
     run = out / "d7-completed-observation"
     manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
     summary = json.loads((run / "summary.json").read_text(encoding="utf-8"))
+    rows = [
+        json.loads(line)
+        for line in (run / "per_case.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
     assert manifest["status"] == "COMPLETED WITH OBSERVATIONS"
+    assert manifest["schema_version"] == (
+        "indirect_injection_live_security_run_manifest_v2"
+    )
+    assert manifest["mode"] == "local_live_paired_counterbalanced"
+    assert manifest["arm_order"]["protocol_id"] == (
+        "stable_case_hash_rank_counterbalanced_v1"
+    )
+    assert manifest["arm_order"]["case_count"] == 36
+    assert manifest["arm_order"]["off_then_on_count"] == 18
+    assert manifest["arm_order"]["on_then_off_count"] == 18
+    assert len(manifest["arm_order"]["assignments"]) == 36
+    assert summary["schema_version"] == "indirect_injection_live_paired_result_v2"
+    assert summary["arm_order"]["off_then_on_count"] == 18
+    assert len(rows) == 72
+    assert all(set(row) == {"arm_execution", "security", "live"} for row in rows)
     assert manifest["models"]["embedding"]["digest"] == "7" * 64
     assert manifest["models"]["chat"]["digest"] == "8" * 64
     assert summary["guard_off_live"]["model_attack_followed"]["numerator"] >= 1
+    evidence = (run / "red_green_evidence.md").read_text(encoding="utf-8")
+    assert "raw canary or forbidden-action follow" in evidence
+    assert "raw_canary_or_forbidden_action_follow_v1" in evidence
+    assert "semantic attack following is NOT MEASURED" in evidence
+    assert "stable_case_hash_rank_counterbalanced_v1" in evidence
+    assert "raw model attack-follow observation" not in evidence
     assert manifest["observation"]["deterministic_threshold_diagnostic_passed"] in {
         True,
         False,
     }
+
+
+def test_frozen_formal_d7_run_id_is_rejected_before_any_external_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "verify_r1_frozen_hashes",
+        lambda _root: called.append("frozen-data"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "fetch_ollama_runtime",
+        lambda *args, **kwargs: called.append("model"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "build_live_fixture_index",
+        lambda *args, **kwargs: called.append("index"),
+    )
+
+    with pytest.raises(ValueError, match="frozen formal D7 run ID"):
+        eval_indirect_injection_live.main(
+            [
+                "--split",
+                "test",
+                "--run-id",
+                "r2-s1-d7-test-20260718-01",
+                "--data-root",
+                str(tmp_path / "missing-data"),
+                "--out-dir",
+                str(tmp_path / "different-output-root"),
+                "--index-root",
+                str(tmp_path / "different-index-root"),
+            ]
+        )
+
+    assert called == []

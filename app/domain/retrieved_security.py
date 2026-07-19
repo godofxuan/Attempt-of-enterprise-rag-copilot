@@ -151,6 +151,7 @@ GuardFieldKind = Literal[
     "metadata",
     "aggregate",
 ]
+GuardOperation = Literal["search", "find", "open"]
 
 
 class _GuardedModel(BaseModel):
@@ -375,6 +376,74 @@ class QuarantineSummary(_GuardedModel):
         return self
 
 
+class ScannedContentUnit(_GuardedModel):
+    operation: GuardOperation
+    surface: GuardFieldKind
+    internal_item_key: str = Field(
+        min_length=1,
+        exclude=True,
+        repr=False,
+    )
+    member_internal_ids: tuple[str, ...] = Field(
+        min_length=1,
+        max_length=16,
+        exclude=True,
+        repr=False,
+    )
+    aggregate: bool
+    disposition: GuardDisposition
+    rule_ids: tuple[str, ...] = Field(default_factory=tuple, max_length=32)
+
+    @field_validator("member_internal_ids")
+    @classmethod
+    def validate_member_ids(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        if any(not value for value in values):
+            raise ValueError("scan member IDs must be non-empty identifiers")
+        if len(values) != len(set(values)):
+            raise ValueError("scan member IDs must be unique")
+        return values
+
+    @field_validator("rule_ids")
+    @classmethod
+    def validate_scan_rule_ids(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        if values != tuple(sorted(set(values))):
+            raise ValueError("scan rule IDs must be unique and sorted")
+        if any(value not in RULE_SPECS for value in values):
+            raise ValueError("scan rule IDs must come from the detector allowlist")
+        return values
+
+    @model_validator(mode="after")
+    def validate_scan_provenance(self) -> ScannedContentUnit:
+        allowed_surfaces = {
+            "search": {"matched", "parent", "metadata", "aggregate"},
+            "find": {"find_preview", "metadata"},
+            "open": {"open", "metadata"},
+        }
+        if self.surface not in allowed_surfaces[self.operation]:
+            raise ValueError("scan surface is not valid for the operation")
+        if self.aggregate != (self.surface == "aggregate"):
+            raise ValueError("aggregate flag must exactly match aggregate surface")
+        if self.aggregate:
+            if len(self.member_internal_ids) < 2:
+                raise ValueError("aggregate scan requires at least two members")
+            if self.internal_item_key != ":".join(self.member_internal_ids):
+                raise ValueError("aggregate scan key must exactly match its members")
+        elif (
+            len(self.member_internal_ids) != 1
+            or self.member_internal_ids[0] != self.internal_item_key
+        ):
+            raise ValueError("non-aggregate scan requires its exact item as one member")
+
+        quarantined = any(
+            RULE_SPECS[rule_id][1] in {"quarantine", "error"}
+            for rule_id in self.rule_ids
+        )
+        expected_disposition = "QUARANTINE" if quarantined else "ADMIT"
+        if self.disposition != expected_disposition:
+            raise ValueError("scan disposition must exactly match its rule severity")
+        return self
+
+
 class SecurityCounters(_GuardedModel):
     candidate_count: int = Field(ge=0)
     scanned_count: int = Field(ge=0)
@@ -595,6 +664,7 @@ __all__ = [
     "GuardDecision",
     "GuardDisposition",
     "GuardFieldKind",
+    "GuardOperation",
     "GuardedFindResult",
     "GuardedOpenAdmittedResult",
     "GuardedOpenQuarantinedResult",
@@ -605,6 +675,7 @@ __all__ = [
     "GuardSeverity",
     "QuarantineSummary",
     "RiskCategory",
+    "ScannedContentUnit",
     "RetrievedContentSecurityTrace",
     "SecurityCounters",
 ]

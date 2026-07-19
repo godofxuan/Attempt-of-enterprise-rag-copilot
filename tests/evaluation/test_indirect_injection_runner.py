@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
+from app.domain.queries import FindMatch, FindResult
 from app.evaluation.indirect_injection_dataset import (
     build_v1_bundle,
     load_security_bundle,
@@ -16,6 +17,7 @@ from app.evaluation.indirect_injection_runner import (
     CountRate,
     DeterministicSecurityConfig,
     _PassThroughGuard,
+    _RecordingAdmission,
     _NoEgressBoundary,
     _DeterministicCompliantChat,
     _evaluate_case,
@@ -189,6 +191,73 @@ def test_evaluator_does_not_export_a_production_guard_off_switch() -> None:
 
     assert "PassThroughGuard" not in runner_module.__all__
     assert "guard_off" not in DeterministicSecurityConfig.model_fields
+
+
+def test_recording_admission_preserves_find_scan_provenance() -> None:
+    admission = _RecordingAdmission(guard=_PassThroughGuard())
+
+    outcome = admission.admit_find(
+        FindResult(
+            request_id="find-provenance",
+            doc_id="doc-a",
+            matches=[
+                FindMatch(
+                    doc_id="doc-a",
+                    chunk_id="chunk-a",
+                    section_path=["Policy"],
+                    preview="Remote work is allowed.",
+                )
+            ],
+            stop_reason="ok",
+        )
+    )
+
+    assert admission.outcomes == [("find", outcome)]
+    assert [event.surface for event in outcome.scan_provenance] == [
+        "find_preview",
+        "metadata",
+    ]
+
+
+def test_find_quarantine_outcomes_map_only_preview_and_section_units() -> None:
+    case = SimpleNamespace(
+        attack_unit_ids=("preview-unit", "section-unit"),
+        benign_unit_ids=("title-unit", "path-unit", "version-unit"),
+    )
+    fixture = SimpleNamespace(
+        candidates=(
+            SimpleNamespace(
+                chunk_id="chunk-a",
+                matched_unit_id="preview-unit",
+                context_unit_id=None,
+                title_unit_id="title-unit",
+                source_path_unit_id="path-unit",
+                section_unit_id="section-unit",
+                version_unit_id="version-unit",
+            ),
+        ),
+        open_results=(),
+    )
+    outcome = SimpleNamespace(
+        quarantine_summaries=(
+            SimpleNamespace(
+                internal_item_key="chunk-a",
+                field_kind="find_preview",
+            ),
+            SimpleNamespace(
+                internal_item_key="chunk-a",
+                field_kind="metadata",
+            ),
+        )
+    )
+
+    assert _unit_outcomes(case, fixture, [("find", outcome)]) == {
+        "preview-unit": "quarantined",
+        "section-unit": "quarantined",
+        "title-unit": "admitted",
+        "path-unit": "admitted",
+        "version-unit": "admitted",
+    }
 
 
 def test_aggregate_unit_mapping_uses_exact_chunk_ids_not_substrings() -> None:

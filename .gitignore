@@ -13,6 +13,7 @@ __pycache__/
 .env.*
 !.env.example
 .private/
+.superpowers/
 
 # Local databases and generated runtime artifacts
 data/app.db

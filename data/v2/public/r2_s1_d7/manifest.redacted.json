@@ -1,0 +1,57 @@
+{
+  "case_pair_count": 36,
+  "data": {
+    "attack_case_count": 24,
+    "benign_case_count": 12,
+    "dataset_case_count": 36,
+    "dataset_sha256": "062aec151d29854ffcebf6368b42fc768f7a0a5f64e1218e32fd326a441a137c",
+    "fixture_manifest_sha256": "eea41009bd5a8eda2b0a1ff7c29e593895d917b4055e9712b1db48daa9d51c1d"
+  },
+  "guard": {
+    "detector_version": "rcg-v1.1.0",
+    "max_decoded_views": 8,
+    "max_normalized_chars": 20000,
+    "max_scan_chars": 20000,
+    "ruleset_sha256": "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2"
+  },
+  "limitations": [
+    "This is one local model observation, not a universal model-safety claim.",
+    "The frozen test set is visible regression data, not unseen data.",
+    "Raw follow means canary or forbidden-tool signal; it is not a semantic LLM judge.",
+    "The source protocol ran each case OFF then ON without counterbalancing.",
+    "Reached-unit values reproduce the D7 source evaluator v1 semantics."
+  ],
+  "models": {
+    "chat": {
+      "digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+      "requested_name": "qwen2.5:3b",
+      "resolved_name": "qwen2.5:3b"
+    },
+    "embedding": {
+      "digest": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+      "requested_name": "bge-m3",
+      "resolved_name": "bge-m3:latest"
+    },
+    "temperature": 0.0,
+    "think": false
+  },
+  "package_id": "r2_s1_d7",
+  "producer": "enterprise_agentic_rag_v2",
+  "protocol": {
+    "public_row_order": "case_id_then_off_on",
+    "raw_follow_semantics": "canary_or_forbidden_tool_signal",
+    "source_arm_order": "off_then_on_per_case",
+    "source_reached_semantics": "d7_source_evaluator_v1"
+  },
+  "row_count": 72,
+  "schema_version": "indirect_injection_public_evidence_manifest_v1",
+  "source": {
+    "git_commit": "4b7d0b91078a3246cb9e801631c0a47691bf3985",
+    "manifest_schema_version": "indirect_injection_live_security_run_manifest_v1",
+    "manifest_sha256": "5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f97865e14e",
+    "mode": "local_live_paired",
+    "run_id": "r2-s1-d7-test-20260718-01",
+    "split": "test",
+    "status": "COMPLETED WITH OBSERVATIONS"
+  }
+}

@@ -15,12 +15,15 @@ from app.domain.retrieved_security import (
     AdmittedFindMatch,
     AdmittedOpenResult,
     GuardDecision,
+    GuardFieldKind,
+    GuardOperation,
     GuardedFindResult,
     GuardedOpenAdmittedResult,
     GuardedOpenQuarantinedResult,
     GuardedSearchResult,
     QuarantineSummary,
     RiskCategory,
+    ScannedContentUnit,
     SecurityCounters,
 )
 from app.retrieval.pipeline import RankedSearchCandidate, RankedSearchPool
@@ -54,6 +57,7 @@ class GuardedAdmissionOutcome(BaseModel):
     quarantine_summaries: tuple[QuarantineSummary, ...] = Field(
         default_factory=tuple
     )
+    scan_provenance: tuple[ScannedContentUnit, ...] = Field(default_factory=tuple)
     security_counters: SecurityCounters
     security_stop_reason: Literal["evidence_filtered"] | None = None
     context_chars: int = Field(ge=0)
@@ -67,6 +71,28 @@ class GuardedAdmissionOutcome(BaseModel):
             raise ValueError(
                 "quarantine summaries must match quarantined content count"
             )
+        if len(self.scan_provenance) != self.security_counters.scanned_count:
+            raise ValueError("scan provenance must match the counted Guard scans")
+        admitted = sum(
+            item.disposition == "ADMIT" for item in self.scan_provenance
+        )
+        quarantined = len(self.scan_provenance) - admitted
+        if (
+            admitted != self.security_counters.admitted_count
+            or quarantined != self.security_counters.quarantined_count
+        ):
+            raise ValueError("scan provenance dispositions must match Guard counters")
+        expected_operation: GuardOperation
+        if isinstance(self.result, GuardedSearchResult):
+            expected_operation = "search"
+        elif isinstance(self.result, GuardedFindResult):
+            expected_operation = "find"
+        else:
+            expected_operation = "open"
+        if any(
+            item.operation != expected_operation for item in self.scan_provenance
+        ):
+            raise ValueError("scan provenance operation must match the result")
         filtered = (
             self.security_counters.candidate_count > 0
             and self.security_counters.post_guard_evidence_count == 0
@@ -137,12 +163,14 @@ class RetrievedContentAdmission:
         candidates = pool.candidates[: request.candidate_k]
         builder = _CounterBuilder(candidate_count=len(candidates))
         summaries: list[QuarantineSummary] = []
+        provenance: list[ScannedContentUnit] = []
         matched_decisions: dict[str, GuardDecision] = {}
         matched_summaries: set[str] = set()
         blocked = self._scan_split_windows(
             candidates,
             builder=builder,
             summaries=summaries,
+            provenance=provenance,
             matched_decisions=matched_decisions,
             matched_summaries=matched_summaries,
         )
@@ -162,11 +190,16 @@ class RetrievedContentAdmission:
                 candidate,
                 builder=builder,
                 summaries=summaries,
+                provenance=provenance,
                 cache=matched_decisions,
                 summarized=matched_summaries,
             )
-            metadata_decision = self._scan(
+            metadata_decision = self._scan_recorded(
                 _search_metadata(candidate),
+                provenance=provenance,
+                operation="search",
+                surface="metadata",
+                internal_item_key=hit.chunk_id,
             )
             builder.record(metadata_decision)
             if metadata_decision.disposition == "QUARANTINE":
@@ -181,7 +214,13 @@ class RetrievedContentAdmission:
                     update={"context_from_parent": False}
                 )
             elif hit.context_from_parent:
-                context_decision = self._scan(hit.context_text)
+                context_decision = self._scan_recorded(
+                    hit.context_text,
+                    provenance=provenance,
+                    operation="search",
+                    surface="parent",
+                    internal_item_key=hit.chunk_id,
+                )
                 builder.record(context_decision)
                 if context_decision.disposition == "QUARANTINE":
                     summaries.append(
@@ -229,6 +268,7 @@ class RetrievedContentAdmission:
         return GuardedAdmissionOutcome(
             result=result,
             quarantine_summaries=tuple(summaries),
+            scan_provenance=tuple(provenance),
             security_counters=counters,
             security_stop_reason=_security_stop(counters),
             context_chars=sum(_search_context_chars(item) for item in selected),
@@ -237,10 +277,23 @@ class RetrievedContentAdmission:
     def admit_find(self, result: FindResult) -> GuardedAdmissionOutcome:
         builder = _CounterBuilder(candidate_count=len(result.matches))
         summaries: list[QuarantineSummary] = []
+        provenance: list[ScannedContentUnit] = []
         admitted: list[AdmittedFindMatch] = []
         for match in result.matches:
-            preview_decision = self._scan(match.preview)
-            metadata_decision = self._scan("\n".join(match.section_path))
+            preview_decision = self._scan_recorded(
+                match.preview,
+                provenance=provenance,
+                operation="find",
+                surface="find_preview",
+                internal_item_key=match.chunk_id,
+            )
+            metadata_decision = self._scan_recorded(
+                "\n".join(match.section_path),
+                provenance=provenance,
+                operation="find",
+                surface="metadata",
+                internal_item_key=match.chunk_id,
+            )
             builder.record(preview_decision)
             builder.record(metadata_decision)
             if preview_decision.disposition == "QUARANTINE":
@@ -275,6 +328,7 @@ class RetrievedContentAdmission:
         return GuardedAdmissionOutcome(
             result=guarded,
             quarantine_summaries=tuple(summaries),
+            scan_provenance=tuple(provenance),
             security_counters=counters,
             security_stop_reason=_security_stop(counters),
             context_chars=sum(_find_context_chars(item) for item in admitted),
@@ -283,8 +337,21 @@ class RetrievedContentAdmission:
     def admit_open(self, result: OpenResult) -> GuardedAdmissionOutcome:
         builder = _CounterBuilder(candidate_count=1)
         summaries: list[QuarantineSummary] = []
-        content_decision = self._scan(result.content)
-        metadata_decision = self._scan(_open_metadata(result))
+        provenance: list[ScannedContentUnit] = []
+        content_decision = self._scan_recorded(
+            result.content,
+            provenance=provenance,
+            operation="open",
+            surface="open",
+            internal_item_key=result.target_id,
+        )
+        metadata_decision = self._scan_recorded(
+            _open_metadata(result),
+            provenance=provenance,
+            operation="open",
+            surface="metadata",
+            internal_item_key=result.target_id,
+        )
         builder.record(content_decision)
         builder.record(metadata_decision)
         if content_decision.disposition == "QUARANTINE":
@@ -315,6 +382,7 @@ class RetrievedContentAdmission:
         return GuardedAdmissionOutcome(
             result=guarded,
             quarantine_summaries=tuple(summaries),
+            scan_provenance=tuple(provenance),
             security_counters=counters,
             security_stop_reason=_security_stop(counters),
             context_chars=context_chars,
@@ -326,13 +394,20 @@ class RetrievedContentAdmission:
         *,
         builder: _CounterBuilder,
         summaries: list[QuarantineSummary],
+        provenance: list[ScannedContentUnit],
         cache: dict[str, GuardDecision],
         summarized: set[str],
     ) -> GuardDecision:
         chunk_id = candidate.hit.chunk_id
         decision = cache.get(chunk_id)
         if decision is None:
-            decision = self._scan(candidate.hit.matched_text)
+            decision = self._scan_recorded(
+                candidate.hit.matched_text,
+                provenance=provenance,
+                operation="search",
+                surface="matched",
+                internal_item_key=chunk_id,
+            )
             cache[chunk_id] = decision
             builder.record(decision)
         if decision.disposition == "QUARANTINE" and chunk_id not in summarized:
@@ -346,6 +421,7 @@ class RetrievedContentAdmission:
         *,
         builder: _CounterBuilder,
         summaries: list[QuarantineSummary],
+        provenance: list[ScannedContentUnit],
         matched_decisions: dict[str, GuardDecision],
         matched_summaries: set[str],
     ) -> set[str]:
@@ -366,7 +442,16 @@ class RetrievedContentAdmission:
                         continue
                     if normalized_content_length(aggregate) > MAX_SPLIT_CHARS:
                         continue
-                    aggregate_decision = self._scan(aggregate)
+                    member_ids = tuple(item.hit.chunk_id for item in window)
+                    aggregate_decision = self._scan_recorded(
+                        aggregate,
+                        provenance=provenance,
+                        operation="search",
+                        surface="aggregate",
+                        internal_item_key=_aggregate_key(window),
+                        member_internal_ids=member_ids,
+                        aggregate=True,
+                    )
                     if aggregate_decision.disposition == "ADMIT":
                         builder.record(aggregate_decision)
                         continue
@@ -376,6 +461,7 @@ class RetrievedContentAdmission:
                             item,
                             builder=builder,
                             summaries=summaries,
+                            provenance=provenance,
                             cache=matched_decisions,
                             summarized=matched_summaries,
                         )
@@ -435,6 +521,35 @@ class RetrievedContentAdmission:
                 decoded_view_count=0,
                 guard_error=True,
             )
+
+    def _scan_recorded(
+        self,
+        content: str,
+        *,
+        provenance: list[ScannedContentUnit],
+        operation: GuardOperation,
+        surface: GuardFieldKind,
+        internal_item_key: str,
+        member_internal_ids: tuple[str, ...] | None = None,
+        aggregate: bool = False,
+    ) -> GuardDecision:
+        decision = self._scan(content)
+        provenance.append(
+            ScannedContentUnit(
+                operation=operation,
+                surface=surface,
+                internal_item_key=internal_item_key,
+                member_internal_ids=(
+                    member_internal_ids
+                    if member_internal_ids is not None
+                    else (internal_item_key,)
+                ),
+                aggregate=aggregate,
+                disposition=decision.disposition,
+                rule_ids=decision.rule_ids,
+            )
+        )
+        return decision
 
 
 def _summary(

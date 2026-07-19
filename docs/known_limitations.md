@@ -1,6 +1,6 @@
 # Known Limitations
 
-最后更新：2026-07-18
+最后更新：2026-07-19
 
 本文使用三个状态：`FAILED` 表示已运行且未通过；`NOT RUN` 表示没有满足协议的 fixture/依赖或实验；“未实现”表示代码能力不存在。`NOT RUN` 不能写成通过。
 
@@ -11,7 +11,7 @@
 | Identity | `UserContext` 由浏览器/调用方声明，只做 schema 和 policy 验证 | 本地演示可以验证 ACL 逻辑，但不能证明真实用户身份 | 由可信 OIDC/IAM gateway 签发身份，并加入 token/tenant/group integration tests |
 | Data realism | 72/600 文档和 52 个 eval cases 全部 synthetic | 指标证明工程 contract，不代表真实企业分布或生产泛化 | 法务批准的去标识 pilot corpus、数据治理记录和独立 held-out evaluation |
 | Live quality | 当前 canonical live dev 为 23/24 | 一个 system-runtime failure 被保留；不能报告 100% | 先定位/复现失败，再在新冻结 split 上验证，而不是改写旧 artifact |
-| Indirect document injection | D6 visible synthetic frozen test 已完成 deterministic paired OFF/ON：OFF 21/24，ON 0/24，benign quarantine 0/32 | 已证明固定规则集上的软件传播边界和 utility；未证明未知绕过、独立分布或真实 Qwen 攻击成功率 | D7 固定本机 live paired trial；之后增加独立 holdout、人工红队和规则版本漂移评测 |
+| Indirect document injection | D1-D7 与 V1-V5 已完成：D6 deterministic OFF 21/24、ON 0/24；D7 单次本机观察 OFF user-visible 3/24、ON 0/24；未来 v2 已有反平衡协议 | 已证明固定规则集的软件传播边界、单模型观察和证据可审计性；未证明未知绕过、独立分布、语义服从率或跨模型泛化 | 先运行新 run ID 的 counterbalanced dev replication，再冻结独立 holdout，执行人工红队、semantic judge calibration 与跨模型复现 |
 | Reranker | `NOT RUN` (`no_admitted_reranker`) | 不能声称 cross-encoder/reranker 改善过排序 | 固定候选模型、license/资源预算与 latency gate；在 frozen test 上做隔离消融 |
 | Human review | `NOT RUN`；50 行、8 个人工判断列保持空白 | 自动 claim/citation/required-fact checks 不能替代语义和可用性评分 | 本人按冻结 rubric 完成 review；若用于正式质量结论，再增加第二 reviewer、分歧仲裁和 agreement 记录 |
 | Authentication/authorization | 只有本地 ACL policy，没有 SSO、token verification、policy admin 或 audit identity | 不能公网暴露为企业服务 | IAM、server-derived claims、deny-by-default policy store、admin/change audit |

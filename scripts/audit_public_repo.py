@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import re
 import subprocess
+import unicodedata
 import zlib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -16,6 +19,7 @@ from app.evaluation.public_snapshot import PublicDemoSnapshot
 
 MAX_PUBLIC_FILE_BYTES = 2 * 1024 * 1024
 _PUBLIC_SNAPSHOT_PATH = "data/v2/public/demo_snapshot.json"
+_PUBLIC_D7_EVIDENCE_PREFIX = "data/v2/public/r2_s1_d7/"
 _PUBLIC_PNG_DIMENSIONS = {
     "docs/assets/ask.png": (1440, 1000),
     "docs/assets/trace.png": (1440, 1000),
@@ -77,6 +81,35 @@ _WINDOWS_PATH_PATTERN = re.compile(
 )
 _POSIX_USER_PATH_PATTERN = re.compile(r"/(?:Users|home)/[^/\s`\"')>]+")
 _MARKDOWN_LINK_PATTERN = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
+_ENVIRONMENT_REFERENCE_PATTERN = re.compile(
+    r"(?i)(?<![A-Za-z0-9_])(?:HOME|USERPROFILE|HTTP_PROXY|HTTPS_PROXY)"
+    r"(?![A-Za-z0-9_])"
+)
+_PRIVATE_RUNTIME_REFERENCE_PATTERN = re.compile(
+    r"(?i)(?<![A-Za-z0-9_.-])(?:security_runs|data[\\/]"
+    r"(?:indexes(?:_v2)?|parsed_docs|eval_outputs|eval_runs|load_runs|logs))"
+    r"(?:[\\/]|$)"
+)
+_CREDENTIAL_ASSIGNMENT_PATTERN = re.compile(
+    r"(?i)\b(?P<key>api[_-]?key|access[_-]?token|secret|password|authorization)"
+    r"\b\s*[:=]\s*[\"']?(?P<value>[^\s\"',;]{4,})"
+)
+_SAFE_CREDENTIAL_VALUE_MARKERS = (
+    "dummy",
+    "example",
+    "fake",
+    "never-show",
+    "not-real",
+    "placeholder",
+    "redacted",
+    "should-not-be-public",
+    "test",
+)
+_SYSTEM_PROMPT_FRAGMENTS = (
+    "You are a grounded enterprise knowledge-base answer generator operating ",
+    "你是企业知识库 RAG 的证据充分性判定器。",
+    "你是企业知识库助手。",
+)
 
 
 @dataclass(frozen=True, order=True)
@@ -109,6 +142,8 @@ def audit_repository(
     )
     normalized: list[str] = []
     findings: list[AuditFinding] = []
+    frozen_security_values = _load_frozen_security_values(root)
+    local_identity_values = _local_identity_values()
     for candidate in candidates:
         try:
             relative = _normalize_candidate(candidate)
@@ -124,7 +159,14 @@ def audit_repository(
         normalized.append(relative)
 
     for relative in sorted(set(normalized)):
-        findings.extend(_audit_one(root, relative))
+        findings.extend(
+            _audit_one(
+                root,
+                relative,
+                frozen_security_values=frozen_security_values,
+                local_identity_values=local_identity_values,
+            )
+        )
     return AuditReport(
         candidate_files=tuple(sorted(set(normalized))),
         findings=tuple(sorted(set(findings))),
@@ -164,7 +206,13 @@ def _normalize_candidate(candidate: str) -> str:
     return path.as_posix()
 
 
-def _audit_one(root: Path, relative: str) -> list[AuditFinding]:
+def _audit_one(
+    root: Path,
+    relative: str,
+    *,
+    frozen_security_values: tuple[str, ...],
+    local_identity_values: tuple[str, ...],
+) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
     if _is_forbidden_path(relative):
         findings.append(
@@ -298,9 +346,9 @@ def _audit_one(root: Path, relative: str) -> list[AuditFinding]:
                 )
             )
 
-    requires_portable_paths = (
-        relative in _PUBLIC_TEXT_SURFACES or path.suffix.casefold() == ".md"
-    )
+    is_public_d7_evidence = relative.startswith(_PUBLIC_D7_EVIDENCE_PREFIX)
+    is_seeded_test_fixture = relative.startswith("tests/")
+    requires_portable_paths = not is_seeded_test_fixture
     if requires_portable_paths and text is not None:
         if _WINDOWS_PATH_PATTERN.search(text) or _POSIX_USER_PATH_PATTERN.search(
             text
@@ -312,6 +360,32 @@ def _audit_one(root: Path, relative: str) -> list[AuditFinding]:
                     detail="machine-specific absolute path detected",
                 )
             )
+    generic_credential_surface = (
+        not is_public_d7_evidence
+        and not is_seeded_test_fixture
+        and not relative.startswith(("docs/", ".superpowers/"))
+    ) or relative in _PUBLIC_TEXT_SURFACES
+    if (
+        generic_credential_surface
+        and text is not None
+        and _contains_unsafe_credential_assignment(text)
+    ):
+        findings.append(
+            AuditFinding(
+                code="credential_assignment",
+                path=relative,
+                detail="literal credential-like assignment detected",
+            )
+        )
+    if is_public_d7_evidence and text is not None:
+        findings.extend(
+            _public_d7_sensitive_findings(
+                relative,
+                text,
+                frozen_security_values=frozen_security_values,
+                local_identity_values=local_identity_values,
+            )
+        )
     if path.suffix.casefold() == ".md" and text is not None:
         findings.extend(_missing_link_findings(root, path, relative, text))
     return findings
@@ -392,6 +466,166 @@ def _contains_non_example_email(text: str) -> bool:
             continue
         return True
     return False
+
+
+def _contains_unsafe_credential_assignment(text: str) -> bool:
+    for match in _CREDENTIAL_ASSIGNMENT_PATTERN.finditer(text):
+        value = match.group("value").strip().casefold()
+        if value == "ollama" or any(
+            marker in value for marker in _SAFE_CREDENTIAL_VALUE_MARKERS
+        ):
+            continue
+        if value.startswith(
+            (
+                "$",
+                "<",
+                "config.",
+                "env.",
+                "os.",
+                "self.",
+                "settings.",
+            )
+        ):
+            continue
+        if set(value) <= {"*", "x"}:
+            continue
+        return True
+    return False
+
+
+def _load_frozen_security_values(root: Path) -> tuple[str, ...]:
+    dataset = _load_json_object(
+        root / "data" / "v2" / "security" / "indirect_injection_test_v1.json"
+    )
+    fixture = _load_json_object(
+        root
+        / "data"
+        / "v2"
+        / "security"
+        / "fixtures_v1"
+        / "test"
+        / "manifest.json"
+    )
+    values: set[str] = set()
+    if dataset is not None:
+        for case in dataset.get("cases", []):
+            if not isinstance(case, dict):
+                continue
+            for field in ("question", "trace_canary", "document_canary"):
+                value = case.get(field)
+                if isinstance(value, str) and len(value) >= 8:
+                    values.add(value)
+    if fixture is not None:
+        for case in fixture.get("cases", []):
+            if not isinstance(case, dict):
+                continue
+            facts = case.get("fact_texts", {})
+            if isinstance(facts, dict):
+                values.update(
+                    value
+                    for value in facts.values()
+                    if isinstance(value, str) and len(value) >= 8
+                )
+            for candidate in case.get("candidates", []):
+                if not isinstance(candidate, dict):
+                    continue
+                for field in ("matched_text", "context_text"):
+                    value = candidate.get(field)
+                    if isinstance(value, str) and len(value) >= 8:
+                        values.add(value)
+            for opened in case.get("open_results", []):
+                if not isinstance(opened, dict):
+                    continue
+                value = opened.get("content")
+                if isinstance(value, str) and len(value) >= 8:
+                    values.add(value)
+    return tuple(sorted(values))
+
+
+def _load_json_object(path: Path) -> dict[str, object] | None:
+    if not path.is_file():
+        return None
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _local_identity_values() -> tuple[str, ...]:
+    values = {
+        value.casefold()
+        for key in ("USERNAME", "USER")
+        if (value := os.environ.get(key))
+        and len(value) >= 3
+        and value.casefold() not in {"admin", "administrator", "root", "runner", "user"}
+    }
+    profile = os.environ.get("USERPROFILE")
+    if profile:
+        name = Path(profile).name.casefold()
+        if len(name) >= 3 and name not in {"admin", "administrator", "user"}:
+            values.add(name)
+    return tuple(sorted(values))
+
+
+def _public_d7_sensitive_findings(
+    relative: str,
+    text: str,
+    *,
+    frozen_security_values: tuple[str, ...],
+    local_identity_values: tuple[str, ...],
+) -> list[AuditFinding]:
+    findings: list[AuditFinding] = []
+    normalized = unicodedata.normalize("NFKC", text).casefold()
+    checks = (
+        (
+            "credential_assignment",
+            _CREDENTIAL_ASSIGNMENT_PATTERN.search(text) is not None,
+            "credential-like assignment detected in public D7 evidence",
+        ),
+        (
+            "environment_reference",
+            _ENVIRONMENT_REFERENCE_PATTERN.search(text) is not None,
+            "machine environment or proxy variable detected in public D7 evidence",
+        ),
+        (
+            "private_runtime_reference",
+            _PRIVATE_RUNTIME_REFERENCE_PATTERN.search(text) is not None,
+            "private runtime path detected in public D7 evidence",
+        ),
+        (
+            "system_prompt_fragment",
+            any(
+                unicodedata.normalize("NFKC", value).casefold() in normalized
+                for value in _SYSTEM_PROMPT_FRAGMENTS
+            ),
+            "system-prompt fragment detected in public D7 evidence",
+        ),
+        (
+            "frozen_security_content",
+            any(
+                unicodedata.normalize("NFKC", value).casefold() in normalized
+                for value in frozen_security_values
+            ),
+            "frozen question, canary, or fixture content detected in public D7 evidence",
+        ),
+        (
+            "local_identity",
+            any(
+                re.search(
+                    rf"(?<![A-Za-z0-9]){re.escape(value)}(?![A-Za-z0-9])",
+                    normalized,
+                )
+                is not None
+                for value in local_identity_values
+            ),
+            "local user identity detected in public D7 evidence",
+        ),
+    )
+    for code, matched, detail in checks:
+        if matched:
+            findings.append(AuditFinding(code=code, path=relative, detail=detail))
+    return findings
 
 
 def _missing_link_findings(

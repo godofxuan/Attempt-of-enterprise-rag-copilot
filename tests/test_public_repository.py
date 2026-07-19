@@ -124,6 +124,104 @@ def test_audit_rejects_absolute_paths_in_any_markdown(tmp_path: Path) -> None:
     assert not any(item.path == "tests/path_fixture.py" for item in report.findings)
 
 
+def test_audit_scans_runtime_text_for_paths_and_literal_credentials(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    runtime = tmp_path / "app" / "leaky_config.py"
+    runtime.parent.mkdir(parents=True)
+    runtime.write_text(
+        'cache_path = "C:\\Users\\alice\\private\\cache"\n'
+        'password = "RealLookingSecretValue42"\n',
+        encoding="utf-8",
+    )
+    safe = tmp_path / "app" / "safe_config.py"
+    safe.write_text(
+        'api_key = settings.llm_api_key\nlocal_api_key = "ollama"\n',
+        encoding="utf-8",
+    )
+
+    report = audit_repository(
+        tmp_path,
+        candidate_files=["app/leaky_config.py", "app/safe_config.py"],
+    )
+    findings = {(item.code, item.path) for item in report.findings}
+
+    assert ("absolute_user_path", "app/leaky_config.py") in findings
+    assert ("credential_assignment", "app/leaky_config.py") in findings
+    assert not any(path == "app/safe_config.py" for _, path in findings)
+
+
+def test_audit_scans_d7_public_evidence_for_private_runtime_and_frozen_content(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    dataset = tmp_path / "data" / "v2" / "security" / "indirect_injection_test_v1.json"
+    dataset.parent.mkdir(parents=True)
+    dataset.write_text(
+        '{"cases":[{"question":"FROZEN_QUESTION_DO_NOT_PUBLISH",'
+        '"trace_canary":"TRACE_CANARY_DO_NOT_PUBLISH",'
+        '"document_canary":"DOC_CANARY_DO_NOT_PUBLISH"}]}',
+        encoding="utf-8",
+    )
+    fixture = (
+        tmp_path
+        / "data"
+        / "v2"
+        / "security"
+        / "fixtures_v1"
+        / "test"
+        / "manifest.json"
+    )
+    fixture.parent.mkdir(parents=True)
+    fixture.write_text(
+        '{"cases":[{"fact_texts":{"fact":"PRIVATE_FIXTURE_PAYLOAD"},'
+        '"candidates":[],"open_results":[]}]}',
+        encoding="utf-8",
+    )
+    public = (
+        tmp_path
+        / "data"
+        / "v2"
+        / "public"
+        / "r2_s1_d7"
+        / "per_case.redacted.jsonl"
+    )
+    public.parent.mkdir(parents=True)
+    public.write_text(
+        "FROZEN_QUESTION_DO_NOT_PUBLISH\n"
+        "C:\\Users\\alice\\private\\run\n"
+        "HTTP_PROXY=http://proxy.invalid\n"
+        "security_runs/private-live-run\n"
+        "password=should-not-be-public\n"
+        "你是企业知识库助手。\n"
+        "local owner alice\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("USERNAME", "alice")
+
+    report = audit_repository(
+        tmp_path,
+        candidate_files=["data/v2/public/r2_s1_d7/per_case.redacted.jsonl"],
+    )
+    findings = {(item.code, item.path) for item in report.findings}
+    relative = "data/v2/public/r2_s1_d7/per_case.redacted.jsonl"
+
+    for code in {
+        "absolute_user_path",
+        "credential_assignment",
+        "environment_reference",
+        "frozen_security_content",
+        "local_identity",
+        "private_runtime_reference",
+        "system_prompt_fragment",
+    }:
+        assert (code, relative) in findings
+
+
 def test_audit_rejects_internal_symlink_and_binary_credentials(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -247,13 +345,53 @@ def test_root_status_is_the_only_current_status_entrypoint() -> None:
         encoding="utf-8"
     )
 
-    assert "更新时间：2026-07-18" in status
+    assert "更新时间：2026-07-19" in status
     assert "状态：E7" in status
     assert "526 passed" in status
     assert "574 passed" in status
     assert "109 passed" not in status
     assert "历史快照" in historical[:300]
     assert "../PROJECT_STATUS.md" in historical[:300]
+
+
+def test_r2_s1_current_docs_use_canonical_metric_and_stage_names() -> None:
+    status = (ROOT / "PROJECT_STATUS.md").read_text(encoding="utf-8")
+    status_header = status.split("## 1.", 1)[0]
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    protocol = (
+        ROOT / "docs" / "security" / "r2_s1" / "04_evaluation_protocol.md"
+    ).read_text(encoding="utf-8")
+    results = (
+        ROOT / "docs" / "security" / "r2_s1" / "05_results.md"
+    ).read_text(encoding="utf-8")
+    d7_journal = (
+        ROOT / "docs" / "security" / "r2_s1" / "09_d7_engineering_journal.md"
+    ).read_text(encoding="utf-8")
+
+    assert "V0-V5" in status_header
+    assert "V1-V5" in status_header
+    assert "V0-V4" not in status_header
+    assert "V1-V4" not in status_header
+    assert "15_v5_counterbalanced_arm_order_engineering_journal.md" in readme
+    for content in (readme, protocol, results, d7_journal):
+        lowered = content.casefold()
+        assert "raw model follow" not in lowered
+        assert "raw model attack follow" not in lowered
+        assert "raw model followed an attack" not in lowered
+        assert "raw canary" in lowered
+
+
+def test_industrialization_backlog_tracks_remaining_indirect_injection_work() -> None:
+    backlog = (ROOT / "docs" / "industrialization_backlog.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Independent indirect-injection validation" in backlog
+    assert "counterbalanced real-model" in backlog
+    assert "semantic judge calibration" in backlog
+    assert (
+        "| P0 | Indirect document-injection defense |" not in backlog
+    )
 
 
 def test_public_docs_history_banner_and_ignore_contract() -> None:
@@ -269,6 +407,7 @@ def test_public_docs_history_banner_and_ignore_contract() -> None:
     ignore = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert ".env" in ignore
     assert ".private/" in ignore
+    assert ".superpowers/" in ignore
 
 
 def test_private_e6_materials_are_ignored_and_candidate_free() -> None:

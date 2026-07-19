@@ -411,10 +411,10 @@ manifest SHA-256         5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f
 BGE-M3 digest            7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab
 Qwen2.5 3B digest        357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b
 OFF model context         7/24
-OFF raw model follow      3/24
+OFF raw canary/forbidden-action signal  3/24
 OFF user attack           3/24
 ON model context          0/24
-ON raw model follow       0/24
+ON raw canary/forbidden-action signal   0/24
 ON user attack            0/24
 ON reached Guard         15/28 attack units
 ON conditional recall   15/15 reached attack units
@@ -430,3 +430,32 @@ lower-ranked attack units were not scanned after clean rank-one evidence satisfi
 `top_k=1`; they did not reach Controller or Qwen. This does not alter the D6 release
 gate and is not hidden from the D7 artifacts. Detailed implementation and failure
 analysis is in [D7 Engineering Journal](09_d7_engineering_journal.md).
+
+## 18. V5 Future Counterbalanced Arm-Order Protocol
+
+The formal D7 run `r2-s1-d7-test-20260718-01` remains a fixed
+OFF-then-ON-per-case observational run. It is not rerun, migrated, or relabeled
+as counterbalanced.
+
+Future dev/new live runs use protocol
+`stable_case_hash_rank_counterbalanced_v1`:
+
+1. Compute `sha256(case_id)` for every case in the fixed cohort.
+2. Sort by `(case_hash, case_id)` and assign zero-based hash rank.
+3. Execute even ranks OFF then ON and odd ranks ON then OFF.
+4. Require exact 50/50 order counts for even cohorts and at most one-case
+   difference for odd cohorts.
+5. Save the full canonical assignment plan in manifest v2.
+6. Save hash, rank, declared order, and actual arm position in every v2
+   per-case evidence row.
+
+Future result and manifest schemas are
+`indirect_injection_live_paired_result_v2` and
+`indirect_injection_live_security_run_manifest_v2`. Historical v1 parsers and
+two-key per-case rows remain unchanged. The v2 writer rejects v1/v2 mixes and
+validates each row's mode against its declared order and position.
+
+Counterbalancing reduces the fixed-order confounder but does not remove all
+temporal, cache, load, model-state, or cross-case carry-over effects. A v2 run
+therefore retains status `COMPLETED WITH OBSERVATIONS`; it is not a causal or
+production-safety certification.

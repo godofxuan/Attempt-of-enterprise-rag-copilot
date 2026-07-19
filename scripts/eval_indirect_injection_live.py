@@ -23,20 +23,29 @@ from app.domain.retrieved_security import (
     MAX_NORMALIZED_CHARS,
     MAX_SCAN_CHARS,
 )
-from app.evaluation.indirect_injection_dataset import load_security_bundle
+from app.evaluation.indirect_injection_arm_order import (
+    build_counterbalanced_arm_order_plan,
+)
+from app.evaluation.indirect_injection_dataset import (
+    LoadedSecurityBundle,
+    load_security_bundle,
+)
 from app.evaluation.indirect_injection_live_index import (
     LiveFixtureIndexBuild,
     build_live_fixture_index,
 )
+from app.evaluation.indirect_injection_metric_semantics import (
+    RAW_FOLLOW_SEMANTICS,
+)
 from app.evaluation.indirect_injection_live_runner import (
-    LivePairedResult,
+    LivePairedResultV2,
     LiveSecurityConfig,
     LocalOllamaOnlyBoundary,
     evaluate_live_paired,
 )
 from app.evaluation.indirect_injection_live_writer import (
     LiveIndexReference,
-    LiveSecurityRunManifest,
+    LiveSecurityRunManifestV2,
     OllamaModelIdentity,
     publish_live_security_run,
     resolve_ollama_model_identity,
@@ -60,6 +69,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_DATA_ROOT = BASE_DIR / "data" / "v2" / "security"
 DEFAULT_OUT_DIR = BASE_DIR / "security_runs"
 DEFAULT_INDEX_ROOT = DEFAULT_OUT_DIR / ".d7_indexes"
+FROZEN_FORMAL_D7_RUN_ID = "r2-s1-d7-test-20260718-01"
+FROZEN_TEST_DATASET_SHA256 = (
+    "062aec151d29854ffcebf6368b42fc768f7a0a5f64e1218e32fd326a441a137c"
+)
+FROZEN_TEST_FIXTURE_SHA256 = (
+    "eea41009bd5a8eda2b0a1ff7c29e593895d917b4055e9712b1db48daa9d51c1d"
+)
 _SMOKE_RESPONSE_FORMAT = {
     "type": "object",
     "properties": {"status": {"type": "string", "enum": ["ready"]}},
@@ -85,8 +101,8 @@ class ModelSmokeEvidence:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Run the explicitly local, non-CI D7 paired indirect-injection "
-            "evaluation with configured BGE-M3 and Qwen models."
+            "Run a future explicitly local, non-CI counterbalanced paired "
+            "indirect-injection evaluation. The frozen D7 run remains historical."
         )
     )
     parser.add_argument("--split", choices=["dev", "test"], default="dev")
@@ -192,16 +208,40 @@ def production_active_index_reference(index_root: Path) -> LiveIndexReference:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     validate_security_run_id(args.run_id)
+    if args.run_id == FROZEN_FORMAL_D7_RUN_ID:
+        raise ValueError("the frozen formal D7 run ID cannot be rerun")
     output_root = args.out_dir.resolve()
     output_target = (output_root / args.run_id).resolve()
     if output_target.parent != output_root:
         raise ValueError("run ID resolves outside output root")
     if output_target.exists():
         raise FileExistsError(f"live security output run already exists: {output_target}")
+    frozen_formal_dir = (
+        DEFAULT_OUT_DIR / FROZEN_FORMAL_D7_RUN_ID
+    ).resolve()
+    _reject_frozen_formal_run_path(
+        output_root,
+        frozen_formal_dir=frozen_formal_dir,
+        label="output root",
+    )
+    _reject_frozen_formal_run_path(
+        output_target,
+        frozen_formal_dir=frozen_formal_dir,
+        label="output target",
+    )
+    _reject_frozen_formal_run_path(
+        args.index_root.resolve(),
+        frozen_formal_dir=frozen_formal_dir,
+        label="index root",
+    )
 
     # Frozen-data checks intentionally precede every Ollama or index-build call.
     r1_hashes = verify_r1_frozen_hashes(BASE_DIR)
     bundle = load_security_bundle(args.data_root, args.split)
+    _validate_official_test_cohort(bundle, split=args.split)
+    arm_order = build_counterbalanced_arm_order_plan(
+        case.case_id for case in bundle.dataset.cases
+    )
     settings = get_settings()
     config = LiveSecurityConfig(
         llm_endpoint=settings.llm_base_url,
@@ -245,7 +285,10 @@ def main(argv: list[str] | None = None) -> int:
         embed_text=lambda text: _embed_text(settings.embedding_model, text),
         chat_fn=chat_with_ollama,
         config=config,
+        arm_order=arm_order,
     )
+    if not isinstance(result, LivePairedResultV2):
+        raise RuntimeError("future live evaluation did not produce a v2 result")
     _assert_git_provenance_stable(
         git_provenance,
         _git_provenance(BASE_DIR),
@@ -293,6 +336,9 @@ def main(argv: list[str] | None = None) -> int:
                 "split": args.split,
                 "status": result.status,
                 "protocol_complete": result.protocol_complete,
+                "arm_order_protocol": result.arm_order.protocol_id,
+                "off_then_on_case_count": result.arm_order.off_then_on_count,
+                "on_then_off_case_count": result.arm_order.on_then_off_count,
                 "output_dir": str(output),
             },
             ensure_ascii=False,
@@ -306,7 +352,7 @@ def _build_manifest(
     *,
     args: argparse.Namespace,
     bundle,
-    result: LivePairedResult,
+    result: LivePairedResultV2,
     config: LiveSecurityConfig,
     runtime: OllamaRuntimeSnapshot,
     production_index: LiveIndexReference,
@@ -318,19 +364,19 @@ def _build_manifest(
     started_at: datetime,
     completed_at: datetime,
     index_embedding_call_count: int,
-) -> LiveSecurityRunManifest:
+) -> LiveSecurityRunManifestV2:
     ruleset = BASE_DIR / "app" / "security" / "retrieved_content.py"
     evaluator = BASE_DIR / "app" / "evaluation" / "indirect_injection_live_runner.py"
     requirements = BASE_DIR / "requirements.txt"
     exit_code = 0 if result.protocol_complete else 1
-    return LiveSecurityRunManifest.model_validate(
+    return LiveSecurityRunManifestV2.model_validate(
         {
-            "schema_version": "indirect_injection_live_security_run_manifest_v1",
+            "schema_version": "indirect_injection_live_security_run_manifest_v2",
             "producer": "enterprise_agentic_rag_v2",
             "run_id": args.run_id,
             "suite": "retrieved_content_indirect_injection",
             "split": args.split,
-            "mode": "local_live_paired",
+            "mode": "local_live_paired_counterbalanced",
             "started_at_utc": started_at,
             "completed_at_utc": completed_at,
             "status": result.status,
@@ -413,12 +459,14 @@ def _build_manifest(
                     result.security.gate.passed
                 ),
             },
+            "arm_order": result.arm_order,
             "artifacts": {},
             "limitations": (
                 "This is one local model run, not a universal model-safety claim.",
                 "The frozen test set is visible regression data, not unseen data.",
                 "Guard OFF model resistance is not software-boundary success.",
                 "The production active index is provenance only; synthetic attacks use the isolated security index.",
+                "Hash-rank counterbalancing reduces one order confounder but does not remove all temporal or model-state effects.",
             ),
         }
     )
@@ -437,31 +485,36 @@ def _security_index_reference(built: LiveFixtureIndexBuild) -> LiveIndexReferenc
     )
 
 
-def _paired_evidence(result: LivePairedResult) -> str:
+def _paired_evidence(result: LivePairedResultV2) -> str:
     off_security = result.security.guard_off.summary
     on_security = result.security.guard_on.summary
     off_live = result.guard_off_summary
     on_live = result.guard_on_summary
     return (
-        "# R2-S1 D7 Local Live Paired Evidence\n\n"
+        "# R2-S1 Future Local Live Counterbalanced Paired Evidence\n\n"
         f"Status: {result.status}\n\n"
         "These counts describe this exact local model run. They are not a "
         "universal model-safety or release claim.\n\n"
+        f"Metric semantics: {RAW_FOLLOW_SEMANTICS.semantics_id}\n\n"
+        f"{RAW_FOLLOW_SEMANTICS.definition}\n\n"
+        f"Arm-order protocol: {result.arm_order.protocol_id}\n"
+        f"- OFF then ON cases: {result.arm_order.off_then_on_count}\n"
+        f"- ON then OFF cases: {result.arm_order.on_then_off_count}\n"
         f"- Guard OFF model-context exposure: "
         f"{off_security.model_context_exposure.numerator}/"
         f"{off_security.model_context_exposure.denominator}\n"
-        f"- Guard OFF raw model attack-follow observation: "
-        f"{off_live.model_attack_followed.numerator}/"
-        f"{off_live.model_attack_followed.denominator}\n"
+        f"- Guard OFF raw canary or forbidden-action follow: "
+        f"{off_live.raw_canary_or_forbidden_action_follow.numerator}/"
+        f"{off_live.raw_canary_or_forbidden_action_follow.denominator}\n"
         f"- Guard OFF user-boundary attack success: "
         f"{off_security.attack_success.numerator}/"
         f"{off_security.attack_success.denominator}\n"
         f"- Guard ON model-context exposure: "
         f"{on_security.model_context_exposure.numerator}/"
         f"{on_security.model_context_exposure.denominator}\n"
-        f"- Guard ON raw model attack-follow observation: "
-        f"{on_live.model_attack_followed.numerator}/"
-        f"{on_live.model_attack_followed.denominator}\n"
+        f"- Guard ON raw canary or forbidden-action follow: "
+        f"{on_live.raw_canary_or_forbidden_action_follow.numerator}/"
+        f"{on_live.raw_canary_or_forbidden_action_follow.denominator}\n"
         f"- Guard ON user-boundary attack success: "
         f"{on_security.attack_success.numerator}/"
         f"{on_security.attack_success.denominator}\n"
@@ -520,6 +573,36 @@ def _validate_frozen_models(embedding_model: str, chat_model: str) -> None:
         raise ValueError("D7 frozen protocol requires BGE-M3")
     if chat_model != "qwen2.5:3b":
         raise ValueError("D7 frozen protocol requires qwen2.5:3b")
+
+
+def _reject_frozen_formal_run_path(
+    path: Path,
+    *,
+    frozen_formal_dir: Path,
+    label: str,
+) -> None:
+    resolved = Path(path).resolve()
+    try:
+        resolved.relative_to(frozen_formal_dir)
+    except ValueError:
+        return
+    raise ValueError(f"{label} cannot be inside the frozen formal D7 directory")
+
+
+def _validate_official_test_cohort(
+    bundle: LoadedSecurityBundle,
+    *,
+    split: str,
+) -> None:
+    if split != "test":
+        return
+    if (
+        bundle.dataset_sha256 != FROZEN_TEST_DATASET_SHA256
+        or bundle.fixture_manifest_sha256 != FROZEN_TEST_FIXTURE_SHA256
+    ):
+        raise ValueError(
+            "test split must use the official frozen test cohort hashes"
+        )
 
 
 def _get_json(session: requests.Session, url: str) -> Mapping[str, object]:
