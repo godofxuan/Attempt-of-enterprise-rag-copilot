@@ -453,6 +453,8 @@ formal manifest  5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f97865e14
 
 V0-V5 收口验证：180 targeted cross-module、921 full，只有 3 个已知 FAISS/SWIG warning；compileall/pip/diff clean，公开审计 415 candidates/0 findings，仓库与干净 8-file public verifier 均为 VERIFIED。冻结 dataset、fixture、freeze manifest 和正式 D7 manifest hash 全部 exact。独立审查发现 `0 Critical / 6 Important / 2 Minor`；6 个 Important 已修复并加入回归测试，2 个 Minor 作为准确限制和 R2-S2 安排保留。正式 D7 没有重跑、覆盖或迁移；它仍是 fixed OFF-first observational run。新的真实模型 counterbalanced v2 run、独立 holdout、人工红队、semantic LLM judge、跨模型复现、50-row human review 和 owner 口述验收仍为 `NOT RUN`。
 
+Git 交付：提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已推送到 `origin/codex/rag-eval-system`，对应 GitHub Actions run `29682474913` 为 `success`。分支仍未 merge、tag、切换为默认分支或部署。
+
 恢复时按顺序读取：
 
 1. `docs/security/r2_s1/10_auditability_verification.md`

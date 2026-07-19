@@ -232,6 +232,8 @@ V5 对固定 cohort 计算 `sha256(case_id)`，按 `(case_hash, case_id)` 排名
 
 V0-V5 完成后又进行一次独立 closeout review，结果为 `0 Critical / 6 Important / 2 Minor`。6 个 Important 均已补成 RED/GREEN 回归测试并修复；2 个 Minor 中，process-local 网络边界和独立验证不足被保留为明确限制及 R2-S2 准入项。最终本地证据为 180 个聚焦跨模块测试、921 个全仓测试、415 个公开候选文件零命中、仓库内与隔离 8-file verifier 均通过。完整问题、代码位置、根因、修复和下一阶段安排见 [V0-V5 Closeout Review](docs/security/r2_s1/16_v0_v5_closeout_review_and_improvement_plan.md)。
 
+R2-S1 V1-V5 与收口修复提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已推送到 `origin/codex/rag-eval-system`；对应 [GitHub Actions run 29682474913](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29682474913) 在 Ubuntu/Python 3.11 上为 `success`。该结果是功能分支 CI 证据，不代表已经 merge、部署或完成 owner-only 验收。
+
 ### GitHub 交付与远端复现
 
 代码候选 `9607e55ec0fc12e98d1f61e199bfbf6ac12a0eee` 已推送到 `origin/codex/rag-eval-system`。第四个全新 GitHub clone 得到 frozen hash exact、compile exit 0、public audit 331/0、full pytest 574 passed。Ubuntu/Python 3.11 的 [GitHub Actions run 29553278709](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 为 `success`。这些证据覆盖当前功能分支候选，不代表已 merge、部署或达到生产 SLO。
