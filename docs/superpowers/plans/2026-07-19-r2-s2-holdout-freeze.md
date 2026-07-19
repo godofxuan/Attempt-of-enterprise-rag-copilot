@@ -233,6 +233,6 @@ Document that legacy `UnitOutcome` cannot represent unreached, future v2 `failur
 git diff --check
 ```
 
-- [ ] **Step 4: Commit and push explicit files**
+- [x] **Step 4: Commit and push explicit files**
 
 Create one implementation/evidence commit after the already committed design/plan baseline, push `codex/rag-eval-system`, and verify the exact final HEAD through GitHub Actions. Do not merge, tag, change the default branch, or publish raw holdout inputs.
