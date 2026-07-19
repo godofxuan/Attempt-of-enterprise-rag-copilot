@@ -48,6 +48,7 @@ _FORBIDDEN_PREFIXES = (
     "data/load_runs/",
     "data/logs/",
     "eval_runs/",
+    "holdout_submissions/",
     "load_runs/",
     "logs/",
 )
@@ -86,7 +87,7 @@ _ENVIRONMENT_REFERENCE_PATTERN = re.compile(
     r"(?![A-Za-z0-9_])"
 )
 _PRIVATE_RUNTIME_REFERENCE_PATTERN = re.compile(
-    r"(?i)(?<![A-Za-z0-9_.-])(?:security_runs|data[\\/]"
+    r"(?i)(?<![A-Za-z0-9_.-])(?:security_runs|holdout_submissions|data[\\/]"
     r"(?:indexes(?:_v2)?|parsed_docs|eval_outputs|eval_runs|load_runs|logs))"
     r"(?:[\\/]|$)"
 )

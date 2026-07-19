@@ -408,6 +408,27 @@ def test_public_docs_history_banner_and_ignore_contract() -> None:
     assert ".env" in ignore
     assert ".private/" in ignore
     assert ".superpowers/" in ignore
+    assert "holdout_submissions/" in ignore
+
+
+def test_public_audit_rejects_raw_holdout_submission_candidate(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    payload = tmp_path / "holdout_submissions" / "reviewer-a" / "payload.json"
+    payload.parent.mkdir(parents=True)
+    payload.write_text('{"private":"holdout"}\n', encoding="utf-8")
+
+    report = audit_repository(
+        tmp_path,
+        candidate_files=["holdout_submissions/reviewer-a/payload.json"],
+    )
+
+    assert (
+        "forbidden_path",
+        "holdout_submissions/reviewer-a/payload.json",
+    ) in {(item.code, item.path) for item in report.findings}
 
 
 def test_private_e6_materials_are_ignored_and_candidate_free() -> None:
