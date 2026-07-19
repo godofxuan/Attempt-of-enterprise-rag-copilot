@@ -1,6 +1,6 @@
 # R2-S2 Independent Holdout Freeze Design
 
-Status: `APPROVED FOR IMPLEMENTATION` under the existing R2-S2 authorization.
+Status: `IMPLEMENTED AND LOCALLY VERIFIED`; independent reviewer package and holdout evaluation remain `NOT RUN`.
 
 Date: 2026-07-19
 

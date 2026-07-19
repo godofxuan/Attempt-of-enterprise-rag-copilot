@@ -432,6 +432,55 @@ def test_publish_v2_records_manifest_plan_and_actual_per_case_arm_positions(
             )
 
 
+def test_v2_failures_distinguish_unreached_units_from_guard_misses(
+    tmp_path: Path,
+    writer_v2_inputs,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        manifest,
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+
+    failures = (target / "failures.csv").read_text(encoding="utf-8")
+    assert "attack_unit_unreached" in failures
+    assert "attack_unit_admitted" not in failures
+    assert "attack_unit_missed_by_guard" not in failures
+
+
+def test_v2_failure_translation_records_attack_unit_missed_by_guard(
+    writer_v2_inputs,
+) -> None:
+    _, _, result = writer_v2_inputs
+    security = next(
+        item
+        for item in result.security.guard_on.cases
+        if "attack_unit_admitted" in item.failure_codes
+    )
+    observation = next(
+        item for item in result.guard_on if item.case_id == security.case_id
+    ).model_copy(
+        update={
+            "attack_unit_count": 1,
+            "attack_unit_reached_guard_count": 1,
+            "attack_unit_quarantined_count": 0,
+        }
+    )
+
+    failures = live_writer._v2_case_failure_codes(security, observation)
+
+    assert "attack_unit_missed_by_guard" in failures
+    assert "attack_unit_unreached" not in failures
+    assert "attack_unit_admitted" not in failures
+
+
 def test_v2_per_case_validator_rejects_tampered_arm_position(
     tmp_path: Path,
     writer_v2_inputs,
@@ -506,6 +555,58 @@ def test_v2_stage_rejects_self_consistent_hashes_with_contradictory_summary(
 
     with pytest.raises(ValueError, match="summary"):
         live_writer._validate_stage(target, tampered_manifest)
+
+
+def test_verify_live_security_run_reloads_and_recomputes_v2_artifact(
+    tmp_path: Path,
+    writer_v2_inputs,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        manifest,
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+
+    verified = live_writer.verify_live_security_run(target)
+
+    assert isinstance(verified, live_writer.LiveSecurityRunManifestV2)
+    assert verified.run_id == manifest.run_id
+    assert verified.arm_order == manifest.arm_order
+    assert set(verified.artifacts) == live_writer._ARTIFACT_NAMES
+
+
+def test_live_run_verifier_reports_counterbalanced_position_strata(
+    tmp_path: Path,
+    writer_v2_inputs,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from scripts.verify_indirect_injection_live_run import main as verify_main
+
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        manifest,
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+
+    assert verify_main([str(target)]) == 0
+    report = json.loads(capsys.readouterr().out)
+
+    assert set(report["arm_position_strata"]) == {"1", "2"}
+    for position in ("1", "2"):
+        assert report["arm_position_strata"][position]["off"]["case_count"] == 18
+        assert report["arm_position_strata"][position]["on"]["case_count"] == 18
 
 
 def test_writer_rejects_v1_manifest_with_v2_result(

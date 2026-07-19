@@ -29,7 +29,7 @@
 - Produces: `HoldoutCaseCatalog`, `HoldoutPayloadEnvelope`, `HoldoutRubric`, `HoldoutCoverageSummary`, `load_holdout_inputs(submission_dir: Path) -> HoldoutInputs`.
 - Required constants: `REQUIRED_ATTACK_FAMILIES`, `REQUIRED_SOURCE_SURFACES`, `REQUIRED_RUBRIC_DIMENSIONS`.
 
-- [ ] **Step 1: Write a failing valid-package test**
+- [x] **Step 1: Write a failing valid-package test**
 
 Create a temporary 36-case package with 24 attack and 12 benign entries. Distribute every required attack family and source surface at least twice, include both `en` and `zh`, and align catalog `case_id/payload_key` pairs exactly with payload entries.
 
@@ -43,7 +43,7 @@ def test_load_holdout_inputs_accepts_complete_aligned_package(tmp_path: Path):
     assert set(loaded.coverage.attack_family_counts) == set(REQUIRED_ATTACK_FAMILIES)
 ```
 
-- [ ] **Step 2: Run the test and observe RED**
+- [x] **Step 2: Run the test and observe RED**
 
 Run:
 
@@ -53,13 +53,13 @@ Run:
 
 Expected: collection/import failure because `indirect_injection_holdout` does not exist.
 
-- [ ] **Step 3: Implement strict models and alignment**
+- [x] **Step 3: Implement strict models and alignment**
 
 Use strict frozen Pydantic models. Catalog entries contain `case_id`, `label`, `families`, `source_surfaces`, `language`, and `payload_key`. Payload entries contain the same IDs plus an opaque JSON object. Rubric requires exactly the four frozen dimensions and distinct non-empty blinded primary/secondary reviewer IDs.
 
 `load_holdout_inputs()` must require exactly `case_catalog.json`, `payload.json`, and `rubric.json`, validate matching holdout IDs, unique IDs/keys, exact catalog/payload identity, and compute coverage from catalog entries rather than trusting author totals.
 
-- [ ] **Step 4: Add one failing test per rejection class**
+- [x] **Step 4: Add one failing test per rejection class**
 
 Tests must independently reject:
 
@@ -77,7 +77,7 @@ same primary and secondary reviewer ID
 extra file in the draft package
 ```
 
-- [ ] **Step 5: Implement minimal validators and run the module tests**
+- [x] **Step 5: Implement minimal validators and run the module tests**
 
 Run the complete new test file. Expected: all contract and coverage tests pass.
 
@@ -92,7 +92,7 @@ Run the complete new test file. Expected: all contract and coverage tests pass.
 - Produces: `freeze_holdout_submission(submission_dir: Path, *, baseline: HoldoutCodeBaseline, attestation: HoldoutSeparationAttestation, frozen_at_utc: datetime) -> Path`.
 - Produces: `verify_holdout_submission(submission_dir: Path, *, baseline: HoldoutCodeBaseline) -> HoldoutFreezeManifest`.
 
-- [ ] **Step 1: Write failing freeze and verify tests**
+- [x] **Step 1: Write failing freeze and verify tests**
 
 ```python
 manifest_path = freeze_holdout_submission(
@@ -109,7 +109,7 @@ assert verified.files["payload.json"].sha256 == sha256_file(submission / "payloa
 
 Expected RED: freeze API does not exist.
 
-- [ ] **Step 2: Implement deterministic freeze bytes**
+- [x] **Step 2: Implement deterministic freeze bytes**
 
 Manifest fields bind:
 
@@ -128,11 +128,11 @@ four true separation attestations
 
 Write canonical UTF-8 JSON through a temporary sibling file and atomically rename it to `freeze_manifest.json`.
 
-- [ ] **Step 3: Add tamper and immutability RED tests**
+- [x] **Step 3: Add tamper and immutability RED tests**
 
 Reject payload modification, catalog modification, rubric modification, baseline mismatch, directory/holdout ID mismatch, false attestation, dirty baseline, existing manifest, missing manifest, and any fifth file other than the generated manifest.
 
-- [ ] **Step 4: Implement verification and run tests**
+- [x] **Step 4: Implement verification and run tests**
 
 Verification reloads the three inputs, recomputes all hashes, counts, coverage and case-ID digest, compares the supplied exact code baseline, and round-trips the manifest model. Expected: all freeze/verify tests pass.
 
@@ -148,11 +148,11 @@ Verification reloads the three inputs, recomputes all hashes, counts, coverage a
 - Verify CLI: `python -m scripts.verify_indirect_injection_holdout <submission-dir>`.
 - Internal helper: `current_holdout_code_baseline(repo_root: Path) -> HoldoutCodeBaseline`.
 
-- [ ] **Step 1: Write CLI RED tests**
+- [x] **Step 1: Write CLI RED tests**
 
 Monkeypatch only baseline collection. Assert freeze emits a content-free JSON receipt containing IDs, counts, hashes and `FROZEN`, and verify emits `VERIFIED`. Assert missing attestation flags and dirty tracked baseline fail before writing a manifest.
 
-- [ ] **Step 2: Implement baseline collection**
+- [x] **Step 2: Implement baseline collection**
 
 Use non-interactive Git commands:
 
@@ -170,7 +170,7 @@ app/evaluation/indirect_injection_live_runner.py
 app/evaluation/indirect_injection_holdout.py
 ```
 
-- [ ] **Step 3: Implement thin CLIs and run CLI tests**
+- [x] **Step 3: Implement thin CLIs and run CLI tests**
 
 Do not print payload paths outside their local submission directory and do not print payload content, questions, canaries, prompts, reviewer identity beyond blinded IDs, or environment variables.
 
@@ -185,15 +185,15 @@ Do not print payload paths outside their local submission directory and do not p
 - `.gitignore` ignores `holdout_submissions/`.
 - Public audit treats `holdout_submissions/` as a forbidden prefix and private-runtime reference.
 
-- [ ] **Step 1: Write RED tests**
+- [x] **Step 1: Write RED tests**
 
 Assert `.gitignore` contains the exact root path and `audit_repository(..., candidate_files=["holdout_submissions/sample/payload.json"])` reports `forbidden_runtime_artifact`.
 
-- [ ] **Step 2: Extend ignore/audit rules minimally**
+- [x] **Step 2: Extend ignore/audit rules minimally**
 
 Add the one root ignore entry, one forbidden prefix, and one private-runtime regex alternative. Do not ignore checked-in holdout code, tests, specs, plans, or engineering journals.
 
-- [ ] **Step 3: Run public repository tests and actual audit**
+- [x] **Step 3: Run public repository tests and actual audit**
 
 Expected: tests pass and actual audit reports zero findings for current Git candidates.
 
@@ -213,15 +213,15 @@ Expected: tests pass and actual audit reports zero findings for current Git cand
 - Documents must preserve `independent holdout = NOT CREATED / NOT RUN`.
 - S2-1 result must preserve `COMPLETED WITH OBSERVATIONS` and diagnostic gate failure, while distinguishing `15/15 reached recall` from `15/28 all-labeled recall` and `13 unreached`.
 
-- [ ] **Step 1: Record S2-1 immutable evidence**
+- [x] **Step 1: Record S2-1 immutable evidence**
 
 Record run ID `r2-s2-s1-dev-20260719-01`, manifest SHA-256, code HEAD `073d7356026954c26c1429fb9faddc5e9a5dcb87`, model digests, 36 cases, 72 events, 18/18 order, zero model/system errors, zero blocked egress, pair consistency, OFF/ON safety and utility metrics, and position-stratified observations.
 
-- [ ] **Step 2: Explain the discovered classification bug and RED/GREEN fix**
+- [x] **Step 2: Explain the discovered classification bug and RED/GREEN fix**
 
 Document that legacy `UnitOutcome` cannot represent unreached, future v2 `failures.csv` now uses `attack_unit_unreached` versus `attack_unit_missed_by_guard`, and the immutable run-01 CSV remains historical while the independent verifier derives the precise classification from live counts.
 
-- [ ] **Step 3: Run final gates**
+- [x] **Step 3: Run final gates**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_live_writer.py tests\evaluation\test_indirect_injection_holdout.py tests\evaluation\test_indirect_injection_holdout_cli.py tests\test_public_repository.py

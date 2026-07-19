@@ -2,7 +2,7 @@
 
 更新时间：2026-07-19
 
-状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。R2-S1 已完成 D1-D7，以及后续审计加固 V0-V5，其中 V1-V5 是实现阶段：V1 提供 checked-in、脱敏、可独立复算的 D7 公共逐例证据包；V2 用 content-free 实际扫描事件替代 reached 的类别推断；V3 将本地 Ollama 出站约束收紧为 exact origin/address/port；V4 将 legacy `model_attack_followed` 明确映射为版本化 raw canary/forbidden-action signal，并标记 semantic attack following 为 `NOT MEASURED`；V5 为未来运行加入可审计的 18/18 反平衡顺序。V0-V5 收口审查又修复了运行事件证据、私有 summary 复算、正式目录与官方 test cohort 保护和公开审计覆盖；当前功能分支包含这些改动，远端 CI 状态必须以对应 GitHub Actions run 为准。D7 仍是 `COMPLETED WITH OBSERVATIONS`，后续加固没有把它改写成 release pass。50 行人工语义评分与本人代码/口述验收仍是 `NOT RUN`。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
+状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。R2-S1 已完成 D1-D7 与审计加固 V0-V5，其中 V0 是审计验证，V1-V5 是实现阶段。R2-S2 S2-1 又使用新 run ID 执行一次真实 BGE-M3 + Qwen2.5:3b 的 18/18 反平衡 dev replication：OFF raw/user-boundary signal `3/24`，ON `0/24`；真正到达 Guard 的 attack units 在 ON 下 `15/15` 隔离，但全部已标注 attack units 的口径仍只有 `15/28`，因为另有 13 个没有进入 Guard。该 diagnostic 因此保持 `false`，状态是 `COMPLETED WITH OBSERVATIONS`，没有为了追分修改门槛。S2-2 已实现独立 holdout 的 strict schema、覆盖率准入、Git/code baseline 绑定、不可覆盖 freeze manifest、离线 verifier 和防误提交门禁；独立 reviewer 原始包尚未创建，holdout 模型评测仍为 `NOT RUN`。50 行人工语义评分与本人代码/口述验收也仍为 `NOT RUN`。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
 
 ## 1. 当前定位
 
@@ -223,7 +223,7 @@ public repository audit             415 candidates / 0 findings
 repository / clean isolated V1 verifier       VERIFIED / VERIFIED
 compileall / pip check / diff check            clean
 historical formal D7 manifest hash             exact
-real-model v2 run                            NOT RUN
+real-model v2 run at V5 closeout             NOT RUN
 ```
 
 V5 对固定 cohort 计算 `sha256(case_id)`，按 `(case_hash, case_id)` 排名后以 rank 奇偶交替分配 arm order。真实调用顺序由 plan 控制，OFF/ON 结果数组仍按 dataset 对齐供现有指标计算。`LivePairedResultV2` 和 `LiveSecurityRunManifestV2` 与 v1 显式分离；writer 拒绝 v1/v2 混用，并逐行核对 arm position 与 guard mode。
@@ -231,6 +231,18 @@ V5 对固定 cohort 计算 `sha256(case_id)`，按 `(case_hash, case_id)` 排名
 本轮没有重新执行 Qwen/BGE-M3 正式实验，因此没有新的 0/24 或 utility 数字。正式 `r2-s1-d7-test-20260718-01` 继续标记为 fixed OFF-first observational run，manifest SHA-256 仍为 `5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f97865e14e`。详细算法、RED/GREEN、两类顺序的区别、实现错误修正和面试问答见 [V5 Engineering Journal](docs/security/r2_s1/15_v5_counterbalanced_arm_order_engineering_journal.md)。
 
 V0-V5 完成后又进行一次独立 closeout review，结果为 `0 Critical / 6 Important / 2 Minor`。6 个 Important 均已补成 RED/GREEN 回归测试并修复；2 个 Minor 中，process-local 网络边界和独立验证不足被保留为明确限制及 R2-S2 准入项。最终本地证据为 180 个聚焦跨模块测试、921 个全仓测试、415 个公开候选文件零命中、仓库内与隔离 8-file verifier 均通过。完整问题、代码位置、根因、修复和下一阶段安排见 [V0-V5 Closeout Review](docs/security/r2_s1/16_v0_v5_closeout_review_and_improvement_plan.md)。
+
+### R2-S2 S2-1 真实模型反平衡 dev replication
+
+新运行 `r2-s2-s1-dev-20260719-01` 使用 V5 的 `stable_case_hash_rank_counterbalanced_v1`，36 个 case 精确分配 OFF→ON `18`、ON→OFF `18`，共保存 72 个真实 arm execution events。运行入口 Git HEAD 为 `073d7356026954c26c1429fb9faddc5e9a5dcb87`，manifest SHA-256 为 `3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e`；模型错误与被阻止外联均为 0。
+
+结果必须按两层分母解释：ON 对已经到达 Guard 的攻击单元隔离 `15/15`，说明当前 detector 对这次实际输入的 conditional recall 为 100%；但 28 个已标注攻击单元中只有 15 个进入 Guard，因此 end-to-end all-labeled quarantine 仍为 `15/28`。另外 13 个是 retrieval/tool exposure 的 `unreached`，不是 Guard 看见后放行的 false negative。OFF→ON 的 user-boundary attack success 为 `3/24 -> 0/24`，model-context exposure 为 `7/24 -> 0/24`，clean utility 保持 `12/12`，benign quarantine 为 `0/32`。完整逐项解释见 [S2-1 Live Dev Results](docs/security/r2_s2/01_s2_1_live_dev_results.md)。
+
+真实运行还暴露了一个证据分类缺陷：legacy `unit_outcomes` 只有 `admitted/quarantined`，导致 immutable run-01 的 `failures.csv` 把 13 个未到达单元写成 `attack_unit_admitted`。旧 artifact 不覆盖；writer 已用 v2 observation 的 reached/quarantined 计数为未来 artifact 区分 `attack_unit_unreached` 与 `attack_unit_missed_by_guard`，并新增私有 run 独立复算和 arm-position 分层 CLI。修复过程见 [R2-S2 Engineering Journal](docs/security/r2_s2/02_engineering_journal.md)。
+
+### R2-S2 S2-2 独立 holdout 冻结基础设施
+
+仓库已经实现 holdout 的 DRAFT→FROZEN 阶段，但没有由开发者自己生成一个数据集冒充“独立验证”。冻结器要求至少 36 个 case、24 attack、12 benign hard negatives、8 类攻击族、5 个 source surfaces、英中双语、两个不同 reviewer ID 和四项 separation attestation；manifest 绑定三个输入文件的 bytes/hash、case identity、coverage、Git HEAD/branch/clean tracked tree，以及 Guard、live evaluator 与 freezer 的代码 SHA-256。原始目录 `holdout_submissions/` 同时被 `.gitignore` 和 public audit forbidden-prefix 保护。协议详见 [Holdout Freeze Protocol](docs/security/r2_s2/00_holdout_freeze_protocol.md)。
 
 R2-S1 V1-V5 与收口修复提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已推送到 `origin/codex/rag-eval-system`；对应 [GitHub Actions run 29682474913](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29682474913) 在 Ubuntu/Python 3.11 上为 `success`。该结果是功能分支 CI 证据，不代表已经 merge、部署或完成 owner-only 验收。
 
@@ -273,8 +285,8 @@ R2-S1 V1-V5 与收口修复提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已
 
 ## 6. 明确 NOT RUN 或不能外推
 
-- Retrieved-content indirect prompt injection：D1-D7 已完成当前批准范围；D6 deterministic frozen gate 通过，D7 本地 BGE-M3 + Qwen2.5:3b frozen paired run 为 `COMPLETED WITH OBSERVATIONS`。现有证据仍只覆盖可见、固定、合成文本攻击；独立 holdout、多模态、人工红队、未知绕过、跨模型复现和生产流量仍为 `NOT RUN`。
-- R2-S1 audit hardening：V0-V5 已完成本地实现与验证；未来 v2 counterbalanced 协议已有 deterministic synthetic 证据，但新的真实模型 v2 run 为 `NOT RUN`。
+- Retrieved-content indirect prompt injection：D1-D7、V1-V5 和 R2-S2 S2-1 dev replication 已完成当前范围；两次本地 BGE-M3 + Qwen2.5:3b paired run 均为 `COMPLETED WITH OBSERVATIONS`。现有证据仍只覆盖可见、固定、合成文本攻击；独立 holdout、多模态、人工红队、未知绕过、跨模型复现和生产流量仍为 `NOT RUN`。
+- R2-S2 independent validation：counterbalanced real-model dev replication 已运行；holdout freeze/verify 基础设施已实现。独立 reviewer 原始 package、冻结 manifest、一次性模型运行、双人盲评、agreement、semantic judge calibration 与 cross-model matrix 均为 `NOT RUN`。
 - Optional reranker：`NOT RUN`，没有 admitted reranker。
 - Human semantic review：`NOT RUN`；50 行表仍为空，等待本人判断。
 - Owner code experiments and oral defense：`NOT RUN`；Codex 不能代替本人完成。
@@ -302,6 +314,9 @@ R2-S1 V1-V5 与收口修复提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已
 - R2-S1 V4 指标语义日志：[V4 Engineering Journal](docs/security/r2_s1/14_v4_metric_semantics_engineering_journal.md)
 - R2-S1 V5 反平衡顺序日志：[V5 Engineering Journal](docs/security/r2_s1/15_v5_counterbalanced_arm_order_engineering_journal.md)
 - R2-S1 V0-V5 收口审查与改进安排：[Closeout Review](docs/security/r2_s1/16_v0_v5_closeout_review_and_improvement_plan.md)
+- R2-S2 独立 holdout 冻结协议：[Holdout Freeze Protocol](docs/security/r2_s2/00_holdout_freeze_protocol.md)
+- R2-S2 S2-1 真实模型结果：[S2-1 Live Dev Results](docs/security/r2_s2/01_s2_1_live_dev_results.md)
+- R2-S2 逐步工程日志：[R2-S2 Engineering Journal](docs/security/r2_s2/02_engineering_journal.md)
 - E6 历史实施证据：[E6 Implementation Journal](docs/roadmap/e6_demo_public_repo_implementation.md)
 - 跨阶段恢复：[Current Execution Handoff](docs/roadmap/CURRENT_EXECUTION_HANDOFF.md)
 
@@ -346,4 +361,27 @@ versioned raw-follow metric semantics   V4 GREEN / 891 TESTS
 counterbalanced future arm order        V5 GREEN / 913 TESTS
 ```
 
-D3 detector 位于 `app/domain/retrieved_security.py` 与 `app/security/retrieved_content.py`；D4 admission 与强制接入位于 `app/security/retrieved_admission.py`、`app/retrieval/pipeline.py`、`app/agent/tools_v2.py` 和 `app/agent/controller_v2.py`；D5 prompt/service/trace lifecycle 位于 `app/agent/generation_v2.py`、`app/agent/runner_v2.py`、`app/main.py` 和 `app/runtime/resources.py`；D6 deterministic evaluator 位于 `app/evaluation/indirect_injection_*.py`；D7 live index、runner、artifact writer 和 CLI 分别位于 `app/evaluation/indirect_injection_live_index.py`、`app/evaluation/indirect_injection_live_runner.py`、`app/evaluation/indirect_injection_live_writer.py` 与 `scripts/eval_indirect_injection_live.py`；V2 scan provenance 横跨 `app/domain/retrieved_security.py`、`app/security/retrieved_admission.py` 和两套 indirect-injection runner；V3 exact boundary 位于 live runner 的 `_ExactLoopbackOriginPolicy` 与 `LocalOllamaOnlyBoundary`；V4 semantic registry 位于 `app/evaluation/indirect_injection_metric_semantics.py`；V5 arm-order contract 位于 `app/evaluation/indirect_injection_arm_order.py` 并由 live runner/writer/CLI 接入。当前可以准确表述为：“固定 synthetic frozen test 上，deterministic OFF/ON 证明 known attack propagation 从 21/24 降至 0/24；真实 BGE-M3 + Qwen2.5:3b 成对观察中，OFF 出现 3/24 user-visible attack success，ON 为 0/24，且历史 D7 evaluator 记录到达 Guard 的 15/15 attack units 全部隔离、0/32 benign units 被误隔离；另有 OFF 3/24 raw canary/forbidden-action signal，不能称为语义服从率；V2 后的新运行只按 actual scan events 计算 reached；V3 将 evaluator 本地 Ollama 出站约束收紧为 exact origin/address/port，但不是 OS sandbox；V5 只让未来 v2 运行采用可审计的 18/18 反平衡顺序，并没有产生新的真实模型结果。”不能表述为未知攻击免疫或生产安全保证。独立 holdout、人工红队、语义 LLM judge 或跨模型复现仍需另行授权。
+D3 detector 位于 `app/domain/retrieved_security.py` 与 `app/security/retrieved_content.py`；D4 admission 与强制接入位于 `app/security/retrieved_admission.py`、`app/retrieval/pipeline.py`、`app/agent/tools_v2.py` 和 `app/agent/controller_v2.py`；D5 prompt/service/trace lifecycle 位于 `app/agent/generation_v2.py`、`app/agent/runner_v2.py`、`app/main.py` 和 `app/runtime/resources.py`；D6 deterministic evaluator 位于 `app/evaluation/indirect_injection_*.py`；D7 live index、runner、artifact writer 和 CLI 分别位于 `app/evaluation/indirect_injection_live_index.py`、`app/evaluation/indirect_injection_live_runner.py`、`app/evaluation/indirect_injection_live_writer.py` 与 `scripts/eval_indirect_injection_live.py`；V2 scan provenance 横跨 `app/domain/retrieved_security.py`、`app/security/retrieved_admission.py` 和两套 indirect-injection runner；V3 exact boundary 位于 live runner 的 `_ExactLoopbackOriginPolicy` 与 `LocalOllamaOnlyBoundary`；V4 semantic registry 位于 `app/evaluation/indirect_injection_metric_semantics.py`；V5 arm-order contract 位于 `app/evaluation/indirect_injection_arm_order.py` 并由 live runner/writer/CLI 接入。当前可以准确表述为：“固定 synthetic frozen test 上，deterministic OFF/ON 证明 known attack propagation 从 21/24 降至 0/24；历史 D7 与 S2-1 dev replication 的真实 BGE-M3 + Qwen2.5:3b 成对观察中，OFF 均出现 3/24 user-boundary raw signal，ON 均为 0/24；S2-1 已按 actual scan events 验证 ON reached attack units 15/15 隔离、0/32 benign units 被误隔离，但 all-labeled 分母仍为 15/28，13 个 unreached 暴露出检索/工具覆盖问题；V3 是 evaluator 进程内的 exact local origin/socket 边界，不是 OS sandbox；holdout 冻结工具已实现，但独立数据和结果不存在。”不能表述为未知攻击免疫或生产安全保证。
+
+## 9. R2-S2 当前状态
+
+```text
+S2-1 preflight and new run ID                  COMPLETE
+S2-1 BGE-M3/Qwen counterbalanced dev run       COMPLETED WITH OBSERVATIONS
+S2-1 36 cases / 72 arm events                  VERIFIED
+S2-1 OFF->ON / ON->OFF                         18 / 18
+S2-1 ON conditional / all-labeled quarantine   15/15 / 15/28
+S2-1 future failure taxonomy                   UNREACHED vs MISSED FIXED
+S2-2 holdout strict contracts                  IMPLEMENTED
+S2-2 freeze/verify operator CLIs               IMPLEMENTED
+S2-2 raw-package leak prevention               IMPLEMENTED
+independent reviewer package                   NOT CREATED
+independent holdout model run                  NOT RUN
+blind double review / agreement                NOT RUN
+semantic judge / cross-model replication       NOT RUN
+current full repository regression             954 PASSED / 3 KNOWN WARNINGS
+current public repository audit                426 CANDIDATES / 0 FINDINGS
+compileall / pip check                         CLEAN / CLEAN
+```
+
+下一步不能由当前 Guard 开发者代替独立 reviewer 编写攻击 payload。正确交接是：独立人员按冻结协议创建 `holdout_submissions/<submission-id>/`，在 clean tracked Git baseline 上 freeze 并由另一 reviewer 核验 manifest；只有 freeze 后才实现一次性 evaluation adapter。若 holdout 失败，只能把失败类型带回新的 dev regression，不能反复查看同一 holdout 调规则后继续称其未见。

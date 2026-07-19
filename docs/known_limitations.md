@@ -11,7 +11,7 @@
 | Identity | `UserContext` 由浏览器/调用方声明，只做 schema 和 policy 验证 | 本地演示可以验证 ACL 逻辑，但不能证明真实用户身份 | 由可信 OIDC/IAM gateway 签发身份，并加入 token/tenant/group integration tests |
 | Data realism | 72/600 文档和 52 个 eval cases 全部 synthetic | 指标证明工程 contract，不代表真实企业分布或生产泛化 | 法务批准的去标识 pilot corpus、数据治理记录和独立 held-out evaluation |
 | Live quality | 当前 canonical live dev 为 23/24 | 一个 system-runtime failure 被保留；不能报告 100% | 先定位/复现失败，再在新冻结 split 上验证，而不是改写旧 artifact |
-| Indirect document injection | D1-D7 与 V1-V5 已完成：D6 deterministic OFF 21/24、ON 0/24；D7 单次本机观察 OFF user-visible 3/24、ON 0/24；未来 v2 已有反平衡协议 | 已证明固定规则集的软件传播边界、单模型观察和证据可审计性；未证明未知绕过、独立分布、语义服从率或跨模型泛化 | 先运行新 run ID 的 counterbalanced dev replication，再冻结独立 holdout，执行人工红队、semantic judge calibration 与跨模型复现 |
+| Indirect document injection | D1-D7、V1-V5 与 S2-1 已完成：D6 deterministic OFF 21/24、ON 0/24；D7/S2-1 两次本机观察 OFF raw/user-boundary 3/24、ON 0/24；S2-1 为 18/18 反平衡，ON conditional quarantine 15/15、all-labeled 15/28 | 已证明固定规则集的软件传播边界、单模型可见 dev 观察和证据可审计性；13/28 attack units 未到达 Guard，且未证明未知绕过、独立分布、语义服从率或跨模型泛化 | S2-2 freeze/verify 代码已实现；下一步由独立 reviewer 创建并冻结未见 package，再执行一次性 holdout、双人盲评、semantic judge calibration 与跨模型复现；另在新 dev 数据上单独测 retrieval/tool exposure coverage |
 | Reranker | `NOT RUN` (`no_admitted_reranker`) | 不能声称 cross-encoder/reranker 改善过排序 | 固定候选模型、license/资源预算与 latency gate；在 frozen test 上做隔离消融 |
 | Human review | `NOT RUN`；50 行、8 个人工判断列保持空白 | 自动 claim/citation/required-fact checks 不能替代语义和可用性评分 | 本人按冻结 rubric 完成 review；若用于正式质量结论，再增加第二 reviewer、分歧仲裁和 agreement 记录 |
 | Authentication/authorization | 只有本地 ACL policy，没有 SSO、token verification、policy admin 或 audit identity | 不能公网暴露为企业服务 | IAM、server-derived claims、deny-by-default policy store、admin/change audit |
@@ -38,14 +38,14 @@
 
 已经验证的是：固定 direct unsafe prompts 在 query analysis 后、retrieval 前 source-free 拒绝；ACL 测试不暴露 forbidden docs；错误/trace 不回显已知敏感字段；默认 V2 `search/find/open` 在 Controller 前执行确定性 admission，raw execution 被拒绝，已隔离内容不进入 generation/source/context budget。
 
-尚未证明的是：任意 prompt injection 都会失败、真实 Qwen 在未知攻击或其他模型上的成功率、system prompt 永不泄露、显式 compatibility app 中的 legacy `/chat`/`/agent/chat` 受到 V2 Guard 保护、浏览器声明身份可信、或该服务适合公网/多租户生产。D6 fake generator 只证明确定性传播；D7 只观察到一组固定本地 BGE-M3/Qwen 配置下的行为。
+尚未证明的是：任意 prompt injection 都会失败、真实 Qwen 在未知攻击或其他模型上的成功率、system prompt 永不泄露、显式 compatibility app 中的 legacy `/chat`/`/agent/chat` 受到 V2 Guard 保护、浏览器声明身份可信、或该服务适合公网/多租户生产。D6 fake generator 只证明确定性传播；D7 与 S2-1 都只观察到固定本地 BGE-M3/Qwen 配置下的可见 synthetic 数据。S2-1 的 `15/15` 是“已到达 Guard 后”的条件 detector 指标，不覆盖 13 个 unreached attack units，也不能改写成 end-to-end `28/28`。
 
 完整威胁与控制映射见 [Security Threat Model](security_threat_model.md)。
 
 ## 4. 公开展示边界
 
 - README 与 UI 必须显示 live `23/24`，不能四舍五入为 100%。
-- indirect document injection 必须分层显示：D4 guarded V2 data flow、D5 prompt/public observability、D6 deterministic frozen OFF/ON gate 已完成；D7 local BGE-M3/Qwen paired run 为 `COMPLETED WITH OBSERVATIONS`。独立 holdout、人工红队和 optional reranker 仍是 `NOT RUN`。
+- indirect document injection 必须分层显示：D4 guarded V2 data flow、D5 prompt/public observability、D6 deterministic frozen OFF/ON gate 已完成；D7 fixed-order 与 S2-1 counterbalanced local BGE-M3/Qwen paired runs 均为 `COMPLETED WITH OBSERVATIONS`。S2-2 只完成 holdout freeze/verify 基础设施；独立 package、holdout 结果、人工红队和 optional reranker 仍是 `NOT RUN`。
 - `526 passed` 是 E5 入口、`569 passed` 是 E6 收口、`574 passed` 是 E7 自动化本地门禁；它们是不同 commit 候选的历史计数，不能相加。
 - 远端 CI 声明必须同时给出 run URL 和 commit；当前可核验范围仅为 `9607e55` 的 feature-branch run。
 - E7 已逐条处理 claims matrix；只能使用 `approved` 原句或 `narrowed` 后的措辞，不能删掉 synthetic、deterministic/local、样本数和 `NOT RUN` 边界。
@@ -54,4 +54,4 @@
 
 ## 5. R2-S1 current boundary
 
-D1 froze the design; D3 built the model-free detector; D4 connected it to the default V2 path; D5 added prompt/trace/service defense in depth; D6 added the immutable deterministic paired gate. The D6 frozen synthetic result is OFF attack success `21/24` versus ON `0/24`, ON benign quarantine `0/32`, with `788 passed` full regression. D7 then observed one local BGE-M3/Qwen pair: OFF user-visible attack success `3/24` versus ON `0/24`, conditional quarantine recall `15/15`, and benign quarantine `0/32`. Neither result establishes unseen-attack prevalence, immunity, cross-model generalization or production safety.
+D1 froze the design; D3 built the model-free detector; D4 connected it to the default V2 path; D5 added prompt/trace/service defense in depth; D6 added the immutable deterministic paired gate. The D6 frozen synthetic result is OFF attack success `21/24` versus ON `0/24`, ON benign quarantine `0/32`, with `788 passed` full regression. D7 then observed one fixed-order local BGE-M3/Qwen pair. R2-S2 S2-1 repeated the visible dev experiment with a new run ID and exact 18/18 counterbalancing: OFF user-boundary signal `3/24` versus ON `0/24`, conditional quarantine `15/15`, all-labeled quarantine `15/28`, clean utility `12/12`, benign quarantine `0/32`, and zero model/system errors or blocked egress. S2-2 implements holdout admission and sealing, but no independent raw package or holdout score exists. None of these results establishes unseen-attack prevalence, immunity, cross-model generalization or production safety.

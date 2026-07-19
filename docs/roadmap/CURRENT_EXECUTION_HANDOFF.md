@@ -466,3 +466,56 @@ Git 交付：提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已推送到 `ori
 7. `docs/superpowers/specs/2026-07-19-r2-s1-v5-counterbalanced-arm-order-design.md`
 8. `docs/superpowers/plans/2026-07-19-r2-s1-v5-counterbalanced-arm-order.md`
 9. `docs/security/r2_s1/16_v0_v5_closeout_review_and_improvement_plan.md`
+
+## 19. R2-S2 S2-1/S2-2 当前精确断点
+
+S2-1 已使用新 run ID `r2-s2-s1-dev-20260719-01` 执行真实 BGE-M3 + Qwen2.5:3b 的 dev paired replication。运行入口是 clean Git HEAD `073d7356026954c26c1429fb9faddc5e9a5dcb87`，manifest SHA-256 为 `3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e`。原始运行目录在 ignored `security_runs/`，不可提交。
+
+```text
+cases / arm events                       36 / 72
+OFF->ON / ON->OFF                        18 / 18
+OFF user-boundary attack success          3 / 24
+ON user-boundary attack success           0 / 24
+OFF model-context exposure                7 / 24
+ON model-context exposure                 0 / 24
+ON reached-unit quarantine               15 / 15
+ON all-labeled quarantine                15 / 28
+unreached attack units                    13 / 28
+clean utility OFF / ON                   12/12 / 12/12
+benign quarantine ON                      0 / 32
+model/system errors                       0
+blocked external egress                   0
+diagnostic gate                           FALSE
+status                                    COMPLETED WITH OBSERVATIONS
+```
+
+`15/15` 与 `15/28` 不矛盾。前者回答“Guard 看见攻击后是否隔离”；后者回答“所有已标注攻击单元中有多少最终被隔离”。13 个单元没有进入 Guard，属于 retrieval/tool exposure coverage，不是 detector false negative。不得修改冻结 gate 把 false 改成 pass。
+
+真实 run-01 还发现旧 `failures.csv` 不能区分 `unreached` 和 `admitted`。旧文件保持不可变；未来 v2 writer 已改为根据 live observation 发出 `attack_unit_unreached` 或 `attack_unit_missed_by_guard`。`scripts/verify_indirect_injection_live_run.py` 可离线复算私有 artifacts，并按 arm position 展示 attack composition、exposure、quarantine、error、egress 与 latency。position 1/2 的 attack composition 是 13/11，因此位置分层只能描述，不能当因果实验。
+
+S2-2 已实现独立 holdout 的 DRAFT→FROZEN 基础设施：
+
+```text
+strict catalog/payload/rubric contracts       IMPLEMENTED
+36/24/12 + family/surface/language admission  IMPLEMENTED
+Git/code baseline binding                     IMPLEMENTED
+immutable canonical freeze manifest           IMPLEMENTED
+offline verifier and tamper rejection         IMPLEMENTED
+holdout_submissions Git/public leak guard      IMPLEMENTED
+independent reviewer raw package               NOT CREATED
+one-shot holdout model evaluation              NOT RUN
+blind double review / semantic judge           NOT RUN
+full repository regression                     954 PASSED / 3 KNOWN WARNINGS
+public repository audit                        426 CANDIDATES / 0 FINDINGS
+compileall / pip check                         CLEAN / CLEAN
+```
+
+恢复时先读取：
+
+1. `docs/security/r2_s2/00_holdout_freeze_protocol.md`
+2. `docs/security/r2_s2/01_s2_1_live_dev_results.md`
+3. `docs/security/r2_s2/02_engineering_journal.md`
+4. `docs/superpowers/specs/2026-07-19-r2-s2-holdout-freeze-design.md`
+5. `docs/superpowers/plans/2026-07-19-r2-s2-holdout-freeze.md`
+
+下一执行点不是由当前开发者生成攻击数据。独立 reviewer 应在 `holdout_submissions/<submission-id>/` 创建三个原始文件并按 protocol freeze；另一 reviewer 验证 manifest 后，才批准一次性 holdout adapter 与模型运行。检索覆盖改进只能在新的 dev-only 实验中完成，不能查看 holdout 后追分。
