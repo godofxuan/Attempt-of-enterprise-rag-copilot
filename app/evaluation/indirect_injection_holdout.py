@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
+import tempfile
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 REQUIRED_ATTACK_FAMILIES = (
@@ -43,6 +47,12 @@ HoldoutLabel = Literal["attack", "benign"]
 
 _DRAFT_FILE_NAMES = frozenset(
     {"case_catalog.json", "payload.json", "rubric.json"}
+)
+_FROZEN_FILE_NAMES = _DRAFT_FILE_NAMES | {"freeze_manifest.json"}
+HOLDOUT_BASELINE_PATHS = (
+    "app/security/retrieved_content.py",
+    "app/evaluation/indirect_injection_live_runner.py",
+    "app/evaluation/indirect_injection_holdout.py",
 )
 
 
@@ -159,6 +169,71 @@ class HoldoutCoverageSummary(_StrictFrozenModel):
     case_identity_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
+class HoldoutFileEvidence(_StrictFrozenModel):
+    path: Literal["case_catalog.json", "payload.json", "rubric.json"]
+    bytes: int = Field(ge=1)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class HoldoutCodeArtifactEvidence(_StrictFrozenModel):
+    path: str = Field(min_length=1, max_length=300)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class HoldoutCodeBaseline(_StrictFrozenModel):
+    git_head: str = Field(pattern=r"^[0-9a-f]{40}$")
+    branch: str = Field(min_length=1, max_length=200)
+    tracked_worktree_clean: Literal[True]
+    artifacts: dict[str, HoldoutCodeArtifactEvidence]
+
+    @model_validator(mode="after")
+    def validate_artifacts(self) -> HoldoutCodeBaseline:
+        if set(self.artifacts) != set(HOLDOUT_BASELINE_PATHS):
+            raise ValueError("holdout code baseline artifact set is incomplete")
+        if any(key != value.path for key, value in self.artifacts.items()):
+            raise ValueError("holdout code baseline artifact paths contradict keys")
+        return self
+
+
+class HoldoutSeparationAttestation(_StrictFrozenModel):
+    author_is_independent_of_guard_implementation: Literal[True]
+    raw_payload_not_shared_before_freeze: Literal[True]
+    labels_not_changed_after_model_observation: Literal[True]
+    single_evaluation_per_code_baseline: Literal[True]
+
+
+class HoldoutFreezeManifest(_StrictFrozenModel):
+    schema_version: Literal["indirect_injection_holdout_freeze_manifest_v1"]
+    producer: Literal["enterprise_agentic_rag_v2"]
+    submission_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{2,120}$")
+    holdout_id: str = Field(pattern=r"^r2-s2-holdout-[a-z0-9][a-z0-9-]{2,120}$")
+    state: Literal["FROZEN"]
+    frozen_at_utc: datetime
+    primary_reviewer_id: str = Field(pattern=r"^reviewer-[a-z0-9][a-z0-9-]{2,80}$")
+    secondary_reviewer_id: str = Field(pattern=r"^reviewer-[a-z0-9][a-z0-9-]{2,80}$")
+    files: dict[str, HoldoutFileEvidence]
+    coverage: HoldoutCoverageSummary
+    code_baseline: HoldoutCodeBaseline
+    separation_attestation: HoldoutSeparationAttestation
+
+    @field_validator("frozen_at_utc")
+    @classmethod
+    def validate_frozen_at_utc(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() != timezone.utc.utcoffset(value):
+            raise ValueError("holdout freeze time must be UTC")
+        return value
+
+    @model_validator(mode="after")
+    def validate_manifest(self) -> HoldoutFreezeManifest:
+        if set(self.files) != _DRAFT_FILE_NAMES:
+            raise ValueError("holdout freeze manifest input file set is incomplete")
+        if any(key != value.path for key, value in self.files.items()):
+            raise ValueError("holdout freeze input paths contradict keys")
+        if self.primary_reviewer_id == self.secondary_reviewer_id:
+            raise ValueError("holdout freeze reviewers must be distinct")
+        return self
+
+
 @dataclass(frozen=True)
 class HoldoutInputs:
     submission_dir: Path
@@ -169,14 +244,24 @@ class HoldoutInputs:
 
 
 def load_holdout_inputs(submission_dir: Path) -> HoldoutInputs:
+    return _load_holdout_inputs(submission_dir, frozen=False)
+
+
+def _load_holdout_inputs(
+    submission_dir: Path,
+    *,
+    frozen: bool,
+) -> HoldoutInputs:
     submission_dir = Path(submission_dir).resolve()
     if not submission_dir.is_dir():
         raise FileNotFoundError(f"holdout submission directory not found: {submission_dir}")
     file_names = frozenset(
         path.name for path in submission_dir.iterdir() if path.is_file()
     )
-    if file_names != _DRAFT_FILE_NAMES:
-        raise ValueError("draft holdout package must contain exactly three input files")
+    expected_names = _FROZEN_FILE_NAMES if frozen else _DRAFT_FILE_NAMES
+    if file_names != expected_names:
+        expected_count = "four frozen files" if frozen else "exactly three input files"
+        raise ValueError(f"holdout package must contain {expected_count}")
 
     catalog = HoldoutCaseCatalog.model_validate_json(
         (submission_dir / "case_catalog.json").read_bytes()
@@ -206,6 +291,110 @@ def load_holdout_inputs(submission_dir: Path) -> HoldoutInputs:
         rubric=rubric,
         coverage=coverage,
     )
+
+
+def freeze_holdout_submission(
+    submission_dir: Path,
+    *,
+    baseline: HoldoutCodeBaseline,
+    attestation: HoldoutSeparationAttestation,
+    frozen_at_utc: datetime,
+) -> Path:
+    submission_dir = Path(submission_dir).resolve()
+    manifest_path = submission_dir / "freeze_manifest.json"
+    if manifest_path.exists():
+        raise FileExistsError(f"holdout submission is already frozen: {manifest_path}")
+    inputs = load_holdout_inputs(submission_dir)
+    manifest = _build_freeze_manifest(
+        inputs,
+        baseline=baseline,
+        attestation=attestation,
+        frozen_at_utc=frozen_at_utc,
+    )
+    payload = _json_bytes(manifest.model_dump(mode="json"))
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=".freeze_manifest.",
+        suffix=".tmp",
+        dir=submission_dir,
+    )
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    try:
+        temporary.write_bytes(payload)
+        temporary.replace(manifest_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    verify_holdout_submission(submission_dir, baseline=baseline)
+    return manifest_path
+
+
+def verify_holdout_submission(
+    submission_dir: Path,
+    *,
+    baseline: HoldoutCodeBaseline,
+) -> HoldoutFreezeManifest:
+    submission_dir = Path(submission_dir).resolve()
+    manifest_path = submission_dir / "freeze_manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"holdout freeze manifest not found: {manifest_path}")
+    manifest_bytes = manifest_path.read_bytes()
+    manifest = HoldoutFreezeManifest.model_validate_json(manifest_bytes)
+    if manifest_bytes != _json_bytes(manifest.model_dump(mode="json")):
+        raise ValueError("holdout freeze manifest is not canonical JSON")
+    if submission_dir.name != manifest.submission_id:
+        raise ValueError("holdout submission directory contradicts manifest")
+    if baseline != manifest.code_baseline:
+        raise ValueError("holdout code baseline does not match frozen manifest")
+    inputs = _load_holdout_inputs(submission_dir, frozen=True)
+    expected = _build_freeze_manifest(
+        inputs,
+        baseline=baseline,
+        attestation=manifest.separation_attestation,
+        frozen_at_utc=manifest.frozen_at_utc,
+    )
+    if expected != manifest:
+        raise ValueError("holdout freeze manifest contradicts current package bytes")
+    return manifest
+
+
+def _build_freeze_manifest(
+    inputs: HoldoutInputs,
+    *,
+    baseline: HoldoutCodeBaseline,
+    attestation: HoldoutSeparationAttestation,
+    frozen_at_utc: datetime,
+) -> HoldoutFreezeManifest:
+    return HoldoutFreezeManifest(
+        schema_version="indirect_injection_holdout_freeze_manifest_v1",
+        producer="enterprise_agentic_rag_v2",
+        submission_id=inputs.submission_dir.name,
+        holdout_id=inputs.catalog.holdout_id,
+        state="FROZEN",
+        frozen_at_utc=frozen_at_utc,
+        primary_reviewer_id=inputs.rubric.primary_reviewer_id,
+        secondary_reviewer_id=inputs.rubric.secondary_reviewer_id,
+        files={
+            name: HoldoutFileEvidence(
+                path=name,
+                bytes=(inputs.submission_dir / name).stat().st_size,
+                sha256=_sha256_file(inputs.submission_dir / name),
+            )
+            for name in sorted(_DRAFT_FILE_NAMES)
+        },
+        coverage=inputs.coverage,
+        code_baseline=baseline,
+        separation_attestation=attestation,
+    )
+
+
+def _json_bytes(value: object) -> bytes:
+    return (
+        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def _coverage(
@@ -251,11 +440,17 @@ def _coverage(
 __all__ = [
     "HoldoutCaseCatalog",
     "HoldoutCoverageSummary",
+    "HoldoutCodeBaseline",
+    "HoldoutFreezeManifest",
     "HoldoutInputs",
     "HoldoutPayloadEnvelope",
     "HoldoutRubric",
+    "HoldoutSeparationAttestation",
+    "HOLDOUT_BASELINE_PATHS",
     "REQUIRED_ATTACK_FAMILIES",
     "REQUIRED_RUBRIC_DIMENSIONS",
     "REQUIRED_SOURCE_SURFACES",
+    "freeze_holdout_submission",
     "load_holdout_inputs",
+    "verify_holdout_submission",
 ]
