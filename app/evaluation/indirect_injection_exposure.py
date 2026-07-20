@@ -571,6 +571,11 @@ class ExposureSummary(_StrictFrozenModel):
         ):
             raise ValueError("conditional quarantine denominator mismatch")
         if (
+            self.quarantine_given_live_guard_reach.numerator
+            != self.live_guard_quarantine.numerator
+        ):
+            raise ValueError("conditional quarantine numerator mismatch")
+        if (
             self.unreached_attack_unit_count
             != self.attack_unit_count - self.replay_guard_reach.numerator
         ):
@@ -583,6 +588,13 @@ class ExposureSummary(_StrictFrozenModel):
             )
         ):
             raise ValueError("unreached-case metric denominator mismatch")
+        if (
+            self.unreached_case_attack_success.numerator
+            > self.unreached_case_downstream_exposure.numerator
+        ):
+            raise ValueError(
+                "unreached attack success cannot exceed downstream exposure"
+            )
 
         search_counts = tuple(
             item.counterfactual_search_reach.numerator for item in self.depths
@@ -702,6 +714,49 @@ class ExposureAnalysisResult(_StrictFrozenModel):
             raise ValueError("analysis unit identities must be unique")
         if self.summary.attack_unit_count != len(self.units):
             raise ValueError("analysis summary attack-unit count mismatch")
+        search_unit_count = sum(
+            item.counterfactual_search_applicable for item in self.units
+        )
+        if (
+            self.summary.search_addressable_attack_unit_count
+            != search_unit_count
+        ):
+            raise ValueError(
+                "analysis search-addressable attack-unit count mismatch"
+            )
+        for depth in COUNTERFACTUAL_DEPTHS:
+            search_flag = f"counterfactual_search_reached_at_{depth}"
+            expected_search_reach = ExposureMetric.from_counts(
+                sum(getattr(item, search_flag) is True for item in self.units),
+                search_unit_count,
+                applicable=search_unit_count > 0,
+            )
+            expected_total_reach = ExposureMetric.from_counts(
+                sum(
+                    item.replay_guard_reached
+                    or getattr(item, search_flag) is True
+                    for item in self.units
+                ),
+                len(self.units),
+                applicable=bool(self.units),
+            )
+            observed_depth = self.summary.depth(depth)
+            if observed_depth.counterfactual_search_reach != expected_search_reach:
+                raise ValueError(
+                    "counterfactual search reach does not match unit rows"
+                )
+            if observed_depth.counterfactual_total_reach != expected_total_reach:
+                raise ValueError(
+                    "counterfactual total reach does not match unit rows"
+                )
+        if self.strata != _build_exposure_strata(self.units):
+            raise ValueError("analysis strata do not match unit rows")
+        expected_decision = _decide_exposure(
+            self.summary,
+            self.unguarded_path_findings,
+        )
+        if self.decision != expected_decision:
+            raise ValueError("analysis decision does not match evidence")
         return self
 
 

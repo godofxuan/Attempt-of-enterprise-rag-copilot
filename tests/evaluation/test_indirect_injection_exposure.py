@@ -1475,6 +1475,75 @@ def test_counterfactual_total_reach_is_a_unit_union_without_double_counting(
         assert metric.numerator <= metric.denominator
 
 
+def test_result_rejects_naively_double_counted_counterfactual_total_reach(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    payload = result.model_dump(mode="python")
+    depth_1 = payload["summary"]["depths"][0]
+    metric = result.summary.depth(1).counterfactual_total_reach
+    assert metric.numerator < metric.denominator
+    depth_1["counterfactual_total_reach"] = (
+        exposure.ExposureMetric.from_counts(
+            metric.numerator + 1,
+            metric.denominator,
+        ).model_dump(mode="python")
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="counterfactual total reach does not match unit rows",
+    ):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
+def test_result_rejects_counterfactual_search_numerator_not_derived_from_rows(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    payload = result.model_dump(mode="python")
+    depth_1 = payload["summary"]["depths"][0]
+    metric = result.summary.depth(1).counterfactual_search_reach
+    depth_1["counterfactual_search_reach"] = (
+        exposure.ExposureMetric.from_counts(
+            metric.numerator + 1,
+            metric.denominator,
+        ).model_dump(mode="python")
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="counterfactual search reach does not match unit rows",
+    ):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
+def test_result_rejects_counterfactual_search_denominator_not_derived_from_rows(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    payload = result.model_dump(mode="python")
+    summary = payload["summary"]
+    forged_count = result.summary.search_addressable_attack_unit_count + 1
+    summary["search_addressable_attack_unit_count"] = forged_count
+    summary["candidate_pool_presence"] = exposure.ExposureMetric.from_counts(
+        forged_count,
+        result.summary.attack_unit_count,
+    ).model_dump(mode="python")
+    for depth in summary["depths"]:
+        metric = depth["counterfactual_search_reach"]
+        depth["counterfactual_search_reach"] = exposure.ExposureMetric.from_counts(
+            metric["numerator"],
+            forged_count,
+        ).model_dump(mode="python")
+
+    with pytest.raises(
+        ValueError,
+        match="search-addressable attack-unit count mismatch",
+    ):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
 def test_counterfactual_cost_uses_guard_scanned_length_and_replay_scan_keys(
     accepted_inputs: exposure.ExposureInputs,
 ) -> None:
@@ -1620,6 +1689,44 @@ def test_counterfactual_metric_rejects_malformed_rate() -> None:
         )
 
 
+def test_summary_rejects_conditional_quarantine_numerator_mismatch(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    summary = exposure.analyze_exposure(accepted_inputs).summary
+    payload = summary.model_dump(mode="python")
+    assert summary.live_guard_quarantine.numerator > 0
+    payload["quarantine_given_live_guard_reach"] = (
+        exposure.ExposureMetric.from_counts(
+            0,
+            summary.live_guard_reach.numerator,
+        ).model_dump(mode="python")
+    )
+
+    with pytest.raises(ValueError, match="conditional quarantine numerator mismatch"):
+        exposure.ExposureSummary.model_validate(payload)
+
+
+def test_summary_rejects_unreached_attack_success_above_downstream_exposure(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    summary = exposure.analyze_exposure(accepted_inputs).summary
+    payload = summary.model_dump(mode="python")
+    assert summary.unreached_case_count > 0
+    assert summary.unreached_case_downstream_exposure.numerator == 0
+    payload["unreached_case_attack_success"] = (
+        exposure.ExposureMetric.from_counts(
+            1,
+            summary.unreached_case_count,
+        ).model_dump(mode="python")
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="unreached attack success cannot exceed downstream exposure",
+    ):
+        exposure.ExposureSummary.model_validate(payload)
+
+
 @pytest.mark.parametrize("mutation", ("search_reach", "scan_units"))
 def test_counterfactual_summary_rejects_non_monotonic_depths(
     accepted_inputs: exposure.ExposureInputs,
@@ -1674,6 +1781,95 @@ def test_downstream_fields_remain_case_prefixed_and_consistent(
         exposure._build_exposure_summary(accepted_inputs, tuple(rows))
 
 
+def _stratum_index_for_dimension(
+    result: exposure.ExposureAnalysisResult,
+    dimension: str,
+) -> int:
+    required_value = {
+        "source_surface": "open",
+        "actual_candidate_rank": "not_applicable",
+    }.get(dimension)
+    return next(
+        index
+        for index, item in enumerate(result.strata)
+        if item.dimension == dimension
+        and (required_value is None or item.value == required_value)
+    )
+
+
+@pytest.mark.parametrize(
+    "dimension",
+    ("category", "source_surface", "actual_candidate_rank", "scenario_tag"),
+)
+def test_result_rejects_stratum_search_depth_denominator_tampering(
+    accepted_inputs: exposure.ExposureInputs,
+    dimension: str,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    payload = result.model_dump(mode="python")
+    index = _stratum_index_for_dimension(result, dimension)
+    for depth in payload["strata"][index]["depths"]:
+        metric = depth["counterfactual_search_reach"]
+        depth["counterfactual_search_reach"] = exposure.ExposureMetric.from_counts(
+            metric["numerator"],
+            metric["denominator"] + 1,
+            applicable=metric["applicable"],
+        ).model_dump(mode="python")
+
+    with pytest.raises(ValueError, match="analysis strata do not match unit rows"):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "dimension",
+    ("category", "source_surface", "actual_candidate_rank", "scenario_tag"),
+)
+def test_result_rejects_stratum_total_depth_denominator_tampering(
+    accepted_inputs: exposure.ExposureInputs,
+    dimension: str,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    payload = result.model_dump(mode="python")
+    index = _stratum_index_for_dimension(result, dimension)
+    for depth in payload["strata"][index]["depths"]:
+        metric = depth["counterfactual_total_reach"]
+        depth["counterfactual_total_reach"] = exposure.ExposureMetric.from_counts(
+            metric["numerator"],
+            metric["denominator"] + 1,
+        ).model_dump(mode="python")
+
+    with pytest.raises(ValueError, match="analysis strata do not match unit rows"):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "dimension",
+    ("category", "source_surface", "actual_candidate_rank", "scenario_tag"),
+)
+def test_result_rejects_stratum_numerator_tampering(
+    accepted_inputs: exposure.ExposureInputs,
+    dimension: str,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    payload = result.model_dump(mode="python")
+    index = _stratum_index_for_dimension(result, dimension)
+    metric = payload["strata"][index]["replay_selected_attack_units"]
+    forged_numerator = (
+        metric["numerator"] + 1
+        if metric["numerator"] < metric["denominator"]
+        else metric["numerator"] - 1
+    )
+    payload["strata"][index]["replay_selected_attack_units"] = (
+        exposure.ExposureMetric.from_counts(
+            forged_numerator,
+            metric["denominator"],
+        ).model_dump(mode="python")
+    )
+
+    with pytest.raises(ValueError, match="analysis strata do not match unit rows"):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
 def test_counterfactual_strata_cover_all_required_dimensions(
     accepted_inputs: exposure.ExposureInputs,
 ) -> None:
@@ -1722,6 +1918,69 @@ def _summary_with_unreached_downstream_exposure(
         exposure.ExposureMetric.from_counts(1, denominator).model_dump(mode="python")
     )
     return exposure.ExposureSummary.model_validate(payload)
+
+
+def _set_result_downstream_exposure(
+    payload: dict[str, object],
+) -> None:
+    summary = payload["summary"]
+    assert isinstance(summary, dict)
+    denominator = summary["unreached_case_count"]
+    assert isinstance(denominator, int) and denominator > 0
+    summary["unreached_case_downstream_exposure"] = (
+        exposure.ExposureMetric.from_counts(1, denominator).model_dump(mode="python")
+    )
+
+
+def test_result_rejects_downstream_exposure_with_no_bypass_decision(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    payload = exposure.analyze_exposure(accepted_inputs).model_dump(mode="python")
+    _set_result_downstream_exposure(payload)
+
+    with pytest.raises(ValueError, match="analysis decision does not match evidence"):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
+def test_result_rejects_experiment_decision_when_mitigation_takes_precedence(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    payload = exposure.analyze_exposure(accepted_inputs).model_dump(mode="python")
+    _set_result_downstream_exposure(payload)
+    payload["unguarded_path_findings"] = (
+        {"operation": "find", "evidence_id": "review-future-find-consumer"},
+    )
+    payload["decision"] = "RUNTIME_EXPERIMENT_ADMITTED"
+
+    with pytest.raises(ValueError, match="analysis decision does not match evidence"):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
+def test_result_rejects_no_bypass_decision_with_unguarded_path_finding(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    payload = exposure.analyze_exposure(accepted_inputs).model_dump(mode="python")
+    payload["unguarded_path_findings"] = (
+        {"operation": "find", "evidence_id": "review-future-find-consumer"},
+    )
+
+    with pytest.raises(ValueError, match="analysis decision does not match evidence"):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "decision",
+    ("RUNTIME_EXPERIMENT_ADMITTED", "RUNTIME_MITIGATION_REQUIRED"),
+)
+def test_result_rejects_runtime_decision_without_supporting_evidence(
+    accepted_inputs: exposure.ExposureInputs,
+    decision: str,
+) -> None:
+    payload = exposure.analyze_exposure(accepted_inputs).model_dump(mode="python")
+    payload["decision"] = decision
+
+    with pytest.raises(ValueError, match="analysis decision does not match evidence"):
+        exposure.ExposureAnalysisResult.model_validate(payload)
 
 
 def test_current_source_decision_is_no_bypass_from_verified_rows(
