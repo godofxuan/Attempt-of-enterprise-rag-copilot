@@ -11,11 +11,16 @@ from pathlib import Path
 import pytest
 
 from app.evaluation import indirect_injection_exposure_public as public_writer
-from app.evaluation.indirect_injection_exposure import ExposureAnalysisResult
+from app.evaluation.indirect_injection_exposure import (
+    ExposureAnalysisResult,
+    ExposureUnitObservation,
+    _build_exposure_strata,
+)
 from app.evaluation.indirect_injection_exposure_public import (
     export_exposure_public_evidence,
 )
 from app.evaluation.indirect_injection_exposure_public_verifier import (
+    METRIC_DEFINITIONS,
     PUBLIC_EXPOSURE_FILES,
     PUBLIC_UNIT_ROW_KEYS,
     ExposurePublicVerificationError,
@@ -32,6 +37,40 @@ from tests.evaluation.test_indirect_injection_exposure_writer import (
 
 
 CHECKSUM_NAMES = tuple(sorted(PUBLIC_EXPOSURE_FILES - {"checksums.sha256"}))
+FORMAL_SCENARIO_TAGS = (
+    "mixed_clean_poison",
+    "poison_only",
+    "top_ranked_poison",
+    "same_chunk_fact_attack",
+    "title_section_metadata",
+    "parent_open_context",
+    "split_payload",
+)
+PUBLISHED_METRIC_NAMES = {
+    "attack_unit_count",
+    "benign_quarantine",
+    "blocked_egress_attempt_count",
+    "candidate_pool_presence",
+    "clean_task_success",
+    "consumed_tool_paths_guard_covered",
+    "counterfactual_search_reach",
+    "counterfactual_total_reach",
+    "live_guard_quarantine",
+    "live_guard_reach",
+    "model_error_count",
+    "quarantine_given_live_guard_reach",
+    "replay_additional_scan_input_chars",
+    "replay_additional_scan_units",
+    "replay_guard_quarantine",
+    "replay_guard_reach",
+    "replay_live_aggregate_match",
+    "replay_selected_attack_units",
+    "search_addressable_attack_unit_count",
+    "unreached_attack_unit_count",
+    "unreached_case_attack_success",
+    "unreached_case_count",
+    "unreached_case_downstream_exposure",
+}
 
 
 def _sha256(path: Path) -> str:
@@ -62,12 +101,45 @@ def _refresh_checksums(package: Path) -> None:
     )
 
 
+def _write_json(path: Path, value: object) -> None:
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="",
+    )
+
+
+@pytest.fixture
+def formal_exposure_result(
+    exposure_result: ExposureAnalysisResult,
+) -> ExposureAnalysisResult:
+    units = tuple(
+        ExposureUnitObservation.model_validate(
+            {
+                **item.model_dump(mode="python"),
+                "scenario_tags": (FORMAL_SCENARIO_TAGS[index % 7],),
+            }
+        )
+        for index, item in enumerate(exposure_result.units)
+    )
+    return ExposureAnalysisResult(
+        schema_version=exposure_result.schema_version,
+        source=exposure_result.source,
+        units=units,
+        summary=exposure_result.summary,
+        strata=_build_exposure_strata(units),
+        decision=exposure_result.decision,
+        unguarded_path_findings=exposure_result.unguarded_path_findings,
+        limitations=exposure_result.limitations,
+    )
+
+
 @pytest.fixture
 def private_exposure_run(
     tmp_path: Path,
-    exposure_result: ExposureAnalysisResult,
+    formal_exposure_result: ExposureAnalysisResult,
 ) -> Path:
-    return _publish(tmp_path / "private", exposure_result)
+    return _publish(tmp_path / "private", formal_exposure_result)
 
 
 @pytest.fixture
@@ -90,7 +162,7 @@ def public_exposure_package(
 def test_public_export_is_exact_content_free_and_deterministic(
     tmp_path: Path,
     private_exposure_run: Path,
-    exposure_result: ExposureAnalysisResult,
+    formal_exposure_result: ExposureAnalysisResult,
 ) -> None:
     kwargs = {
         "package_name": "fixture",
@@ -112,7 +184,7 @@ def test_public_export_is_exact_content_free_and_deterministic(
     public_bytes = b"".join(_artifact_bytes(first).values())
     private_ids = {
         value
-        for item in exposure_result.units
+        for item in formal_exposure_result.units
         for value in (item.case_id, item.unit_id)
     }
     assert all(value.encode("utf-8") not in public_bytes for value in private_ids)
@@ -124,7 +196,7 @@ def test_public_export_is_exact_content_free_and_deterministic(
 def test_public_rows_use_exact_keys_fingerprints_and_order(
     public_exposure_package: Path,
     private_exposure_run: Path,
-    exposure_result: ExposureAnalysisResult,
+    formal_exposure_result: ExposureAnalysisResult,
 ) -> None:
     rows = _rows(public_exposure_package)
     assert len(rows) == 28
@@ -134,7 +206,7 @@ def test_public_rows_use_exact_keys_fingerprints_and_order(
         (row["case_fingerprint"], row["unit_fingerprint"]) for row in rows
     )
     assert identities == tuple(sorted(identities))
-    first_private = exposure_result.units[0]
+    first_private = formal_exposure_result.units[0]
     expected_case = hashlib.sha256(
         (
             "r2-s3-case-v1\0"
@@ -230,6 +302,7 @@ def test_copied_verifier_runs_without_project_imports(
     assert "VERIFIED" in completed.stdout
     readme = (isolated / "README.md").read_text(encoding="utf-8")
     assert "does not prove that derivation" in readme
+    assert "Authenticate `verify.py` against a trusted copy" in readme
 
 
 def test_verifier_rejects_per_case_live_count_redistribution(
@@ -343,6 +416,155 @@ def test_verifier_rejects_coherent_metric_definition_rewrite(
         verify_exposure_public_package(target)
 
 
+def test_repository_verifier_rejects_coherent_packaged_verifier_rewrite(
+    public_exposure_package: Path,
+    tmp_path: Path,
+) -> None:
+    target = shutil.copytree(public_exposure_package, tmp_path / "verifier")
+    (target / "verify.py").write_text(
+        'print("VERIFIED")\n', encoding="utf-8", newline=""
+    )
+    manifest = json.loads(
+        (target / "manifest.redacted.json").read_text(encoding="utf-8")
+    )
+    manifest["verifier_sha256"] = _sha256(target / "verify.py")
+    _write_json(target / "manifest.redacted.json", manifest)
+    _refresh_checksums(target)
+
+    completed = subprocess.run(
+        [sys.executable, "-I", "verify.py"],
+        cwd=target,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0
+    with pytest.raises(ExposurePublicVerificationError, match="trusted verifier"):
+        verify_exposure_public_package(target)
+
+
+@pytest.mark.parametrize(
+    ("document_name", "mutate"),
+    (
+        (
+            "manifest.redacted.json",
+            lambda value: value.__setitem__(
+                "counterfactual_depths", [True, 2, 4]
+            ),
+        ),
+        (
+            "summary.json",
+            lambda value: value["summary"].__setitem__(
+                "attack_unit_count", 28.0
+            ),
+        ),
+        (
+            "summary.json",
+            lambda value: value["summary"].__setitem__(
+                "replay_live_aggregate_match", 1
+            ),
+        ),
+        (
+            "summary.json",
+            lambda value: value["strata"][0].__setitem__(
+                "attack_unit_count",
+                float(value["strata"][0]["attack_unit_count"]),
+            ),
+        ),
+    ),
+)
+def test_verifier_rejects_json_primitive_type_substitution(
+    public_exposure_package: Path,
+    tmp_path: Path,
+    document_name: str,
+    mutate,
+) -> None:
+    target = shutil.copytree(
+        public_exposure_package,
+        tmp_path / f"types-{document_name}-{len(tuple(tmp_path.iterdir()))}",
+    )
+    path = target / document_name
+    value = json.loads(path.read_text(encoding="utf-8"))
+    mutate(value)
+    _write_json(path, value)
+    _refresh_checksums(target)
+
+    with pytest.raises(ExposurePublicVerificationError, match="type|depth"):
+        verify_exposure_public_package(target)
+
+
+def test_verifier_rejects_test_only_synthetic_scenario_tag(
+    public_exposure_package: Path,
+    tmp_path: Path,
+) -> None:
+    target = shutil.copytree(public_exposure_package, tmp_path / "synthetic-tag")
+    rows = _rows(target)
+    replaced_tag = FORMAL_SCENARIO_TAGS[0]
+    for row in rows:
+        row["scenario_tags"] = [
+            "synthetic" if tag == replaced_tag else tag
+            for tag in row["scenario_tags"]
+        ]
+    (target / "per_unit.redacted.jsonl").write_text(
+        "".join(
+            json.dumps(
+                row,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+            + "\n"
+            for row in rows
+        ),
+        encoding="utf-8",
+        newline="",
+    )
+    summary = json.loads((target / "summary.json").read_text(encoding="utf-8"))
+    for stratum in summary["strata"]:
+        if stratum["dimension"] == "scenario_tag" and stratum["value"] == replaced_tag:
+            stratum["value"] = "synthetic"
+    dimension_order = {
+        "category": 0,
+        "source_surface": 1,
+        "actual_candidate_rank": 2,
+        "scenario_tag": 3,
+    }
+    summary["strata"].sort(
+        key=lambda item: (dimension_order[item["dimension"]], item["value"])
+    )
+    _write_json(target / "summary.json", summary)
+    _refresh_checksums(target)
+
+    with pytest.raises(ExposurePublicVerificationError, match="scenario tags"):
+        verify_exposure_public_package(target)
+
+
+def test_metric_definitions_cover_every_published_metric_count_status_and_cost(
+    public_exposure_package: Path,
+) -> None:
+    metrics = METRIC_DEFINITIONS["metrics"]
+    document = json.loads(
+        (public_exposure_package / "summary.json").read_text(encoding="utf-8")
+    )
+    summary = document["summary"]
+    emitted_names = set(summary) - {"depths"}
+    emitted_names.update(set(summary["depths"][0]) - {"depth"})
+    for stratum in document["strata"]:
+        emitted_names.update(set(stratum) - {"depths", "dimension", "value"})
+        emitted_names.update(set(stratum["depths"][0]) - {"depth"})
+
+    assert emitted_names == PUBLISHED_METRIC_NAMES
+    assert set(metrics) == PUBLISHED_METRIC_NAMES
+    assert all(
+        set(definition)
+        == {"applicability", "denominator", "interpretation", "numerator", "unit"}
+        for definition in metrics.values()
+    )
+    assert metrics["counterfactual_search_reach"]["interpretation"] == (
+        "attack units with persisted candidate rank less than or equal to the fixed depth"
+    )
+
+
 def test_export_rejects_wrong_private_hash_or_run_without_target(
     private_exposure_run: Path,
     tmp_path: Path,
@@ -366,11 +588,11 @@ def test_export_rejects_wrong_private_hash_or_run_without_target(
 
 def test_export_scans_decoded_structured_values_before_json_escaping(
     tmp_path: Path,
-    exposure_result: ExposureAnalysisResult,
+    formal_exposure_result: ExposureAnalysisResult,
 ) -> None:
     forbidden = 'quoted "value"\\path\nline'
-    payload = exposure_result.model_dump(mode="python")
-    payload["limitations"] = (*exposure_result.limitations, forbidden)
+    payload = formal_exposure_result.model_dump(mode="python")
+    payload["limitations"] = (*formal_exposure_result.limitations, forbidden)
     changed = ExposureAnalysisResult.model_validate(payload)
     private_run = _publish(tmp_path / "private", changed)
 
@@ -388,14 +610,36 @@ def test_export_scans_decoded_structured_values_before_json_escaping(
     assert not (tmp_path / "public" / "fixture").exists()
 
 
-@pytest.mark.parametrize("absolute_path", (r"C:\\Users\\secret\\file.txt", "/tmp/secret/file.txt"))
+@pytest.mark.parametrize(
+    "absolute_path",
+    (
+        r"C:\Users\secret\file.txt",
+        "D:/service/config.json",
+        r"\\server\share\file.txt",
+        r"\\?\UNC\server\share\file.txt",
+        r"local path: \\?\UNC\server\share\file.txt",
+        "/tmp/secret/file.txt",
+        "//etc/hosts",
+        "local path: //etc/hosts",
+        "/",
+        "/etc/hosts",
+        "/opt/service/config",
+        "/root/.ssh/config",
+        "/usr/local/bin/tool",
+        "file:///etc/hosts",
+        "file:/etc/hosts",
+        "file://server/share/file.txt",
+        "file:///C:/Users/secret/file.txt",
+        r"file:C:\Users\secret\file.txt",
+    ),
+)
 def test_export_rejects_absolute_local_paths(
     tmp_path: Path,
-    exposure_result: ExposureAnalysisResult,
+    formal_exposure_result: ExposureAnalysisResult,
     absolute_path: str,
 ) -> None:
-    payload = exposure_result.model_dump(mode="python")
-    payload["limitations"] = (*exposure_result.limitations, absolute_path)
+    payload = formal_exposure_result.model_dump(mode="python")
+    payload["limitations"] = (*formal_exposure_result.limitations, absolute_path)
     changed = ExposureAnalysisResult.model_validate(payload)
     private_run = _publish(tmp_path / "private", changed)
 
@@ -410,6 +654,34 @@ def test_export_rejects_absolute_local_paths(
             expected_source_run_id=private_run.name,
             forbidden_texts=("raw question", "raw attack"),
         )
+
+
+def test_export_rejects_dangling_final_component_symlink(
+    private_exposure_run: Path,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "public"
+    output.mkdir()
+    target = output / "fixture"
+    try:
+        target.symlink_to("redirected", target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlink creation is unavailable: {exc}")
+    assert target.is_symlink() and not target.exists()
+
+    with pytest.raises(FileExistsError, match="already exists"):
+        export_exposure_public_evidence(
+            private_exposure_run,
+            output,
+            package_name="fixture",
+            expected_source_manifest_sha256=_sha256(
+                private_exposure_run / "manifest.json"
+            ),
+            expected_source_run_id=private_exposure_run.name,
+            forbidden_texts=("raw question", "raw attack"),
+        )
+    assert target.is_symlink()
+    assert not (output / "redirected").exists()
 
 
 def test_export_empty_target_race_is_no_replace_and_cleans_stage(

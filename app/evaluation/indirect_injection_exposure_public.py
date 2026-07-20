@@ -30,8 +30,10 @@ from app.evaluation.indirect_injection_writer import validate_security_run_id
 _HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _ABSOLUTE_PATH_PATTERNS = (
     re.compile(r"(?i)(?<![A-Za-z0-9])[A-Z]:[\\/]"),
-    re.compile(r"\\\\[A-Za-z0-9._$-]+[\\/]"),
-    re.compile(r"(?<![A-Za-z0-9])/(?:home|Users|tmp|var/tmp)/"),
+    re.compile(r"(?:\\){2,}[A-Za-z0-9._$-]+[\\/]"),
+    re.compile(r"(?i)(?<![A-Za-z0-9])file:(?:/{1,3}|[A-Z]:[\\/])"),
+    re.compile(r"(?<![A-Za-z0-9:/\\])/{2,}(?=[^/\s])"),
+    re.compile(r"(?<![A-Za-z0-9:/\\])/(?![ /\t\r\n])"),
 )
 
 
@@ -134,15 +136,17 @@ def export_exposure_public_evidence(
     forbidden_policy = tuple(sorted({*forbidden_texts, *private_ids}))
     for value in (public_manifest, public_summary, public_rows, METRIC_DEFINITIONS):
         _assert_structured_content_free(value, forbidden_policy)
+        _assert_structured_paths_are_relative(value, "public structured data")
     for value in (readme, source_hash_text):
         _assert_structured_content_free(value, forbidden_policy)
+        _assert_text_paths_are_relative(value, "public text")
 
     output_root = Path(output_root).resolve()
     output_root.mkdir(parents=True, exist_ok=True)
-    target = (output_root / package_name).resolve()
-    if target.parent != output_root:
+    target = output_root / package_name
+    if target.parent.resolve() != output_root:
         raise ValueError("package name resolves outside output root")
-    if target.exists():
+    if target.is_symlink() or target.exists():
         raise FileExistsError(f"public exposure package already exists: {target}")
     stage_root = Path(
         tempfile.mkdtemp(prefix=f".{package_name}.staging-", dir=output_root)
@@ -215,7 +219,25 @@ def _assert_no_absolute_paths(payload: bytes, label: str) -> None:
         text = payload.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise ValueError(f"{label} is not UTF-8") from exc
-    if any(pattern.search(text) for pattern in _ABSOLUTE_PATH_PATTERNS):
+    _assert_text_paths_are_relative(text, label)
+
+
+def _assert_structured_paths_are_relative(value: Any, label: str) -> None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            _assert_structured_paths_are_relative(key, label)
+            _assert_structured_paths_are_relative(item, label)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _assert_structured_paths_are_relative(item, label)
+    elif isinstance(value, str):
+        _assert_text_paths_are_relative(value, label)
+
+
+def _assert_text_paths_are_relative(text: str, label: str) -> None:
+    if text.startswith(("/", "\\\\")) or any(
+        pattern.search(text) for pattern in _ABSOLUTE_PATH_PATTERNS
+    ):
         raise ValueError(f"{label} contains an absolute local path")
 
 
@@ -246,4 +268,3 @@ def _sha256(path: Path) -> str:
 
 
 __all__ = ["export_exposure_public_evidence"]
-
