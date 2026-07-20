@@ -67,7 +67,7 @@ class _SourceArmExecution(_StrictFrozenModel):
     hash_rank: int = Field(ge=0)
     arm_order: Literal["off_then_on", "on_then_off"]
     execution_index: int = Field(ge=1)
-    arm_position: Literal[1, 2]
+    arm_position: int = Field(strict=True, ge=1, le=2)
 
 
 @dataclass(frozen=True)

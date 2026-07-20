@@ -444,6 +444,28 @@ def test_load_exposure_inputs_rejects_boolean_arm_hash_rank(
         _load_with_manifest(monkeypatch, source_run, security_data_root, manifest)
 
 
+def test_load_exposure_inputs_rejects_boolean_arm_position(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root, manifest = _copy_source_run(
+        tmp_path,
+        source_material,
+        "boolean-arm-position",
+    )
+    rows = _read_rows(source_run)
+    row = next(row for row in rows if row["arm_execution"]["arm_position"] == 1)
+    row["arm_execution"]["arm_position"] = True
+    _write_rows(source_run, rows)
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="source per-case arm schema is invalid",
+    ):
+        _load_with_manifest(monkeypatch, source_run, security_data_root, manifest)
+
+
 def test_load_exposure_inputs_rejects_arm_order_inconsistency(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
