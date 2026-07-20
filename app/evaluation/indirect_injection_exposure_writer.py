@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import csv
+import ctypes
+import errno
 import hashlib
 import io
 import json
+import os
 import shutil
+import sys
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -221,6 +225,15 @@ def recompute_exposure_summary(
     _validate_repeated_case_rows(frozen_units)
     rows_by_case = _group_unit_rows(frozen_units)
     case_rows = {case_id: rows[0] for case_id, rows in rows_by_case.items()}
+    for case_id, rows in rows_by_case.items():
+        representative = case_rows[case_id]
+        if (
+            representative.live_case_guard_reached_count
+            != sum(item.replay_guard_reached for item in rows)
+            or representative.live_case_guard_quarantined_count
+            != sum(item.replay_guard_quarantined for item in rows)
+        ):
+            raise ValueError("replay/live case mismatch")
     attack_unit_count = len(frozen_units)
     search_unit_count = sum(
         item.counterfactual_search_applicable for item in frozen_units
@@ -405,21 +418,31 @@ def publish_exposure_run(
             unguarded_path_findings=result.unguarded_path_findings,
             limitations=result.limitations,
         )
+        document_payload = document.model_dump(mode="json")
+        _assert_structured_content_free(document_payload, forbidden_texts)
         (stage / "summary.json").write_bytes(
-            _json_bytes(document.model_dump(mode="json"))
+            _json_bytes(document_payload)
         )
         sorted_units = tuple(
             sorted(result.units, key=lambda item: (item.case_id, item.unit_id))
         )
+        for item in sorted_units:
+            _assert_structured_content_free(
+                item.model_dump(mode="json"), forbidden_texts
+            )
         (stage / "per_unit.jsonl").write_bytes(_unit_rows_bytes(sorted_units))
-        (stage / "failures.csv").write_bytes(
-            _failure_bytes(sorted_units, result.unguarded_path_findings)
+        failure_bytes = _failure_bytes(
+            sorted_units, result.unguarded_path_findings
         )
+        _assert_csv_content_free(failure_bytes, forbidden_texts)
+        (stage / "failures.csv").write_bytes(failure_bytes)
+        _assert_text_content_free(canonical_commands, forbidden_texts)
         (stage / "commands.txt").write_text(
             canonical_commands,
             encoding="utf-8",
             newline="",
         )
+        _assert_text_content_free(canonical_test_output, forbidden_texts)
         (stage / "test_output.txt").write_text(
             canonical_test_output,
             encoding="utf-8",
@@ -439,19 +462,91 @@ def publish_exposure_run(
         payload = manifest.model_dump(mode="python")
         payload["artifacts"] = artifact_evidence
         final_manifest = ExposureRunManifest.model_validate(payload)
-        manifest_bytes = _json_bytes(final_manifest.model_dump(mode="json"))
+        manifest_payload = final_manifest.model_dump(mode="json")
+        _assert_structured_content_free(manifest_payload, forbidden_texts)
+        manifest_bytes = _json_bytes(manifest_payload)
         _assert_content_free(manifest_bytes, forbidden_texts)
         (stage / "manifest.json").write_bytes(manifest_bytes)
         _validate_stage(stage, final_manifest)
-        if target.exists():
-            raise FileExistsError(
-                f"exposure output run already exists: {target}"
-            )
-        stage.rename(target)
+        _atomic_publish_no_replace(stage, target)
     except Exception:
         shutil.rmtree(stage, ignore_errors=True)
         raise
     return target
+
+
+def _atomic_publish_no_replace(stage: Path, target: Path) -> None:
+    if os.name == "nt":
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        move_file = kernel32.MoveFileExW
+        move_file.argtypes = (
+            ctypes.c_wchar_p,
+            ctypes.c_wchar_p,
+            ctypes.c_ulong,
+        )
+        move_file.restype = ctypes.c_int
+        if move_file(str(stage), str(target), 0):
+            return
+        error_code = ctypes.get_last_error()
+        if error_code in {5, 80, 183} and target.exists():
+            raise FileExistsError(
+                errno.EEXIST,
+                os.strerror(errno.EEXIST),
+                str(target),
+            )
+        raise ctypes.WinError(error_code)
+
+    if sys.platform == "linux":
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = getattr(libc, "renameat2", None)
+        if renameat2 is None:
+            raise OSError(
+                errno.ENOTSUP,
+                os.strerror(errno.ENOTSUP),
+                str(target),
+            )
+        renameat2.argtypes = (
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_int,
+            ctypes.c_char_p,
+            ctypes.c_uint,
+        )
+        renameat2.restype = ctypes.c_int
+        if renameat2(
+            -100,
+            os.fsencode(stage),
+            -100,
+            os.fsencode(target),
+            1,
+        ) == 0:
+            return
+        error_code = ctypes.get_errno()
+        if error_code in {errno.EEXIST, errno.ENOTEMPTY}:
+            raise FileExistsError(
+                errno.EEXIST,
+                os.strerror(errno.EEXIST),
+                str(target),
+            )
+        unsupported_errors = {
+            errno.EINVAL,
+            errno.ENOSYS,
+            errno.ENOTSUP,
+            getattr(errno, "EOPNOTSUPP", errno.ENOTSUP),
+        }
+        if error_code in unsupported_errors:
+            raise OSError(
+                errno.ENOTSUP,
+                os.strerror(errno.ENOTSUP),
+                str(target),
+            )
+        raise OSError(error_code, os.strerror(error_code), str(target))
+
+    raise OSError(
+        errno.ENOTSUP,
+        os.strerror(errno.ENOTSUP),
+        str(target),
+    )
 
 
 def verify_exposure_run(run_dir: Path) -> ExposureRunManifest:
@@ -653,18 +748,15 @@ def _failure_bytes(
                 else getattr(representative, field)
             )
         )
-        for item in case_units:
-            if item.replay_guard_reached:
-                continue
-            rows.append(
-                {
-                    "scope": "unit",
-                    "case_id": case_id,
-                    "unit_id": item.unit_id,
-                    "primary_failure": "unreached_downstream_exposure",
-                    "all_failures": ";".join(failures),
-                }
-            )
+        rows.append(
+            {
+                "scope": "case",
+                "case_id": case_id,
+                "unit_id": "",
+                "primary_failure": "unreached_downstream_exposure",
+                "all_failures": ";".join(failures),
+            }
+        )
     for finding in findings:
         rows.append(
             {
@@ -713,6 +805,37 @@ def _assert_content_free(payload: bytes, forbidden_texts: tuple[str, ...]) -> No
     for value in forbidden_texts:
         if value.encode("utf-8") in payload:
             raise ValueError("exposure artifact contains forbidden content")
+
+
+def _assert_text_content_free(
+    value: str,
+    forbidden_texts: tuple[str, ...],
+) -> None:
+    if any(forbidden in value for forbidden in forbidden_texts):
+        raise ValueError("exposure artifact contains forbidden content")
+
+
+def _assert_structured_content_free(
+    value: Any,
+    forbidden_texts: tuple[str, ...],
+) -> None:
+    if isinstance(value, str):
+        _assert_text_content_free(value, forbidden_texts)
+    elif isinstance(value, Mapping):
+        for item in value.values():
+            _assert_structured_content_free(item, forbidden_texts)
+    elif isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+        for item in value:
+            _assert_structured_content_free(item, forbidden_texts)
+
+
+def _assert_csv_content_free(
+    payload: bytes,
+    forbidden_texts: tuple[str, ...],
+) -> None:
+    text = _decode_utf8(payload, "failures.csv")
+    rows = tuple(csv.DictReader(io.StringIO(text, newline="")))
+    _assert_structured_content_free(rows, forbidden_texts)
 
 
 def _load_canonical_model(

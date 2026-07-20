@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import shutil
@@ -264,6 +265,63 @@ def test_private_writer_is_immutable_canonical_and_recomputable(
         _publish(tmp_path / "runs", exposure_result)
 
 
+def test_failure_rows_attribute_risk_once_per_case(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+    verification_inputs: ExposureVerificationInputs,
+) -> None:
+    units: list[ExposureUnitObservation] = []
+    for item in exposure_result.units:
+        payload = item.model_dump(mode="python")
+        if item.case_id == "synthetic-case-00":
+            payload.update(
+                replay_guard_reached=False,
+                replay_guard_quarantined=False,
+                live_case_guard_reached_count=0,
+                live_case_guard_quarantined_count=0,
+                case_controller_exposure=True,
+            )
+        units.append(ExposureUnitObservation.model_validate(payload))
+    frozen_units = tuple(units)
+    finding = UnguardedPathFinding(
+        operation="find", evidence_id="future-find-consumer"
+    )
+    result = ExposureAnalysisResult(
+        schema_version="indirect_injection_exposure_analysis_v1",
+        source=exposure_result.source,
+        units=frozen_units,
+        summary=recompute_exposure_summary(frozen_units, verification_inputs),
+        strata=_build_exposure_strata(frozen_units),
+        decision="RUNTIME_MITIGATION_REQUIRED",
+        unguarded_path_findings=(finding,),
+        limitations=exposure_result.limitations,
+    )
+
+    target = _publish(tmp_path / "runs", result)
+    rows = list(
+        csv.DictReader(
+            (target / "failures.csv").read_text(encoding="utf-8").splitlines()
+        )
+    )
+
+    assert rows == [
+        {
+            "scope": "case",
+            "case_id": "synthetic-case-00",
+            "unit_id": "",
+            "primary_failure": "unreached_downstream_exposure",
+            "all_failures": "controller_exposure",
+        },
+        {
+            "scope": "tool_path",
+            "case_id": "",
+            "unit_id": "",
+            "primary_failure": "unguarded_find_path",
+            "all_failures": "future-find-consumer",
+        },
+    ]
+
+
 def test_verifier_refuses_coherently_tampered_summary(
     tmp_path: Path,
     exposure_result: ExposureAnalysisResult,
@@ -307,6 +365,38 @@ def test_verifier_refuses_coherently_tampered_unit_row(
         verify_exposure_run(target)
 
 
+def test_verifier_rejects_per_case_live_count_redistribution(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    target = _publish(tmp_path / "runs", exposure_result)
+    rows = (target / "per_unit.jsonl").read_text(encoding="utf-8").splitlines()
+    rewritten: list[str] = []
+    for row in rows:
+        payload = json.loads(row)
+        if payload["case_id"] == "synthetic-case-00":
+            payload["live_case_guard_reached_count"] = 2
+            payload["live_case_guard_quarantined_count"] = 2
+        elif payload["case_id"] == "synthetic-case-01":
+            payload["live_case_guard_reached_count"] = 0
+            payload["live_case_guard_quarantined_count"] = 0
+        rewritten.append(
+            json.dumps(
+                payload,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+        )
+    (target / "per_unit.jsonl").write_text(
+        "\n".join(rewritten) + "\n", encoding="utf-8", newline=""
+    )
+    _refresh_checksums_and_manifest(target)
+
+    with pytest.raises(ValueError, match="replay/live case mismatch"):
+        verify_exposure_run(target)
+
+
 def test_writer_refuses_forbidden_content_and_cleans_stage(
     tmp_path: Path,
     exposure_result: ExposureAnalysisResult,
@@ -314,6 +404,21 @@ def test_writer_refuses_forbidden_content_and_cleans_stage(
     root = tmp_path / "runs"
     with pytest.raises(ValueError, match="forbidden content"):
         _publish(root, exposure_result, forbidden_texts=("synthetic-unit-000",))
+
+    assert not (root / "r2-s3-writer-test").exists()
+    assert not tuple(root.glob(".*.staging-*"))
+
+
+def test_writer_refuses_escaped_forbidden_content_in_structured_value(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    forbidden = 'raw "attack" \\ path\n\u653b\u51fb'
+    result = exposure_result.model_copy(update={"limitations": (forbidden,)})
+    root = tmp_path / "runs"
+
+    with pytest.raises(ValueError, match="forbidden content"):
+        _publish(root, result, forbidden_texts=(forbidden,))
 
     assert not (root / "r2-s3-writer-test").exists()
     assert not tuple(root.glob(".*.staging-*"))
@@ -472,6 +577,38 @@ def test_publish_cleans_stage_when_final_validation_fails(
     with pytest.raises(ValueError, match="injected final validation failure"):
         _publish(root, exposure_result)
     assert not (root / "r2-s3-writer-test").exists()
+    assert not tuple(root.glob(".*.staging-*"))
+
+
+def test_publish_final_handoff_never_replaces_raced_target(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "runs"
+    target = root / "r2-s3-writer-test"
+    sentinel = target / "sentinel.txt"
+    real_handoff = getattr(exposure_writer, "_atomic_publish_no_replace", None)
+
+    def race_at_handoff(stage: Path, destination: Path) -> None:
+        destination.mkdir()
+        sentinel.write_text("raced target\n", encoding="utf-8", newline="")
+        if real_handoff is None:
+            stage.rename(destination)
+        else:
+            real_handoff(stage, destination)
+
+    monkeypatch.setattr(
+        exposure_writer,
+        "_atomic_publish_no_replace",
+        race_at_handoff,
+        raising=False,
+    )
+
+    with pytest.raises(FileExistsError):
+        _publish(root, exposure_result)
+
+    assert sentinel.read_text(encoding="utf-8") == "raced target\n"
     assert not tuple(root.glob(".*.staging-*"))
 
 
