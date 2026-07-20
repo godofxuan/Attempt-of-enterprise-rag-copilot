@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -51,6 +52,9 @@ from tests.evaluation.test_indirect_injection_live_writer import (
 
 FROZEN_AT = "2026-07-18T00:00:00Z"
 FREEZE_HEAD = "a" * 40
+RANK_TWO_CASE_ID = "r2s1-dev-markup-wrapped-2"
+SPLIT_CASE_ID = "r2s1-dev-split-payload-3"
+OPEN_CASE_ID = "r2s1-dev-encoded-invisible-2"
 
 
 _CANDIDATE_UNIT_FIELDS = (
@@ -454,6 +458,141 @@ def source_material(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Pat
 
     assert isinstance(verify_live_security_run(source_run), LiveSecurityRunManifestV2)
     return source_run, security_data_root
+
+
+@pytest.fixture(scope="module")
+def accepted_inputs(
+    source_material: tuple[Path, Path],
+) -> exposure.ExposureInputs:
+    source_run, security_data_root = source_material
+    return load_exposure_inputs(
+        source_run,
+        security_data_root=security_data_root,
+        expected_manifest_sha256=_sha256(source_run / "manifest.json"),
+    )
+
+
+@pytest.fixture(scope="module")
+def split_case_inputs(
+    accepted_inputs: exposure.ExposureInputs,
+) -> exposure.ExposureInputs:
+    return accepted_inputs
+
+
+def _mutated_guard_on_inputs(
+    inputs: exposure.ExposureInputs,
+    *,
+    case_id: str,
+    security_updates: dict[str, object] | None = None,
+    live_updates: dict[str, object] | None = None,
+) -> exposure.ExposureInputs:
+    rows: list[dict[str, object]] = []
+    for source_row in inputs.guard_on_rows:
+        row = json.loads(json.dumps(source_row))
+        if row["security"]["case_id"] == case_id:
+            row["security"].update(security_updates or {})
+            row["live"].update(live_updates or {})
+        rows.append(row)
+    return replace(inputs, guard_on_rows=tuple(rows))
+
+
+def test_replay_matches_live_reached_and_quarantined_totals(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    replayed = exposure.replay_guard_on_case(
+        accepted_inputs,
+        case_id=RANK_TWO_CASE_ID,
+    )
+
+    assert replayed.live_guard_reached_count == 0
+    assert replayed.live_guard_quarantined_count == 0
+    assert replayed.replay_guard_reached_count == 0
+    assert replayed.replay_guard_quarantined_count == 0
+    assert replayed.replay_live_aggregate_match is True
+    assert replayed.units[0].actual_candidate_rank == 2
+    assert replayed.units[0].replay_selected_for_evidence is False
+
+
+def test_split_window_replay_does_not_require_selection(
+    split_case_inputs: exposure.ExposureInputs,
+) -> None:
+    replayed = exposure.replay_guard_on_case(
+        split_case_inputs,
+        case_id=SPLIT_CASE_ID,
+    )
+
+    assert tuple(unit.actual_candidate_rank for unit in replayed.units) == (2, 3)
+    assert all(unit.replay_guard_reached for unit in replayed.units)
+    assert all(unit.replay_guard_quarantined for unit in replayed.units)
+    assert not any(unit.replay_selected_for_evidence for unit in replayed.units)
+    assert all("aggregate" in unit.replay_scan_surfaces for unit in replayed.units)
+
+
+def test_replay_open_unit_is_reached_only_by_recorded_open(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    replayed = exposure.replay_guard_on_case(
+        accepted_inputs,
+        case_id=OPEN_CASE_ID,
+    )
+
+    assert replayed.replayed_content_operations == ("search", "open")
+    assert replayed.consumed_content_operation_count == 2
+    assert replayed.guarded_content_operation_count == 2
+    assert replayed.units[0].location.location == "open_result"
+    assert replayed.units[0].actual_candidate_rank is None
+    assert replayed.units[0].replay_guard_reached is True
+    assert replayed.units[0].replay_scan_surfaces == ("open",)
+
+
+def test_replay_recorded_find_tool_error_consumes_no_content(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    inputs = _mutated_guard_on_inputs(
+        accepted_inputs,
+        case_id=RANK_TWO_CASE_ID,
+        security_updates={"tool_sequence": ["search", "find", "answer"]},
+    )
+
+    replayed = exposure.replay_guard_on_case(inputs, case_id=RANK_TWO_CASE_ID)
+
+    assert replayed.recorded_tool_sequence == ("search", "find", "answer")
+    assert replayed.replayed_content_operations == ("search",)
+    assert replayed.consumed_content_operation_count == 1
+    assert replayed.guarded_content_operation_count == 1
+    assert replayed.replay_scanned_surface_count > 0
+    assert all(
+        "find_preview" not in unit.replay_scan_surfaces
+        for unit in replayed.units
+    )
+
+
+def test_replay_rejects_guard_hash_mismatch(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    guard = accepted_inputs.manifest.guard.model_copy(
+        update={"ruleset_sha256": "0" * 64}
+    )
+    inputs = replace(
+        accepted_inputs,
+        manifest=accepted_inputs.manifest.model_copy(update={"guard": guard}),
+    )
+
+    with pytest.raises(ExposureEvidenceError, match="Guard ruleset SHA-256 mismatch"):
+        exposure.replay_guard_on_case(inputs, case_id=RANK_TWO_CASE_ID)
+
+
+def test_replay_rejects_live_aggregate_mismatch(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    inputs = _mutated_guard_on_inputs(
+        accepted_inputs,
+        case_id=RANK_TWO_CASE_ID,
+        live_updates={"attack_unit_reached_guard_count": 1},
+    )
+
+    with pytest.raises(ExposureEvidenceError, match="replay/live aggregate mismatch"):
+        exposure.replay_guard_on_case(inputs, case_id=RANK_TWO_CASE_ID)
 
 
 def _manifest_for_mutation(
