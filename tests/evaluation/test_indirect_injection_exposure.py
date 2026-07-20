@@ -40,6 +40,7 @@ from app.evaluation.indirect_injection_live_writer import (
     verify_live_security_run,
 )
 from app.security.retrieved_admission import RetrievedContentAdmission
+from app.security.retrieved_admission import _search_metadata
 from tests.evaluation.test_indirect_injection_live_runner import (
     BUILD_TIME,
     _StructuredFixtureChat,
@@ -1338,3 +1339,487 @@ def test_load_exposure_inputs_rejects_guard_errors(
 
     with pytest.raises(ExposureEvidenceError, match="source run contains Guard errors"):
         _load_with_manifest(monkeypatch, source_run, security_data_root, manifest)
+
+
+def _expected_counterfactual_sets(
+    inputs: exposure.ExposureInputs,
+) -> tuple[set[str], dict[int, set[str]], dict[int, set[str]]]:
+    replay_reached: set[str] = set()
+    search_reached = {depth: set() for depth in exposure.COUNTERFACTUAL_DEPTHS}
+    search_addressable: set[str] = set()
+    fixtures = {
+        fixture.case_id: fixture
+        for fixture in inputs.bundle.fixture_manifest.cases
+    }
+    for case in inputs.bundle.dataset.cases:
+        if case.label != "attack":
+            continue
+        source_row = exposure._replay_source_row(inputs, case.case_id)
+        locations = exposure.map_attack_unit_locations(
+            case,
+            fixtures[case.case_id],
+            candidate_order=source_row.security.candidate_order,
+        )
+        replayed = exposure.replay_guard_on_case(inputs, case_id=case.case_id)
+        replay_reached.update(
+            unit.location.unit_id
+            for unit in replayed.units
+            if unit.replay_guard_reached
+        )
+        for location in locations:
+            if not location.counterfactual_search_applicable:
+                continue
+            search_addressable.add(location.unit_id)
+            for depth in exposure.COUNTERFACTUAL_DEPTHS:
+                if location.actual_candidate_rank <= depth:
+                    search_reached[depth].add(location.unit_id)
+    total_reached = {
+        depth: replay_reached | search_reached[depth]
+        for depth in exposure.COUNTERFACTUAL_DEPTHS
+    }
+    return search_addressable, search_reached, total_reached
+
+
+def _expected_case_counterfactual_costs(
+    inputs: exposure.ExposureInputs,
+    case_id: str,
+) -> dict[int, tuple[int, int]]:
+    case, fixture = exposure._replay_case_fixture(inputs, case_id)
+    source_row = exposure._replay_source_row(inputs, case_id)
+    replayed = exposure._replay_content_operations(
+        exposure._new_replay_admission(),
+        case=case,
+        fixture=fixture,
+        source_row=source_row,
+        evaluator_sha256=inputs.manifest.evaluator.sha256,
+    )
+    replay_scan_keys = {
+        (case_id, item.operation, event.internal_item_key, event.surface)
+        for item in replayed
+        for event in item.outcome.scan_provenance
+    }
+    _, pool = exposure._replay_search_inputs(
+        case,
+        fixture,
+        candidate_order=source_row.security.candidate_order,
+        manifest_sha256=source_row.security.input_fingerprint,
+    )
+    guard = exposure.RetrievedContentGuard()
+    attempted: dict[tuple[str, str, str, str], tuple[int, int]] = {}
+    for candidate in pool.candidates:
+        surfaces = [("matched", candidate.hit.matched_text)]
+        if (
+            candidate.hit.context_from_parent
+            and candidate.hit.context_text != candidate.hit.matched_text
+        ):
+            surfaces.append(("parent", candidate.hit.context_text))
+        surfaces.append(("metadata", _search_metadata(candidate)))
+        for surface, scan_input in surfaces:
+            key = (case_id, "search", candidate.hit.chunk_id, surface)
+            if key in attempted:
+                continue
+            attempted[key] = (candidate.rank, guard.scan(scan_input).scanned_length)
+
+    return {
+        depth: (
+            sum(
+                key not in replay_scan_keys and rank <= depth
+                for key, (rank, _) in attempted.items()
+            ),
+            sum(
+                scanned_length
+                for key, (rank, scanned_length) in attempted.items()
+                if key not in replay_scan_keys and rank <= depth
+            ),
+        )
+        for depth in exposure.COUNTERFACTUAL_DEPTHS
+    }
+
+
+def _case_cost(row: object, depth: int) -> tuple[int, int]:
+    return (
+        getattr(row, f"case_replay_additional_scan_units_at_{depth}"),
+        getattr(row, f"case_replay_additional_scan_input_chars_at_{depth}"),
+    )
+
+
+def test_counterfactual_depths_follow_persisted_rank_and_exclude_open_from_search(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    search_addressable, search_reached, total_reached = (
+        _expected_counterfactual_sets(accepted_inputs)
+    )
+
+    assert exposure.COUNTERFACTUAL_DEPTHS == (1, 2, 4)
+    assert len(search_addressable) < result.summary.attack_unit_count
+    for depth in exposure.COUNTERFACTUAL_DEPTHS:
+        item = result.summary.depth(depth)
+        assert item.counterfactual_search_reach == exposure.ExposureMetric.from_counts(
+            len(search_reached[depth]),
+            len(search_addressable),
+        )
+        assert item.counterfactual_total_reach == exposure.ExposureMetric.from_counts(
+            len(total_reached[depth]),
+            result.summary.attack_unit_count,
+        )
+def test_counterfactual_total_reach_is_a_unit_union_without_double_counting(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    _, _, total_reached = _expected_counterfactual_sets(accepted_inputs)
+
+    for depth in exposure.COUNTERFACTUAL_DEPTHS:
+        metric = result.summary.depth(depth).counterfactual_total_reach
+        assert metric.numerator == len(total_reached[depth])
+        assert metric.numerator <= metric.denominator
+
+
+def test_counterfactual_cost_uses_guard_scanned_length_and_replay_scan_keys(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    rows_by_case: dict[str, list[object]] = {}
+    for row in result.units:
+        rows_by_case.setdefault(row.case_id, []).append(row)
+
+    for case_id in (RANK_TWO_CASE_ID, SPLIT_CASE_ID, METADATA_SANITIZED_CASE_ID):
+        expected = _expected_case_counterfactual_costs(accepted_inputs, case_id)
+        row = rows_by_case[case_id][0]
+        assert {
+            depth: _case_cost(row, depth)
+            for depth in exposure.COUNTERFACTUAL_DEPTHS
+        } == expected
+
+
+def test_counterfactual_combined_metadata_is_one_attempt_for_several_unit_ids(
+    mapping_cases: tuple[object, FixtureCase, object, FixtureCase],
+) -> None:
+    _, fixture, _, _ = mapping_cases
+    payload = fixture.candidates[0].model_dump(mode="python")
+    for field in _CANDIDATE_UNIT_FIELDS:
+        payload[field] = None
+    payload["title_unit_id"] = "synthetic-title-unit"
+    payload["section_unit_id"] = "synthetic-section-unit"
+    candidate = FixtureCandidate.model_validate(payload)
+    ranked = exposure.RankedSearchCandidate(
+        rank=1,
+        hit=exposure._search_hit(candidate),
+        document_title=candidate.document_title,
+    )
+
+    attempts = exposure._counterfactual_candidate_scan_inputs(
+        "synthetic-case",
+        ranked,
+    )
+
+    assert [key[3] for key, _ in attempts].count("metadata") == 1
+    assert next(value for key, value in attempts if key[3] == "metadata") == (
+        _search_metadata(ranked)
+    )
+
+
+def test_counterfactual_two_unit_case_cost_repeats_but_aggregates_once(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    split_rows = [row for row in result.units if row.case_id == SPLIT_CASE_ID]
+    assert len(split_rows) == 2
+    assert all(
+        _case_cost(split_rows[0], depth) == _case_cost(split_rows[1], depth)
+        for depth in exposure.COUNTERFACTUAL_DEPTHS
+    )
+
+    one_row_by_case = {row.case_id: row for row in result.units}
+    for depth in exposure.COUNTERFACTUAL_DEPTHS:
+        assert result.summary.depth(depth).replay_additional_scan_units == sum(
+            _case_cost(row, depth)[0] for row in one_row_by_case.values()
+        )
+        assert result.summary.depth(depth).replay_additional_scan_input_chars == sum(
+            _case_cost(row, depth)[1] for row in one_row_by_case.values()
+        )
+
+
+def test_counterfactual_summary_rejects_disagreeing_repeated_case_costs(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    rows = list(result.units)
+    split_indexes = [
+        index for index, row in enumerate(rows) if row.case_id == SPLIT_CASE_ID
+    ]
+    payload = rows[split_indexes[1]].model_dump(mode="python")
+    payload["case_replay_additional_scan_units_at_4"] += 1
+    rows[split_indexes[1]] = exposure.ExposureUnitObservation.model_validate(payload)
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="inconsistent repeated case costs",
+    ):
+        exposure._build_exposure_summary(accepted_inputs, tuple(rows))
+
+
+def test_counterfactual_unit_rejects_quarantined_but_unreached_state(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    row = next(item for item in result.units if not item.replay_guard_reached)
+    payload = row.model_dump(mode="python")
+    payload["replay_guard_quarantined"] = True
+
+    with pytest.raises(ValueError, match="quarantine requires Guard reach"):
+        exposure.ExposureUnitObservation.model_validate(payload)
+
+
+def test_counterfactual_unit_rejects_non_monotonic_case_costs(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    row = exposure.analyze_exposure(accepted_inputs).units[0]
+    payload = row.model_dump(mode="python")
+    payload["case_replay_additional_scan_units_at_1"] = (
+        payload["case_replay_additional_scan_units_at_2"] + 1
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="case additional scan units must be monotonic",
+    ):
+        exposure.ExposureUnitObservation.model_validate(payload)
+
+
+def test_counterfactual_summary_rechecks_non_monotonic_case_costs(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    rows = list(result.units)
+    index = next(
+        index for index, row in enumerate(rows) if row.case_id == RANK_TWO_CASE_ID
+    )
+    rows[index] = rows[index].model_copy(
+        update={
+            "case_replay_additional_scan_units_at_1": (
+                result.summary.depth(2).replay_additional_scan_units + 1
+            )
+        }
+    )
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="case additional scan units must be monotonic",
+    ):
+        exposure._build_exposure_summary(accepted_inputs, tuple(rows))
+
+
+def test_counterfactual_metric_rejects_malformed_rate() -> None:
+    with pytest.raises(ValueError, match="metric rate does not match"):
+        exposure.ExposureMetric(
+            numerator=1,
+            denominator=2,
+            rate=0.75,
+            applicable=True,
+        )
+
+
+@pytest.mark.parametrize("mutation", ("search_reach", "scan_units"))
+def test_counterfactual_summary_rejects_non_monotonic_depths(
+    accepted_inputs: exposure.ExposureInputs,
+    mutation: str,
+) -> None:
+    payload = exposure.analyze_exposure(accepted_inputs).summary.model_dump(
+        mode="python"
+    )
+    if mutation == "search_reach":
+        first = payload["depths"][0]["counterfactual_search_reach"]
+        assert first["numerator"] > 0
+        payload["depths"][1]["counterfactual_search_reach"] = (
+            exposure.ExposureMetric.from_counts(
+                first["numerator"] - 1,
+                first["denominator"],
+            ).model_dump(mode="python")
+        )
+        message = "counterfactual search reach must be monotonic"
+    else:
+        payload["depths"][0]["replay_additional_scan_units"] = (
+            payload["depths"][1]["replay_additional_scan_units"] + 1
+        )
+        message = "additional scan units must be monotonic"
+
+    with pytest.raises(ValueError, match=message):
+        exposure.ExposureSummary.model_validate(payload)
+
+
+def test_downstream_fields_remain_case_prefixed_and_consistent(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    row = result.units[0]
+    payload = row.model_dump(mode="python")
+    payload["model_context_exposure"] = payload["case_model_context_exposure"]
+    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+        exposure.ExposureUnitObservation.model_validate(payload)
+
+    split_rows = [item for item in result.units if item.case_id == SPLIT_CASE_ID]
+    rows = list(result.units)
+    tampered = split_rows[1].model_dump(mode="python")
+    tampered["case_model_context_exposure"] = not tampered[
+        "case_model_context_exposure"
+    ]
+    rows[rows.index(split_rows[1])] = exposure.ExposureUnitObservation.model_validate(
+        tampered
+    )
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="inconsistent repeated case fields",
+    ):
+        exposure._build_exposure_summary(accepted_inputs, tuple(rows))
+
+
+def test_counterfactual_strata_cover_all_required_dimensions(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    assert {item.dimension for item in result.strata} == {
+        "category",
+        "source_surface",
+        "actual_candidate_rank",
+        "scenario_tag",
+    }
+    assert any(
+        item.dimension == "actual_candidate_rank" and item.value == "not_applicable"
+        for item in result.strata
+    )
+    for item in result.strata:
+        if item.dimension == "category":
+            members = [row for row in result.units if row.category == item.value]
+        elif item.dimension == "source_surface":
+            members = [row for row in result.units if row.source_surface == item.value]
+        elif item.dimension == "actual_candidate_rank":
+            members = [
+                row
+                for row in result.units
+                if (
+                    str(row.actual_candidate_rank)
+                    if row.actual_candidate_rank is not None
+                    else "not_applicable"
+                )
+                == item.value
+            ]
+        else:
+            members = [row for row in result.units if item.value in row.scenario_tags]
+        assert item.attack_unit_count == len(members)
+        assert item.replay_guard_reach.numerator == sum(
+            row.replay_guard_reached for row in members
+        )
+
+
+def _summary_with_unreached_downstream_exposure(
+    summary: object,
+) -> object:
+    payload = summary.model_dump(mode="python")
+    denominator = payload["unreached_case_count"]
+    assert denominator > 0
+    payload["unreached_case_downstream_exposure"] = (
+        exposure.ExposureMetric.from_counts(1, denominator).model_dump(mode="python")
+    )
+    return exposure.ExposureSummary.model_validate(payload)
+
+
+def test_current_source_decision_is_no_bypass_from_verified_rows(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+
+    assert result.summary.live_guard_reach == result.summary.replay_guard_reach
+    assert result.summary.quarantine_given_live_guard_reach.numerator == (
+        result.summary.live_guard_reach.numerator
+    )
+    assert result.summary.unreached_case_downstream_exposure.numerator == 0
+    assert result.decision == "NO_CURRENT_BYPASS_OBSERVED"
+    assert result.unguarded_path_findings == ()
+
+
+def test_benign_quarantine_is_denominated_by_all_benign_content_units(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    source_rows = tuple(
+        exposure._parse_source_arm_row(row) for row in accepted_inputs.guard_on_rows
+    )
+    benign_outcomes = tuple(
+        row.security.unit_outcomes[unit_id]
+        for row in source_rows
+        for unit_id in row.security.benign_unit_ids
+    )
+
+    assert len(benign_outcomes) == 32
+    assert result.summary.benign_quarantine == exposure.ExposureMetric.from_counts(
+        sum(outcome == "quarantined" for outcome in benign_outcomes),
+        len(benign_outcomes),
+    )
+    assert result.summary.benign_quarantine == exposure.ExposureMetric.from_counts(
+        0,
+        32,
+    )
+
+
+def test_any_unreached_case_downstream_exposure_requires_runtime_mitigation(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    summary = _summary_with_unreached_downstream_exposure(
+        exposure.analyze_exposure(accepted_inputs).summary
+    )
+    finding = exposure.UnguardedPathFinding(
+        operation="find",
+        evidence_id="review-future-find-consumer",
+    )
+
+    assert exposure._decide_exposure(summary, ()) == "RUNTIME_MITIGATION_REQUIRED"
+    assert (
+        exposure._decide_exposure(summary, (finding,))
+        == "RUNTIME_MITIGATION_REQUIRED"
+    )
+
+
+def test_explicit_unguarded_path_decision_admits_only_runtime_experiment(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    finding = exposure.UnguardedPathFinding(
+        operation="find",
+        evidence_id="review-future-find-consumer",
+    )
+    result = exposure.analyze_exposure(
+        accepted_inputs,
+        unguarded_path_findings=(finding,),
+    )
+
+    assert result.decision == "RUNTIME_EXPERIMENT_ADMITTED"
+    assert result.unguarded_path_findings == (finding,)
+
+
+def test_higher_counterfactual_coverage_alone_never_changes_decision(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+
+    assert result.summary.depth(4).counterfactual_total_reach.rate == 1.0
+    assert result.decision == "NO_CURRENT_BYPASS_OBSERVED"
+
+
+def test_invalid_evidence_precedes_unguarded_path_decision(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    invalid = _mutated_guard_on_inputs(
+        accepted_inputs,
+        case_id=RANK_TWO_CASE_ID,
+        live_updates={"attack_unit_reached_guard_count": 1},
+    )
+    finding = exposure.UnguardedPathFinding(
+        operation="find",
+        evidence_id="review-future-find-consumer",
+    )
+
+    with pytest.raises(ExposureEvidenceError, match="replay/live aggregate mismatch"):
+        exposure.analyze_exposure(
+            invalid,
+            unguarded_path_findings=(finding,),
+        )
