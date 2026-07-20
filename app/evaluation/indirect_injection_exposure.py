@@ -13,6 +13,10 @@ from app.evaluation.indirect_injection_dataset import (
     LoadedSecurityBundle,
     load_security_bundle,
 )
+from app.evaluation.indirect_injection_contracts import (
+    FixtureCase,
+    IndirectInjectionCase,
+)
 from app.evaluation.indirect_injection_live_runner import LiveCaseObservation
 from app.evaluation.indirect_injection_live_writer import (
     LiveSecurityRunManifest,
@@ -33,6 +37,31 @@ SOURCE_GUARD_SHA256 = (
 COUNTERFACTUAL_DEPTHS = (1, 2, 4)
 
 
+ExposureLocation = Literal[
+    "search_candidate",
+    "open_result",
+    "find_result",
+]
+ExposureSurface = Literal[
+    "matched",
+    "parent",
+    "title",
+    "source_path",
+    "section",
+    "version",
+    "open",
+    "find",
+]
+ReplayScanSurface = Literal[
+    "matched",
+    "parent",
+    "metadata",
+    "aggregate",
+    "open",
+    "find_preview",
+]
+
+
 class _StrictFrozenModel(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -44,6 +73,104 @@ class _StrictFrozenModel(BaseModel):
 
 class ExposureEvidenceError(ValueError):
     pass
+
+
+class ExposureUnitLocation(_StrictFrozenModel):
+    case_id: str
+    unit_id: str
+    location: ExposureLocation
+    source_surface: ExposureSurface
+    candidate_chunk_id: str | None = None
+    actual_candidate_rank: int | None = Field(default=None, ge=1, le=4)
+    candidate_pool_present: bool
+    counterfactual_search_applicable: bool
+
+
+def map_attack_unit_locations(
+    case: IndirectInjectionCase,
+    fixture: FixtureCase,
+    *,
+    candidate_order: tuple[str, ...],
+) -> tuple[ExposureUnitLocation, ...]:
+    if case.case_id != fixture.case_id:
+        raise ExposureEvidenceError("case and fixture IDs must match")
+    bindings = _fixture_unit_bindings(fixture, candidate_order=candidate_order)
+    locations: list[ExposureUnitLocation] = []
+    for unit_id in case.attack_unit_ids:
+        matches = bindings.get(unit_id, ())
+        if len(matches) != 1:
+            raise ExposureEvidenceError(
+                "attack unit must map to exactly one non-contradictory location"
+            )
+        locations.append(matches[0])
+    return tuple(locations)
+
+
+def _fixture_unit_bindings(
+    fixture: FixtureCase,
+    *,
+    candidate_order: tuple[str, ...],
+) -> dict[str, tuple[ExposureUnitLocation, ...]]:
+    fixture_chunk_ids = tuple(candidate.chunk_id for candidate in fixture.candidates)
+    if len(fixture_chunk_ids) != len(set(fixture_chunk_ids)):
+        raise ExposureEvidenceError("fixture candidate IDs must be unique")
+    if (
+        len(candidate_order) != len(fixture_chunk_ids)
+        or len(candidate_order) != len(set(candidate_order))
+        or set(candidate_order) != set(fixture_chunk_ids)
+    ):
+        raise ExposureEvidenceError(
+            "runtime candidate IDs must exactly match fixture candidates"
+        )
+
+    runtime_ranks = {
+        chunk_id: candidate_order.index(chunk_id) + 1
+        for chunk_id in fixture_chunk_ids
+    }
+    bindings: dict[str, list[ExposureUnitLocation]] = {}
+    candidate_fields: tuple[tuple[str, ExposureSurface], ...] = (
+        ("matched_unit_id", "matched"),
+        ("context_unit_id", "parent"),
+        ("title_unit_id", "title"),
+        ("source_path_unit_id", "source_path"),
+        ("section_unit_id", "section"),
+        ("version_unit_id", "version"),
+    )
+    for candidate in fixture.candidates:
+        for field_name, source_surface in candidate_fields:
+            unit_id = getattr(candidate, field_name)
+            if unit_id is None:
+                continue
+            bindings.setdefault(unit_id, []).append(
+                ExposureUnitLocation(
+                    case_id=fixture.case_id,
+                    unit_id=unit_id,
+                    location="search_candidate",
+                    source_surface=source_surface,
+                    candidate_chunk_id=candidate.chunk_id,
+                    actual_candidate_rank=runtime_ranks[candidate.chunk_id],
+                    candidate_pool_present=True,
+                    counterfactual_search_applicable=True,
+                )
+            )
+    for opened in fixture.open_results:
+        bindings.setdefault(opened.content_unit_id, []).append(
+            ExposureUnitLocation(
+                case_id=fixture.case_id,
+                unit_id=opened.content_unit_id,
+                location="open_result",
+                source_surface="open",
+                candidate_pool_present=True,
+                counterfactual_search_applicable=False,
+            )
+        )
+
+    frozen_bindings = {
+        unit_id: tuple(locations) for unit_id, locations in bindings.items()
+    }
+    if any(len(locations) != 1 for locations in frozen_bindings.values()):
+        raise ExposureEvidenceError("fixture unit has contradictory locations")
+    return frozen_bindings
 
 
 class ExposureSourceEvidence(_StrictFrozenModel):
@@ -375,10 +502,15 @@ __all__ = [
     "COUNTERFACTUAL_DEPTHS",
     "ExposureEvidenceError",
     "ExposureInputs",
+    "ExposureLocation",
     "ExposureSourceEvidence",
+    "ExposureSurface",
+    "ExposureUnitLocation",
+    "ReplayScanSurface",
     "SOURCE_GIT_HEAD",
     "SOURCE_GUARD_SHA256",
     "SOURCE_MANIFEST_SHA256",
     "SOURCE_RUN_ID",
     "load_exposure_inputs",
+    "map_attack_unit_locations",
 ]

@@ -15,6 +15,11 @@ from app.evaluation.indirect_injection_dataset import (
     build_v1_bundle,
     load_security_bundle,
 )
+from app.evaluation.indirect_injection_contracts import (
+    FixtureCandidate,
+    FixtureCase,
+    FixtureParentLink,
+)
 from app.evaluation.indirect_injection_exposure import (
     ExposureEvidenceError,
     SOURCE_GIT_HEAD,
@@ -46,6 +51,232 @@ from tests.evaluation.test_indirect_injection_live_writer import (
 
 FROZEN_AT = "2026-07-18T00:00:00Z"
 FREEZE_HEAD = "a" * 40
+
+
+_CANDIDATE_UNIT_FIELDS = (
+    "matched_unit_id",
+    "context_unit_id",
+    "title_unit_id",
+    "source_path_unit_id",
+    "section_unit_id",
+    "version_unit_id",
+)
+
+
+@pytest.fixture(scope="module")
+def mapping_cases(
+    source_material: tuple[Path, Path],
+) -> tuple[object, FixtureCase, object, FixtureCase]:
+    _, security_data_root = source_material
+    bundle = load_security_bundle(security_data_root, "dev")
+    fixtures = {
+        fixture.case_id: fixture for fixture in bundle.fixture_manifest.cases
+    }
+    attack_case = next(
+        case
+        for case in bundle.dataset.cases
+        if (
+            case.label == "attack"
+            and case.source_surfaces == ("body",)
+            and len(case.attack_unit_ids) == 1
+            and len(fixtures[case.case_id].candidates) == 2
+        )
+    )
+    open_case = next(
+        case
+        for case in bundle.dataset.cases
+        if case.label == "attack" and case.source_surfaces == ("open_context",)
+    )
+    return (
+        attack_case,
+        fixtures[attack_case.case_id],
+        open_case,
+        fixtures[open_case.case_id],
+    )
+
+
+def _fixture_with_attack_surface(
+    attack_case: object,
+    fixture_case: FixtureCase,
+    *,
+    field: str | None,
+) -> FixtureCase:
+    unit_id = attack_case.attack_unit_ids[0]
+    attack_candidate = next(
+        candidate
+        for candidate in fixture_case.candidates
+        if unit_id in candidate.unit_bindings()
+    )
+    candidate_payload = attack_candidate.model_dump(mode="python")
+    for unit_field in _CANDIDATE_UNIT_FIELDS:
+        candidate_payload[unit_field] = None
+    candidate_payload["context_from_parent"] = False
+    candidate_payload["parent_chunk_id"] = None
+    if field == "context_unit_id":
+        candidate_payload["context_from_parent"] = True
+        candidate_payload["parent_chunk_id"] = f"{attack_case.case_id}-parent"
+    if field is not None:
+        candidate_payload[field] = unit_id
+    candidate = FixtureCandidate.model_validate(candidate_payload)
+    candidates = tuple(
+        candidate if item.chunk_id == candidate.chunk_id else item
+        for item in fixture_case.candidates
+    )
+    parent_links = ()
+    if field == "context_unit_id":
+        parent_links = (
+            FixtureParentLink(
+                parent_chunk_id=candidate.parent_chunk_id,
+                document_id=candidate.document_id,
+                child_chunk_ids=(candidate.chunk_id,),
+            ),
+        )
+    return FixtureCase(
+        case_id=fixture_case.case_id,
+        candidates=candidates,
+        open_results=(),
+        parent_links=parent_links,
+        fact_texts=fixture_case.fact_texts,
+    )
+
+
+def test_mapping_uses_runtime_candidate_order_not_authored_rank(
+    mapping_cases: tuple[object, FixtureCase, object, FixtureCase],
+) -> None:
+    attack_case, fixture_case, _, _ = mapping_cases
+    runtime_order = (
+        fixture_case.candidates[1].chunk_id,
+        fixture_case.candidates[0].chunk_id,
+    )
+
+    locations = exposure.map_attack_unit_locations(
+        attack_case,
+        fixture_case,
+        candidate_order=runtime_order,
+    )
+
+    assert locations[0].actual_candidate_rank == 2
+    assert locations[0].location == "search_candidate"
+
+
+@pytest.mark.parametrize(
+    ("field", "surface"),
+    (
+        ("matched_unit_id", "matched"),
+        ("context_unit_id", "parent"),
+        ("title_unit_id", "title"),
+        ("source_path_unit_id", "source_path"),
+        ("section_unit_id", "section"),
+        ("version_unit_id", "version"),
+    ),
+)
+def test_mapping_covers_every_candidate_id_surface(
+    mapping_cases: tuple[object, FixtureCase, object, FixtureCase],
+    field: str,
+    surface: str,
+) -> None:
+    attack_case, fixture_case, _, _ = mapping_cases
+    fixture = _fixture_with_attack_surface(attack_case, fixture_case, field=field)
+
+    location = exposure.map_attack_unit_locations(
+        attack_case,
+        fixture,
+        candidate_order=tuple(item.chunk_id for item in fixture.candidates),
+    )[0]
+
+    assert location.location == "search_candidate"
+    assert location.source_surface == surface
+    assert location.actual_candidate_rank == 1
+    assert location.counterfactual_search_applicable is True
+
+
+def test_open_unit_has_no_fabricated_search_rank(
+    mapping_cases: tuple[object, FixtureCase, object, FixtureCase],
+) -> None:
+    _, _, open_case, open_fixture = mapping_cases
+
+    location = exposure.map_attack_unit_locations(
+        open_case,
+        open_fixture,
+        candidate_order=tuple(item.chunk_id for item in open_fixture.candidates),
+    )[0]
+
+    assert location.location == "open_result"
+    assert location.actual_candidate_rank is None
+    assert location.counterfactual_search_applicable is False
+
+
+def test_find_result_location_has_no_runtime_attribution() -> None:
+    location = exposure.ExposureUnitLocation(
+        case_id="r2s1-dev-instruction-override-1",
+        unit_id="find-unit",
+        location="find_result",
+        source_surface="find",
+        candidate_pool_present=False,
+        counterfactual_search_applicable=False,
+    )
+
+    assert location.candidate_chunk_id is None
+    assert location.actual_candidate_rank is None
+
+
+def test_mapping_rejects_one_unit_bound_to_two_primary_locations(
+    mapping_cases: tuple[object, FixtureCase, object, FixtureCase],
+) -> None:
+    attack_case, fixture_case, _, _ = mapping_cases
+    unit_id = attack_case.attack_unit_ids[0]
+    contradictory_fixture = fixture_case.model_copy(
+        update={
+            "candidates": (
+                fixture_case.candidates[0],
+                fixture_case.candidates[1].model_copy(
+                    update={"matched_unit_id": unit_id}
+                ),
+            )
+        }
+    )
+
+    with pytest.raises(ExposureEvidenceError, match="contradictory locations"):
+        exposure.map_attack_unit_locations(
+            attack_case,
+            contradictory_fixture,
+            candidate_order=tuple(
+                item.chunk_id for item in contradictory_fixture.candidates
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    ("fixture_field", "candidate_order", "message"),
+    (
+        (None, None, "exactly one non-contradictory location"),
+        ("matched_unit_id", ("first", "first"), "runtime candidate IDs"),
+        ("matched_unit_id", ("first",), "runtime candidate IDs"),
+    ),
+)
+def test_mapping_fails_closed_for_missing_units_and_candidate_sets(
+    mapping_cases: tuple[object, FixtureCase, object, FixtureCase],
+    fixture_field: str | None,
+    candidate_order: tuple[str, ...] | None,
+    message: str,
+) -> None:
+    attack_case, fixture_case, _, _ = mapping_cases
+    fixture = _fixture_with_attack_surface(attack_case, fixture_case, field=fixture_field)
+    order = (
+        tuple(item.chunk_id for item in fixture.candidates)
+        if candidate_order is None
+        else tuple(
+            fixture.candidates[0].chunk_id if value == "first" else value
+            for value in candidate_order
+        )
+    )
+
+    with pytest.raises(ExposureEvidenceError, match=message):
+        exposure.map_attack_unit_locations(
+            attack_case,
+            fixture,
+            candidate_order=order,
+        )
 
 
 def _sha256(path: Path) -> str:
