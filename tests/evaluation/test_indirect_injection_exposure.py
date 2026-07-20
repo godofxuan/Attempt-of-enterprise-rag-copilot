@@ -228,3 +228,340 @@ def test_load_exposure_inputs_rejects_invalid_source(
             security_data_root=security_data_root,
             expected_manifest_sha256=expected_hash,
         )
+
+
+def _copy_source_run(
+    tmp_path: Path,
+    source_material: tuple[Path, Path],
+    name: str,
+) -> tuple[Path, Path, LiveSecurityRunManifestV2]:
+    source_run, security_data_root = source_material
+    copied_run = tmp_path / name
+    shutil.copytree(source_run, copied_run)
+    manifest = verify_live_security_run(source_run)
+    assert isinstance(manifest, LiveSecurityRunManifestV2)
+    return copied_run, security_data_root, manifest
+
+
+def _read_rows(source_run: Path) -> list[dict[str, object]]:
+    return [
+        json.loads(line)
+        for line in (source_run / "per_case.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+
+
+def _write_rows(source_run: Path, rows: list[dict[str, object]]) -> None:
+    (source_run / "per_case.jsonl").write_bytes(
+        (
+            "\n".join(
+                json.dumps(
+                    row,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                for row in rows
+            )
+            + "\n"
+        ).encode("utf-8")
+    )
+
+
+def _load_with_manifest(
+    monkeypatch: pytest.MonkeyPatch,
+    source_run: Path,
+    security_data_root: Path,
+    manifest: LiveSecurityRunManifestV2,
+) -> None:
+    monkeypatch.setattr(
+        exposure,
+        "verify_live_security_run",
+        lambda _run_dir: manifest,
+    )
+    load_exposure_inputs(
+        source_run,
+        security_data_root=security_data_root,
+        expected_manifest_sha256=_sha256(source_run / "manifest.json"),
+    )
+
+
+@pytest.mark.parametrize("mutation", ("missing_manifest", "corrupt_manifest"))
+def test_load_exposure_inputs_normalizes_manifest_boundary_failures(
+    tmp_path: Path,
+    source_material: tuple[Path, Path],
+    mutation: str,
+) -> None:
+    source_run, security_data_root, _ = _copy_source_run(
+        tmp_path,
+        source_material,
+        mutation,
+    )
+    manifest_path = source_run / "manifest.json"
+    expected_hash = _sha256(manifest_path)
+    if mutation == "missing_manifest":
+        manifest_path.unlink()
+    else:
+        manifest_path.write_bytes(b"not-json\n")
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="source live-run verification failed",
+    ):
+        load_exposure_inputs(
+            source_run,
+            security_data_root=security_data_root,
+            expected_manifest_sha256=expected_hash,
+        )
+
+
+def test_load_exposure_inputs_normalizes_verifier_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root = source_material
+
+    def fail_verification(_run_dir: Path) -> LiveSecurityRunManifestV2:
+        raise ValueError("corrupt source evidence")
+
+    monkeypatch.setattr(exposure, "verify_live_security_run", fail_verification)
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="source live-run verification failed",
+    ):
+        load_exposure_inputs(
+            source_run,
+            security_data_root=security_data_root,
+            expected_manifest_sha256=_sha256(source_run / "manifest.json"),
+        )
+
+
+@pytest.mark.parametrize("mutation", ("missing_rows", "unreadable_rows"))
+def test_load_exposure_inputs_normalizes_per_case_file_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+    mutation: str,
+) -> None:
+    source_run, security_data_root, manifest = _copy_source_run(
+        tmp_path,
+        source_material,
+        mutation,
+    )
+    rows_path = source_run / "per_case.jsonl"
+    monkeypatch.setattr(exposure, "verify_live_security_run", lambda _run_dir: manifest)
+    if mutation == "missing_rows":
+        rows_path.unlink()
+    else:
+        read_bytes = Path.read_bytes
+
+        def deny_per_case_read(path: Path) -> bytes:
+            if path == rows_path:
+                raise PermissionError("denied")
+            return read_bytes(path)
+
+        monkeypatch.setattr(Path, "read_bytes", deny_per_case_read)
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="source per-case JSONL is unavailable",
+    ):
+        load_exposure_inputs(
+            source_run,
+            security_data_root=security_data_root,
+            expected_manifest_sha256=_sha256(source_run / "manifest.json"),
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "message"),
+    [
+        ("dataset_sha256", "source dataset SHA-256 mismatch"),
+        ("fixture_manifest_sha256", "source fixture SHA-256 mismatch"),
+    ],
+)
+def test_load_exposure_inputs_rejects_data_provenance_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+    field: str,
+    message: str,
+) -> None:
+    source_run, security_data_root = source_material
+    manifest = verify_live_security_run(source_run)
+    assert isinstance(manifest, LiveSecurityRunManifestV2)
+    data = manifest.data.model_copy(update={field: "0" * 64})
+    invalid_manifest = manifest.model_copy(update={"data": data})
+
+    with pytest.raises(ExposureEvidenceError, match=message):
+        _load_with_manifest(
+            monkeypatch,
+            source_run,
+            security_data_root,
+            invalid_manifest,
+        )
+
+
+def test_load_exposure_inputs_rejects_invalid_arm_allocation(
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root = source_material
+    manifest = verify_live_security_run(source_run)
+    assert isinstance(manifest, LiveSecurityRunManifestV2)
+    arm_order = manifest.arm_order.model_copy(update={"off_then_on_count": 17})
+    invalid_manifest = manifest.model_copy(update={"arm_order": arm_order})
+
+    with pytest.raises(ExposureEvidenceError, match="source arm allocation is invalid"):
+        _load_with_manifest(
+            monkeypatch,
+            source_run,
+            security_data_root,
+            invalid_manifest,
+        )
+
+
+def test_load_exposure_inputs_rejects_boolean_arm_hash_rank(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root, manifest = _copy_source_run(
+        tmp_path,
+        source_material,
+        "boolean-arm-rank",
+    )
+    rows = _read_rows(source_run)
+    row = next(row for row in rows if row["arm_execution"]["hash_rank"] == 1)
+    row["arm_execution"]["hash_rank"] = True
+    _write_rows(source_run, rows)
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="source per-case arm schema is invalid",
+    ):
+        _load_with_manifest(monkeypatch, source_run, security_data_root, manifest)
+
+
+def test_load_exposure_inputs_rejects_arm_order_inconsistency(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root, manifest = _copy_source_run(
+        tmp_path,
+        source_material,
+        "arm-order",
+    )
+    rows = _read_rows(source_run)
+    arm = rows[0]["arm_execution"]
+    arm["arm_order"] = (
+        "on_then_off" if arm["arm_order"] == "off_then_on" else "off_then_on"
+    )
+    _write_rows(source_run, rows)
+
+    with pytest.raises(ExposureEvidenceError, match="source arm order contradicts manifest"):
+        _load_with_manifest(monkeypatch, source_run, security_data_root, manifest)
+
+
+def test_load_exposure_inputs_rejects_arm_index_inconsistency(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root, manifest = _copy_source_run(
+        tmp_path,
+        source_material,
+        "arm-index",
+    )
+    rows = _read_rows(source_run)
+    rows[-2]["arm_execution"]["execution_index"] = rows[0]["arm_execution"][
+        "execution_index"
+    ]
+    rows[-1]["arm_execution"]["execution_index"] = rows[1]["arm_execution"][
+        "execution_index"
+    ]
+    _write_rows(source_run, rows)
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="source arm execution indexes are not exact",
+    ):
+        _load_with_manifest(monkeypatch, source_run, security_data_root, manifest)
+
+
+def test_load_exposure_inputs_rejects_pair_inconsistency(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root, manifest = _copy_source_run(
+        tmp_path,
+        source_material,
+        "pair-inconsistency",
+    )
+    rows = _read_rows(source_run)
+    on_row = next(row for row in rows if row["security"]["guard_mode"] == "on")
+    on_row["security"]["nonce_fingerprint"] = "0" * 64
+    _write_rows(source_run, rows)
+
+    with pytest.raises(ExposureEvidenceError, match="source paired inputs are inconsistent"):
+        _load_with_manifest(monkeypatch, source_run, security_data_root, manifest)
+
+
+def test_load_exposure_inputs_rejects_incomplete_protocol(
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root = source_material
+    manifest = verify_live_security_run(source_run)
+    assert isinstance(manifest, LiveSecurityRunManifestV2)
+    observation = manifest.observation.model_copy(update={"protocol_complete": False})
+    invalid_manifest = manifest.model_copy(update={"observation": observation})
+
+    with pytest.raises(ExposureEvidenceError, match="source run protocol is incomplete"):
+        _load_with_manifest(
+            monkeypatch,
+            source_run,
+            security_data_root,
+            invalid_manifest,
+        )
+
+
+def test_load_exposure_inputs_rejects_model_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root, manifest = _copy_source_run(
+        tmp_path,
+        source_material,
+        "model-errors",
+    )
+    rows = _read_rows(source_run)
+    live = rows[0]["live"]
+    live["model_call_count"] += 1
+    live["model_error_codes"] = ["synthetic_model_error"]
+    _write_rows(source_run, rows)
+
+    with pytest.raises(ExposureEvidenceError, match="source run contains model errors"):
+        _load_with_manifest(monkeypatch, source_run, security_data_root, manifest)
+
+
+def test_load_exposure_inputs_rejects_guard_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root, manifest = _copy_source_run(
+        tmp_path,
+        source_material,
+        "guard-errors",
+    )
+    rows = _read_rows(source_run)
+    rows[0]["security"]["guard_error_count"] = 1
+    _write_rows(source_run, rows)
+
+    with pytest.raises(ExposureEvidenceError, match="source run contains Guard errors"):
+        _load_with_manifest(monkeypatch, source_run, security_data_root, manifest)

@@ -61,6 +61,15 @@ class ExposureSourceEvidence(_StrictFrozenModel):
     on_then_off_count: Literal[18]
 
 
+class _SourceArmExecution(_StrictFrozenModel):
+    protocol_id: Literal["stable_case_hash_rank_counterbalanced_v1"]
+    case_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    hash_rank: int = Field(ge=0)
+    arm_order: Literal["off_then_on", "on_then_off"]
+    execution_index: int = Field(ge=1)
+    arm_position: Literal[1, 2]
+
+
 @dataclass(frozen=True)
 class ExposureInputs:
     source_run_dir: Path
@@ -74,6 +83,7 @@ class ExposureInputs:
 @dataclass(frozen=True)
 class _SourceArmRow:
     raw: Mapping[str, object]
+    arm_execution: _SourceArmExecution
     security: SecurityCaseResult
     live: LiveCaseObservation
 
@@ -85,7 +95,7 @@ def load_exposure_inputs(
     expected_manifest_sha256: str,
 ) -> ExposureInputs:
     source_run_dir = Path(source_run_dir).resolve()
-    manifest = verify_live_security_run(source_run_dir)
+    manifest = _verify_source_run(source_run_dir)
     if not isinstance(manifest, LiveSecurityRunManifestV2):
         raise ExposureEvidenceError("source run must use live manifest v2")
     if manifest.split != "dev":
@@ -96,7 +106,10 @@ def load_exposure_inputs(
         raise ExposureEvidenceError("source Git HEAD mismatch")
     if manifest.guard.ruleset_sha256 != SOURCE_GUARD_SHA256:
         raise ExposureEvidenceError("source Guard SHA-256 mismatch")
-    manifest_sha256 = _sha256(source_run_dir / "manifest.json")
+    try:
+        manifest_sha256 = _sha256(source_run_dir / "manifest.json")
+    except OSError as exc:
+        raise ExposureEvidenceError("source manifest SHA-256 is unavailable") from exc
     if manifest_sha256 != expected_manifest_sha256:
         raise ExposureEvidenceError("source manifest SHA-256 mismatch")
     bundle = load_security_bundle(security_data_root, "dev")
@@ -122,7 +135,10 @@ def load_exposure_inputs(
 
 
 def _load_source_rows(path: Path) -> tuple[Mapping[str, object], ...]:
-    payload = path.read_bytes()
+    try:
+        payload = path.read_bytes()
+    except OSError as exc:
+        raise ExposureEvidenceError("source per-case JSONL is unavailable") from exc
     if not payload or not payload.endswith(b"\n") or b"\r" in payload:
         raise ExposureEvidenceError("source per-case JSONL is not canonical")
     try:
@@ -227,17 +243,24 @@ def _parse_source_arm_row(row: Mapping[str, object]) -> _SourceArmRow:
     if not isinstance(security, Mapping) or not isinstance(live, Mapping):
         raise ExposureEvidenceError("source per-case row schema is invalid")
     try:
-        return _SourceArmRow(
-            raw=row,
-            security=SecurityCaseResult.model_validate_json(
-                json.dumps(security, ensure_ascii=False)
-            ),
-            live=LiveCaseObservation.model_validate_json(
-                json.dumps(live, ensure_ascii=False)
-            ),
+        typed_arm_execution = _SourceArmExecution.model_validate(arm_execution)
+    except ValidationError as exc:
+        raise ExposureEvidenceError("source per-case arm schema is invalid") from exc
+    try:
+        typed_security = SecurityCaseResult.model_validate_json(
+            json.dumps(security, ensure_ascii=False)
+        )
+        typed_live = LiveCaseObservation.model_validate_json(
+            json.dumps(live, ensure_ascii=False)
         )
     except ValidationError as exc:
         raise ExposureEvidenceError("source per-case row schema is invalid") from exc
+    return _SourceArmRow(
+        raw=row,
+        arm_execution=typed_arm_execution,
+        security=typed_security,
+        live=typed_live,
+    )
 
 
 def _validate_arm_order(
@@ -251,33 +274,21 @@ def _validate_arm_order(
         for arm_position, (guard_mode, row) in enumerate(
             zip(assignment.modes(), pair_rows), start=1
         ):
-            arm = row.raw["arm_execution"]
-            assert isinstance(arm, Mapping)
-            execution_index = arm["execution_index"]
+            arm = row.arm_execution
             if (
-                not isinstance(execution_index, int)
-                or isinstance(execution_index, bool)
-                or execution_index < 1
-            ):
-                raise ExposureEvidenceError("source arm execution index is invalid")
-            expected_arm = {
-                "protocol_id": manifest.arm_order.protocol_id,
-                "case_hash": assignment.case_hash,
-                "hash_rank": assignment.hash_rank,
-                "arm_order": assignment.arm_order,
-                "execution_index": execution_index,
-                "arm_position": arm_position,
-            }
-            if (
-                arm != expected_arm
+                arm.protocol_id != manifest.arm_order.protocol_id
+                or arm.case_hash != assignment.case_hash
+                or arm.hash_rank != assignment.hash_rank
+                or arm.arm_order != assignment.arm_order
+                or arm.arm_position != arm_position
                 or row.security.case_id != assignment.case_id
                 or row.live.case_id != assignment.case_id
                 or row.security.guard_mode != guard_mode
                 or row.live.guard_mode != guard_mode
             ):
                 raise ExposureEvidenceError("source arm order contradicts manifest")
-            execution_indexes.append(execution_index)
-            pair_indexes.append(execution_index)
+            execution_indexes.append(arm.execution_index)
+            pair_indexes.append(arm.execution_index)
         if pair_indexes[1] != pair_indexes[0] + 1:
             raise ExposureEvidenceError("source paired arm execution is not adjacent")
     if sorted(execution_indexes) != list(range(1, 73)):
@@ -334,6 +345,13 @@ def _source_evidence(
         off_then_on_count=manifest.arm_order.off_then_on_count,
         on_then_off_count=manifest.arm_order.on_then_off_count,
     )
+
+
+def _verify_source_run(source_run_dir: Path) -> LiveSecurityRunManifest:
+    try:
+        return verify_live_security_run(source_run_dir)
+    except (OSError, ValidationError, ValueError) as exc:
+        raise ExposureEvidenceError("source live-run verification failed") from exc
 
 
 class _DuplicateJsonKey(ValueError):
