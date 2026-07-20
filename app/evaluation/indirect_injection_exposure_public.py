@@ -33,7 +33,7 @@ _ABSOLUTE_PATH_PATTERNS = (
     re.compile(r"(?:\\){2,}[A-Za-z0-9._$-]+[\\/]"),
     re.compile(r"(?i)(?<![A-Za-z0-9])file:(?:/{1,3}|[A-Z]:[\\/])"),
     re.compile(r"(?<![A-Za-z0-9:/\\])/{2,}(?=[^/\s])"),
-    re.compile(r"(?<![A-Za-z0-9:/\\])/(?![ /\t\r\n])"),
+    re.compile(r"(?<![A-Za-z0-9/\\])/(?![ /\t\r\n])"),
 )
 
 

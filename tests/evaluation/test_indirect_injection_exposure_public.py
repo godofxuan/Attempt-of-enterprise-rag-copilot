@@ -47,17 +47,28 @@ FORMAL_SCENARIO_TAGS = (
     "split_payload",
 )
 PUBLISHED_METRIC_NAMES = {
+    "arm_event_count",
+    "attack_case_count",
     "attack_unit_count",
+    "benign_case_count",
     "benign_quarantine",
+    "benign_quarantine_count",
+    "benign_unit_count",
     "blocked_egress_attempt_count",
     "candidate_pool_presence",
+    "case_count",
+    "clean_case_count",
     "clean_task_success",
+    "clean_task_success_count",
     "consumed_tool_paths_guard_covered",
     "counterfactual_search_reach",
     "counterfactual_total_reach",
+    "decision",
     "live_guard_quarantine",
     "live_guard_reach",
     "model_error_count",
+    "off_then_on_count",
+    "on_then_off_count",
     "quarantine_given_live_guard_reach",
     "replay_additional_scan_input_chars",
     "replay_additional_scan_units",
@@ -65,6 +76,7 @@ PUBLISHED_METRIC_NAMES = {
     "replay_guard_reach",
     "replay_live_aggregate_match",
     "replay_selected_attack_units",
+    "row_count",
     "search_addressable_attack_unit_count",
     "unreached_attack_unit_count",
     "unreached_case_attack_success",
@@ -546,12 +558,28 @@ def test_metric_definitions_cover_every_published_metric_count_status_and_cost(
     document = json.loads(
         (public_exposure_package / "summary.json").read_text(encoding="utf-8")
     )
+    manifest = json.loads(
+        (public_exposure_package / "manifest.redacted.json").read_text(
+            encoding="utf-8"
+        )
+    )
     summary = document["summary"]
-    emitted_names = set(summary) - {"depths"}
-    emitted_names.update(set(summary["depths"][0]) - {"depth"})
+    emitted_names = {
+        name
+        for name in manifest
+        if name.endswith("_count") or name == "decision"
+    }
+    emitted_names.update(
+        name for name in manifest["source"] if name.endswith("_count")
+    )
+    emitted_names.update(document["verification_inputs"])
+    emitted_names.update(set(summary) - {"depths"})
+    for depth in summary["depths"]:
+        emitted_names.update(set(depth) - {"depth"})
     for stratum in document["strata"]:
         emitted_names.update(set(stratum) - {"depths", "dimension", "value"})
-        emitted_names.update(set(stratum["depths"][0]) - {"depth"})
+        for depth in stratum["depths"]:
+            emitted_names.update(set(depth) - {"depth"})
 
     assert emitted_names == PUBLISHED_METRIC_NAMES
     assert set(metrics) == PUBLISHED_METRIC_NAMES
@@ -563,6 +591,22 @@ def test_metric_definitions_cover_every_published_metric_count_status_and_cost(
     assert metrics["counterfactual_search_reach"]["interpretation"] == (
         "attack units with persisted candidate rank less than or equal to the fixed depth"
     )
+    assert metrics["clean_task_success"]["applicability"] == (
+        "clean_case_count > 0"
+    )
+    assert metrics["clean_task_success"]["denominator"] == (
+        "clean-task benign cases"
+    )
+    assert metrics["row_count"]["interpretation"] == (
+        "fingerprinted attack content-unit rows published in the package"
+    )
+    assert metrics["decision"] == {
+        "applicability": "always",
+        "denominator": "not applicable",
+        "interpretation": "decision selected by recomputed evidence precedence",
+        "numerator": "recomputed public decision status",
+        "unit": "decision",
+    }
 
 
 def test_export_rejects_wrong_private_hash_or_run_without_target(
@@ -626,6 +670,7 @@ def test_export_scans_decoded_structured_values_before_json_escaping(
         "/opt/service/config",
         "/root/.ssh/config",
         "/usr/local/bin/tool",
+        "local path:/etc/hosts",
         "file:///etc/hosts",
         "file:/etc/hosts",
         "file://server/share/file.txt",
@@ -653,6 +698,14 @@ def test_export_rejects_absolute_local_paths(
             ),
             expected_source_run_id=private_run.name,
             forbidden_texts=("raw question", "raw attack"),
+        )
+
+
+def test_final_byte_scanner_rejects_colon_adjacent_posix_absolute_path() -> None:
+    with pytest.raises(ValueError, match="absolute local path"):
+        public_writer._assert_no_absolute_paths(
+            b'{"limitation":"local path:/etc/hosts"}\n',
+            "summary.json",
         )
 
 
