@@ -587,16 +587,11 @@ def test_publish_final_handoff_never_replaces_raced_target(
 ) -> None:
     root = tmp_path / "runs"
     target = root / "r2-s3-writer-test"
-    sentinel = target / "sentinel.txt"
-    real_handoff = getattr(exposure_writer, "_atomic_publish_no_replace", None)
+    real_handoff = exposure_writer._atomic_publish_no_replace
 
     def race_at_handoff(stage: Path, destination: Path) -> None:
         destination.mkdir()
-        sentinel.write_text("raced target\n", encoding="utf-8", newline="")
-        if real_handoff is None:
-            stage.rename(destination)
-        else:
-            real_handoff(stage, destination)
+        real_handoff(stage, destination)
 
     monkeypatch.setattr(
         exposure_writer,
@@ -608,7 +603,8 @@ def test_publish_final_handoff_never_replaces_raced_target(
     with pytest.raises(FileExistsError):
         _publish(root, exposure_result)
 
-    assert sentinel.read_text(encoding="utf-8") == "raced target\n"
+    assert target.is_dir()
+    assert not tuple(target.iterdir())
     assert not tuple(root.glob(".*.staging-*"))
 
 
