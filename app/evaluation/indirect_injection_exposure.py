@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from app.evaluation.indirect_injection_dataset import (
     LoadedSecurityBundle,
@@ -85,6 +85,51 @@ class ExposureUnitLocation(_StrictFrozenModel):
     candidate_pool_present: bool
     counterfactual_search_applicable: bool
 
+    @model_validator(mode="after")
+    def validate_location_state(self) -> ExposureUnitLocation:
+        if self.location == "search_candidate":
+            if self.source_surface not in {
+                "matched",
+                "parent",
+                "title",
+                "source_path",
+                "section",
+                "version",
+            }:
+                raise ValueError("search_candidate requires a search source surface")
+            if not self.candidate_chunk_id:
+                raise ValueError(
+                    "search_candidate requires a non-empty candidate_chunk_id"
+                )
+            if self.actual_candidate_rank is None:
+                raise ValueError("search_candidate requires actual_candidate_rank")
+            if not self.candidate_pool_present:
+                raise ValueError(
+                    "search_candidate requires candidate_pool_present=True"
+                )
+            if not self.counterfactual_search_applicable:
+                raise ValueError(
+                    "search_candidate requires counterfactual_search_applicable=True"
+                )
+            return self
+
+        required_surface = "open" if self.location == "open_result" else "find"
+        if self.source_surface != required_surface:
+            raise ValueError(
+                f"{self.location} requires source_surface={required_surface}"
+            )
+        if self.candidate_chunk_id is not None:
+            raise ValueError(f"{self.location} requires candidate_chunk_id=None")
+        if self.actual_candidate_rank is not None:
+            raise ValueError(f"{self.location} requires actual_candidate_rank=None")
+        if self.candidate_pool_present:
+            raise ValueError(f"{self.location} requires candidate_pool_present=False")
+        if self.counterfactual_search_applicable:
+            raise ValueError(
+                f"{self.location} requires counterfactual_search_applicable=False"
+            )
+        return self
+
 
 def map_attack_unit_locations(
     case: IndirectInjectionCase,
@@ -160,7 +205,7 @@ def _fixture_unit_bindings(
                 unit_id=opened.content_unit_id,
                 location="open_result",
                 source_surface="open",
-                candidate_pool_present=True,
+                candidate_pool_present=False,
                 counterfactual_search_applicable=False,
             )
         )

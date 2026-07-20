@@ -220,6 +220,120 @@ def test_find_result_location_has_no_runtime_attribution() -> None:
     assert location.actual_candidate_rank is None
 
 
+@pytest.mark.parametrize(
+    ("location", "updates", "message"),
+    (
+        (
+            "search_candidate",
+            {"source_surface": "open"},
+            "search_candidate requires a search source surface",
+        ),
+        (
+            "search_candidate",
+            {"candidate_chunk_id": None},
+            "search_candidate requires a non-empty candidate_chunk_id",
+        ),
+        (
+            "search_candidate",
+            {"candidate_chunk_id": ""},
+            "search_candidate requires a non-empty candidate_chunk_id",
+        ),
+        (
+            "search_candidate",
+            {"actual_candidate_rank": None},
+            "search_candidate requires actual_candidate_rank",
+        ),
+        (
+            "search_candidate",
+            {"candidate_pool_present": False},
+            "search_candidate requires candidate_pool_present=True",
+        ),
+        (
+            "search_candidate",
+            {"counterfactual_search_applicable": False},
+            "search_candidate requires counterfactual_search_applicable=True",
+        ),
+        (
+            "open_result",
+            {"source_surface": "matched"},
+            "open_result requires source_surface=open",
+        ),
+        (
+            "open_result",
+            {"candidate_chunk_id": "chunk-1"},
+            "open_result requires candidate_chunk_id=None",
+        ),
+        (
+            "open_result",
+            {"actual_candidate_rank": 1},
+            "open_result requires actual_candidate_rank=None",
+        ),
+        (
+            "open_result",
+            {"candidate_pool_present": True},
+            "open_result requires candidate_pool_present=False",
+        ),
+        (
+            "open_result",
+            {"counterfactual_search_applicable": True},
+            "open_result requires counterfactual_search_applicable=False",
+        ),
+        (
+            "find_result",
+            {"source_surface": "matched"},
+            "find_result requires source_surface=find",
+        ),
+        (
+            "find_result",
+            {"candidate_chunk_id": "chunk-1"},
+            "find_result requires candidate_chunk_id=None",
+        ),
+        (
+            "find_result",
+            {"actual_candidate_rank": 1},
+            "find_result requires actual_candidate_rank=None",
+        ),
+        (
+            "find_result",
+            {"candidate_pool_present": True},
+            "find_result requires candidate_pool_present=False",
+        ),
+        (
+            "find_result",
+            {"counterfactual_search_applicable": True},
+            "find_result requires counterfactual_search_applicable=False",
+        ),
+    ),
+)
+def test_exposure_unit_location_rejects_contradictory_cross_field_state(
+    location: str,
+    updates: dict[str, object],
+    message: str,
+) -> None:
+    payload: dict[str, object] = {
+        "case_id": "r2s1-dev-instruction-override-1",
+        "unit_id": "attack-unit",
+        "location": location,
+        "source_surface": "matched",
+        "candidate_chunk_id": "chunk-1",
+        "actual_candidate_rank": 1,
+        "candidate_pool_present": True,
+        "counterfactual_search_applicable": True,
+    }
+    if location in {"open_result", "find_result"}:
+        payload.update(
+            source_surface="open" if location == "open_result" else "find",
+            candidate_chunk_id=None,
+            actual_candidate_rank=None,
+            candidate_pool_present=False,
+            counterfactual_search_applicable=False,
+        )
+    payload.update(updates)
+
+    with pytest.raises(ValueError, match=message):
+        exposure.ExposureUnitLocation(**payload)
+
+
 def test_mapping_rejects_one_unit_bound_to_two_primary_locations(
     mapping_cases: tuple[object, FixtureCase, object, FixtureCase],
 ) -> None:
