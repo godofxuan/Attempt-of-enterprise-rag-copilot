@@ -39,6 +39,7 @@ from app.evaluation.indirect_injection_live_writer import (
     publish_live_security_run,
     verify_live_security_run,
 )
+from app.security.retrieved_admission import RetrievedContentAdmission
 from tests.evaluation.test_indirect_injection_live_runner import (
     BUILD_TIME,
     _StructuredFixtureChat,
@@ -55,6 +56,11 @@ FREEZE_HEAD = "a" * 40
 RANK_TWO_CASE_ID = "r2s1-dev-markup-wrapped-2"
 SPLIT_CASE_ID = "r2s1-dev-split-payload-3"
 OPEN_CASE_ID = "r2s1-dev-encoded-invisible-2"
+PARENT_SANITIZED_CASE_ID = "r2s1-dev-encoded-invisible-1"
+METADATA_SANITIZED_CASE_ID = "r2s1-dev-role-impersonation-1"
+SOURCE_EVALUATOR_SHA256 = (
+    "a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958"
+)
 
 
 _CANDIDATE_UNIT_FIELDS = (
@@ -443,6 +449,10 @@ def source_material(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Pat
     payload["split"] = "dev"
     payload["git"]["head"] = SOURCE_GIT_HEAD
     payload["guard"]["ruleset_sha256"] = SOURCE_GUARD_SHA256
+    payload["evaluator"]["path"] = (
+        "app/evaluation/indirect_injection_live_runner.py"
+    )
+    payload["evaluator"]["sha256"] = SOURCE_EVALUATOR_SHA256
     payload["data"]["dataset_sha256"] = bundle.dataset_sha256
     payload["data"]["fixture_manifest_sha256"] = bundle.fixture_manifest_sha256
     manifest = LiveSecurityRunManifestV2.model_validate(payload)
@@ -496,6 +506,26 @@ def _mutated_guard_on_inputs(
     return replace(inputs, guard_on_rows=tuple(rows))
 
 
+class _MutatingReplayAdmission:
+    def __init__(self, mutate_search) -> None:
+        self._delegate = RetrievedContentAdmission()
+        self._mutate_search = mutate_search
+
+    def admit_search(self, pool, request):
+        return self._mutate_search(self._delegate.admit_search(pool, request))
+
+    def admit_open(self, result):
+        return self._delegate.admit_open(result)
+
+
+def _install_replay_admission(
+    monkeypatch: pytest.MonkeyPatch,
+    mutate_search,
+) -> None:
+    admission = _MutatingReplayAdmission(mutate_search)
+    monkeypatch.setattr(exposure, "_new_replay_admission", lambda: admission)
+
+
 def test_replay_matches_live_reached_and_quarantined_totals(
     accepted_inputs: exposure.ExposureInputs,
 ) -> None:
@@ -528,6 +558,78 @@ def test_split_window_replay_does_not_require_selection(
     assert all("aggregate" in unit.replay_scan_surfaces for unit in replayed.units)
 
 
+def test_replay_parent_selection_reflects_sanitized_returned_evidence(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    replayed = exposure.replay_guard_on_case(
+        accepted_inputs,
+        case_id=PARENT_SANITIZED_CASE_ID,
+    )
+
+    assert replayed.units[0].location.source_surface == "parent"
+    assert replayed.units[0].replay_scan_surfaces == ("parent",)
+    assert replayed.units[0].replay_guard_reached is True
+    assert replayed.units[0].replay_guard_quarantined is True
+    assert replayed.units[0].replay_selected_for_evidence is False
+
+
+def test_replay_metadata_selection_reflects_sanitized_returned_evidence(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    replayed = exposure.replay_guard_on_case(
+        accepted_inputs,
+        case_id=METADATA_SANITIZED_CASE_ID,
+    )
+
+    assert replayed.units[0].location.source_surface == "title"
+    assert replayed.units[0].replay_scan_surfaces == ("metadata",)
+    assert replayed.units[0].replay_guard_reached is True
+    assert replayed.units[0].replay_guard_quarantined is True
+    assert replayed.units[0].replay_selected_for_evidence is False
+
+
+@pytest.mark.parametrize(
+    ("updates", "message"),
+    (
+        (
+            {
+                "replay_selected_for_evidence": True,
+                "replay_guard_reached": False,
+                "replay_guard_quarantined": False,
+                "replay_scan_surfaces": (),
+            },
+            "selected evidence must have reached the Guard",
+        ),
+        (
+            {
+                "replay_selected_for_evidence": True,
+                "replay_guard_reached": True,
+                "replay_guard_quarantined": True,
+                "replay_scan_surfaces": ("matched",),
+            },
+            "quarantined replay unit cannot be selected evidence",
+        ),
+    ),
+)
+def test_replayed_unit_rejects_invalid_selected_evidence_state(
+    updates: dict[str, object],
+    message: str,
+) -> None:
+    location = exposure.ExposureUnitLocation(
+        case_id=RANK_TWO_CASE_ID,
+        unit_id="attack-unit",
+        location="search_candidate",
+        source_surface="matched",
+        candidate_chunk_id="attack-chunk",
+        actual_candidate_rank=2,
+        candidate_pool_present=True,
+        counterfactual_search_applicable=True,
+    )
+
+    with pytest.raises(ValueError, match=message):
+        exposure.ReplayedUnitState(location=location, **updates)
+
+
 def test_replay_open_unit_is_reached_only_by_recorded_open(
     accepted_inputs: exposure.ExposureInputs,
 ) -> None:
@@ -542,6 +644,7 @@ def test_replay_open_unit_is_reached_only_by_recorded_open(
     assert replayed.units[0].location.location == "open_result"
     assert replayed.units[0].actual_candidate_rank is None
     assert replayed.units[0].replay_guard_reached is True
+    assert replayed.units[0].replay_selected_for_evidence is False
     assert replayed.units[0].replay_scan_surfaces == ("open",)
 
 
@@ -580,6 +683,170 @@ def test_replay_rejects_guard_hash_mismatch(
 
     with pytest.raises(ExposureEvidenceError, match="Guard ruleset SHA-256 mismatch"):
         exposure.replay_guard_on_case(inputs, case_id=RANK_TWO_CASE_ID)
+
+
+@pytest.mark.parametrize(
+    "update",
+    (
+        {"sha256": "0" * 64},
+        {"path": "app/evaluation/indirect_injection_runner.py"},
+    ),
+)
+def test_replay_rejects_evaluator_provenance_mismatch(
+    accepted_inputs: exposure.ExposureInputs,
+    update: dict[str, object],
+) -> None:
+    evaluator = accepted_inputs.manifest.evaluator.model_copy(update=update)
+    inputs = replace(
+        accepted_inputs,
+        manifest=accepted_inputs.manifest.model_copy(
+            update={"evaluator": evaluator}
+        ),
+    )
+
+    with pytest.raises(ExposureEvidenceError, match="evaluator provenance mismatch"):
+        exposure.replay_guard_on_case(inputs, case_id=RANK_TWO_CASE_ID)
+
+
+def test_replay_rejects_ambiguous_recorded_open_target(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    fixture = next(
+        fixture
+        for fixture in accepted_inputs.bundle.fixture_manifest.cases
+        if fixture.case_id == OPEN_CASE_ID
+    )
+    second_open = fixture.open_results[0].model_copy(
+        update={
+            "target_id": f"{fixture.open_results[0].target_id}-other",
+            "content_unit_id": f"{fixture.open_results[0].content_unit_id}-other",
+        }
+    )
+    ambiguous_fixture = fixture.model_copy(
+        update={"open_results": (fixture.open_results[0], second_open)}
+    )
+    fixture_manifest = accepted_inputs.bundle.fixture_manifest.model_copy(
+        update={
+            "cases": tuple(
+                ambiguous_fixture if item.case_id == OPEN_CASE_ID else item
+                for item in accepted_inputs.bundle.fixture_manifest.cases
+            )
+        }
+    )
+    inputs = replace(
+        accepted_inputs,
+        bundle=replace(
+            accepted_inputs.bundle,
+            fixture_manifest=fixture_manifest,
+        ),
+    )
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="recorded open target is not exactly reconstructable",
+    ):
+        exposure.replay_guard_on_case(inputs, case_id=OPEN_CASE_ID)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ("scanned_content_unit_count", "scanned_chars"),
+)
+def test_replay_rejects_scan_accounting_mismatch(
+    accepted_inputs: exposure.ExposureInputs,
+    field: str,
+) -> None:
+    source_row = next(
+        row
+        for row in accepted_inputs.guard_on_rows
+        if row["security"]["case_id"] == RANK_TWO_CASE_ID
+    )
+    inputs = _mutated_guard_on_inputs(
+        accepted_inputs,
+        case_id=RANK_TWO_CASE_ID,
+        security_updates={field: source_row["security"][field] + 1},
+    )
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="replay/live scan accounting mismatch",
+    ):
+        exposure.replay_guard_on_case(inputs, case_id=RANK_TWO_CASE_ID)
+
+
+def test_replay_rejects_successful_content_without_scan_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    _install_replay_admission(
+        monkeypatch,
+        lambda outcome: outcome.model_copy(update={"scan_provenance": ()}),
+    )
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="successful content operation lacks Guard scan provenance",
+    ):
+        exposure.replay_guard_on_case(accepted_inputs, case_id=RANK_TWO_CASE_ID)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("operation_surface", "surface_internal_id", "internal_id"),
+)
+def test_replay_rejects_unsupported_scan_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+    accepted_inputs: exposure.ExposureInputs,
+    mutation: str,
+) -> None:
+    def mutate(outcome):
+        first = outcome.scan_provenance[0]
+        if mutation == "operation_surface":
+            invalid = first.model_copy(update={"surface": "open"})
+        elif mutation == "surface_internal_id":
+            invalid = first.model_copy(update={"surface": "parent"})
+        else:
+            invalid = first.model_copy(
+                update={
+                    "internal_item_key": "unknown-fixture-id",
+                    "member_internal_ids": ("unknown-fixture-id",),
+                }
+            )
+        return outcome.model_copy(
+            update={"scan_provenance": (invalid, *outcome.scan_provenance[1:])}
+        )
+
+    _install_replay_admission(monkeypatch, mutate)
+
+    with pytest.raises(ExposureEvidenceError, match="scan provenance"):
+        exposure.replay_guard_on_case(accepted_inputs, case_id=RANK_TWO_CASE_ID)
+
+
+def test_replay_rejects_duplicate_quarantine_summary_for_one_scan(
+    monkeypatch: pytest.MonkeyPatch,
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    def duplicate_summary(outcome):
+        summary = outcome.quarantine_summaries[0]
+        return outcome.model_copy(
+            update={
+                "quarantine_summaries": (
+                    *outcome.quarantine_summaries,
+                    summary,
+                )
+            }
+        )
+
+    _install_replay_admission(monkeypatch, duplicate_summary)
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="quarantine summaries must map one-to-one",
+    ):
+        exposure.replay_guard_on_case(
+            accepted_inputs,
+            case_id=PARENT_SANITIZED_CASE_ID,
+        )
 
 
 def test_replay_rejects_live_aggregate_mismatch(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,7 +12,12 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 
 from app.domain.agent import ToolError
 from app.domain.queries import OpenResult, SearchRequest, UserContext
-from app.domain.retrieved_security import GuardedSearchResult, ScannedContentUnit
+from app.domain.retrieved_security import (
+    AdmittedEvidenceChunk,
+    GuardedOpenAdmittedResult,
+    GuardedSearchResult,
+    ScannedContentUnit,
+)
 from app.evaluation.indirect_injection_dataset import (
     LoadedSecurityBundle,
     load_security_bundle,
@@ -42,6 +48,10 @@ SOURCE_MANIFEST_SHA256 = (
 SOURCE_GIT_HEAD = "073d7356026954c26c1429fb9faddc5e9a5dcb87"
 SOURCE_GUARD_SHA256 = (
     "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2"
+)
+SOURCE_EVALUATOR_PATH = "app/evaluation/indirect_injection_live_runner.py"
+SOURCE_EVALUATOR_SHA256 = (
+    "a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958"
 )
 COUNTERFACTUAL_DEPTHS = (1, 2, 4)
 
@@ -159,11 +169,10 @@ class ReplayedUnitState(_StrictFrozenModel):
             raise ValueError("replay reach must exactly match scan provenance")
         if self.replay_guard_quarantined and not self.replay_guard_reached:
             raise ValueError("replay quarantine requires Guard reach")
-        if (
-            self.replay_selected_for_evidence
-            and self.location.location != "search_candidate"
-        ):
-            raise ValueError("only search candidates can be selected evidence")
+        if self.replay_selected_for_evidence and not self.replay_guard_reached:
+            raise ValueError("selected evidence must have reached the Guard")
+        if self.replay_selected_for_evidence and self.replay_guard_quarantined:
+            raise ValueError("quarantined replay unit cannot be selected evidence")
         return self
 
 
@@ -364,21 +373,24 @@ def replay_guard_on_case(
     case_id: str,
 ) -> ReplayedCaseState:
     _verify_replay_guard_ruleset(inputs)
+    _verify_replay_evaluator(inputs)
     case, fixture = _replay_case_fixture(inputs, case_id)
     source_row = _replay_source_row(inputs, case_id)
     _validate_replay_source_case(source_row, case)
+    _validate_recorded_open_contract(source_row, fixture)
     locations = map_attack_unit_locations(
         case,
         fixture,
         candidate_order=source_row.security.candidate_order,
     )
 
-    admission = RetrievedContentAdmission(guard=RetrievedContentGuard())
+    admission = _new_replay_admission()
     replayed = _replay_content_operations(
         admission,
         case=case,
         fixture=fixture,
         source_row=source_row,
+        evaluator_sha256=inputs.manifest.evaluator.sha256,
     )
     if not replayed:
         raise ExposureEvidenceError("replay has no successful content operation")
@@ -388,13 +400,15 @@ def replay_guard_on_case(
         )
 
     scans = _recorded_replay_scans(replayed)
-    selected_chunk_ids = {
-        item.hit.chunk_id
-        for replay in replayed
-        if replay.operation == "search"
-        and isinstance(replay.outcome.result, GuardedSearchResult)
-        for item in replay.outcome.result.hits
-    }
+    replay_scanned_chars = sum(
+        item.outcome.security_counters.scanned_chars for item in replayed
+    )
+    if (
+        len(scans) != source_row.security.scanned_content_unit_count
+        or replay_scanned_chars != source_row.security.scanned_chars
+    ):
+        raise ExposureEvidenceError("replay/live scan accounting mismatch")
+    selected_unit_ids = _selected_replay_unit_ids(fixture, replayed)
     reached_surfaces: dict[str, list[ReplayScanSurface]] = {}
     quarantined_unit_ids: set[str] = set()
     for scan in scans:
@@ -409,10 +423,7 @@ def replay_guard_on_case(
     units = tuple(
         ReplayedUnitState(
             location=location,
-            replay_selected_for_evidence=(
-                location.location == "search_candidate"
-                and location.candidate_chunk_id in selected_chunk_ids
-            ),
+            replay_selected_for_evidence=location.unit_id in selected_unit_ids,
             replay_guard_reached=location.unit_id in reached_surfaces,
             replay_guard_quarantined=location.unit_id in quarantined_unit_ids,
             replay_scan_surfaces=tuple(reached_surfaces.get(location.unit_id, ())),
@@ -445,9 +456,7 @@ def replay_guard_on_case(
         replay_guard_quarantined_count=replay_quarantined,
         replay_live_aggregate_match=True,
         units=units,
-        replay_scanned_chars=sum(
-            item.outcome.security_counters.scanned_chars for item in replayed
-        ),
+        replay_scanned_chars=replay_scanned_chars,
         replay_scanned_surface_count=len(scans),
     )
 
@@ -462,6 +471,27 @@ def _verify_replay_guard_ruleset(inputs: ExposureInputs) -> None:
         raise ExposureEvidenceError("Guard ruleset bytes are unavailable") from exc
     if actual_sha256 != inputs.manifest.guard.ruleset_sha256:
         raise ExposureEvidenceError("Guard ruleset SHA-256 mismatch")
+
+
+def _verify_replay_evaluator(inputs: ExposureInputs) -> None:
+    evaluator_path = (
+        Path(__file__).resolve().parents[2]
+        / Path(*SOURCE_EVALUATOR_PATH.split("/"))
+    )
+    try:
+        actual_sha256 = _sha256(evaluator_path)
+    except OSError as exc:
+        raise ExposureEvidenceError("evaluator provenance mismatch") from exc
+    if (
+        inputs.manifest.evaluator.path != SOURCE_EVALUATOR_PATH
+        or inputs.manifest.evaluator.sha256 != actual_sha256
+        or actual_sha256 != SOURCE_EVALUATOR_SHA256
+    ):
+        raise ExposureEvidenceError("evaluator provenance mismatch")
+
+
+def _new_replay_admission() -> RetrievedContentAdmission:
+    return RetrievedContentAdmission(guard=RetrievedContentGuard())
 
 
 def _replay_case_fixture(
@@ -511,12 +541,27 @@ def _validate_replay_source_case(
         raise ExposureEvidenceError("replay source case evidence is inconsistent")
 
 
+def _validate_recorded_open_contract(
+    source_row: _SourceArmRow,
+    fixture: FixtureCase,
+) -> None:
+    recorded_open_count = source_row.security.tool_sequence.count("open")
+    if recorded_open_count == 0:
+        return
+    if recorded_open_count != 1 or len(fixture.open_results) != 1:
+        raise ExposureEvidenceError(
+            "recorded open target is not exactly reconstructable"
+        )
+    _fixture_open_result(fixture, case_id=source_row.security.case_id)
+
+
 def _replay_content_operations(
     admission: RetrievedContentAdmission,
     *,
     case: IndirectInjectionCase,
     fixture: FixtureCase,
     source_row: _SourceArmRow,
+    evaluator_sha256: str,
 ) -> tuple[_ReplayedAdmission, ...]:
     replayed: list[_ReplayedAdmission] = []
     search_count = 0
@@ -556,7 +601,10 @@ def _replay_content_operations(
                 )
             )
         elif tool == "find":
-            find_result = _fixture_find_error(fixture)
+            find_result = _fixture_find_error(
+                fixture,
+                evaluator_sha256=evaluator_sha256,
+            )
             if not isinstance(find_result, ToolError):
                 raise ExposureEvidenceError(
                     "successful find content lacks an exact fixture contract"
@@ -649,12 +697,19 @@ def _fixture_open_result(fixture: FixtureCase, *, case_id: str) -> OpenResult:
         content=item.content,
         truncated=False,
         source_path=item.source_path,
-        section_path=list(item.section_path),
+        section_path=([] if target_type == "document" else list(item.section_path)),
     )
 
 
-def _fixture_find_error(fixture: FixtureCase) -> ToolError:
-    if getattr(fixture, "find_results", ()):
+def _fixture_find_error(
+    fixture: FixtureCase,
+    *,
+    evaluator_sha256: str,
+) -> ToolError:
+    if (
+        evaluator_sha256 != SOURCE_EVALUATOR_SHA256
+        or getattr(fixture, "find_results", ())
+    ):
         raise ExposureEvidenceError(
             "successful find content lacks an exact fixture contract"
         )
@@ -665,44 +720,93 @@ def _fixture_find_error(fixture: FixtureCase) -> ToolError:
     )
 
 
+def _selected_replay_unit_ids(
+    fixture: FixtureCase,
+    replayed: tuple[_ReplayedAdmission, ...],
+) -> set[str]:
+    candidates = {candidate.chunk_id: candidate for candidate in fixture.candidates}
+    opened = {item.target_id: item for item in fixture.open_results}
+    selected: set[str] = set()
+    for replay in replayed:
+        result = replay.outcome.result
+        if replay.operation == "search" and isinstance(result, GuardedSearchResult):
+            for item in result.hits:
+                candidate = candidates.get(item.hit.chunk_id)
+                if candidate is None:
+                    raise ExposureEvidenceError(
+                        "selected evidence references an unknown fixture candidate"
+                    )
+                selected.update(_selected_search_unit_ids(candidate, item))
+        elif replay.operation == "open" and isinstance(
+            result,
+            GuardedOpenAdmittedResult,
+        ):
+            open_result = opened.get(result.item.result.target_id)
+            if open_result is None:
+                raise ExposureEvidenceError(
+                    "selected open evidence references an unknown fixture target"
+                )
+            selected.add(open_result.content_unit_id)
+    return selected
+
+
+def _selected_search_unit_ids(
+    candidate: object,
+    item: AdmittedEvidenceChunk,
+) -> tuple[str, ...]:
+    values: list[object] = [getattr(candidate, "matched_unit_id", None)]
+    values.extend(
+        (
+            getattr(candidate, "title_unit_id", None),
+            getattr(candidate, "source_path_unit_id", None),
+            getattr(candidate, "section_unit_id", None),
+            getattr(candidate, "version_unit_id", None),
+        )
+    )
+    if item.hit.context_from_parent and item.context_decision is not None:
+        values.append(getattr(candidate, "context_unit_id", None))
+    return tuple(value for value in values if isinstance(value, str))
+
+
 def _recorded_replay_scans(
     replayed: tuple[_ReplayedAdmission, ...],
 ) -> tuple[_RecordedScan, ...]:
     records: list[_RecordedScan] = []
+    allowed_surfaces: dict[str, set[str]] = {
+        "search": {"matched", "parent", "metadata", "aggregate"},
+        "find": {"find_preview", "metadata"},
+        "open": {"open", "metadata"},
+    }
     for replay in replayed:
         events = replay.outcome.scan_provenance
-        if any(event.operation != replay.operation for event in events):
-            raise ExposureEvidenceError(
-                "scan provenance operation does not match replayed operation"
-            )
-        quarantined_indexes: set[int] = set()
-        for summary in replay.outcome.quarantine_summaries:
-            matching_indexes = tuple(
-                index
-                for index, event in enumerate(events)
-                if event.internal_item_key == summary.internal_item_key
-                and event.surface == summary.field_kind
-                and event.disposition == "QUARANTINE"
-            )
-            if len(matching_indexes) != 1:
-                raise ExposureEvidenceError(
-                    "quarantine summary lacks exact scan provenance"
-                )
-            quarantined_indexes.add(matching_indexes[0])
         if any(
-            event.disposition == "QUARANTINE" and index not in quarantined_indexes
-            for index, event in enumerate(events)
+            event.operation != replay.operation
+            or event.surface not in allowed_surfaces[replay.operation]
+            for event in events
         ):
             raise ExposureEvidenceError(
-                "quarantined scan lacks exact quarantine summary"
+                "scan provenance operation or surface is unsupported"
+            )
+        quarantined_event_counts = Counter(
+            (event.internal_item_key, event.surface)
+            for event in events
+            if event.disposition == "QUARANTINE"
+        )
+        quarantine_summary_counts = Counter(
+            (summary.internal_item_key, summary.field_kind)
+            for summary in replay.outcome.quarantine_summaries
+        )
+        if quarantine_summary_counts != quarantined_event_counts:
+            raise ExposureEvidenceError(
+                "quarantine summaries must map one-to-one to quarantined scans"
             )
         records.extend(
             _RecordedScan(
                 operation=replay.operation,
                 event=event,
-                quarantined=index in quarantined_indexes,
+                quarantined=event.disposition == "QUARANTINE",
             )
-            for index, event in enumerate(events)
+            for event in events
         )
     return tuple(records)
 
@@ -720,6 +824,17 @@ def _fixture_units_for_scan(
             if candidate is None:
                 raise ExposureEvidenceError(
                     "scan provenance references an unknown fixture candidate"
+                )
+            if scan.operation == "find":
+                raise ExposureEvidenceError(
+                    "find scan provenance lacks an exact fixture contract"
+                )
+            if (
+                scan.event.surface == "parent"
+                and not getattr(candidate, "context_from_parent", False)
+            ):
+                raise ExposureEvidenceError(
+                    "scan provenance surface is invalid for fixture candidate"
                 )
             unit_ids.extend(
                 _candidate_unit_ids_for_surface(
@@ -1054,11 +1169,16 @@ __all__ = [
     "ExposureSourceEvidence",
     "ExposureSurface",
     "ExposureUnitLocation",
+    "ReplayedCaseState",
+    "ReplayedUnitState",
     "ReplayScanSurface",
+    "SOURCE_EVALUATOR_PATH",
+    "SOURCE_EVALUATOR_SHA256",
     "SOURCE_GIT_HEAD",
     "SOURCE_GUARD_SHA256",
     "SOURCE_MANIFEST_SHA256",
     "SOURCE_RUN_ID",
     "load_exposure_inputs",
     "map_attack_unit_locations",
+    "replay_guard_on_case",
 ]
