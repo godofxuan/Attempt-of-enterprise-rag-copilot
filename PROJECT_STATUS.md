@@ -390,8 +390,8 @@ independent reviewer package                   NOT CREATED
 independent holdout model run                  NOT RUN
 blind double review / agreement                NOT RUN
 semantic judge / cross-model replication       NOT RUN
-current full repository regression             1316 PASSED / 5 SKIPPED / 3 KNOWN WARNINGS
-current public repository audit                451 CANDIDATES / 0 FINDINGS
+current full repository regression             1349 PASSED / 8 SKIPPED / 3 KNOWN WARNINGS
+current public repository audit                453 CANDIDATES / 0 FINDINGS
 compileall / pip check                         CLEAN / CLEAN
 ```
 

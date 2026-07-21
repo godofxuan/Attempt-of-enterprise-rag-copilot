@@ -1061,4 +1061,39 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     assert "public audit `453 candidates / 0 findings`" in status
     assert required_boundary in status
     assert "433 passed / 5 platform skips" not in status
-    assert "PROHIBITED / DEFERRED" not in status
+    r2_s2_status = status.split("## 9. R2-S2 当前状态", 1)[1].split(
+        "## 10. R2-S3 当前状态", 1
+    )[0]
+    r2_s3_status = status.split("## 10. R2-S3 当前状态", 1)[1]
+    expected_r2_s2_lines = (
+        "current full repository regression             "
+        "1349 PASSED / 8 SKIPPED / 3 KNOWN WARNINGS",
+        "current public repository audit                "
+        "453 CANDIDATES / 0 FINDINGS",
+    )
+    missing_r2_s2_lines = tuple(
+        line for line in expected_r2_s2_lines if line not in r2_s2_status
+    )
+    assert not missing_r2_s2_lines, (
+        f"missing exact current R2-S2 lines: {missing_r2_s2_lines}"
+    )
+    assert (
+        "final focused / full pytest                      "
+        "430 passed / 8 skipped / 3 warnings; "
+        "1349 passed / 8 skipped / 3 warnings"
+    ) in r2_s3_status
+    assert (
+        "compile / pip / public audit                    "
+        "CLEAN / CLEAN / 453 candidates / 0 findings"
+    ) in r2_s3_status
+    assert f"push / remote CI                                 {required_boundary}" in (
+        r2_s3_status
+    )
+    for obsolete_current_value in (
+        "1316 PASSED / 5 SKIPPED",
+        "451 CANDIDATES / 0 FINDINGS",
+        "376 / 1316 PASSED",
+        "CLEAN / CLEAN / 451-0",
+        "PROHIBITED / DEFERRED PENDING SYNTHESIS",
+    ):
+        assert obsolete_current_value not in status
