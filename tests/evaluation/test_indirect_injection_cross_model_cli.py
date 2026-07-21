@@ -6,9 +6,15 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from pydantic import ValidationError
 
 from app.evaluation.indirect_injection_cross_model import load_cross_model_plan
-from app.evaluation.indirect_injection_live_writer import OllamaModelIdentity
+from app.evaluation.indirect_injection_live_writer import (
+    OllamaModelIdentity,
+    publish_live_security_run,
+)
+from tests.evaluation.path_redirect_helpers import with_reparse_point_attribute
+from tests.evaluation import test_indirect_injection_live_writer as live_writer_tests
 from scripts import eval_indirect_injection_cross_model
 
 
@@ -75,6 +81,112 @@ def _component_context(plan):
     )
 
 
+def _execution() -> SimpleNamespace:
+    return SimpleNamespace()
+
+
+@pytest.fixture(scope="module")
+def writer_v3_inputs(tmp_path_factory: pytest.TempPathFactory):
+    return live_writer_tests.writer_v3_inputs.__wrapped__(tmp_path_factory)
+
+
+@pytest.fixture(scope="module")
+def writer_legacy_inputs(tmp_path_factory: pytest.TempPathFactory):
+    v1_inputs = live_writer_tests.writer_inputs.__wrapped__(tmp_path_factory)
+    return v1_inputs, live_writer_tests.writer_v2_inputs.__wrapped__(v1_inputs)
+
+
+def _real_admission_inputs(tmp_path: Path, writer_v3_inputs):
+    bundle, built, result = writer_v3_inputs
+    plan, plan_sha256 = load_cross_model_plan(PLAN_PATH)
+    component = plan.model_for_role("replication").model_copy(
+        update={"run_id": "r2-s4-admission-fixture"}
+    )
+    payload = live_writer_tests._manifest_v3(bundle, built, result).model_dump(
+        mode="python"
+    )
+    payload["run_id"] = "r2-s4-admission-fixture"
+    payload["git"] = _clean_git()
+    payload["guard"] = {
+        "detector_version": eval_indirect_injection_cross_model.DETECTOR_VERSION,
+        "ruleset_path": "app/security/retrieved_content.py",
+        "ruleset_sha256": "e" * 64,
+        "max_scan_chars": eval_indirect_injection_cross_model.MAX_SCAN_CHARS,
+        "max_normalized_chars": (
+            eval_indirect_injection_cross_model.MAX_NORMALIZED_CHARS
+        ),
+        "max_decoded_views": eval_indirect_injection_cross_model.MAX_DECODED_VIEWS,
+    }
+    payload["evaluator"] = {
+        "path": "scripts/eval_indirect_injection_cross_model.py",
+        "sha256": eval_indirect_injection_cross_model._sha256(
+            ROOT / "scripts" / "eval_indirect_injection_cross_model.py"
+        ),
+        "argv": (
+            "python",
+            "-m",
+            "scripts.eval_indirect_injection_cross_model",
+        ),
+        "exit_code": 0,
+    }
+    manifest = eval_indirect_injection_cross_model.LiveSecurityRunManifestV3.model_validate(
+        payload
+    )
+    target = publish_live_security_run(
+        tmp_path / "verified-runs",
+        manifest,
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=live_writer_tests._forbidden_texts(bundle),
+    )
+    context = eval_indirect_injection_cross_model.ComponentContext(
+        data=SimpleNamespace(
+            dataset_path=ROOT / manifest.data.dataset_path,
+            dataset_sha256=manifest.data.dataset_sha256,
+            fixture_manifest_path=ROOT / manifest.data.fixture_manifest_path,
+            fixture_manifest_sha256=manifest.data.fixture_manifest_sha256,
+            dataset=SimpleNamespace(
+                case_count=manifest.data.dataset_case_count,
+                attack_case_count=manifest.data.attack_case_count,
+                benign_case_count=manifest.data.benign_case_count,
+            ),
+        ),
+        r1_hashes=manifest.data.r1_frozen_hashes,
+        guard_sha256=manifest.guard.ruleset_sha256,
+    )
+    planned_runtime = _runtime(plan)
+    runtime = eval_indirect_injection_cross_model.OllamaIdentitySnapshot(
+        version=manifest.environment.ollama_version,
+        embedding=manifest.models.embedding,
+        chats={
+            "baseline": planned_runtime.chats["baseline"],
+            "replication": manifest.models.chat,
+        },
+    )
+    retrieval = manifest.retrieval
+    execution = eval_indirect_injection_cross_model.ExecutionInvariantSnapshot(
+        llm_endpoint=manifest.environment.ollama_endpoint + "/v1",
+        ollama_origin=manifest.environment.ollama_endpoint,
+        structured_generation_max_attempts=manifest.models.max_attempts,
+        ollama_version=manifest.environment.ollama_version,
+        dependency_snapshot_path=manifest.environment.dependency_snapshot_path,
+        dependency_snapshot_sha256=manifest.environment.dependency_snapshot_sha256,
+        installed_snapshot_sha256=manifest.environment.installed_snapshot_sha256,
+        installed_package_count=manifest.environment.installed_package_count,
+        production_active_index=retrieval.production_active_index,
+        top_k=retrieval.top_k,
+        candidate_k=retrieval.candidate_k,
+        max_search_calls=retrieval.max_search_calls,
+        max_open_calls=retrieval.max_open_calls,
+        max_steps=retrieval.max_steps,
+        max_context_chars=retrieval.max_context_chars,
+        deadline_ms=10_000,
+    )
+    return target, plan, plan_sha256, component, context, runtime, execution
+
+
 def _guard(digest: str) -> SimpleNamespace:
     return SimpleNamespace(
         detector_version=eval_indirect_injection_cross_model.DETECTOR_VERSION,
@@ -103,6 +215,11 @@ def _patch_main_preflight(monkeypatch: pytest.MonkeyPatch, plan):
         eval_indirect_injection_cross_model,
         "fetch_ollama_identities",
         lambda _plan: _runtime(_plan),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_capture_execution_invariants",
+        lambda _plan, _runtime: _execution(),
     )
 
 
@@ -255,6 +372,7 @@ def test_runs_absent_components_baseline_then_replication(
     plan, _ = load_cross_model_plan(PLAN_PATH)
     _patch_main_preflight(monkeypatch, plan)
     requests: list[object] = []
+    outcomes: dict[str, object] = {}
 
     def execute(request):
         requests.append(request)
@@ -263,12 +381,22 @@ def test_runs_absent_components_baseline_then_replication(
             status="COMPLETED WITH OBSERVATIONS",
             observation=SimpleNamespace(protocol_complete=True),
         )
-        return SimpleNamespace(output_dir=request.args.out_dir / request.args.run_id, manifest=manifest)
+        outcome = SimpleNamespace(
+            output_dir=request.args.out_dir / request.args.run_id,
+            manifest=manifest,
+        )
+        outcomes[request.args.run_id] = outcome
+        return outcome
 
     monkeypatch.setattr(
         eval_indirect_injection_cross_model,
         "execute_live_security_run",
         execute,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "admit_existing_component",
+        lambda target, **_kwargs: outcomes[target.name],
     )
 
     assert eval_indirect_injection_cross_model.main(
@@ -403,6 +531,11 @@ def test_admission_reuses_only_a_complete_exact_v3_component(
         "verify_live_security_run",
         lambda _target: manifest,
     )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_validate_execution_invariants",
+        lambda *_args: None,
+    )
 
     outcome = eval_indirect_injection_cross_model.admit_existing_component(
         tmp_path,
@@ -412,6 +545,7 @@ def test_admission_reuses_only_a_complete_exact_v3_component(
         git_provenance=_clean_git(),
         context=context,
         runtime=runtime,
+        execution=_execution(),
     )
 
     assert outcome is not None
@@ -469,6 +603,11 @@ def test_admission_rejects_partial_or_contradictory_components(
         else:
             setattr(manifest, field, value)
     monkeypatch.setattr(eval_indirect_injection_cross_model, "verify_live_security_run", lambda _target: manifest)
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_validate_execution_invariants",
+        lambda *_args: None,
+    )
 
     with pytest.raises(ValueError, match="existing component"):
         eval_indirect_injection_cross_model.admit_existing_component(
@@ -479,6 +618,7 @@ def test_admission_rejects_partial_or_contradictory_components(
             git_provenance=_clean_git(),
             context=context,
             runtime=runtime,
+            execution=_execution(),
         )
 
 
@@ -503,4 +643,397 @@ def test_admission_propagates_artifact_verification_failure(
             git_provenance=_clean_git(),
             context=_component_context(plan),
             runtime=_runtime(plan),
+            execution=_execution(),
+        )
+
+
+def test_new_component_manifest_with_different_git_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    _patch_main_preflight(monkeypatch, plan)
+    executions: list[object] = []
+    outcomes: dict[str, object] = {}
+
+    def execute(request):
+        executions.append(request)
+        outcome = SimpleNamespace(
+            output_dir=request.args.out_dir / request.args.run_id,
+            manifest=SimpleNamespace(
+                run_id=request.args.run_id,
+                status="COMPLETED WITH OBSERVATIONS",
+                observation=SimpleNamespace(protocol_complete=True),
+                git=_clean_git() | {"head": "f" * 40},
+            ),
+        )
+        outcomes[request.args.run_id] = outcome
+        return outcome
+
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        execute,
+    )
+    def reject_git(target, **_kwargs):
+        manifest = outcomes[target.name].manifest
+        if manifest.git != _clean_git():
+            raise ValueError("existing component has contradictory Git binding")
+        return outcomes[target.name]
+
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "admit_existing_component",
+        reject_git,
+    )
+
+    with pytest.raises(ValueError, match="Git binding"):
+        eval_indirect_injection_cross_model.main(
+            [
+                "--out-dir", str(tmp_path / "safe-runs"),
+                "--index-root", str(tmp_path / "safe-indexes"),
+                "--matrix-out-dir", str(tmp_path / "safe-matrix"),
+            ]
+        )
+
+    assert len(executions) == 1
+
+
+def test_git_transition_between_components_stops_before_replication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    _patch_main_preflight(monkeypatch, plan)
+    snapshots = [
+        _clean_git(),
+        _clean_git(),
+        _clean_git() | {"head": "f" * 40},
+        _clean_git(),
+    ]
+    executed: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: snapshots.pop(0),
+    )
+
+    def run_component(*args, **kwargs):
+        component = kwargs["component"]
+        executed.append(component.role)
+        return SimpleNamespace(
+            role=component.role,
+            reused=False,
+            outcome=SimpleNamespace(
+                output_dir=tmp_path / "safe-component",
+                manifest=SimpleNamespace(
+                    run_id=component.run_id,
+                    status="COMPLETED WITH OBSERVATIONS",
+                    observation=SimpleNamespace(protocol_complete=True),
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "run_component",
+        run_component,
+    )
+
+    with pytest.raises(RuntimeError, match="Git state changed"):
+        eval_indirect_injection_cross_model.main([])
+
+    assert executed == ["baseline"]
+
+
+def test_admission_reuses_real_writer_generated_v3_package(
+    tmp_path: Path,
+    writer_v3_inputs,
+) -> None:
+    target, plan, plan_sha256, component, context, runtime, execution = (
+        _real_admission_inputs(tmp_path, writer_v3_inputs)
+    )
+
+    outcome = eval_indirect_injection_cross_model.admit_existing_component(
+        target,
+        plan=plan,
+        plan_sha256=plan_sha256,
+        component=component,
+        git_provenance=_clean_git(),
+        context=context,
+        runtime=runtime,
+        execution=execution,
+    )
+
+    assert outcome.output_dir == target
+    assert outcome.manifest.run_id == "r2-s4-admission-fixture"
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["partial", "extra", "checksum", "artifact", "manifest"],
+)
+def test_admission_rejects_real_v3_artifact_tampering_without_execution(
+    tmp_path: Path,
+    writer_v3_inputs,
+    mutation: str,
+) -> None:
+    target, plan, plan_sha256, component, context, runtime, execution = (
+        _real_admission_inputs(tmp_path, writer_v3_inputs)
+    )
+    if mutation == "partial":
+        (target / "failures.csv").unlink()
+    elif mutation == "extra":
+        (target / "unexpected.txt").write_text("unexpected\n", encoding="utf-8")
+    elif mutation == "checksum":
+        (target / "checksums.sha256").write_text("tampered\n", encoding="utf-8")
+    elif mutation == "artifact":
+        with (target / "summary.json").open("a", encoding="utf-8") as stream:
+            stream.write("\n")
+    else:
+        (target / "manifest.json").write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises((ValueError, ValidationError)):
+        eval_indirect_injection_cross_model.admit_existing_component(
+            target,
+            plan=plan,
+            plan_sha256=plan_sha256,
+            component=component,
+            git_provenance=_clean_git(),
+            context=context,
+            runtime=runtime,
+            execution=execution,
+        )
+
+
+@pytest.mark.parametrize(
+    "field, value",
+    [
+        ("max_attempts", 1),
+        ("ollama_version", "0.0.0"),
+        ("installed_snapshot_sha256", "0" * 64),
+        ("deadline_ms", 1),
+    ],
+)
+def test_admission_rejects_real_v3_execution_invariant_mismatch(
+    tmp_path: Path,
+    writer_v3_inputs,
+    field: str,
+    value: object,
+) -> None:
+    target, plan, plan_sha256, component, context, runtime, execution = (
+        _real_admission_inputs(tmp_path, writer_v3_inputs)
+    )
+    if field == "max_attempts":
+        execution = replace(execution, structured_generation_max_attempts=value)
+    elif field == "ollama_version":
+        execution = replace(execution, ollama_version=value)
+    elif field == "deadline_ms":
+        execution = replace(execution, deadline_ms=value)
+    else:
+        execution = replace(execution, installed_snapshot_sha256=value)
+
+    with pytest.raises(ValueError, match="execution invariant"):
+        eval_indirect_injection_cross_model.admit_existing_component(
+            target,
+            plan=plan,
+            plan_sha256=plan_sha256,
+            component=component,
+            git_provenance=_clean_git(),
+            context=context,
+            runtime=runtime,
+            execution=execution,
+        )
+
+
+@pytest.mark.parametrize("binding", ["git", "data", "guard", "model"])
+def test_admission_rejects_real_v3_binding_mismatch(
+    tmp_path: Path,
+    writer_v3_inputs,
+    binding: str,
+) -> None:
+    target, plan, plan_sha256, component, context, runtime, execution = (
+        _real_admission_inputs(tmp_path, writer_v3_inputs)
+    )
+    git = _clean_git()
+    if binding == "git":
+        git = git | {"head": "f" * 40}
+    elif binding == "data":
+        altered_data = SimpleNamespace(**vars(context.data))
+        altered_data.dataset_sha256 = "0" * 64
+        context = replace(context, data=altered_data)
+    elif binding == "guard":
+        context = replace(context, guard_sha256="0" * 64)
+    else:
+        runtime = replace(
+            runtime,
+            chats={
+                **runtime.chats,
+                "replication": runtime.chats["replication"].model_copy(
+                    update={"digest": "0" * 64}
+                ),
+            },
+        )
+
+    with pytest.raises(ValueError):
+        eval_indirect_injection_cross_model.admit_existing_component(
+            target,
+            plan=plan,
+            plan_sha256=plan_sha256,
+            component=component,
+            git_provenance=git,
+            context=context,
+            runtime=runtime,
+            execution=execution,
+        )
+
+
+@pytest.mark.parametrize("schema", ["v1", "v2"])
+def test_admission_rejects_real_verified_legacy_packages(
+    tmp_path: Path,
+    writer_legacy_inputs,
+    schema: str,
+) -> None:
+    v1_inputs, v2_inputs = writer_legacy_inputs
+    bundle, built, result = v1_inputs if schema == "v1" else v2_inputs
+    manifest = (
+        live_writer_tests._manifest(bundle, built, result)
+        if schema == "v1"
+        else live_writer_tests._manifest_v2(bundle, built, result)
+    )
+    target = publish_live_security_run(
+        tmp_path / "legacy-runs",
+        manifest,
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=live_writer_tests._forbidden_texts(bundle),
+    )
+    plan, plan_sha256 = load_cross_model_plan(PLAN_PATH)
+
+    with pytest.raises(ValueError, match="complete V3"):
+        eval_indirect_injection_cross_model.admit_existing_component(
+            target,
+            plan=plan,
+            plan_sha256=plan_sha256,
+            component=plan.model_for_role("baseline"),
+            git_provenance=_clean_git(),
+            context=_component_context(plan),
+            runtime=_runtime(plan),
+            execution=_execution(),
+        )
+
+
+def test_redirected_output_root_fails_before_identity_activity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    root = tmp_path / "redirected-output"
+    root.mkdir()
+    called: list[str] = []
+    root_stat = root.lstat()
+    real_lstat = Path.lstat
+
+    def mark_root(path: Path):
+        if path == root:
+            return with_reparse_point_attribute(root_stat)
+        return real_lstat(path)
+
+    monkeypatch.setattr(Path, "lstat", mark_root)
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+
+    with pytest.raises(ValueError, match="output root cannot be a symlink"):
+        eval_indirect_injection_cross_model.main(
+            [
+                "--out-dir", str(root),
+                "--index-root", str(tmp_path / "safe-index"),
+                "--matrix-out-dir", str(tmp_path / "safe-matrix"),
+            ]
+        )
+
+    assert called == []
+
+
+def test_dangling_component_target_fails_before_identity_activity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    root = tmp_path / "safe-output"
+    root.mkdir()
+    target = root / plan.model_for_role("baseline").run_id
+    root_stat = root.lstat()
+    real_lstat = Path.lstat
+    called: list[str] = []
+
+    def mark_target(path: Path):
+        if path == target:
+            return with_reparse_point_attribute(root_stat)
+        return real_lstat(path)
+
+    monkeypatch.setattr(Path, "lstat", mark_target)
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+
+    with pytest.raises(ValueError, match="component output cannot be a symlink"):
+        eval_indirect_injection_cross_model.main(
+            [
+                "--out-dir", str(root),
+                "--index-root", str(tmp_path / "safe-index"),
+                "--matrix-out-dir", str(tmp_path / "safe-matrix"),
+            ]
+        )
+
+    assert called == []
+
+
+def test_run_component_rejects_redirected_root_before_resolve(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan, plan_sha256 = load_cross_model_plan(PLAN_PATH)
+    root = tmp_path / "redirected-output"
+    root.mkdir()
+    root_stat = root.lstat()
+    real_lstat = Path.lstat
+    real_resolve = Path.resolve
+
+    def mark_root(path: Path):
+        if path == root:
+            return with_reparse_point_attribute(root_stat)
+        return real_lstat(path)
+
+    def reject_root_resolve(path: Path, *args, **kwargs):
+        if path == root:
+            raise AssertionError("root resolved before lexical rejection")
+        return real_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", mark_root)
+    monkeypatch.setattr(Path, "resolve", reject_root_resolve)
+    args = SimpleNamespace(
+        out_dir=root,
+        index_root=tmp_path / "safe-index",
+        matrix_out_dir=tmp_path / "safe-matrix",
+        plan=PLAN_PATH,
+    )
+
+    with pytest.raises(ValueError, match="output root cannot be a symlink"):
+        eval_indirect_injection_cross_model.run_component(
+            args,
+            plan=plan,
+            plan_sha256=plan_sha256,
+            component=plan.model_for_role("baseline"),
+            git_provenance=_clean_git(),
+            context=_component_context(plan),
+            runtime=_runtime(plan),
+            execution=_execution(),
         )

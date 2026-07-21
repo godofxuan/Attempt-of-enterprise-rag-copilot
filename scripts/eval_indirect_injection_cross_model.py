@@ -7,6 +7,7 @@ except ModuleNotFoundError:
 
 import argparse
 import json
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -35,6 +36,7 @@ from app.evaluation.indirect_injection_live_runner import (
 )
 from app.evaluation.indirect_injection_live_writer import (
     CrossModelExperimentBinding,
+    LiveIndexReference,
     LiveSecurityRunManifestV3,
     OllamaModelIdentity,
     resolve_ollama_model_identity,
@@ -44,6 +46,7 @@ from app.evaluation.indirect_injection_live_writer import (
 from scripts.eval_indirect_injection import (
     _assert_git_provenance_stable,
     _git_provenance,
+    _installed_dependency_snapshot,
     _safe_display_path,
     _sha256,
     verify_r1_frozen_hashes,
@@ -55,6 +58,7 @@ from scripts.eval_indirect_injection_live import (
     LiveExecutionRequest,
     _get_json,
     execute_live_security_run,
+    production_active_index_reference,
 )
 
 
@@ -66,6 +70,7 @@ DEFAULT_OUT_DIR = BASE_DIR / "security_runs"
 DEFAULT_INDEX_ROOT = DEFAULT_OUT_DIR / ".d7_indexes"
 DEFAULT_MATRIX_OUT_DIR = DEFAULT_OUT_DIR / "cross_model_matrices"
 _GUARD_RULESET_PATH = "app/security/retrieved_content.py"
+_REPARSE_POINT_ATTRIBUTE = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 
 
 @dataclass(frozen=True)
@@ -80,6 +85,26 @@ class ComponentContext:
     data: LoadedSecurityBundle
     r1_hashes: Mapping[str, object]
     guard_sha256: str
+
+
+@dataclass(frozen=True)
+class ExecutionInvariantSnapshot:
+    llm_endpoint: str
+    ollama_origin: str
+    structured_generation_max_attempts: int
+    ollama_version: str
+    dependency_snapshot_path: str
+    dependency_snapshot_sha256: str
+    installed_snapshot_sha256: str
+    installed_package_count: int
+    production_active_index: LiveIndexReference
+    top_k: int
+    candidate_k: int
+    max_search_calls: int
+    max_open_calls: int
+    max_steps: int
+    max_context_chars: int
+    deadline_ms: int
 
 
 @dataclass(frozen=True)
@@ -155,6 +180,7 @@ def admit_existing_component(
     git_provenance: Mapping[str, object],
     context: ComponentContext,
     runtime: OllamaIdentitySnapshot,
+    execution: ExecutionInvariantSnapshot,
 ) -> LiveExecutionOutcome:
     """Verify an existing component against all current frozen bindings."""
 
@@ -181,6 +207,7 @@ def admit_existing_component(
     _validate_data_binding(manifest, plan, context)
     _validate_guard_binding(manifest, context)
     _validate_model_binding(manifest, plan, component, runtime)
+    _validate_execution_invariants(manifest, execution)
     return LiveExecutionOutcome(output_dir=Path(target), manifest=manifest)
 
 
@@ -193,9 +220,21 @@ def run_component(
     git_provenance: Mapping[str, object],
     context: ComponentContext,
     runtime: OllamaIdentitySnapshot,
+    execution: ExecutionInvariantSnapshot,
 ) -> ComponentRun:
-    output_root = Path(args.out_dir).resolve()
-    target = (output_root / component.run_id).resolve()
+    output_root = _validated_lexical_directory(Path(args.out_dir), "output root")
+    index_root = _validated_lexical_directory(Path(args.index_root), "index root")
+    target = output_root / component.run_id
+    index_target = index_root / component.run_id
+    _validate_child_target(output_root, target, "component output")
+    _validate_child_target(index_root, index_target, "component index")
+    _reject_frozen_formal_d7_path(output_root, "output root")
+    _reject_frozen_formal_d7_path(target, "component output")
+    _reject_frozen_formal_d7_path(index_root, "index root")
+    _reject_frozen_formal_d7_path(index_target, "component index")
+    output_root = output_root.resolve()
+    index_root = index_root.resolve()
+    target = target.resolve()
     if target.parent != output_root:
         raise ValueError("planned component output resolves outside output root")
     if target.exists():
@@ -210,6 +249,7 @@ def run_component(
                 git_provenance=git_provenance,
                 context=context,
                 runtime=runtime,
+                execution=execution,
             ),
         )
 
@@ -218,7 +258,7 @@ def run_component(
         run_id=component.run_id,
         data_root=DEFAULT_DATA_ROOT,
         out_dir=output_root,
-        index_root=Path(args.index_root).resolve(),
+        index_root=index_root,
     )
     binding = CrossModelExperimentBinding(
         plan_id=plan.experiment_id,
@@ -234,10 +274,22 @@ def run_component(
         evaluator_path="scripts/eval_indirect_injection_cross_model.py",
         canonical_argv=_canonical_argv(args),
     )
+    outcome = execute_live_security_run(request)
+    if _validated_lexical_path(outcome.output_dir, "returned component output") != target:
+        raise ValueError("new component returned a contradictory output path")
     return ComponentRun(
         role=component.role,
         reused=False,
-        outcome=execute_live_security_run(request),
+        outcome=admit_existing_component(
+            target,
+            plan=plan,
+            plan_sha256=plan_sha256,
+            component=component,
+            git_provenance=git_provenance,
+            context=context,
+            runtime=runtime,
+            execution=execution,
+        ),
     )
 
 
@@ -245,21 +297,19 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     plan, plan_sha256 = load_cross_model_plan(Path(args.plan))
     _validate_plan_execution_targets(plan)
+    _validate_execution_paths(args, plan)
     git_provenance = _git_provenance(BASE_DIR)
     if git_provenance.get("dirty"):
         raise ValueError("cross-model execution requires one clean Git snapshot")
-    matrix_target = (Path(args.matrix_out_dir).resolve() / plan.matrix_run_id).resolve()
-    if matrix_target.parent != Path(args.matrix_out_dir).resolve():
-        raise ValueError("matrix output resolves outside matrix output root")
-    if matrix_target.exists():
-        raise FileExistsError(f"matrix output already exists: {matrix_target}")
-
     context = _load_component_context(plan)
     runtime = fetch_ollama_identities(plan)
     _validate_runtime_identities(plan, runtime)
+    execution = _capture_execution_invariants(plan, runtime)
 
-    components = tuple(
-        run_component(
+    components: list[ComponentRun] = []
+    for component in plan.chat_models:
+        _assert_git_provenance_stable(git_provenance, _git_provenance(BASE_DIR))
+        components.append(run_component(
             args,
             plan=plan,
             plan_sha256=plan_sha256,
@@ -267,9 +317,9 @@ def main(argv: list[str] | None = None) -> int:
             git_provenance=git_provenance,
             context=context,
             runtime=runtime,
-        )
-        for component in plan.chat_models
-    )
+            execution=execution,
+        ))
+        _assert_git_provenance_stable(git_provenance, _git_provenance(BASE_DIR))
     _assert_git_provenance_stable(git_provenance, _git_provenance(BASE_DIR))
     for component in components:
         manifest = component.outcome.manifest
@@ -304,6 +354,44 @@ def _load_component_context(plan: CrossModelPlanV1) -> ComponentContext:
         data=bundle,
         r1_hashes=verify_r1_frozen_hashes(BASE_DIR),
         guard_sha256=_sha256(BASE_DIR / _GUARD_RULESET_PATH),
+    )
+
+
+def _capture_execution_invariants(
+    plan: CrossModelPlanV1,
+    runtime: OllamaIdentitySnapshot,
+) -> ExecutionInvariantSnapshot:
+    settings = get_settings()
+    baseline = plan.model_for_role("baseline")
+    config = LiveSecurityConfig(
+        llm_endpoint=settings.llm_base_url,
+        chat_model=baseline.requested_name,
+        structured_generation_max_attempts=settings.structured_generation_max_attempts,
+    )
+    canonical_endpoint = f"{config.ollama_origin}/v1"
+    if config.llm_endpoint != canonical_endpoint:
+        raise ValueError("cross-model execution requires the canonical Ollama /v1 endpoint")
+    installed = _installed_dependency_snapshot()
+    requirements = BASE_DIR / "requirements.txt"
+    return ExecutionInvariantSnapshot(
+        llm_endpoint=config.llm_endpoint,
+        ollama_origin=config.ollama_origin,
+        structured_generation_max_attempts=config.structured_generation_max_attempts,
+        ollama_version=runtime.version,
+        dependency_snapshot_path="requirements.txt",
+        dependency_snapshot_sha256=_sha256(requirements),
+        installed_snapshot_sha256=str(installed["installed_snapshot_sha256"]),
+        installed_package_count=int(installed["installed_package_count"]),
+        production_active_index=production_active_index_reference(
+            settings.v2_indexes_dir
+        ),
+        top_k=config.top_k,
+        candidate_k=config.candidate_k,
+        max_search_calls=config.max_search_calls,
+        max_open_calls=config.max_open_calls,
+        max_steps=config.max_steps,
+        max_context_chars=config.max_context_chars,
+        deadline_ms=config.deadline_ms,
     )
 
 
@@ -405,6 +493,162 @@ def _validate_model_binding(
     ):
         raise ValueError("existing component has contradictory model binding")
     _validate_runtime_identities(plan, runtime)
+
+
+def _validate_execution_invariants(
+    manifest: LiveSecurityRunManifestV3,
+    execution: ExecutionInvariantSnapshot,
+) -> None:
+    environment = manifest.environment
+    models = manifest.models
+    retrieval = manifest.retrieval
+    if (
+        execution.llm_endpoint != f"{execution.ollama_origin}/v1"
+        or execution.deadline_ms != 10_000
+        or environment.ollama_endpoint != execution.ollama_origin
+        or environment.ollama_version != execution.ollama_version
+        or environment.dependency_snapshot_path
+        != execution.dependency_snapshot_path
+        or environment.dependency_snapshot_sha256
+        != execution.dependency_snapshot_sha256
+        or environment.installed_snapshot_sha256
+        != execution.installed_snapshot_sha256
+        or environment.installed_package_count
+        != execution.installed_package_count
+        or models.evidence_model != "NOT_USED_D7_LIVE_PAIRED"
+        or models.temperature != 0.0
+        or models.structured_output_variant != "generation-v2-json-schema"
+        or models.think is not False
+        or models.max_attempts != execution.structured_generation_max_attempts
+        or retrieval.production_active_index != execution.production_active_index
+        or retrieval.top_k != execution.top_k
+        or retrieval.candidate_k != execution.candidate_k
+        or retrieval.max_search_calls != execution.max_search_calls
+        or retrieval.max_open_calls != execution.max_open_calls
+        or retrieval.max_steps != execution.max_steps
+        or retrieval.max_context_chars != execution.max_context_chars
+    ):
+        raise ValueError("existing component has contradictory execution invariant")
+
+
+def _validate_execution_paths(
+    args: argparse.Namespace,
+    plan: CrossModelPlanV1,
+) -> None:
+    output_root = _validated_lexical_directory(Path(args.out_dir), "output root")
+    index_root = _validated_lexical_directory(Path(args.index_root), "index root")
+    matrix_root = _validated_lexical_directory(
+        Path(args.matrix_out_dir),
+        "matrix output root",
+    )
+    args.out_dir = output_root
+    args.index_root = index_root
+    args.matrix_out_dir = matrix_root
+
+    targets = [
+        ("output root", output_root),
+        ("index root", index_root),
+        ("matrix output root", matrix_root),
+        ("matrix output", matrix_root / plan.matrix_run_id),
+    ]
+    for component in plan.chat_models:
+        output_target = output_root / component.run_id
+        index_target = index_root / component.run_id
+        _validate_child_target(output_root, output_target, "component output")
+        _validate_child_target(index_root, index_target, "component index")
+        targets.extend(
+            (
+                ("component output", output_target),
+                ("component index", index_target),
+            )
+        )
+    matrix_target = matrix_root / plan.matrix_run_id
+    _validate_child_target(matrix_root, matrix_target, "matrix output")
+    for label, path in targets:
+        _reject_frozen_formal_d7_path(path, label)
+    if _lexical_exists(matrix_target):
+        raise FileExistsError(f"matrix output already exists: {matrix_target}")
+
+
+def _validated_lexical_directory(path: Path, label: str) -> Path:
+    absolute = _absolute_lexical(path)
+    _validate_lexical_chain(absolute, label)
+    if _lexical_exists(absolute):
+        observed = absolute.lstat()
+        if not stat.S_ISDIR(observed.st_mode):
+            raise ValueError(f"{label} must be a directory")
+    return absolute
+
+
+def _validate_child_target(root: Path, target: Path, label: str) -> None:
+    if target.parent != root:
+        raise ValueError(f"{label} resolves outside its root")
+    _validate_lexical_chain(target, label)
+    if _lexical_exists(target) and not stat.S_ISDIR(target.lstat().st_mode):
+        raise ValueError(f"{label} must be a directory")
+    if target.resolve().parent != root.resolve():
+        raise ValueError(f"{label} resolves outside its root")
+
+
+def _validated_lexical_path(path: Path, label: str) -> Path:
+    absolute = _absolute_lexical(path)
+    _validate_lexical_chain(absolute, label)
+    return absolute.resolve()
+
+
+def _absolute_lexical(path: Path) -> Path:
+    candidate = Path(path)
+    return candidate if candidate.is_absolute() else Path.cwd() / candidate
+
+
+def _validate_lexical_chain(path: Path, label: str) -> None:
+    chain: list[Path] = []
+    current = path
+    while True:
+        chain.append(current)
+        if current.parent == current:
+            break
+        current = current.parent
+    missing = False
+    for candidate in reversed(chain):
+        try:
+            observed = candidate.lstat()
+        except FileNotFoundError:
+            missing = True
+            continue
+        except OSError as exc:
+            raise ValueError(f"{label} cannot be inspected") from exc
+        if missing:
+            raise ValueError(f"{label} changed during lexical validation")
+        if _is_redirecting_path(observed):
+            raise ValueError(f"{label} cannot be a symlink or redirecting reparse point")
+        if candidate != path and not stat.S_ISDIR(observed.st_mode):
+            raise ValueError(f"{label} has a non-directory path component")
+
+
+def _lexical_exists(path: Path) -> bool:
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        raise ValueError(f"path cannot be inspected: {path}") from exc
+    return True
+
+
+def _is_redirecting_path(value: object) -> bool:
+    return stat.S_ISLNK(value.st_mode) or bool(
+        getattr(value, "st_file_attributes", 0) & _REPARSE_POINT_ATTRIBUTE
+    )
+
+
+def _reject_frozen_formal_d7_path(path: Path, label: str) -> None:
+    frozen = DEFAULT_OUT_DIR / FROZEN_FORMAL_D7_RUN_ID
+    try:
+        _absolute_lexical(path).resolve().relative_to(frozen.resolve())
+    except ValueError:
+        return
+    raise ValueError(f"{label} cannot be inside the frozen formal D7 directory")
 
 
 def _canonical_argv(args: argparse.Namespace) -> tuple[str, ...]:
