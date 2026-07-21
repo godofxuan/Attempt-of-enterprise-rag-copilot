@@ -94,6 +94,12 @@ PUBLIC_ROW_METADATA_FIELDS = {
     "schema_version",
     "source_surface",
 }
+MAX_WIRE_DNS_HOSTNAME = ".".join(
+    ("a" * 63, "b" * 63, "c" * 63, "d" * 61)
+)
+OVERLONG_WIRE_DNS_HOSTNAME = ".".join(
+    ("a" * 63, "b" * 63, "c" * 63, "d" * 62)
+)
 
 
 def _sha256(path: Path) -> str:
@@ -722,9 +728,11 @@ def test_export_scans_decoded_structured_values_before_json_escaping(
         "https://[::1/etc/hosts",
         "https://example.com:notaport/etc/hosts",
         "https://./etc/hosts",
+        "https://.example.com/etc/hosts",
         "https://-/etc/hosts",
         "https://%/etc/hosts",
         "https://example..com/etc/hosts",
+        "https://example.com../etc/hosts",
         "file:///etc/hosts",
         "file:/etc/hosts",
         "file://server/share/file.txt",
@@ -765,9 +773,11 @@ def test_export_rejects_absolute_local_paths(
         "https://[::1/etc/hosts",
         "https://example.com:notaport/etc/hosts",
         "https://./etc/hosts",
+        "https://.example.com/etc/hosts",
         "https://-/etc/hosts",
         "https://%/etc/hosts",
         "https://example..com/etc/hosts",
+        "https://example.com../etc/hosts",
     ),
 )
 def test_final_byte_scanner_rejects_colon_adjacent_posix_absolute_path(
@@ -790,6 +800,11 @@ def test_final_byte_scanner_rejects_colon_adjacent_posix_absolute_path(
         "https://[2001:db8::1]:8443/evidence",
         "https://intranet/evidence",
         "https://bücher.example/evidence",
+        "https://example.com./evidence",
+        "https://intranet./evidence",
+        "https://192.0.2.1./evidence",
+        "https://bücher.example./evidence",
+        "https://xn--bcher-kva.example./evidence",
     ),
 )
 def test_export_allows_recognized_https_url(
@@ -813,6 +828,22 @@ def test_export_allows_recognized_https_url(
 
     assert network_url.encode("utf-8") in (package / "summary.json").read_bytes()
     assert verify_exposure_public_package(package).verified is True
+
+
+@pytest.mark.parametrize(
+    ("hostname", "expected"),
+    (
+        (MAX_WIRE_DNS_HOSTNAME, True),
+        (f"{MAX_WIRE_DNS_HOSTNAME}.", True),
+        (OVERLONG_WIRE_DNS_HOSTNAME, False),
+        (f"{OVERLONG_WIRE_DNS_HOSTNAME}.", False),
+    ),
+)
+def test_dns_hostname_text_and_wire_length_boundaries(
+    hostname: str,
+    expected: bool,
+) -> None:
+    assert public_writer._is_valid_ipv4_or_dns_hostname(hostname) is expected
 
 
 def test_export_rejects_dangling_final_component_symlink(

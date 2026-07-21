@@ -377,9 +377,13 @@ def _is_valid_ipv4_or_dns_hostname(hostname: str) -> bool:
         ascii_hostname.encode("ascii").decode("idna")
     except UnicodeError:
         return False
-    if len(ascii_hostname) > 253:
+    has_terminal_root = ascii_hostname.endswith(".")
+    dns_text = ascii_hostname[:-1] if has_terminal_root else ascii_hostname
+    text_limit = 254 if has_terminal_root else 253
+    if not dns_text or len(ascii_hostname) > text_limit:
         return False
-    labels = ascii_hostname.split(".")
+    labels = dns_text.split(".")
+    wire_length = 1 + sum(len(label) + 1 for label in labels)
     return all(
         bool(label)
         and len(label) <= 63
@@ -387,7 +391,7 @@ def _is_valid_ipv4_or_dns_hostname(hostname: str) -> bool:
         and label[-1] != "-"
         and all(character in _DNS_LABEL_CHARS for character in label)
         for label in labels
-    )
+    ) and wire_length <= 255
 
 
 def _checksum_bytes(stage: Path) -> bytes:
