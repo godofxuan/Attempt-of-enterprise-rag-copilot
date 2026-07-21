@@ -882,6 +882,7 @@ class _SourceArmExecution(_StrictFrozenModel):
 @dataclass(frozen=True)
 class ExposureInputs:
     source_run_dir: Path
+    security_data_root: Path
     manifest: LiveSecurityRunManifestV2
     bundle: LoadedSecurityBundle
     guard_on_rows: Sequence[Mapping[str, object]]
@@ -1417,6 +1418,7 @@ def load_exposure_inputs(
     expected_manifest_sha256: str,
 ) -> ExposureInputs:
     source_run_dir = Path(source_run_dir).resolve()
+    security_data_root = Path(security_data_root).resolve()
     manifest = _verify_source_run(source_run_dir)
     if not isinstance(manifest, LiveSecurityRunManifestV2):
         raise ExposureEvidenceError("source run must use live manifest v2")
@@ -1444,7 +1446,14 @@ def load_exposure_inputs(
         raise ExposureEvidenceError("source dataset SHA-256 mismatch")
     if bundle.fixture_manifest_sha256 != manifest.data.fixture_manifest_sha256:
         raise ExposureEvidenceError("source fixture SHA-256 mismatch")
-    rows = _load_source_rows(source_run_dir / "per_case.jsonl")
+    row_evidence = manifest.artifacts.get("per_case.jsonl")
+    if row_evidence is None:
+        raise ExposureEvidenceError("source per-case artifact evidence is missing")
+    rows = _load_source_rows(
+        source_run_dir / "per_case.jsonl",
+        expected_bytes=row_evidence.bytes,
+        expected_sha256=row_evidence.sha256,
+    )
     guard_off_rows, guard_on_rows = _validate_source_arm_rows(
         rows,
         manifest=manifest,
@@ -1454,6 +1463,7 @@ def load_exposure_inputs(
     source = _source_evidence(manifest, manifest_sha256)
     return ExposureInputs(
         source_run_dir=source_run_dir,
+        security_data_root=security_data_root,
         manifest=manifest,
         bundle=bundle,
         guard_on_rows=guard_on_rows,
@@ -1462,11 +1472,21 @@ def load_exposure_inputs(
     )
 
 
-def _load_source_rows(path: Path) -> tuple[Mapping[str, object], ...]:
+def _load_source_rows(
+    path: Path,
+    *,
+    expected_bytes: int,
+    expected_sha256: str,
+) -> tuple[Mapping[str, object], ...]:
     try:
         payload = path.read_bytes()
     except OSError as exc:
         raise ExposureEvidenceError("source per-case JSONL is unavailable") from exc
+    if (
+        len(payload) != expected_bytes
+        or hashlib.sha256(payload).hexdigest() != expected_sha256
+    ):
+        raise ExposureEvidenceError("source per-case artifact evidence mismatch")
     if not payload or not payload.endswith(b"\n") or b"\r" in payload:
         raise ExposureEvidenceError("source per-case JSONL is not canonical")
     try:
@@ -2608,6 +2628,27 @@ def analyze_exposure(
         raise ExposureEvidenceError("exposure analysis evidence is invalid") from exc
 
 
+def verify_exposure_result_against_inputs(
+    inputs: ExposureInputs,
+    result: ExposureAnalysisResult,
+) -> None:
+    """Bind a publishable result to a fresh replay of the verified source run."""
+
+    authoritative_inputs = load_exposure_inputs(
+        inputs.source_run_dir,
+        security_data_root=inputs.security_data_root,
+        expected_manifest_sha256=inputs.source.manifest_sha256,
+    )
+    authoritative = analyze_exposure(
+        authoritative_inputs,
+        unguarded_path_findings=result.unguarded_path_findings,
+    )
+    if authoritative != result:
+        raise ExposureEvidenceError(
+            "analysis result does not match source-bound replay"
+        )
+
+
 __all__ = [
     "COUNTERFACTUAL_DEPTHS",
     "EXPOSURE_LIMITATIONS",
@@ -2645,5 +2686,6 @@ __all__ = [
     "map_attack_unit_locations",
     "recompute_exposure_summary",
     "replay_guard_on_case",
+    "verify_exposure_result_against_inputs",
     "verify_replay_dependency_bytes",
 ]

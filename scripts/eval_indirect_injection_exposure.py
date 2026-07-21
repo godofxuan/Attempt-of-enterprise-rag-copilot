@@ -98,6 +98,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.out_dir,
             manifest=manifest,
             result=result,
+            source_inputs=inputs,
             commands=_commands(args),
             test_output=_test_output(result),
             forbidden_texts=_forbidden_fixture_texts(inputs.bundle),

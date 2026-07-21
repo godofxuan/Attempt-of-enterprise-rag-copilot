@@ -1028,10 +1028,16 @@ def test_load_exposure_inputs_rejects_invalid_source(
 
     if mutation in {"missing_guard_on", "duplicate_case", "blocked_egress"}:
         _mutate_rows(invalid_run, mutation)
+    mutated_manifest = _manifest_for_mutation(manifest, mutation)
+    if mutation in {"missing_guard_on", "duplicate_case", "blocked_egress"}:
+        mutated_manifest = _manifest_with_current_per_case_evidence(
+            mutated_manifest,
+            invalid_run,
+        )
     monkeypatch.setattr(
         exposure,
         "verify_live_security_run",
-        lambda _run_dir: _manifest_for_mutation(manifest, mutation),
+        lambda _run_dir: mutated_manifest,
     )
 
     expected_hash = (
@@ -1532,6 +1538,7 @@ def _load_with_manifest(
     security_data_root: Path,
     manifest: LiveSecurityRunManifestV2,
 ) -> None:
+    manifest = _manifest_with_current_per_case_evidence(manifest, source_run)
     monkeypatch.setattr(
         exposure,
         "verify_live_security_run",
@@ -1542,6 +1549,21 @@ def _load_with_manifest(
         security_data_root=security_data_root,
         expected_manifest_sha256=_sha256(source_run / "manifest.json"),
     )
+
+
+def _manifest_with_current_per_case_evidence(
+    manifest: LiveSecurityRunManifest | LiveSecurityRunManifestV2,
+    source_run: Path,
+) -> LiveSecurityRunManifest | LiveSecurityRunManifestV2:
+    rows = (source_run / "per_case.jsonl").read_bytes()
+    artifacts = dict(manifest.artifacts)
+    artifacts["per_case.jsonl"] = artifacts["per_case.jsonl"].model_copy(
+        update={
+            "bytes": len(rows),
+            "sha256": hashlib.sha256(rows).hexdigest(),
+        }
+    )
+    return manifest.model_copy(update={"artifacts": artifacts})
 
 
 @pytest.mark.parametrize("mutation", ("missing_manifest", "corrupt_manifest"))
@@ -1629,6 +1651,64 @@ def test_load_exposure_inputs_normalizes_per_case_file_failures(
             source_run,
             security_data_root=security_data_root,
             expected_manifest_sha256=_sha256(source_run / "manifest.json"),
+        )
+
+
+def test_load_exposure_inputs_rejects_per_case_mutation_after_verification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root, verified_manifest = _copy_source_run(
+        tmp_path,
+        source_material,
+        "post-verification-mutation",
+    )
+    manifest_sha256 = _sha256(source_run / "manifest.json")
+
+    def verify_then_mutate(run_dir: Path) -> LiveSecurityRunManifestV2:
+        rows_path = run_dir / "per_case.jsonl"
+        original = rows_path.read_bytes()
+        rows = [
+            json.loads(line)
+            for line in original.decode("utf-8").splitlines()
+        ]
+        row = next(
+            item
+            for item in rows
+            if item["security"]["guard_mode"] == "on"
+            and item["security"]["label"] == "benign"
+        )
+        case_id = row["security"]["case_id"]
+        fingerprint = row["security"]["nonce_fingerprint"]
+        replacement = ("0" if fingerprint[0] != "0" else "1") + fingerprint[1:]
+        for item in rows:
+            if item["security"]["case_id"] == case_id:
+                item["security"]["nonce_fingerprint"] = replacement
+        mutated = b"".join(
+            json.dumps(
+                item,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+            + b"\n"
+            for item in rows
+        )
+        assert len(mutated) == len(original)
+        rows_path.write_bytes(mutated)
+        return verified_manifest
+
+    monkeypatch.setattr(exposure, "verify_live_security_run", verify_then_mutate)
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="source per-case artifact evidence mismatch",
+    ):
+        load_exposure_inputs(
+            source_run,
+            security_data_root=security_data_root,
+            expected_manifest_sha256=manifest_sha256,
         )
 
 
@@ -2817,7 +2897,7 @@ def test_result_rejects_non_row_summary_tampering_against_witnesses(
     "mutation",
     ("candidate_presence", "selection", "reach_quarantine", "case_cost"),
 )
-def test_result_rejects_coherent_row_and_summary_tampering(
+def test_source_bound_result_rejects_coherent_row_and_summary_tampering(
     accepted_inputs: exposure.ExposureInputs,
     mutation: str,
 ) -> None:
@@ -2882,9 +2962,44 @@ def test_result_rejects_coherent_row_and_summary_tampering(
         for row in rows
     )
     payload = _payload_with_recomputed_units(result, frozen_rows)
+    payload["unit_evidence_sha256"] = (
+        exposure.compute_exposure_unit_evidence_sha256(frozen_rows)
+    )
+    tampered = exposure.ExposureAnalysisResult.model_validate(payload)
 
     with pytest.raises(
-        ValueError,
-        match="unit evidence SHA-256 mismatch",
+        ExposureEvidenceError,
+        match="analysis result does not match source-bound replay",
     ):
-        exposure.ExposureAnalysisResult.model_validate(payload)
+        exposure.verify_exposure_result_against_inputs(
+            accepted_inputs,
+            tampered,
+        )
+
+
+def test_source_bound_result_rejects_coherent_non_row_witness_tampering(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    payload = result.model_dump(mode="python")
+    witnesses = result.verification_inputs.model_copy(
+        update={"clean_task_success_count": 11}
+    )
+    payload["verification_inputs"] = witnesses.model_dump(mode="python")
+    payload["verification_inputs_sha256"] = (
+        exposure.compute_exposure_verification_inputs_sha256(witnesses)
+    )
+    payload["summary"] = exposure.recompute_exposure_summary(
+        result.units,
+        witnesses,
+    ).model_dump(mode="python")
+    tampered = exposure.ExposureAnalysisResult.model_validate(payload)
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="analysis result does not match source-bound replay",
+    ):
+        exposure.verify_exposure_result_against_inputs(
+            accepted_inputs,
+            tampered,
+        )

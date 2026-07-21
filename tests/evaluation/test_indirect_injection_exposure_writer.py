@@ -197,6 +197,15 @@ def exposure_result(
     )
 
 
+@pytest.fixture(autouse=True)
+def _stub_source_bound_replay(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        exposure_writer,
+        "verify_exposure_result_against_inputs",
+        lambda _inputs, _result: None,
+    )
+
+
 def _manifest(
     result: ExposureAnalysisResult,
     *,
@@ -234,7 +243,7 @@ def _publish(
     *,
     forbidden_texts: tuple[str, ...] = ("raw question", "raw attack"),
 ) -> Path:
-    return publish_exposure_run(
+    return exposure_writer._publish_exposure_run(
         root,
         manifest=_manifest(result),
         result=result,
@@ -689,6 +698,7 @@ def test_publish_rejects_manifest_result_mismatch_before_target_creation(
             root,
             manifest=_manifest(exposure_result),
             result=changed,
+            source_inputs=object(),
             commands="command\n",
             test_output="output\n",
             forbidden_texts=("raw",),
@@ -712,6 +722,7 @@ def test_publish_rejects_source_binding_mismatch_before_target_creation(
             root,
             manifest=manifest,
             result=exposure_result,
+            source_inputs=object(),
             commands="command\n",
             test_output="output\n",
             forbidden_texts=("raw",),
@@ -943,6 +954,42 @@ def test_writer_rejects_coherent_row_and_summary_tampering_before_output(
             root,
             manifest=_manifest(tampered),
             result=tampered,
+            source_inputs=object(),
+            commands="safe\n",
+            test_output="safe\n",
+            forbidden_texts=("raw question",),
+        )
+
+    assert not (root / "r2-s3-writer-test").exists()
+
+
+def test_writer_requires_source_bound_replay_before_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    def reject_unbound_result(_inputs: object, _result: object) -> None:
+        raise exposure.ExposureEvidenceError(
+            "analysis result does not match source-bound replay"
+        )
+
+    monkeypatch.setattr(
+        exposure_writer,
+        "verify_exposure_result_against_inputs",
+        reject_unbound_result,
+        raising=False,
+    )
+    root = tmp_path / "runs"
+
+    with pytest.raises(
+        exposure.ExposureEvidenceError,
+        match="analysis result does not match source-bound replay",
+    ):
+        publish_exposure_run(
+            root,
+            manifest=_manifest(exposure_result),
+            result=exposure_result,
+            source_inputs=object(),
             commands="safe\n",
             test_output="safe\n",
             forbidden_texts=("raw question",),
@@ -971,6 +1018,7 @@ def test_writer_does_not_derive_non_row_witnesses_from_tampered_summary(
             root,
             manifest=_manifest(tampered),
             result=tampered,
+            source_inputs=object(),
             commands="safe\n",
             test_output="safe\n",
             forbidden_texts=("raw question",),
@@ -996,6 +1044,7 @@ def test_writer_requires_exact_ordered_limitations(
             root,
             manifest=manifest,
             result=tampered,
+            source_inputs=object(),
             commands="safe\n",
             test_output="safe\n",
             forbidden_texts=("raw question",),

@@ -753,6 +753,20 @@ def test_r2_s3_backlog_remote_ci_claims_are_exact_head_scoped() -> None:
     assert "- current R2-S3 exact HEAD remote CI passed;" in backlog
 
 
+def test_remote_ci_history_is_not_presented_as_current_r2_s3_evidence() -> None:
+    status = (ROOT / "PROJECT_STATUS.md").read_text(encoding="utf-8")
+    limitations = (ROOT / "docs" / "known_limitations.md").read_text(
+        encoding="utf-8"
+    )
+
+    for content in (status, limitations):
+        assert "9607e55" in content
+        assert "9fcb304" in content
+        assert "不覆盖当前 R2-S3 exact HEAD" in content
+    assert "历史 E7 代码候选 `9607e55" in status
+    assert "当前功能分支候选" not in status
+
+
 def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     package = ROOT / "data" / "v2" / "public" / "r2_s3_exposure"
     manifest_path = package / "manifest.redacted.json"

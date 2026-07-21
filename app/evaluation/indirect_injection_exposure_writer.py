@@ -29,6 +29,7 @@ from app.evaluation.indirect_injection_exposure import (
     EXPOSURE_LIMITATIONS,
     ExposureAnalysisResult,
     ExposureDecision,
+    ExposureInputs,
     ExposureSourceEvidence,
     ExposureStratum,
     ExposureSummary,
@@ -42,6 +43,7 @@ from app.evaluation.indirect_injection_exposure import (
     compute_exposure_unit_evidence_sha256,
     compute_exposure_verification_inputs_sha256,
     recompute_exposure_summary,
+    verify_exposure_result_against_inputs,
     verify_replay_dependency_bytes,
 )
 from app.evaluation.indirect_injection_writer import (
@@ -306,11 +308,34 @@ def publish_exposure_run(
     *,
     manifest: ExposureRunManifest,
     result: ExposureAnalysisResult,
+    source_inputs: ExposureInputs,
     commands: str,
     test_output: str,
     forbidden_texts: tuple[str, ...],
 ) -> Path:
     """Publish one verified, immutable private exposure run."""
+
+    verify_exposure_result_against_inputs(source_inputs, result)
+    return _publish_exposure_run(
+        root,
+        manifest=manifest,
+        result=result,
+        commands=commands,
+        test_output=test_output,
+        forbidden_texts=forbidden_texts,
+    )
+
+
+def _publish_exposure_run(
+    root: Path,
+    *,
+    manifest: ExposureRunManifest,
+    result: ExposureAnalysisResult,
+    commands: str,
+    test_output: str,
+    forbidden_texts: tuple[str, ...],
+) -> Path:
+    """Write an already source-bound result; used directly only by test fixtures."""
 
     if not forbidden_texts or any(not value for value in forbidden_texts):
         raise ValueError("a non-empty forbidden text policy is required")

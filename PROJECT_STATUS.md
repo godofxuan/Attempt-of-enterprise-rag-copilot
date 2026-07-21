@@ -256,7 +256,7 @@ R2-S1 V1-V5 与收口修复提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已
 
 ### GitHub 交付与远端复现
 
-代码候选 `9607e55ec0fc12e98d1f61e199bfbf6ac12a0eee` 已推送到 `origin/codex/rag-eval-system`。第四个全新 GitHub clone 得到 frozen hash exact、compile exit 0、public audit 331/0、full pytest 574 passed。Ubuntu/Python 3.11 的 [GitHub Actions run 29553278709](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 为 `success`。这些证据覆盖当前功能分支候选，不代表已 merge、部署或达到生产 SLO。
+历史 E7 代码候选 `9607e55ec0fc12e98d1f61e199bfbf6ac12a0eee` 已推送到 `origin/codex/rag-eval-system`。第四个全新 GitHub clone 得到 frozen hash exact、compile exit 0、public audit 331/0、full pytest 574 passed。Ubuntu/Python 3.11 的 [GitHub Actions run 29553278709](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 为 `success`。这些证据只覆盖该历史 commit，不代表已 merge、部署或达到生产 SLO；它与后续 `9fcb304` 的历史 CI 均不覆盖当前 R2-S3 exact HEAD。
 
 ### 评估与负载
 
@@ -298,7 +298,7 @@ R2-S1 V1-V5 与收口修复提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已
 - Optional reranker：`NOT RUN`，没有 admitted reranker。
 - Human semantic review：`NOT RUN`；50 行表仍为空，等待本人判断。
 - Owner code experiments and oral defense：`NOT RUN`；Codex 不能代替本人完成。
-- GitHub remote CI：当前 `9607e55` 对应 run 已通过；只证明该 feature-branch commit 的 Ubuntu CI，不外推为 branch protection、部署或生产验收。
+- GitHub remote CI：历史提交 `9607e55` 与 `9fcb304` 的对应 run 已通过；各自只证明该 feature-branch commit 的 Ubuntu CI，均不覆盖当前 R2-S3 exact HEAD，也不外推为 branch protection、部署或生产验收。
 - 当前 ACL 使用调用方自报 `UserContext`，不是 IAM；数据全部 synthetic；本地 load 不是生产吞吐/SLO。
 - 本次只推送功能分支，不自动 merge、tag、修改默认分支或仓库可见性。
 
