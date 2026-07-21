@@ -7,6 +7,7 @@ import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from app.evaluation import indirect_injection_exposure_public_verifier as verifier
 from app.evaluation.indirect_injection_exposure import ExposureUnitObservation
@@ -28,12 +29,19 @@ from app.evaluation.indirect_injection_writer import validate_security_run_id
 
 
 _HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
-_ABSOLUTE_PATH_PATTERNS = (
+_NETWORK_URI_SCHEMES = frozenset(
+    {"ftp", "ftps", "git", "http", "https", "ldap", "ldaps", "sftp", "ssh", "ws", "wss"}
+)
+_NETWORK_URI_CANDIDATE = re.compile(
+    r"(?i)(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]*:/{2,}[^\s\"'<>]+"
+)
+_NON_POSIX_ABSOLUTE_PATH_PATTERNS = (
     re.compile(r"(?i)(?<![A-Za-z0-9])[A-Z]:[\\/]"),
     re.compile(r"(?:\\){2,}[A-Za-z0-9._$-]+[\\/]"),
     re.compile(r"(?i)(?<![A-Za-z0-9])file:(?:/{1,3}|[A-Z]:[\\/])"),
-    re.compile(r"(?<![A-Za-z0-9:/\\])/{2,}(?=[^/\s])"),
-    re.compile(r"(?<![A-Za-z0-9/\\])/(?![ /\t\r\n])"),
+)
+_POSIX_ABSOLUTE_PATH_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9/\\])/+(?=[^/\s])"
 )
 
 
@@ -235,10 +243,23 @@ def _assert_structured_paths_are_relative(value: Any, label: str) -> None:
 
 
 def _assert_text_paths_are_relative(text: str, label: str) -> None:
-    if text.startswith(("/", "\\\\")) or any(
-        pattern.search(text) for pattern in _ABSOLUTE_PATH_PATTERNS
-    ):
+    scanned_text = _elide_recognized_network_uris(text)
+    if scanned_text.startswith(("/", "\\\\")) or any(
+        pattern.search(scanned_text)
+        for pattern in _NON_POSIX_ABSOLUTE_PATH_PATTERNS
+    ) or _POSIX_ABSOLUTE_PATH_PATTERN.search(scanned_text):
         raise ValueError(f"{label} contains an absolute local path")
+
+
+def _elide_recognized_network_uris(text: str) -> str:
+    def replace(match: re.Match[str]) -> str:
+        candidate = match.group(0)
+        parsed = urlsplit(candidate)
+        if parsed.scheme.lower() in _NETWORK_URI_SCHEMES and parsed.netloc:
+            return " " * len(candidate)
+        return candidate
+
+    return _NETWORK_URI_CANDIDATE.sub(replace, text)
 
 
 def _checksum_bytes(stage: Path) -> bytes:

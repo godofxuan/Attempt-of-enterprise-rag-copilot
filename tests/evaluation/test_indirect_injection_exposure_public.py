@@ -46,7 +46,7 @@ FORMAL_SCENARIO_TAGS = (
     "parent_open_context",
     "split_payload",
 )
-PUBLISHED_METRIC_NAMES = {
+PUBLISHED_AGGREGATE_DEFINITION_NAMES = {
     "arm_event_count",
     "attack_case_count",
     "attack_unit_count",
@@ -82,6 +82,17 @@ PUBLISHED_METRIC_NAMES = {
     "unreached_case_attack_success",
     "unreached_case_count",
     "unreached_case_downstream_exposure",
+}
+PUBLIC_ROW_IDENTITY_FIELDS = {
+    "case_fingerprint",
+    "unit_fingerprint",
+}
+PUBLIC_ROW_METADATA_FIELDS = {
+    "category",
+    "location",
+    "scenario_tags",
+    "schema_version",
+    "source_surface",
 }
 
 
@@ -551,7 +562,7 @@ def test_verifier_rejects_test_only_synthetic_scenario_tag(
         verify_exposure_public_package(target)
 
 
-def test_metric_definitions_cover_every_published_metric_count_status_and_cost(
+def test_metric_definitions_cover_aggregate_count_status_and_cost_surfaces(
     public_exposure_package: Path,
 ) -> None:
     metrics = METRIC_DEFINITIONS["metrics"]
@@ -581,8 +592,8 @@ def test_metric_definitions_cover_every_published_metric_count_status_and_cost(
         for depth in stratum["depths"]:
             emitted_names.update(set(depth) - {"depth"})
 
-    assert emitted_names == PUBLISHED_METRIC_NAMES
-    assert set(metrics) == PUBLISHED_METRIC_NAMES
+    assert emitted_names == PUBLISHED_AGGREGATE_DEFINITION_NAMES
+    assert PUBLISHED_AGGREGATE_DEFINITION_NAMES <= set(metrics)
     assert all(
         set(definition)
         == {"applicability", "denominator", "interpretation", "numerator", "unit"}
@@ -607,6 +618,39 @@ def test_metric_definitions_cover_every_published_metric_count_status_and_cost(
         "numerator": "recomputed public decision status",
         "unit": "decision",
     }
+
+
+def test_metric_definitions_classify_and_cover_public_unit_row_surface(
+    public_exposure_package: Path,
+) -> None:
+    rows = _rows(public_exposure_package)
+    projected_fields = set().union(*(set(row) for row in rows))
+    defined_fields = (
+        projected_fields - PUBLIC_ROW_IDENTITY_FIELDS - PUBLIC_ROW_METADATA_FIELDS
+    )
+    expected_classification = {
+        "defined": sorted(defined_fields),
+        "identity": sorted(PUBLIC_ROW_IDENTITY_FIELDS),
+        "metadata": sorted(PUBLIC_ROW_METADATA_FIELDS),
+    }
+
+    assert projected_fields == set(PUBLIC_UNIT_ROW_KEYS)
+    assert METRIC_DEFINITIONS.get("public_unit_row_fields") == (
+        expected_classification
+    )
+    assert set(METRIC_DEFINITIONS["metrics"]) == (
+        PUBLISHED_AGGREGATE_DEFINITION_NAMES | defined_fields
+    )
+    for field in defined_fields:
+        definition = METRIC_DEFINITIONS["metrics"][field]
+        assert set(definition) == {
+            "applicability",
+            "denominator",
+            "interpretation",
+            "numerator",
+            "unit",
+        }
+        assert all(isinstance(value, str) and value for value in definition.values())
 
 
 def test_export_rejects_wrong_private_hash_or_run_without_target(
@@ -671,6 +715,8 @@ def test_export_scans_decoded_structured_values_before_json_escaping(
         "/root/.ssh/config",
         "/usr/local/bin/tool",
         "local path:/etc/hosts",
+        "local path://etc/hosts",
+        "local path:///etc/hosts",
         "file:///etc/hosts",
         "file:/etc/hosts",
         "file://server/share/file.txt",
@@ -701,12 +747,44 @@ def test_export_rejects_absolute_local_paths(
         )
 
 
-def test_final_byte_scanner_rejects_colon_adjacent_posix_absolute_path() -> None:
+@pytest.mark.parametrize(
+    "value",
+    (
+        "local path://etc/hosts",
+        "local path:///etc/hosts",
+    ),
+)
+def test_final_byte_scanner_rejects_colon_adjacent_posix_absolute_path(
+    value: str,
+) -> None:
     with pytest.raises(ValueError, match="absolute local path"):
         public_writer._assert_no_absolute_paths(
-            b'{"limitation":"local path:/etc/hosts"}\n',
+            json.dumps({"limitation": value}).encode("utf-8"),
             "summary.json",
         )
+
+
+def test_export_allows_recognized_https_url(
+    tmp_path: Path,
+    formal_exposure_result: ExposureAnalysisResult,
+) -> None:
+    network_url = "https://example.com/evidence"
+    payload = formal_exposure_result.model_dump(mode="python")
+    payload["limitations"] = (*formal_exposure_result.limitations, network_url)
+    changed = ExposureAnalysisResult.model_validate(payload)
+    private_run = _publish(tmp_path / "private", changed)
+
+    package = export_exposure_public_evidence(
+        private_run,
+        tmp_path / "public",
+        package_name="fixture",
+        expected_source_manifest_sha256=_sha256(private_run / "manifest.json"),
+        expected_source_run_id=private_run.name,
+        forbidden_texts=("raw question", "raw attack"),
+    )
+
+    assert network_url.encode("utf-8") in (package / "summary.json").read_bytes()
+    assert verify_exposure_public_package(package).verified is True
 
 
 def test_export_rejects_dangling_final_component_symlink(
