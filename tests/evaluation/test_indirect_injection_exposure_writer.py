@@ -1150,7 +1150,10 @@ def test_verifier_rejects_symlinked_artifact_when_supported(
         backup.rename(summary)
         pytest.skip("symlinks are unavailable in this Windows environment")
 
-    with pytest.raises(ValueError, match="regular files"):
+    with pytest.raises(
+        ValueError,
+        match="exposure artifact summary.json has a redirecting path component",
+    ):
         verify_exposure_run(target)
 
 

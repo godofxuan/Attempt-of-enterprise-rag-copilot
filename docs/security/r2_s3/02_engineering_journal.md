@@ -476,3 +476,29 @@ host. The three warnings are the existing SWIG deprecations. No evaluator,
 publisher, live model, source/private/public verifier, isolated verifier, or
 evidence-generation command was run, and no immutable run or evidence file was
 changed.
+
+## CI #12 Cross-platform Test Remediation
+
+GitHub Actions run
+[`29837884737`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29837884737)
+is the immutable RED result for exact SHA
+`ffcda1b37ceb68712ad004174309aaae9cba401c`: its clean Ubuntu clone reported
+`2 failed, 1396 passed, 10 skipped, 5 warnings`. The failures were test-only
+cross-platform assumptions, not evidence or production verifier defects.
+
+First, the real POSIX `summary.json` symlink regression still expected the
+legacy `regular files` failure, while the hardened lexical path check correctly
+rejects it earlier as `exposure artifact summary.json has a redirecting path
+component`; the adjacent mocked artifact-reparse regression already establishes
+that precise contract. Second, the documented isolated-verifier test performed
+platform-neutral document and command-order checks correctly, but then
+unconditionally launched `powershell.exe`, which is absent on Ubuntu.
+
+The local Windows gate did not expose either failure: symlink creation is not
+available in this environment, so the real-symlink test skips, and Windows
+PowerShell is present. The minimal repair updates only the stale symlink
+expectation and, after all static assertions, skips command execution on
+non-Windows hosts with an explicit unavailable-Windows-PowerShell reason.
+Windows retains its existing real execution and package assertions. No
+production validation, evidence, evaluator, publisher, or dependency changed.
+The next exact-SHA GitHub CI run remains the delivery gate.

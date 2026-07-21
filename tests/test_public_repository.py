@@ -1203,6 +1203,9 @@ def test_r2_s3_documented_isolated_verifier_sequence_executes(
         "Push-Location"
     )
 
+    if os.name != "nt":
+        pytest.skip("Windows PowerShell execution is unavailable on this host")
+
     staged_package = tmp_path / "staged" / "r2_s3_exposure"
     shutil.copytree(
         ROOT / "data" / "v2" / "public" / "r2_s3_exposure",
