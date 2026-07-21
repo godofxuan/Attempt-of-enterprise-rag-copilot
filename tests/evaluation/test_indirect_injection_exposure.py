@@ -63,6 +63,28 @@ METADATA_SANITIZED_CASE_ID = "r2s1-dev-role-impersonation-1"
 SOURCE_EVALUATOR_SHA256 = (
     "a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958"
 )
+REPLAY_DEPENDENCY_ROWS = (
+    (
+        "guard_ruleset",
+        "app/security/retrieved_content.py",
+        SOURCE_GUARD_SHA256,
+    ),
+    (
+        "retrieved_admission",
+        "app/security/retrieved_admission.py",
+        "1f835ba3aa79b1450e8ae906946bba019c21b531fce114cd375b094411c88afb",
+    ),
+    (
+        "search_surface_constructor",
+        "app/evaluation/indirect_injection_runner.py",
+        "c2c5c5e1815d8a77beebb5027384ea58dd3e73b8536533c8d7898d40668ed36c",
+    ),
+    (
+        "source_live_evaluator",
+        "app/evaluation/indirect_injection_live_runner.py",
+        SOURCE_EVALUATOR_SHA256,
+    ),
+)
 
 
 _CANDIDATE_UNIT_FIELDS = (
@@ -708,6 +730,48 @@ def test_replay_rejects_evaluator_provenance_mismatch(
 
     with pytest.raises(ExposureEvidenceError, match="evaluator provenance mismatch"):
         exposure.replay_guard_on_case(inputs, case_id=RANK_TWO_CASE_ID)
+
+
+@pytest.mark.parametrize(
+    ("dependency_id", "relative_path", "_expected_sha256"),
+    REPLAY_DEPENDENCY_ROWS,
+)
+def test_replay_rejects_mutated_dependency_before_fixture_or_cost_work(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    accepted_inputs: exposure.ExposureInputs,
+    dependency_id: str,
+    relative_path: str,
+    _expected_sha256: str,
+) -> None:
+    repository_root = tmp_path / "repository"
+    for _item_id, item_path, _item_sha256 in REPLAY_DEPENDENCY_ROWS:
+        source = Path(item_path)
+        target = repository_root / Path(*item_path.split("/"))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(source.read_bytes())
+    mutated = repository_root / Path(*relative_path.split("/"))
+    mutated.write_bytes(mutated.read_bytes() + b"\n# dependency mutation\n")
+    monkeypatch.setattr(
+        exposure,
+        "_REPLAY_REPOSITORY_ROOT",
+        repository_root,
+        raising=False,
+    )
+
+    def fixture_work_started(*_args, **_kwargs):
+        raise AssertionError("fixture/cost work started before dependency verification")
+
+    monkeypatch.setattr(exposure, "_replay_case_fixture", fixture_work_started)
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match=rf"replay dependency .*{dependency_id}",
+    ):
+        exposure.replay_guard_on_case(
+            accepted_inputs,
+            case_id=RANK_TWO_CASE_ID,
+        )
 
 
 def test_replay_rejects_ambiguous_recorded_open_target(

@@ -59,10 +59,33 @@ keeps two evidence types separate:
 
 Replay is not allowed to replace live evidence. The evaluator reconstructs the
 persisted candidate order, uses the production `RetrievedContentAdmission` and
-`RetrievedContentGuard`, binds the exact Guard and source live evaluator hashes,
-and rejects the analysis unless replay reached/quarantined totals equal the live
-totals for every case and globally. Downstream fields retain a `case_` prefix
-because the source cannot support per-unit downstream attribution.
+`RetrievedContentGuard`, and verifies the exact replay dependency paths and
+SHA-256 values before fixture reconstruction, admission replay, or cost work.
+The dependency record binds the exact bytes for the Guard, retrieved admission
+and metadata construction, fixture search-surface construction, and source live
+evaluator. It identifies bytes; it does not authenticate behavior or producer
+identity. Acceptance requires an independently trusted manifest hash. Replay is
+then rejected unless reached/quarantined totals equal the live totals for every
+case and globally. Downstream fields retain a `case_` prefix because the source
+cannot support per-unit downstream attribution.
+
+```text
+guard_ruleset
+  path    app/security/retrieved_content.py
+  SHA-256 78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2
+
+retrieved_admission
+  path    app/security/retrieved_admission.py
+  SHA-256 1f835ba3aa79b1450e8ae906946bba019c21b531fce114cd375b094411c88afb
+
+search_surface_constructor
+  path    app/evaluation/indirect_injection_runner.py
+  SHA-256 c2c5c5e1815d8a77beebb5027384ea58dd3e73b8536533c8d7898d40668ed36c
+
+source_live_evaluator
+  path    app/evaluation/indirect_injection_live_runner.py
+  SHA-256 a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958
+```
 
 The two evaluator identities are separate provenance boundaries:
 
@@ -76,9 +99,10 @@ accepted exposure evaluator
   SHA-256 e043f198c669708d1da2acd5afeb1503bd04f2849d0488ea845d120ee1842bfb
 ```
 
-The first authenticates the frozen source behavior replayed by R2-S3. The
-second authenticates the evaluator that produced the accepted R2-S3 exposure
-run.
+The first identifies the frozen source-evaluator bytes replayed by R2-S3. The
+second identifies the evaluator bytes that produced the accepted R2-S3 exposure
+run. Neither hash establishes behavioral or producer trust without the trusted
+manifest chain.
 
 ## 4. Search Depths `1`, `2`, and `4`
 
@@ -205,9 +229,10 @@ After copying exactly the eight public files to an isolated directory, run:
 .\.venv\Scripts\python.exe -I verify.py
 ```
 
-Package checksums prove internal integrity. An isolated package cannot
-authenticate its own `verify.py` or cryptographically prove projection from the
-private run; use a trusted verifier copy/hash and re-export for provenance.
+Package checksums bind internal bytes. An isolated package cannot establish
+trust in its own `verify.py` or prove projection from the private run; compare
+against trusted verifier bytes and a trusted manifest hash, then re-export for
+provenance.
 
 ## 9. Scope Boundary
 

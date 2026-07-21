@@ -32,12 +32,15 @@ from app.evaluation.indirect_injection_exposure import (
     ExposureSummary,
     ExposureUnitObservation,
     ExposureVerificationInputs,
+    REPLAY_IMPLEMENTATION_DEPENDENCIES,
+    ReplayImplementationDependency,
     UnguardedPathFinding,
     _case_has_downstream_exposure,
     _group_unit_rows,
     compute_exposure_unit_evidence_sha256,
     compute_exposure_verification_inputs_sha256,
     recompute_exposure_summary,
+    verify_replay_dependency_bytes,
 )
 from app.evaluation.indirect_injection_writer import (
     ArtifactEvidence,
@@ -124,6 +127,7 @@ class ExposureRunManifest(_StrictFrozenModel):
     guard_ruleset_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     evaluator_path: str
     evaluator_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    replay_dependencies: tuple[ReplayImplementationDependency, ...] | None = None
     unit_evidence_sha256: str | None = Field(
         default=None,
         pattern=r"^[0-9a-f]{64}$",
@@ -181,14 +185,32 @@ class ExposureRunManifest(_StrictFrozenModel):
             self.unit_evidence_sha256,
             self.verification_inputs_sha256,
         )
-        if self.schema_version.endswith("_v2") and any(
-            value is None for value in hashes
-        ):
-            raise ValueError("v2 manifest requires analysis evidence hashes")
-        if self.schema_version.endswith("_v1") and any(
-            value is not None for value in hashes
-        ):
-            raise ValueError("v1 manifest cannot carry v2 analysis evidence hashes")
+        if self.schema_version.endswith("_v2"):
+            if any(value is None for value in hashes):
+                raise ValueError("v2 manifest requires analysis evidence hashes")
+            if self.replay_dependencies is None:
+                raise ValueError("v2 manifest requires replay dependencies")
+            if self.replay_dependencies != REPLAY_IMPLEMENTATION_DEPENDENCIES:
+                raise ValueError(
+                    "v2 manifest replay dependencies must be exact"
+                )
+            guard_dependency = self.replay_dependencies[0]
+            if (
+                self.guard_ruleset_path != guard_dependency.path
+                or self.guard_ruleset_sha256 != guard_dependency.sha256
+            ):
+                raise ValueError(
+                    "v2 manifest Guard evidence contradicts replay dependencies"
+                )
+        if self.schema_version.endswith("_v1"):
+            if any(value is not None for value in hashes):
+                raise ValueError(
+                    "v1 manifest cannot carry v2 analysis evidence hashes"
+                )
+            if self.replay_dependencies is not None:
+                raise ValueError(
+                    "v1 manifest cannot carry v2 replay dependencies"
+                )
         if self.artifacts:
             if set(self.artifacts) != set(_MANIFEST_ARTIFACT_NAMES):
                 raise ValueError("manifest requires the exact artifact set")
@@ -257,6 +279,9 @@ def publish_exposure_run(
         raise ValueError("pre-publication manifest artifacts must be empty")
     if manifest.schema_version != "indirect_injection_exposure_run_manifest_v2":
         raise ValueError("new exposure runs require private manifest v2")
+    if manifest.replay_dependencies is None:
+        raise ValueError("v2 manifest requires replay dependencies")
+    verify_replay_dependency_bytes(manifest.replay_dependencies)
     _validate_analysis(manifest, result)
     canonical_commands = _canonical_text(commands, "commands")
     canonical_test_output = _canonical_text(test_output, "test output")
@@ -479,6 +504,10 @@ def _validate_stage(stage: Path, manifest: ExposureRunManifest) -> None:
     )
     if parsed_manifest != manifest:
         raise ValueError("exposure manifest did not round-trip")
+    if manifest.schema_version.endswith("_v2"):
+        if manifest.replay_dependencies is None:
+            raise ValueError("v2 manifest requires replay dependencies")
+        verify_replay_dependency_bytes(manifest.replay_dependencies)
     document = _load_canonical_model(
         stage / "summary.json",
         ExposureSummaryDocument,

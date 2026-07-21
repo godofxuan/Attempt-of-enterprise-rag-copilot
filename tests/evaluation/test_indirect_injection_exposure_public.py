@@ -102,6 +102,36 @@ MAX_WIRE_DNS_HOSTNAME = ".".join(
 OVERLONG_WIRE_DNS_HOSTNAME = ".".join(
     ("a" * 63, "b" * 63, "c" * 63, "d" * 62)
 )
+REPLAY_DEPENDENCY_PAYLOADS = (
+    {
+        "dependency_id": "guard_ruleset",
+        "path": "app/security/retrieved_content.py",
+        "sha256": (
+            "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2"
+        ),
+    },
+    {
+        "dependency_id": "retrieved_admission",
+        "path": "app/security/retrieved_admission.py",
+        "sha256": (
+            "1f835ba3aa79b1450e8ae906946bba019c21b531fce114cd375b094411c88afb"
+        ),
+    },
+    {
+        "dependency_id": "search_surface_constructor",
+        "path": "app/evaluation/indirect_injection_runner.py",
+        "sha256": (
+            "c2c5c5e1815d8a77beebb5027384ea58dd3e73b8536533c8d7898d40668ed36c"
+        ),
+    },
+    {
+        "dependency_id": "source_live_evaluator",
+        "path": "app/evaluation/indirect_injection_live_runner.py",
+        "sha256": (
+            "a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958"
+        ),
+    },
+)
 
 
 def _sha256(path: Path) -> str:
@@ -193,6 +223,94 @@ def public_exposure_package(
         expected_source_run_id=private_exposure_run.name,
         forbidden_texts=("raw question", "raw attack"),
     )
+
+
+def test_public_producer_emits_v2_dependency_manifest(
+    public_exposure_package: Path,
+) -> None:
+    manifest = json.loads(
+        (public_exposure_package / "manifest.redacted.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert manifest["schema_version"] == (
+        "indirect_injection_exposure_public_manifest_v2"
+    )
+    assert tuple(manifest["replay_dependencies"]) == REPLAY_DEPENDENCY_PAYLOADS
+
+
+def test_public_v2_manifest_requires_dependency_schema(
+    public_exposure_package: Path,
+    tmp_path: Path,
+) -> None:
+    target = shutil.copytree(public_exposure_package, tmp_path / "missing-deps")
+    manifest_path = target / "manifest.redacted.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["schema_version"] = (
+        "indirect_injection_exposure_public_manifest_v2"
+    )
+    manifest.pop("replay_dependencies", None)
+    _write_json(manifest_path, manifest)
+    _refresh_checksums(target)
+
+    with pytest.raises(
+        ExposurePublicVerificationError,
+        match="public manifest keys",
+    ):
+        verify_exposure_public_package(target)
+
+
+@pytest.mark.parametrize("dependency_index", range(4))
+@pytest.mark.parametrize("field", ("path", "sha256"))
+def test_public_v2_manifest_rejects_dependency_substitution(
+    public_exposure_package: Path,
+    tmp_path: Path,
+    dependency_index: int,
+    field: str,
+) -> None:
+    target = shutil.copytree(
+        public_exposure_package,
+        tmp_path / f"dependency-{dependency_index}-{field}",
+    )
+    manifest_path = target / "manifest.redacted.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["schema_version"] = (
+        "indirect_injection_exposure_public_manifest_v2"
+    )
+    dependencies = [dict(item) for item in REPLAY_DEPENDENCY_PAYLOADS]
+    dependencies[dependency_index][field] = (
+        "app/evaluation/substituted.py" if field == "path" else "0" * 64
+    )
+    manifest["replay_dependencies"] = dependencies
+    _write_json(manifest_path, manifest)
+    _refresh_checksums(target)
+
+    with pytest.raises(
+        ExposurePublicVerificationError,
+        match="replay dependencies",
+    ):
+        verify_exposure_public_package(target)
+
+
+def test_trusted_verifier_accepts_tracked_v1_package() -> None:
+    result = verify_exposure_public_package(
+        Path("data/v2/public/r2_s3_exposure")
+    )
+
+    assert result.verified is True
+    assert result.source_run_id == "r2-s3-dev-exposure-20260721-01"
+
+
+def test_protocol_uses_byte_binding_and_trusted_manifest_language() -> None:
+    protocol = Path(
+        "docs/security/r2_s3/00_exposure_ablation_protocol.md"
+    ).read_text(encoding="utf-8")
+
+    assert "binds the exact bytes" in protocol
+    assert "trusted manifest" in protocol
+    assert "authenticates the frozen source behavior" not in protocol
+    assert "authenticates the evaluator" not in protocol
 
 
 def test_public_export_is_exact_content_free_and_deterministic(
@@ -375,7 +493,8 @@ def test_copied_verifier_runs_without_project_imports(
     assert "VERIFIED" in completed.stdout
     readme = (isolated / "README.md").read_text(encoding="utf-8")
     assert "does not prove that derivation" in readme
-    assert "Authenticate `verify.py` against a trusted copy" in readme
+    assert "Compare `verify.py` bytes with an independently trusted copy" in readme
+    assert "authenticate verifier bytes" not in readme.lower()
 
 
 def test_verifier_rejects_per_case_live_count_redistribution(

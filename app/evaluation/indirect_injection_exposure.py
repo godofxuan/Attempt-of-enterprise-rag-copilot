@@ -5,10 +5,17 @@ import json
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from app.domain.agent import ToolError
 from app.domain.queries import OpenResult, SearchRequest, UserContext
@@ -54,6 +61,7 @@ SOURCE_EVALUATOR_PATH = "app/evaluation/indirect_injection_live_runner.py"
 SOURCE_EVALUATOR_SHA256 = (
     "a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958"
 )
+_REPLAY_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 COUNTERFACTUAL_DEPTHS = (1, 2, 4)
 EXPOSURE_LIMITATIONS = (
     "This dev-only deterministic replay does not establish universal runtime safety.",
@@ -99,6 +107,94 @@ class _StrictFrozenModel(BaseModel):
 
 class ExposureEvidenceError(ValueError):
     pass
+
+
+class ReplayImplementationDependency(_StrictFrozenModel):
+    dependency_id: Literal[
+        "guard_ruleset",
+        "retrieved_admission",
+        "search_surface_constructor",
+        "source_live_evaluator",
+    ]
+    path: str
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        posix = PurePosixPath(value)
+        windows = PureWindowsPath(value)
+        if (
+            "\\" in value
+            or not value
+            or posix.is_absolute()
+            or windows.is_absolute()
+            or windows.drive
+            or ".." in posix.parts
+        ):
+            raise ValueError(
+                "replay dependency path must be repository-relative POSIX form"
+            )
+        return value
+
+
+REPLAY_IMPLEMENTATION_DEPENDENCIES = (
+    ReplayImplementationDependency(
+        dependency_id="guard_ruleset",
+        path="app/security/retrieved_content.py",
+        sha256=SOURCE_GUARD_SHA256,
+    ),
+    ReplayImplementationDependency(
+        dependency_id="retrieved_admission",
+        path="app/security/retrieved_admission.py",
+        sha256=(
+            "1f835ba3aa79b1450e8ae906946bba019c21b531fce114cd375b094411c88afb"
+        ),
+    ),
+    ReplayImplementationDependency(
+        dependency_id="search_surface_constructor",
+        path="app/evaluation/indirect_injection_runner.py",
+        sha256=(
+            "c2c5c5e1815d8a77beebb5027384ea58dd3e73b8536533c8d7898d40668ed36c"
+        ),
+    ),
+    ReplayImplementationDependency(
+        dependency_id="source_live_evaluator",
+        path=SOURCE_EVALUATOR_PATH,
+        sha256=SOURCE_EVALUATOR_SHA256,
+    ),
+)
+
+
+def verify_replay_dependency_bytes(
+    dependencies: Sequence[ReplayImplementationDependency],
+) -> None:
+    declared = tuple(dependencies)
+    if declared != REPLAY_IMPLEMENTATION_DEPENDENCIES:
+        raise ExposureEvidenceError("replay dependency declarations are not exact")
+    repository_root = _REPLAY_REPOSITORY_ROOT.resolve()
+    for dependency in declared:
+        path = repository_root / Path(*dependency.path.split("/"))
+        try:
+            resolved = path.resolve(strict=True)
+            if path.is_symlink() or resolved != path or not path.is_file():
+                raise ExposureEvidenceError(
+                    "replay dependency path mismatch: "
+                    f"{dependency.dependency_id}"
+                )
+            actual_sha256 = _sha256(path)
+        except ExposureEvidenceError:
+            raise
+        except OSError as exc:
+            raise ExposureEvidenceError(
+                "replay dependency bytes unavailable: "
+                f"{dependency.dependency_id}"
+            ) from exc
+        if actual_sha256 != dependency.sha256:
+            raise ExposureEvidenceError(
+                "replay dependency SHA-256 mismatch: "
+                f"{dependency.dependency_id}"
+            )
 
 
 class ExposureUnitLocation(_StrictFrozenModel):
@@ -819,6 +915,7 @@ def replay_guard_on_case(
     *,
     case_id: str,
 ) -> ReplayedCaseState:
+    verify_replay_dependency_bytes(REPLAY_IMPLEMENTATION_DEPENDENCIES)
     _verify_replay_guard_ruleset(inputs)
     _verify_replay_evaluator(inputs)
     case, fixture = _replay_case_fixture(inputs, case_id)
@@ -909,30 +1006,18 @@ def replay_guard_on_case(
 
 
 def _verify_replay_guard_ruleset(inputs: ExposureInputs) -> None:
-    guard_path = (
-        Path(__file__).resolve().parents[1] / "security" / "retrieved_content.py"
-    )
-    try:
-        actual_sha256 = _sha256(guard_path)
-    except OSError as exc:
-        raise ExposureEvidenceError("Guard ruleset bytes are unavailable") from exc
-    if actual_sha256 != inputs.manifest.guard.ruleset_sha256:
+    dependency = REPLAY_IMPLEMENTATION_DEPENDENCIES[0]
+    if inputs.manifest.guard.ruleset_path != dependency.path:
+        raise ExposureEvidenceError("Guard ruleset path mismatch")
+    if inputs.manifest.guard.ruleset_sha256 != dependency.sha256:
         raise ExposureEvidenceError("Guard ruleset SHA-256 mismatch")
 
 
 def _verify_replay_evaluator(inputs: ExposureInputs) -> None:
-    evaluator_path = (
-        Path(__file__).resolve().parents[2]
-        / Path(*SOURCE_EVALUATOR_PATH.split("/"))
-    )
-    try:
-        actual_sha256 = _sha256(evaluator_path)
-    except OSError as exc:
-        raise ExposureEvidenceError("evaluator provenance mismatch") from exc
+    dependency = REPLAY_IMPLEMENTATION_DEPENDENCIES[3]
     if (
-        inputs.manifest.evaluator.path != SOURCE_EVALUATOR_PATH
-        or inputs.manifest.evaluator.sha256 != actual_sha256
-        or actual_sha256 != SOURCE_EVALUATOR_SHA256
+        inputs.manifest.evaluator.path != dependency.path
+        or inputs.manifest.evaluator.sha256 != dependency.sha256
     ):
         raise ExposureEvidenceError("evaluator provenance mismatch")
 
@@ -2543,6 +2628,8 @@ __all__ = [
     "ExposureVerificationInputs",
     "ReplayedCaseState",
     "ReplayedUnitState",
+    "REPLAY_IMPLEMENTATION_DEPENDENCIES",
+    "ReplayImplementationDependency",
     "ReplayScanSurface",
     "SOURCE_EVALUATOR_PATH",
     "SOURCE_EVALUATOR_SHA256",
@@ -2558,4 +2645,5 @@ __all__ = [
     "map_attack_unit_locations",
     "recompute_exposure_summary",
     "replay_guard_on_case",
+    "verify_replay_dependency_bytes",
 ]

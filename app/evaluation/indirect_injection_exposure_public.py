@@ -72,6 +72,12 @@ def export_exposure_public_evidence(
         raise ValueError("a non-empty forbidden text policy is required")
     source_run = Path(source_run).resolve()
     source_manifest = verify_exposure_run(source_run)
+    if (
+        source_manifest.schema_version
+        != "indirect_injection_exposure_run_manifest_v2"
+        or source_manifest.replay_dependencies is None
+    ):
+        raise ValueError("public export requires private manifest v2")
     observed_source_hash = _sha256(source_run / "manifest.json")
     if observed_source_hash != expected_source_manifest_sha256:
         raise ValueError("source private manifest hash mismatch")
@@ -114,12 +120,16 @@ def export_exposure_public_evidence(
         "limitations": private_summary["limitations"],
     }
     public_manifest = {
-        "schema_version": "indirect_injection_exposure_public_manifest_v1",
+        "schema_version": "indirect_injection_exposure_public_manifest_v2",
         "producer": "enterprise_agentic_rag_v2",
         "package_name": package_name,
         "source_private_run_id": source_manifest.run_id,
         "source_private_manifest_sha256": observed_source_hash,
         "source": source_manifest.source.model_dump(mode="json"),
+        "replay_dependencies": [
+            item.model_dump(mode="json")
+            for item in source_manifest.replay_dependencies
+        ],
         "counterfactual_depths": list(source_manifest.counterfactual_depths),
         "decision": source_manifest.decision,
         "case_count": source_manifest.case_count,

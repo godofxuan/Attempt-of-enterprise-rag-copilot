@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from app.evaluation import indirect_injection_exposure as exposure
 from app.evaluation import indirect_injection_exposure_writer as exposure_writer
 from app.evaluation.indirect_injection_exposure import (
     COUNTERFACTUAL_DEPTHS,
@@ -43,6 +44,34 @@ CONTENT_NAMES = (
     "test_output.txt",
 )
 ARTIFACT_NAMES = (*CONTENT_NAMES, "checksums.sha256")
+REPLAY_DEPENDENCY_PAYLOADS = (
+    {
+        "dependency_id": "guard_ruleset",
+        "path": "app/security/retrieved_content.py",
+        "sha256": SOURCE_GUARD_SHA256,
+    },
+    {
+        "dependency_id": "retrieved_admission",
+        "path": "app/security/retrieved_admission.py",
+        "sha256": (
+            "1f835ba3aa79b1450e8ae906946bba019c21b531fce114cd375b094411c88afb"
+        ),
+    },
+    {
+        "dependency_id": "search_surface_constructor",
+        "path": "app/evaluation/indirect_injection_runner.py",
+        "sha256": (
+            "c2c5c5e1815d8a77beebb5027384ea58dd3e73b8536533c8d7898d40668ed36c"
+        ),
+    },
+    {
+        "dependency_id": "source_live_evaluator",
+        "path": "app/evaluation/indirect_injection_live_runner.py",
+        "sha256": (
+            "a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958"
+        ),
+    },
+)
 
 
 def _canonical_json(value: object) -> bytes:
@@ -183,6 +212,7 @@ def _manifest(
         guard_ruleset_sha256=result.source.guard_ruleset_sha256,
         evaluator_path="app/evaluation/indirect_injection_exposure.py",
         evaluator_sha256="d" * 64,
+        replay_dependencies=exposure.REPLAY_IMPLEMENTATION_DEPENDENCIES,
         unit_evidence_sha256=result.unit_evidence_sha256,
         verification_inputs_sha256=result.verification_inputs_sha256,
         counterfactual_depths=COUNTERFACTUAL_DEPTHS,
@@ -212,6 +242,106 @@ def _publish(
         test_output="source verified\n",
         forbidden_texts=forbidden_texts,
     )
+
+
+def _copy_replay_dependency_tree(root: Path) -> None:
+    for dependency in REPLAY_DEPENDENCY_PAYLOADS:
+        relative_path = str(dependency["path"])
+        target = root / Path(*relative_path.split("/"))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(Path(relative_path).read_bytes())
+
+
+def test_private_v2_manifest_requires_replay_dependencies(
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    payload = _manifest(exposure_result).model_dump(mode="python")
+    payload.pop("replay_dependencies")
+
+    with pytest.raises(
+        ValidationError,
+        match="v2 manifest requires replay dependencies",
+    ):
+        ExposureRunManifest.model_validate(payload)
+
+
+def test_private_v2_manifest_accepts_exact_replay_dependencies(
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    payload = _manifest(exposure_result).model_dump(mode="python")
+    payload["replay_dependencies"] = REPLAY_DEPENDENCY_PAYLOADS
+
+    manifest = ExposureRunManifest.model_validate(payload)
+
+    assert tuple(
+        item.model_dump(mode="json") for item in manifest.replay_dependencies
+    ) == REPLAY_DEPENDENCY_PAYLOADS
+
+
+@pytest.mark.parametrize("dependency_index", range(4))
+@pytest.mark.parametrize("field", ("path", "sha256"))
+def test_private_v2_manifest_rejects_dependency_substitution(
+    exposure_result: ExposureAnalysisResult,
+    dependency_index: int,
+    field: str,
+) -> None:
+    payload = _manifest(exposure_result).model_dump(mode="python")
+    dependencies = [dict(item) for item in REPLAY_DEPENDENCY_PAYLOADS]
+    dependencies[dependency_index][field] = (
+        "app/evaluation/substituted.py" if field == "path" else "0" * 64
+    )
+    payload["replay_dependencies"] = tuple(dependencies)
+
+    with pytest.raises(
+        ValidationError,
+        match="v2 manifest replay dependencies must be exact",
+    ):
+        ExposureRunManifest.model_validate(payload)
+
+
+def test_private_v1_manifest_keeps_legacy_dependency_schema(
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    payload = _manifest(exposure_result).model_dump(mode="python")
+    payload["schema_version"] = "indirect_injection_exposure_run_manifest_v1"
+    payload["unit_evidence_sha256"] = None
+    payload["verification_inputs_sha256"] = None
+    payload.pop("replay_dependencies")
+
+    manifest = ExposureRunManifest.model_validate(payload)
+
+    assert manifest.replay_dependencies is None
+
+
+@pytest.mark.parametrize("dependency_index", range(4))
+def test_trusted_private_verifier_rejects_mutated_dependency_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+    dependency_index: int,
+) -> None:
+    target = _publish(tmp_path / "runs", exposure_result)
+    repository_root = tmp_path / "repository"
+    _copy_replay_dependency_tree(repository_root)
+    dependency = REPLAY_DEPENDENCY_PAYLOADS[dependency_index]
+    dependency_path = repository_root / Path(
+        *str(dependency["path"]).split("/")
+    )
+    dependency_path.write_bytes(
+        dependency_path.read_bytes() + b"\n# dependency mutation\n"
+    )
+    monkeypatch.setattr(
+        exposure,
+        "_REPLAY_REPOSITORY_ROOT",
+        repository_root,
+        raising=False,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=rf"replay dependency .*{dependency['dependency_id']}",
+    ):
+        verify_exposure_run(target)
 
 
 def _refresh_checksums_and_manifest(run_dir: Path) -> None:

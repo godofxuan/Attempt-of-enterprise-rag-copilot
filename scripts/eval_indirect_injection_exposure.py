@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from app.evaluation.indirect_injection_exposure import (
     COUNTERFACTUAL_DEPTHS,
     ExposureEvidenceError,
+    REPLAY_IMPLEMENTATION_DEPENDENCIES,
     analyze_exposure,
     load_exposure_inputs,
 )
@@ -77,6 +78,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             guard_ruleset_sha256=_sha256(guard_path),
             evaluator_path=EXPOSURE_EVALUATOR_PATH,
             evaluator_sha256=_sha256(evaluator_path),
+            replay_dependencies=REPLAY_IMPLEMENTATION_DEPENDENCIES,
             unit_evidence_sha256=result.unit_evidence_sha256,
             verification_inputs_sha256=(
                 result.verification_inputs_sha256

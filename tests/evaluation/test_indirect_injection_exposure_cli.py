@@ -57,6 +57,31 @@ def test_eval_cli_publishes_valid_evidence_and_returns_zero(
     manifest = verify_exposure_run(target)
     assert manifest.run_id == run_id
     assert manifest.created_at_utc.isoformat() == "2026-07-21T00:00:00+00:00"
+    assert tuple(
+        (item.dependency_id, item.path, item.sha256)
+        for item in manifest.replay_dependencies
+    ) == (
+        (
+            "guard_ruleset",
+            "app/security/retrieved_content.py",
+            "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2",
+        ),
+        (
+            "retrieved_admission",
+            "app/security/retrieved_admission.py",
+            "1f835ba3aa79b1450e8ae906946bba019c21b531fce114cd375b094411c88afb",
+        ),
+        (
+            "search_surface_constructor",
+            "app/evaluation/indirect_injection_runner.py",
+            "c2c5c5e1815d8a77beebb5027384ea58dd3e73b8536533c8d7898d40668ed36c",
+        ),
+        (
+            "source_live_evaluator",
+            "app/evaluation/indirect_injection_live_runner.py",
+            "a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958",
+        ),
+    )
     stdout = json.loads(capsys.readouterr().out)
     assert stdout == {
         "decision": "NO_CURRENT_BYPASS_OBSERVED",
@@ -160,4 +185,3 @@ def test_verify_cli_rejects_tampered_run(
     assert verify_main([str(target)]) == 1
     error = json.loads(capsys.readouterr().err)
     assert error["status"] == "VERIFICATION_FAILED"
-
