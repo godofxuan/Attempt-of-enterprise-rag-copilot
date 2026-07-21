@@ -90,7 +90,7 @@ unchanged.
 The accepted `-04` run preserves every frozen admission metric and decision.
 Runs `r2-s3-dev-exposure-20260721-01`, `-02`, and superseded `-03` are
 superseded local history, not the source of the tracked public package. Final local gates
-are focused `433 passed / 5 platform skips / 3 known warnings`, full
+are focused `430 passed / 8 platform skips / 3 known warnings`, full
 `1349 passed / 8 platform skips / 3 known warnings`, compile/pip clean, and
 public audit `453/0`. Push is allowed only after fixed-HEAD reviews and local
 gates pass; actual delivery and CI state are established by Git and GitHub

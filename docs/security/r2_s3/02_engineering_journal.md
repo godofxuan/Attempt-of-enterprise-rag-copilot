@@ -398,7 +398,7 @@ recomputed the unchanged metrics: candidate presence `26/28`, live/replay reach
 search reach `6/26 -> 22/26 -> 26/26`, total reach
 `15/28 -> 28/28 -> 28/28`, and additional scan units/characters
 `0/0 -> 29/3845 -> 33/4200`. Final local gates were focused
-`433 passed / 5 platform skips / 3 known warnings`, full
+`430 passed / 8 platform skips / 3 known warnings`, full
 `1349 passed / 8 platform skips / 3 known warnings`, compile/pip clean, and
 public audit `453/0`. Push is allowed only after fixed-HEAD reviews and local
 gates pass; actual delivery and CI state are established by Git and GitHub

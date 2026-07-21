@@ -190,7 +190,7 @@ replication remain `NOT RUN`.
 Fresh local verification on 2026-07-21 produced:
 
 ```text
-focused R2-S3/public tests    433 passed / 5 platform skips / 3 known warnings
+focused R2-S3/public tests    430 passed / 8 platform skips / 3 known warnings
 full repository pytest       1349 passed / 8 platform skips / 3 known warnings
 compileall                    exit 0
 pip check                     no broken requirements

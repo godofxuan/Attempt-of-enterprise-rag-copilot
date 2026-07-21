@@ -935,7 +935,41 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     package = ROOT / "data" / "v2" / "public" / "r2_s3_exposure"
     manifest_path = package / "manifest.redacted.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    public_manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    accepted_run_id = "r2-s3-dev-exposure-20260721-04"
+    source_live_manifest_sha256 = (
+        "3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e"
+    )
+    private_manifest_sha256 = (
+        "4c8cfb6ad826fc1ca9c24afb0157129df661f3cd463aa3448ec161c0608c5f1f"
+    )
+    public_manifest_sha256 = (
+        "09fda4aa81d15757e8de7cadec32e057a1c01d23a5b646dbcd5c0f9ae9038033"
+    )
+    verifier_sha256 = (
+        "dbe814605220058c0bf2453ee1cac0450253bd788b64f9979ab1eb77c2413897"
+    )
+    evaluator_sha256 = (
+        "d7fe9332953cc44ba3f517bb03d4074b293b821461240d30fc384d67256a4b88"
+    )
+    summary_sha256 = (
+        "115d9f1e973c1341e4059d4c4bd28615e31a76104922e10ab877dbfbf5d2e50c"
+    )
+    per_unit_sha256 = (
+        "d747d895c26450dd53c9a61623f3ba9572eaf25d0e292775b2f5ea3eedd0bb98"
+    )
+    verification_input_witness_sha256 = (
+        "e1910a458b3541abc47d515cf46a3b5ab6daa614e971e2f701097ebdce67befc"
+    )
+    expected_package_files = {
+        "checksums.sha256",
+        "manifest.redacted.json",
+        "metric_definitions.json",
+        "per_unit.redacted.jsonl",
+        "README.md",
+        "source_run.sha256",
+        "summary.json",
+        "verify.py",
+    }
     current_paths = (
         "README.md",
         "PROJECT_STATUS.md",
@@ -952,16 +986,34 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
         for relative in current_paths
     }
     identity_paths = current_paths[4:]
-    accepted_run_id = "r2-s3-dev-exposure-20260721-04"
-    private_manifest_sha256 = manifest["source_private_manifest_sha256"]
-    evaluator_sha256 = (
-        "d7fe9332953cc44ba3f517bb03d4074b293b821461240d30fc384d67256a4b88"
-    )
 
+    assert {path.name for path in package.iterdir() if path.is_file()} == expected_package_files
+    assert hashlib.sha256(manifest_path.read_bytes()).hexdigest() == public_manifest_sha256
+    assert hashlib.sha256((package / "verify.py").read_bytes()).hexdigest() == verifier_sha256
+    assert (package / "source_run.sha256").read_text(encoding="utf-8") == (
+        f"{private_manifest_sha256}  manifest.json\n"
+    )
     assert manifest["schema_version"] == (
         "indirect_injection_exposure_public_manifest_v2"
     )
     assert manifest["source_private_run_id"] == accepted_run_id
+    assert manifest["source_private_manifest_sha256"] == private_manifest_sha256
+    assert manifest["source"]["manifest_sha256"] == source_live_manifest_sha256
+    assert manifest["verifier_sha256"] == verifier_sha256
+    assert hashlib.sha256(
+        (ROOT / "app" / "evaluation" / "indirect_injection_exposure.py").read_bytes()
+    ).hexdigest() == evaluator_sha256
+    checksums = {
+        filename: sha256
+        for sha256, filename in (
+            line.split("  ", 1)
+            for line in (package / "checksums.sha256")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
+    }
+    assert checksums["manifest.redacted.json"] == public_manifest_sha256
+    assert checksums["verify.py"] == verifier_sha256
     for relative, content in contents.items():
         assert accepted_run_id in content, relative
     for relative in identity_paths:
@@ -979,6 +1031,19 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
             assert dependency["path"] in content, relative
             assert dependency["sha256"] in content, relative
 
+    result_document = contents["docs/security/r2_s3/01_results.md"]
+    for trusted_binding in (
+        source_live_manifest_sha256,
+        private_manifest_sha256,
+        public_manifest_sha256,
+        verifier_sha256,
+        evaluator_sha256,
+        summary_sha256,
+        per_unit_sha256,
+        verification_input_witness_sha256,
+    ):
+        assert trusted_binding in result_document
+
     required_boundary = (
         "Push is allowed only after fixed-HEAD reviews and local gates pass; "
         "actual delivery and CI state are established by Git and GitHub Actions."
@@ -989,3 +1054,11 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     assert required_boundary in contents[
         "docs/superpowers/plans/2026-07-21-r2-s3-exposure-aware-ablation.md"
     ]
+
+    status = contents["PROJECT_STATUS.md"]
+    assert "focused `430 passed / 8 platform skips / 3 known warnings`" in status
+    assert "full `1349 passed / 8 platform skips / 3 known warnings`" in status
+    assert "public audit `453 candidates / 0 findings`" in status
+    assert required_boundary in status
+    assert "433 passed / 5 platform skips" not in status
+    assert "PROHIBITED / DEFERRED" not in status
