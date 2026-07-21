@@ -39,6 +39,11 @@ _FIXTURE_RELATIVE = {
     "test": Path("fixtures_v1") / "test" / "manifest.json",
 }
 _FREEZE_NAME = "indirect_injection_test_v1.manifest.json"
+_REPARSE_POINT_ATTRIBUTE = getattr(
+    stat,
+    "FILE_ATTRIBUTE_REPARSE_POINT",
+    0x400,
+)
 
 
 @dataclass(frozen=True)
@@ -131,13 +136,25 @@ def load_security_bundle(
     root: Path,
     split: Literal["dev", "test"],
 ) -> LoadedSecurityBundle:
-    root = Path(root).resolve()
-    dataset_path = root / _DATASET_NAMES[split]
-    fixture_path = root / _FIXTURE_RELATIVE[split]
+    root = _validated_trusted_directory(Path(root), "security data root")
+    dataset_path = _validated_fixed_regular_path(
+        root,
+        Path(_DATASET_NAMES[split]),
+        f"{split} dataset",
+    )
+    fixture_path = _validated_fixed_regular_path(
+        root,
+        _FIXTURE_RELATIVE[split],
+        f"{split} fixture manifest",
+    )
     freeze: TestFreezeManifest | None = None
 
     if split == "test":
-        freeze_path = root / _FREEZE_NAME
+        freeze_path = _validated_fixed_regular_path(
+            root,
+            Path(_FREEZE_NAME),
+            "test freeze manifest",
+        )
         freeze_bytes = _read_regular_file_snapshot(
             freeze_path,
             "test freeze manifest",
@@ -201,18 +218,61 @@ def load_security_dataset_pair(
 _FileIdentity = tuple[int, int, int, int, int, int]
 
 
+def _validated_trusted_directory(path: Path, label: str) -> Path:
+    observed = path.lstat()
+    if _is_redirecting_path(observed):
+        raise ValueError(
+            f"{label} cannot be a symlink or redirecting reparse point"
+        )
+    if not stat.S_ISDIR(observed.st_mode):
+        raise ValueError(f"{label} must be a directory")
+    return path.resolve()
+
+
+def _validated_fixed_regular_path(
+    root: Path,
+    relative: Path,
+    label: str,
+) -> Path:
+    parts = relative.parts
+    current = root
+    for index, part in enumerate(parts):
+        current = current / part
+        observed = current.lstat()
+        final = index == len(parts) - 1
+        if _is_redirecting_path(observed):
+            if final:
+                raise ValueError(
+                    f"{label} must be a regular non-symlink file; "
+                    "redirecting path component detected"
+                )
+            raise ValueError(f"{label} has a redirecting path component")
+        if final:
+            if not stat.S_ISREG(observed.st_mode):
+                raise ValueError(
+                    f"{label} must be a regular non-symlink file"
+                )
+        elif not stat.S_ISDIR(observed.st_mode):
+            raise ValueError(f"{label} path component must be a directory")
+    return current
+
+
+def _is_redirecting_path(value) -> bool:
+    return stat.S_ISLNK(value.st_mode) or bool(
+        getattr(value, "st_file_attributes", 0)
+        & _REPARSE_POINT_ATTRIBUTE
+    )
+
+
 def _read_regular_file_snapshot(path: Path, label: str) -> bytes:
-    if path.is_symlink():
-        raise ValueError(f"{label} must be a regular non-symlink file")
-    before = path.stat()
-    if not stat.S_ISREG(before.st_mode):
+    before = path.lstat()
+    if _is_redirecting_path(before) or not stat.S_ISREG(before.st_mode):
         raise ValueError(f"{label} must be a regular non-symlink file")
     payload = path.read_bytes()
-    if path.is_symlink():
-        raise ValueError(f"{label} must be a regular non-symlink file")
-    after = path.stat()
+    after = path.lstat()
     if (
-        not stat.S_ISREG(after.st_mode)
+        _is_redirecting_path(after)
+        or not stat.S_ISREG(after.st_mode)
         or _file_identity(before) != _file_identity(after)
         or len(payload) != before.st_size
     ):

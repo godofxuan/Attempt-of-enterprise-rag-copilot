@@ -48,6 +48,11 @@ _ARTIFACT_NAMES = {
     "test_output.txt",
     "checksums.sha256",
 }
+_REPARSE_POINT_ATTRIBUTE = getattr(
+    stat,
+    "FILE_ATTRIBUTE_REPARSE_POINT",
+    0x400,
+)
 _FileIdentity = tuple[int, int, int, int, int, int]
 
 
@@ -62,15 +67,14 @@ class VerifiedLiveSecurityRunSnapshot:
     def assert_manifest_unchanged(self) -> None:
         path = self.run_dir / "manifest.json"
         try:
-            if path.is_symlink():
-                raise ValueError("live security manifest changed during verification")
-            current = path.stat()
+            current = path.lstat()
         except OSError as exc:
             raise ValueError(
                 "live security manifest changed during verification"
             ) from exc
         if (
-            not stat.S_ISREG(current.st_mode)
+            _is_redirecting_path(current)
+            or not stat.S_ISREG(current.st_mode)
             or _file_identity(current) != self._manifest_identity
         ):
             raise ValueError("live security manifest changed during verification")
@@ -856,6 +860,12 @@ def _validate_stage(
     expected = {*_ARTIFACT_NAMES, "manifest.json"}
     if {path.name for path in stage.iterdir()} != expected:
         raise ValueError("live security run has an unexpected artifact set")
+    for name in sorted(expected):
+        _validated_fixed_regular_path(
+            stage,
+            Path(name),
+            f"live security artifact {name}",
+        )
     summary_bytes = (stage / "summary.json").read_bytes()
     summary = json.loads(summary_bytes.decode("utf-8"))
     if summary_bytes != _json_bytes(summary):
@@ -898,12 +908,10 @@ def _validate_stage(
 def load_verified_live_security_run_snapshot(
     run_dir: Path,
 ) -> VerifiedLiveSecurityRunSnapshot:
-    original = Path(run_dir)
-    if original.is_symlink():
-        raise ValueError("live security run directory cannot be a symlink")
-    run_dir = original.resolve()
-    if not run_dir.is_dir():
-        raise FileNotFoundError(f"live security run directory not found: {run_dir}")
+    run_dir = _validated_trusted_directory(
+        Path(run_dir),
+        "live security run directory",
+    )
     manifest_path = run_dir / "manifest.json"
     manifest_bytes, manifest_identity = _read_regular_file_snapshot(
         manifest_path,
@@ -947,25 +955,63 @@ def _read_regular_file_snapshot(
     label: str,
 ) -> tuple[bytes, _FileIdentity]:
     try:
-        if path.is_symlink():
-            raise ValueError(f"{label} must be a regular non-symlink file")
-        before = path.stat()
-        if not stat.S_ISREG(before.st_mode):
+        before = path.lstat()
+        if _is_redirecting_path(before) or not stat.S_ISREG(before.st_mode):
             raise ValueError(f"{label} must be a regular non-symlink file")
         payload = path.read_bytes()
-        if path.is_symlink():
-            raise ValueError(f"{label} must be a regular non-symlink file")
-        after = path.stat()
+        after = path.lstat()
     except OSError as exc:
         raise ValueError(f"{label} must be a regular non-symlink file") from exc
     identity = _file_identity(before)
     if (
-        not stat.S_ISREG(after.st_mode)
+        _is_redirecting_path(after)
+        or not stat.S_ISREG(after.st_mode)
         or _file_identity(after) != identity
         or len(payload) != before.st_size
     ):
         raise ValueError(f"{label} changed during snapshot read")
     return payload, identity
+
+
+def _validated_trusted_directory(path: Path, label: str) -> Path:
+    try:
+        observed = path.lstat()
+    except OSError as exc:
+        raise FileNotFoundError(f"{label} not found: {path}") from exc
+    if _is_redirecting_path(observed):
+        raise ValueError(
+            f"{label} cannot be a symlink or redirecting reparse point"
+        )
+    if not stat.S_ISDIR(observed.st_mode):
+        raise FileNotFoundError(f"{label} not found: {path}")
+    return path.resolve()
+
+
+def _validated_fixed_regular_path(
+    root: Path,
+    relative: Path,
+    label: str,
+) -> Path:
+    current = root
+    for index, part in enumerate(relative.parts):
+        current = current / part
+        observed = current.lstat()
+        final = index == len(relative.parts) - 1
+        if _is_redirecting_path(observed):
+            raise ValueError(f"{label} has a redirecting path component")
+        if final:
+            if not stat.S_ISREG(observed.st_mode):
+                raise ValueError(f"{label} must be a regular file")
+        elif not stat.S_ISDIR(observed.st_mode):
+            raise ValueError(f"{label} path component must be a directory")
+    return current
+
+
+def _is_redirecting_path(value) -> bool:
+    return stat.S_ISLNK(value.st_mode) or bool(
+        getattr(value, "st_file_attributes", 0)
+        & _REPARSE_POINT_ATTRIBUTE
+    )
 
 
 def _file_identity(value) -> _FileIdentity:

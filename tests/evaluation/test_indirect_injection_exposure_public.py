@@ -40,6 +40,10 @@ from tests.evaluation.test_indirect_injection_exposure_writer import (
     exposure_result,
     verification_inputs,
 )
+from tests.evaluation.path_redirect_helpers import (
+    directory_redirect,
+    with_reparse_point_attribute,
+)
 
 
 CHECKSUM_NAMES = tuple(sorted(PUBLIC_EXPOSURE_FILES - {"checksums.sha256"}))
@@ -402,6 +406,48 @@ def test_public_verifier_rejects_file_mutation_during_snapshot_read(
         match="public artifact changed during verification: summary.json",
     ):
         verify_exposure_public_package(public_exposure_package)
+
+
+def test_public_verifier_rejects_real_windows_package_junction(
+    public_exposure_package: Path,
+    tmp_path: Path,
+) -> None:
+    package_alias = tmp_path / "public-package-junction"
+
+    with directory_redirect(
+        package_alias,
+        public_exposure_package,
+        windows_junction_only=True,
+    ):
+        with pytest.raises(
+            ExposurePublicVerificationError,
+            match="redirecting reparse point",
+        ):
+            verify_exposure_public_package(package_alias)
+
+    assert public_exposure_package.is_dir()
+
+
+def test_public_verifier_rejects_mocked_package_reparse_root(
+    public_exposure_package: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = public_exposure_package.absolute()
+    real_lstat = Path.lstat
+
+    def mark_package_root(path: Path):
+        observed = real_lstat(path)
+        if path == package:
+            return with_reparse_point_attribute(observed)
+        return observed
+
+    monkeypatch.setattr(Path, "lstat", mark_package_root)
+
+    with pytest.raises(
+        ExposurePublicVerificationError,
+        match="redirecting reparse point",
+    ):
+        verify_exposure_public_package(package)
 
 
 def test_protocol_uses_byte_binding_and_trusted_manifest_language() -> None:

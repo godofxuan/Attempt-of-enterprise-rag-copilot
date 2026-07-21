@@ -733,7 +733,7 @@ def test_publish_rejects_source_binding_mismatch_before_target_creation(
     assert not (root / "r2-s3-writer-test").exists()
 
 
-def test_supported_publish_requires_canonical_executed_evaluator_before_output(
+def test_supported_publish_requires_canonical_evaluator_source_path_before_output(
     tmp_path: Path,
     exposure_result: ExposureAnalysisResult,
 ) -> None:
@@ -756,7 +756,7 @@ def test_supported_publish_requires_canonical_executed_evaluator_before_output(
     assert not root.exists()
 
 
-def test_supported_publish_authenticates_executed_evaluator_bytes_before_output(
+def test_supported_publish_matches_canonical_evaluator_source_bytes_before_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     exposure_result: ExposureAnalysisResult,
@@ -789,7 +789,7 @@ def test_supported_publish_authenticates_executed_evaluator_bytes_before_output(
     assert not root.exists()
 
 
-def test_supported_publish_rechecks_evaluator_identity_before_output(
+def test_supported_publish_rechecks_canonical_evaluator_source_identity_before_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     exposure_result: ExposureAnalysisResult,

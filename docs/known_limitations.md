@@ -74,3 +74,16 @@ The decision `NO_CURRENT_BYPASS_OBSERVED` means no current dev evidence
 justifies a broader runtime prefilter. It is not a universal safety result,
 release pass, or production deployment gate. Independent holdout evaluation,
 semantic judge calibration, and cross-model replication remain `NOT RUN`.
+
+## 7. R2-S3 frozen local trust boundary
+
+R2-S3 verification and publication assume a trusted local operator, a clean
+reviewed checkout, a stable filesystem during one verification/publication
+call, and a trusted Python interpreter, import cache, dependencies, and runtime
+memory. Hashes identify selected canonical source files on disk. They identify
+source text, not loaded bytecode, a complete transitive implementation closure,
+behavior, or producer identity.
+
+Concurrent ABA replacement by a local writer and compromised runtime/import
+state are outside the frozen threat model. Stronger guarantees require an
+external immutable execution/attestation boundary.

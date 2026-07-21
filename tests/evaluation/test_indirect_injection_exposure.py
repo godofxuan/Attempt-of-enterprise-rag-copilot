@@ -51,6 +51,10 @@ from tests.evaluation.test_indirect_injection_live_writer import (
     _forbidden_texts,
     _manifest_v2,
 )
+from tests.evaluation.path_redirect_helpers import (
+    directory_redirect,
+    with_reparse_point_attribute,
+)
 
 
 FROZEN_AT = "2026-07-18T00:00:00Z"
@@ -1624,6 +1628,53 @@ def test_load_exposure_inputs_normalizes_verifier_failure(
         "load_verified_live_security_run_snapshot",
         fail_verification,
     )
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="source live-run verification failed",
+    ):
+        load_exposure_inputs(
+            source_run,
+            security_data_root=security_data_root,
+            expected_manifest_sha256=_sha256(source_run / "manifest.json"),
+        )
+
+
+def test_load_exposure_inputs_rejects_real_source_run_directory_redirect(
+    tmp_path: Path,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root = source_material
+    source_alias = tmp_path / "source-run-alias"
+
+    with directory_redirect(source_alias, source_run):
+        with pytest.raises(
+            ExposureEvidenceError,
+            match="source live-run verification failed",
+        ):
+            load_exposure_inputs(
+                source_alias,
+                security_data_root=security_data_root,
+                expected_manifest_sha256=_sha256(source_run / "manifest.json"),
+            )
+
+    assert source_run.is_dir()
+
+
+def test_load_exposure_inputs_rejects_mocked_source_run_reparse_root(
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root = source_material
+    real_lstat = Path.lstat
+
+    def mark_source_root(path: Path):
+        observed = real_lstat(path)
+        if path == source_run:
+            return with_reparse_point_attribute(observed)
+        return observed
+
+    monkeypatch.setattr(Path, "lstat", mark_source_root)
 
     with pytest.raises(
         ExposureEvidenceError,

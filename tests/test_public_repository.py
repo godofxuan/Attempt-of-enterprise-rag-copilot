@@ -882,6 +882,31 @@ def test_r2_s3_documented_isolated_verifier_sequence_executes(
     }
 
 
+def test_r2_s3_docs_state_frozen_local_trust_boundary() -> None:
+    documents = (
+        ROOT / "docs" / "security" / "r2_s3" / "00_exposure_ablation_protocol.md",
+        ROOT / "docs" / "known_limitations.md",
+        ROOT / "docs" / "security" / "r2_s3" / "02_engineering_journal.md",
+    )
+    required_phrases = (
+        "trusted local operator",
+        "clean reviewed checkout",
+        "stable filesystem during one verification/publication call",
+        "trusted Python interpreter, import cache, dependencies, and runtime memory",
+        "selected canonical source files on disk",
+        "not loaded bytecode",
+        "complete transitive implementation closure",
+        "producer identity",
+        "concurrent ABA replacement",
+        "external immutable execution/attestation boundary",
+    )
+
+    for document in documents:
+        text = " ".join(document.read_text(encoding="utf-8").split()).casefold()
+        for phrase in required_phrases:
+            assert phrase.casefold() in text, f"{document} is missing: {phrase}"
+
+
 def test_r2_s3_backlog_remote_ci_claims_are_exact_head_scoped() -> None:
     backlog = (ROOT / "docs" / "industrialization_backlog.md").read_text(
         encoding="utf-8"

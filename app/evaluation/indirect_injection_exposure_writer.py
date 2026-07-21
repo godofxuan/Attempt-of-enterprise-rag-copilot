@@ -104,7 +104,7 @@ if (
     != "app.evaluation.indirect_injection_exposure"
 ):
     raise RuntimeError("exposure replay implementation module is not canonical")
-_EXECUTED_EVALUATOR_SHA256 = hashlib.sha256(
+_CANONICAL_EVALUATOR_SOURCE_SHA256_AT_IMPORT = hashlib.sha256(
     _EXPOSURE_EVALUATOR_PATH.read_bytes()
 ).hexdigest()
 
@@ -320,7 +320,7 @@ class VerifiedExposureRunSnapshot:
 
 
 @dataclass(frozen=True)
-class _VerifiedEvaluatorSnapshot:
+class _VerifiedEvaluatorSourceSnapshot:
     path: Path
     identity: _FileIdentity
 
@@ -355,9 +355,9 @@ def publish_exposure_run(
     """Publish one verified, immutable private exposure run."""
 
     _validate_analysis(manifest, result)
-    evaluator_snapshot = _verify_executed_evaluator(manifest)
+    evaluator_source_snapshot = _verify_canonical_evaluator_source(manifest)
     verify_exposure_result_against_inputs(source_inputs, result)
-    evaluator_snapshot.assert_unchanged()
+    evaluator_source_snapshot.assert_unchanged()
     return _publish_exposure_run(
         root,
         manifest=manifest,
@@ -365,7 +365,7 @@ def publish_exposure_run(
         commands=commands,
         test_output=test_output,
         forbidden_texts=forbidden_texts,
-        executed_evaluator_snapshot=evaluator_snapshot,
+        evaluator_source_snapshot=evaluator_source_snapshot,
     )
 
 
@@ -377,7 +377,7 @@ def _publish_exposure_run(
     commands: str,
     test_output: str,
     forbidden_texts: tuple[str, ...],
-    executed_evaluator_snapshot: _VerifiedEvaluatorSnapshot | None = None,
+    evaluator_source_snapshot: _VerifiedEvaluatorSourceSnapshot | None = None,
 ) -> Path:
     """Write an already source-bound result; used directly only by test fixtures."""
 
@@ -393,8 +393,8 @@ def _publish_exposure_run(
     _validate_analysis(manifest, result)
     canonical_commands = _canonical_text(commands, "commands")
     canonical_test_output = _canonical_text(test_output, "test output")
-    if executed_evaluator_snapshot is not None:
-        executed_evaluator_snapshot.assert_unchanged()
+    if evaluator_source_snapshot is not None:
+        evaluator_source_snapshot.assert_unchanged()
 
     output_root = Path(root).resolve()
     output_root.mkdir(parents=True, exist_ok=True)
@@ -479,9 +479,9 @@ def _publish_exposure_run(
     return target
 
 
-def _verify_executed_evaluator(
+def _verify_canonical_evaluator_source(
     manifest: ExposureRunManifest,
-) -> _VerifiedEvaluatorSnapshot:
+) -> _VerifiedEvaluatorSourceSnapshot:
     if manifest.evaluator_path != _EXPOSURE_EVALUATOR_RELATIVE_PATH:
         raise ValueError("canonical exposure evaluator path is required")
     path = _REPOSITORY_ROOT / Path(*PurePosixPath(manifest.evaluator_path).parts)
@@ -515,9 +515,11 @@ def _verify_executed_evaluator(
     observed_sha256 = hashlib.sha256(payload).hexdigest()
     if observed_sha256 != manifest.evaluator_sha256:
         raise ValueError("exposure evaluator SHA-256 mismatch")
-    if observed_sha256 != _EXECUTED_EVALUATOR_SHA256:
-        raise ValueError("executed exposure evaluator bytes changed since import")
-    return _VerifiedEvaluatorSnapshot(path=path, identity=identity)
+    if observed_sha256 != _CANONICAL_EVALUATOR_SOURCE_SHA256_AT_IMPORT:
+        raise ValueError(
+            "canonical exposure evaluator source bytes changed since module import"
+        )
+    return _VerifiedEvaluatorSourceSnapshot(path=path, identity=identity)
 
 
 def _atomic_publish_no_replace(stage: Path, target: Path) -> None:

@@ -248,6 +248,11 @@ _REPLAY_IMPLEMENTATION_DEPENDENCIES = (
 _LEGACY_PUBLIC_V1_VERIFIER_SHA256 = (
     "8fc67d0c82f7380dc3bf2d5f34c61c9e69e5cf13dd38f969a77f61eff77ab019"
 )
+_REPARSE_POINT_ATTRIBUTE = getattr(
+    stat,
+    "FILE_ATTRIBUTE_REPARSE_POINT",
+    0x400,
+)
 _FileIdentity = tuple[int, int, int, int, int, int]
 _SUMMARY_DOCUMENT_KEYS = frozenset(
     {
@@ -782,12 +787,7 @@ class ExposurePublicVerificationResult:
 def verify_exposure_public_package(
     package: Path,
 ) -> ExposurePublicVerificationResult:
-    original = Path(package)
-    if original.is_symlink():
-        raise ExposurePublicVerificationError("public package cannot be a symlink")
-    package = original.resolve()
-    if not package.is_dir():
-        raise ExposurePublicVerificationError("public package directory not found")
+    package = _validated_public_package_root(Path(package))
     artifacts, file_identities = _snapshot_public_files(package)
     manifest = _load_canonical_json(
         artifacts["manifest.redacted.json"], "public manifest"
@@ -1383,21 +1383,13 @@ def _snapshot_public_files(
     for item in sorted(items, key=lambda value: value.name):
         name = item.name
         try:
-            if item.is_symlink():
-                raise ExposurePublicVerificationError(
-                    "public artifacts must be regular files"
-                )
-            before = item.stat()
-            if not stat.S_ISREG(before.st_mode):
+            before = item.lstat()
+            if _is_redirecting_path(before) or not stat.S_ISREG(before.st_mode):
                 raise ExposurePublicVerificationError(
                     "public artifacts must be regular files"
                 )
             raw = item.read_bytes()
-            if item.is_symlink():
-                raise ExposurePublicVerificationError(
-                    "public artifacts must be regular files"
-                )
-            after = item.stat()
+            after = item.lstat()
         except ExposurePublicVerificationError:
             raise
         except OSError as exc:
@@ -1406,7 +1398,8 @@ def _snapshot_public_files(
             ) from exc
         identity = _file_identity(before)
         if (
-            not stat.S_ISREG(after.st_mode)
+            _is_redirecting_path(after)
+            or not stat.S_ISREG(after.st_mode)
             or _file_identity(after) != identity
             or len(raw) != before.st_size
         ):
@@ -1434,11 +1427,7 @@ def _assert_public_snapshot_unchanged(
         )
     for item in items:
         try:
-            if item.is_symlink():
-                raise ExposurePublicVerificationError(
-                    f"public artifact changed during verification: {item.name}"
-                )
-            current = item.stat()
+            current = item.lstat()
         except ExposurePublicVerificationError:
             raise
         except OSError as exc:
@@ -1446,12 +1435,38 @@ def _assert_public_snapshot_unchanged(
                 f"public artifact changed during verification: {item.name}"
             ) from exc
         if (
-            not stat.S_ISREG(current.st_mode)
+            _is_redirecting_path(current)
+            or not stat.S_ISREG(current.st_mode)
             or _file_identity(current) != identities[item.name]
         ):
             raise ExposurePublicVerificationError(
                 f"public artifact changed during verification: {item.name}"
             )
+
+
+def _validated_public_package_root(path: Path) -> Path:
+    try:
+        observed = path.lstat()
+    except OSError as exc:
+        raise ExposurePublicVerificationError(
+            "public package directory not found"
+        ) from exc
+    if _is_redirecting_path(observed):
+        raise ExposurePublicVerificationError(
+            "public package cannot be a symlink or redirecting reparse point"
+        )
+    if not stat.S_ISDIR(observed.st_mode):
+        raise ExposurePublicVerificationError(
+            "public package directory not found"
+        )
+    return path.resolve()
+
+
+def _is_redirecting_path(value: Any) -> bool:
+    return stat.S_ISLNK(value.st_mode) or bool(
+        getattr(value, "st_file_attributes", 0)
+        & _REPARSE_POINT_ATTRIBUTE
+    )
 
 
 def _trusted_verifier_bytes(package: Path, packaged_verifier: bytes) -> bytes:

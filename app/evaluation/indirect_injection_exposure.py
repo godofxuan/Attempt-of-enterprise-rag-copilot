@@ -1418,10 +1418,9 @@ def load_exposure_inputs(
     security_data_root: Path,
     expected_manifest_sha256: str,
 ) -> ExposureInputs:
-    source_run_dir = Path(source_run_dir).resolve()
-    security_data_root = Path(security_data_root).resolve()
-    source_snapshot = _verify_source_run(source_run_dir)
+    source_snapshot = _verify_source_run(Path(source_run_dir))
     _assert_source_manifest_unchanged(source_snapshot)
+    source_run_dir = source_snapshot.run_dir
     manifest = source_snapshot.manifest
     if not isinstance(manifest, LiveSecurityRunManifestV2):
         raise ExposureEvidenceError("source run must use live manifest v2")
@@ -1437,7 +1436,7 @@ def load_exposure_inputs(
     if manifest_sha256 != expected_manifest_sha256:
         raise ExposureEvidenceError("source manifest SHA-256 mismatch")
     try:
-        bundle = load_security_bundle(security_data_root, "dev")
+        bundle = load_security_bundle(Path(security_data_root), "dev")
     except (OSError, ValidationError, ValueError) as exc:
         raise ExposureEvidenceError(
             "source security bundle loading failed"
@@ -1446,6 +1445,7 @@ def load_exposure_inputs(
         raise ExposureEvidenceError("source dataset SHA-256 mismatch")
     if bundle.fixture_manifest_sha256 != manifest.data.fixture_manifest_sha256:
         raise ExposureEvidenceError("source fixture SHA-256 mismatch")
+    security_data_root = bundle.dataset_path.parent
     row_evidence = manifest.artifacts.get("per_case.jsonl")
     if row_evidence is None:
         raise ExposureEvidenceError("source per-case artifact evidence is missing")

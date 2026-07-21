@@ -6,6 +6,19 @@ This protocol explains what R2-S3 measured, how to reproduce the evidence, and
 what the result does not authorize. R2-S3 did not change production Guard,
 retrieval, Agent, prompts, ranking, `top_k`, or `candidate_k` behavior.
 
+## Frozen Local Trust Boundary
+
+Verification and publication assume a trusted local operator, a clean reviewed
+checkout, a stable filesystem during one verification/publication call, and a
+trusted Python interpreter, import cache, dependencies, and runtime memory.
+Hashes identify selected canonical source files on disk. They identify source
+text, not loaded bytecode, a complete transitive implementation closure,
+behavior, or producer identity.
+
+Concurrent ABA replacement by a local writer and compromised runtime/import
+state are outside this frozen threat model. Stronger guarantees require an
+external immutable execution/attestation boundary.
+
 ## 1. The Beginner Mental Model
 
 Retrieved content passes through several different stages:
@@ -99,10 +112,11 @@ accepted exposure evaluator
   SHA-256 24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce
 ```
 
-The first identifies the frozen source-evaluator bytes replayed by R2-S3. The
-second identifies the evaluator bytes that produced the accepted R2-S3 exposure
-run. Neither hash establishes behavioral or producer trust without the trusted
-manifest chain.
+The first identifies the frozen source-evaluator file bytes selected for R2-S3.
+The second identifies the canonical exposure-evaluator source file bytes
+recorded by the accepted R2-S3 run. Neither hash proves which bytecode executed
+or establishes behavioral or producer trust without the trusted manifest chain
+and the frozen local trust assumptions above.
 
 The accepted evidence identity after final-review regeneration is:
 

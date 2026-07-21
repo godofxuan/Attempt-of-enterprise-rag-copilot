@@ -398,3 +398,19 @@ search reach `6/26 -> 22/26 -> 26/26`, total reach
 `376 passed / 5 skipped`, full `1316 passed / 5 skipped`, compile/pip clean,
 and public audit `451/0`. Push remains prohibited/deferred until whole-branch
 synthesis approves the fixed exact HEAD; that re-review is controller-owned.
+
+## Static Path Re-review Trust Boundary
+
+The calibrated path re-review fixes static lexical redirection under each
+caller-declared root. Verification and publication assume a trusted local
+operator, a clean reviewed checkout, a stable filesystem during one
+verification/publication call, and a trusted Python interpreter, import cache,
+dependencies, and runtime memory. Redirecting ancestors above the declared
+root are not part of that root's lexical policy.
+
+Hashes identify selected canonical source files on disk. They identify source
+text, not loaded bytecode, a complete transitive implementation closure,
+behavior, or producer identity. Concurrent ABA replacement by a local writer
+and compromised runtime/import state are outside the frozen threat model.
+Stronger guarantees require an external immutable execution/attestation
+boundary.

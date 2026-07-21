@@ -124,7 +124,7 @@ def test_eval_cli_invalid_source_returns_two_without_target(
     assert not (output / run_id).exists()
 
 
-def test_eval_cli_rejects_false_executed_evaluator_hash_without_target(
+def test_eval_cli_rejects_false_canonical_evaluator_source_hash_without_target(
     source_material: tuple[Path, Path],
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

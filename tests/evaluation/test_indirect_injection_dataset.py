@@ -16,6 +16,10 @@ from app.evaluation.indirect_injection_dataset import (
     load_security_dataset_pair,
     sha256_file,
 )
+from tests.evaluation.path_redirect_helpers import (
+    directory_redirect,
+    with_reparse_point_attribute,
+)
 
 
 FROZEN_AT = "2026-07-18T00:00:00Z"
@@ -219,7 +223,7 @@ def test_loader_rejects_symlinked_bundle_sources(
     "artifact_name",
     ("test_dataset", "test_fixtures", "test_freeze_manifest"),
 )
-def test_loader_checks_each_bundle_source_path_identity(
+def test_loader_checks_each_bundle_source_reparse_identity(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     artifact_name: str,
@@ -231,15 +235,82 @@ def test_loader_checks_each_bundle_source_path_identity(
         freeze_git_head=FREEZE_HEAD,
     )
     target = paths[artifact_name]
-    real_is_symlink = Path.is_symlink
+    real_lstat = Path.lstat
 
-    def report_substituted_path(path: Path) -> bool:
-        return path == target or real_is_symlink(path)
+    def mark_source_reparse_point(path: Path):
+        observed = real_lstat(path)
+        if path == target:
+            return with_reparse_point_attribute(observed)
+        return observed
 
-    monkeypatch.setattr(Path, "is_symlink", report_substituted_path)
+    monkeypatch.setattr(Path, "lstat", mark_source_reparse_point)
 
-    with pytest.raises(ValueError, match="regular non-symlink file"):
+    with pytest.raises(ValueError, match="redirecting path component"):
         load_security_bundle(output, "test")
+
+
+def test_loader_rejects_real_intermediate_fixture_directory_redirect(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "security"
+    build_v1_bundle(
+        output,
+        frozen_at_utc=FROZEN_AT,
+        freeze_git_head=FREEZE_HEAD,
+    )
+    fixture_directory = output / "fixtures_v1"
+    target = tmp_path / "fixture-target"
+    fixture_directory.replace(target)
+
+    with directory_redirect(fixture_directory, target):
+        with pytest.raises(ValueError, match="redirecting path component"):
+            load_security_bundle(output, "test")
+
+    assert (target / "test" / "manifest.json").is_file()
+
+
+def test_loader_rejects_mocked_intermediate_reparse_component(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "security"
+    build_v1_bundle(
+        output,
+        frozen_at_utc=FROZEN_AT,
+        freeze_git_head=FREEZE_HEAD,
+    )
+    fixture_directory = output / "fixtures_v1"
+    real_lstat = Path.lstat
+
+    def mark_fixture_directory(path: Path):
+        observed = real_lstat(path)
+        if path == fixture_directory:
+            return with_reparse_point_attribute(observed)
+        return observed
+
+    monkeypatch.setattr(Path, "lstat", mark_fixture_directory)
+
+    with pytest.raises(ValueError, match="redirecting path component"):
+        load_security_bundle(output, "test")
+
+
+def test_loader_allows_redirect_above_declared_security_root(
+    tmp_path: Path,
+) -> None:
+    target_parent = tmp_path / "target-parent"
+    output = target_parent / "security"
+    build_v1_bundle(
+        output,
+        frozen_at_utc=FROZEN_AT,
+        freeze_git_head=FREEZE_HEAD,
+    )
+    ancestor_alias = tmp_path / "ancestor-alias"
+
+    with directory_redirect(ancestor_alias, target_parent):
+        bundle = load_security_bundle(ancestor_alias / "security", "test")
+
+    assert bundle.dataset.split == "test"
+    assert output.is_dir()
 
 
 def test_dev_and_test_have_distinct_payloads_canaries_and_source_placement(
