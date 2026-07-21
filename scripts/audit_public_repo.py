@@ -18,6 +18,10 @@ from app.evaluation.indirect_injection_sensitive_values import (
     SecuritySensitiveValueCorpus,
     collect_security_sensitive_values,
 )
+from app.evaluation.indirect_injection_contracts import (
+    FixtureManifest,
+    IndirectInjectionDataset,
+)
 from app.evaluation.public_snapshot import PublicDemoSnapshot
 
 
@@ -522,8 +526,8 @@ def _contains_unsafe_credential_assignment(text: str) -> bool:
 def _load_frozen_security_values(
     root: Path,
 ) -> tuple[SecuritySensitiveValueCorpus, tuple[AuditFinding, ...]]:
-    datasets: list[dict[str, object]] = []
-    fixture_manifests: list[dict[str, object]] = []
+    datasets: list[IndirectInjectionDataset] = []
+    fixture_manifests: list[FixtureManifest] = []
     findings: list[AuditFinding] = []
     for relative, is_fixture_manifest in _REQUIRED_SECURITY_CORPUS_SOURCES:
         value, finding = _load_required_security_corpus_source(
@@ -552,7 +556,10 @@ def _load_required_security_corpus_source(
     relative: str,
     *,
     is_fixture_manifest: bool,
-) -> tuple[dict[str, object] | None, AuditFinding | None]:
+) -> tuple[
+    IndirectInjectionDataset | FixtureManifest | None,
+    AuditFinding | None,
+]:
     path = root / relative
     if not path.is_file():
         return None, _security_corpus_finding(
@@ -600,38 +607,16 @@ def _load_required_security_corpus_source(
             "security corpus cases entries must be objects",
         )
     if is_fixture_manifest:
-        finding = _validate_fixture_case_collections(relative, cases)
-        if finding is not None:
-            return None, finding
-    return value, None
-
-
-def _validate_fixture_case_collections(
-    relative: str,
-    cases: list[object],
-) -> AuditFinding | None:
-    for case in cases:
-        if not isinstance(case, dict):
-            raise AssertionError("fixture cases were not prevalidated")
-        for collection in ("candidates", "open_results"):
-            if collection not in case:
-                article = "an" if collection == "open_results" else "a"
-                return _security_corpus_finding(
-                    relative,
-                    f"fixture case requires {article} {collection} collection",
-                )
-            entries = case[collection]
-            if not isinstance(entries, list):
-                return _security_corpus_finding(
-                    relative,
-                    f"fixture {collection} collection must be an array",
-                )
-            if any(not isinstance(item, dict) for item in entries):
-                return _security_corpus_finding(
-                    relative,
-                    f"fixture {collection} entries must be objects",
-                )
-    return None
+        model = FixtureManifest
+    else:
+        model = IndirectInjectionDataset
+    try:
+        return model.model_validate(value), None
+    except ValidationError:
+        return None, _security_corpus_finding(
+            relative,
+            "security corpus does not satisfy its strict production schema",
+        )
 
 
 def _security_corpus_finding(relative: str, detail: str) -> AuditFinding:

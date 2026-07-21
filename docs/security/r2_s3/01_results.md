@@ -190,7 +190,7 @@ replication remain `NOT RUN`.
 Fresh local verification on 2026-07-21 produced:
 
 ```text
-focused R2-S3/public tests    449 passed / 10 platform skips / 3 known warnings
+focused R2-S3/public tests    453 passed / 10 platform skips / 3 known warnings
 full repository pytest       1387 passed / 13 platform skips / 3 known warnings
 compileall                    exit 0
 pip check                     no broken requirements
@@ -203,7 +203,7 @@ frozen/source/package hashes  exact
 git diff --check              clean
 ```
 
-The warnings are the existing SWIG deprecations. The eight skips require Windows
-symlink privileges unavailable in this environment. Push is allowed only after
-fixed-HEAD reviews and local gates pass; actual delivery and CI state are
-established by Git and GitHub Actions.
+The warnings are the existing SWIG deprecations. The platform-dependent skips
+require Windows symlink or junction privileges unavailable in this environment.
+Push is allowed only after fixed-HEAD reviews and local gates pass; actual
+delivery and CI state are established by Git and GitHub Actions.

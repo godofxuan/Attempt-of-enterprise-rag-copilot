@@ -92,7 +92,7 @@ unchanged.
 The accepted `-04` run preserves every frozen admission metric and decision.
 Runs `r2-s3-dev-exposure-20260721-01`, `-02`, and superseded `-03` are
 superseded local history, not the source of the tracked public package. Final local gates
-are focused `449 passed / 10 platform skips / 3 known warnings`, full
+are focused `453 passed / 10 platform skips / 3 known warnings`, full
 `1387 passed / 13 platform skips / 3 known warnings`, compile/pip clean, and
 public audit `454/0`. Push is allowed only after fixed-HEAD reviews and local
 gates pass; actual delivery and CI state are established by Git and GitHub
@@ -1618,6 +1618,7 @@ Do not call `NO_CURRENT_BYPASS_OBSERVED` a release pass or universal prompt-inje
 .\.venv\Scripts\python.exe -m pytest -q `
   tests\evaluation\test_indirect_injection_exposure.py `
   tests\evaluation\test_indirect_injection_exposure_writer.py `
+  tests\evaluation\test_indirect_injection_live_writer.py `
   tests\evaluation\test_indirect_injection_exposure_cli.py `
   tests\evaluation\test_indirect_injection_exposure_public.py `
   tests\test_public_repository.py

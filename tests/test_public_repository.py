@@ -42,17 +42,10 @@ R2_S3_PUBLIC_PACKAGE_PATHS = frozenset(
 
 
 def _write_minimal_complete_security_corpus(root: Path) -> None:
-    for relative in SECURITY_CORPUS_PATHS[:2]:
+    for relative in SECURITY_CORPUS_PATHS:
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text('{"cases":[{}]}\n', encoding="utf-8")
-    for relative in SECURITY_CORPUS_PATHS[2:]:
-        path = root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            '{"cases":[{"candidates":[],"open_results":[]}]}\n',
-            encoding="utf-8",
-        )
+        shutil.copyfile(ROOT / relative, path)
 
 
 def _assert_exact_public_exposure_package_tree(
@@ -204,32 +197,32 @@ def test_audit_fails_closed_when_security_corpus_is_absent(
         (
             SECURITY_CORPUS_PATHS[2],
             b'{"cases":[{"open_results":[]}]}\n',
-            "fixture case requires a candidates collection",
+            "security corpus does not satisfy its strict production schema",
         ),
         (
             SECURITY_CORPUS_PATHS[2],
             b'{"cases":[{"candidates":[]}]}\n',
-            "fixture case requires an open_results collection",
+            "security corpus does not satisfy its strict production schema",
         ),
         (
             SECURITY_CORPUS_PATHS[2],
             b'{"cases":[{"candidates":{},"open_results":[]}]}\n',
-            "fixture candidates collection must be an array",
+            "security corpus does not satisfy its strict production schema",
         ),
         (
             SECURITY_CORPUS_PATHS[2],
             b'{"cases":[{"candidates":[[]],"open_results":[]}]}\n',
-            "fixture candidates entries must be objects",
+            "security corpus does not satisfy its strict production schema",
         ),
         (
             SECURITY_CORPUS_PATHS[2],
             b'{"cases":[{"candidates":[],"open_results":{}}]}\n',
-            "fixture open_results collection must be an array",
+            "security corpus does not satisfy its strict production schema",
         ),
         (
             SECURITY_CORPUS_PATHS[2],
             b'{"cases":[{"candidates":[],"open_results":[[]]}]}\n',
-            "fixture open_results entries must be objects",
+            "security corpus does not satisfy its strict production schema",
         ),
     ),
 )
@@ -248,6 +241,48 @@ def test_audit_fails_closed_on_invalid_security_corpus_structure(
 
     assert ("invalid_security_corpus", relative, detail) in {
         (item.code, item.path, item.detail) for item in report.findings
+    }
+    assert report.passed is False
+
+
+@pytest.mark.parametrize(
+    ("relative", "mutation"),
+    (
+        (SECURITY_CORPUS_PATHS[0], "empty_dataset_cases"),
+        (SECURITY_CORPUS_PATHS[2], "empty_fixture_cases"),
+        (SECURITY_CORPUS_PATHS[0], "wrong_typed_dataset_question"),
+        (SECURITY_CORPUS_PATHS[2], "wrong_typed_fixture_matched_text"),
+    ),
+)
+def test_audit_rejects_incomplete_or_wrong_typed_security_corpus(
+    tmp_path: Path,
+    relative: str,
+    mutation: str,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    path = tmp_path / relative
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    protected_text = "PROTECTED_SECURITY_VALUE"
+    if mutation == "empty_dataset_cases":
+        payload["cases"] = []
+    elif mutation == "empty_fixture_cases":
+        payload["cases"] = []
+    elif mutation == "wrong_typed_dataset_question":
+        payload["cases"][0]["question"] = [protected_text]
+    elif mutation == "wrong_typed_fixture_matched_text":
+        payload["cases"][0]["candidates"][0]["matched_text"] = [
+            protected_text
+        ]
+    else:
+        raise AssertionError(f"unexpected mutation: {mutation}")
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = audit_repository(tmp_path, candidate_files=())
+
+    assert ("invalid_security_corpus", relative) in {
+        (item.code, item.path) for item in report.findings
     }
     assert report.passed is False
 
@@ -374,28 +409,9 @@ def test_audit_scans_d7_public_evidence_for_private_runtime_and_frozen_content(
 
     _write_minimal_complete_security_corpus(tmp_path)
     dataset = tmp_path / "data" / "v2" / "security" / "indirect_injection_test_v1.json"
-    dataset.parent.mkdir(parents=True, exist_ok=True)
-    dataset.write_text(
-        '{"cases":[{"question":"FROZEN_QUESTION_DO_NOT_PUBLISH",'
-        '"trace_canary":"TRACE_CANARY_DO_NOT_PUBLISH",'
-        '"document_canary":"DOC_CANARY_DO_NOT_PUBLISH"}]}',
-        encoding="utf-8",
-    )
-    fixture = (
-        tmp_path
-        / "data"
-        / "v2"
-        / "security"
-        / "fixtures_v1"
-        / "test"
-        / "manifest.json"
-    )
-    fixture.parent.mkdir(parents=True, exist_ok=True)
-    fixture.write_text(
-        '{"cases":[{"fact_texts":{"fact":"PRIVATE_FIXTURE_PAYLOAD"},'
-        '"candidates":[],"open_results":[]}]}',
-        encoding="utf-8",
-    )
+    dataset_payload = json.loads(dataset.read_text(encoding="utf-8"))
+    dataset_payload["cases"][0]["question"] = "FROZEN_QUESTION_DO_NOT_PUBLISH"
+    dataset.write_text(json.dumps(dataset_payload), encoding="utf-8")
     public = (
         tmp_path
         / "data"
@@ -724,14 +740,6 @@ def test_audit_allows_d7_case_ids_but_rejects_same_id_in_r2_s3(
 
     _write_minimal_complete_security_corpus(tmp_path)
     case_id = "r2s1-test-business-sop-action-language-1"
-    dataset = (
-        tmp_path / "data" / "v2" / "security" / "indirect_injection_test_v1.json"
-    )
-    dataset.parent.mkdir(parents=True, exist_ok=True)
-    dataset.write_text(
-        json.dumps({"cases": [{"case_id": case_id}]}),
-        encoding="utf-8",
-    )
     d7_relative = "data/v2/public/r2_s1_d7/per_case.redacted.jsonl"
     r2_s3_relative = "data/v2/public/r2_s3_exposure/per_unit.redacted.jsonl"
     for relative in (d7_relative, r2_s3_relative):
@@ -780,11 +788,9 @@ def test_audit_scans_r2_s3_for_frozen_source_value(tmp_path: Path) -> None:
     dataset = (
         tmp_path / "data" / "v2" / "security" / "indirect_injection_test_v1.json"
     )
-    dataset.parent.mkdir(parents=True, exist_ok=True)
-    dataset.write_text(
-        '{"cases":[{"question":"FROZEN_R2_S3_SOURCE_VALUE"}]}',
-        encoding="utf-8",
-    )
+    dataset_payload = json.loads(dataset.read_text(encoding="utf-8"))
+    dataset_payload["cases"][0]["question"] = "FROZEN_R2_S3_SOURCE_VALUE"
+    dataset.write_text(json.dumps(dataset_payload), encoding="utf-8")
     relative = "data/v2/public/r2_s3_exposure/summary.json"
     payload = tmp_path / Path(relative)
     payload.parent.mkdir(parents=True)
@@ -813,39 +819,23 @@ def test_audit_scans_shared_dev_sensitive_identifiers_and_open_sections(
 
     _write_minimal_complete_security_corpus(tmp_path)
     security_root = tmp_path / "data" / "v2" / "security"
-    security_root.mkdir(parents=True, exist_ok=True)
-    (security_root / "indirect_injection_dev_v1.json").write_text(
-        json.dumps(
-            {
-                "cases": [
-                    {
-                        "question": "DEV_ONLY_QUESTION_NEVER_PUBLIC",
-                        "benign_unit_ids": ["benign-unit-private-001"],
-                    }
-                ]
-            }
-        ),
-        encoding="utf-8",
+    dataset = security_root / "indirect_injection_dev_v1.json"
+    dataset_payload = json.loads(dataset.read_text(encoding="utf-8"))
+    dataset_payload["cases"][0]["question"] = "DEV_ONLY_QUESTION_NEVER_PUBLIC"
+    benign_case = next(
+        case for case in dataset_payload["cases"] if case["benign_unit_ids"]
     )
+    original_unit_id = benign_case["benign_unit_ids"][0]
+    benign_case["benign_unit_ids"][0] = "benign-unit-private-001"
+    outcome = benign_case["expected_guard_outcome"].pop(original_unit_id)
+    benign_case["expected_guard_outcome"]["benign-unit-private-001"] = outcome
+    dataset.write_text(json.dumps(dataset_payload), encoding="utf-8")
     fixture = security_root / "fixtures_v1" / "dev" / "manifest.json"
-    fixture.parent.mkdir(parents=True, exist_ok=True)
-    fixture.write_text(
-        json.dumps(
-            {
-                "cases": [
-                    {
-                        "candidates": [],
-                        "open_results": [
-                            {
-                                "section_path": ["OPEN_SECTION_PRIVATE_PATH"]
-                            }
-                        ]
-                    }
-                ]
-            }
-        ),
-        encoding="utf-8",
+    fixture_payload = json.loads(fixture.read_text(encoding="utf-8"))
+    fixture_payload["cases"][0]["candidates"][0]["section_path"][0] = (
+        "OPEN_SECTION_PRIVATE_PATH"
     )
+    fixture.write_text(json.dumps(fixture_payload), encoding="utf-8")
     relative = "data/v2/public/r2_s3_exposure/summary.json"
     public_file = tmp_path / Path(relative)
     public_file.parent.mkdir(parents=True)
