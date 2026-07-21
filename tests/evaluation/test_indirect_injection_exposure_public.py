@@ -721,6 +721,10 @@ def test_export_scans_decoded_structured_values_before_json_escaping(
         "https://@/etc/hosts",
         "https://[::1/etc/hosts",
         "https://example.com:notaport/etc/hosts",
+        "https://./etc/hosts",
+        "https://-/etc/hosts",
+        "https://%/etc/hosts",
+        "https://example..com/etc/hosts",
         "file:///etc/hosts",
         "file:/etc/hosts",
         "file://server/share/file.txt",
@@ -760,6 +764,10 @@ def test_export_rejects_absolute_local_paths(
         "https://@/etc/hosts",
         "https://[::1/etc/hosts",
         "https://example.com:notaport/etc/hosts",
+        "https://./etc/hosts",
+        "https://-/etc/hosts",
+        "https://%/etc/hosts",
+        "https://example..com/etc/hosts",
     ),
 )
 def test_final_byte_scanner_rejects_colon_adjacent_posix_absolute_path(
@@ -772,11 +780,23 @@ def test_final_byte_scanner_rejects_colon_adjacent_posix_absolute_path(
         )
 
 
+@pytest.mark.parametrize(
+    "network_url",
+    (
+        "https://example.com/evidence",
+        "https://example.com:8443/evidence",
+        "https://user:password@example.com/evidence",
+        "https://192.0.2.1/evidence",
+        "https://[2001:db8::1]:8443/evidence",
+        "https://intranet/evidence",
+        "https://bücher.example/evidence",
+    ),
+)
 def test_export_allows_recognized_https_url(
     tmp_path: Path,
     formal_exposure_result: ExposureAnalysisResult,
+    network_url: str,
 ) -> None:
-    network_url = "https://example.com/evidence"
     payload = formal_exposure_result.model_dump(mode="python")
     payload["limitations"] = (*formal_exposure_result.limitations, network_url)
     changed = ExposureAnalysisResult.model_validate(payload)

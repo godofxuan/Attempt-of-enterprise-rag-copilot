@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import re
 import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import SplitResult, urlsplit
 
 from app.evaluation import indirect_injection_exposure_public_verifier as verifier
 from app.evaluation.indirect_injection_exposure import ExposureUnitObservation
@@ -35,6 +36,13 @@ _NETWORK_URI_SCHEMES = frozenset(
 _NETWORK_URI_CANDIDATE = re.compile(
     r"(?i)(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]*:/{2,}[^\s\"'<>]+"
 )
+_DNS_LABEL_CHARS = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-"
+)
+_USERINFO_CHARS = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+,;=:"
+)
+_HEX_DIGITS = frozenset("0123456789ABCDEFabcdef")
 _NON_POSIX_ABSOLUTE_PATH_PATTERNS = (
     re.compile(r"(?i)(?<![A-Za-z0-9])[A-Z]:[\\/]"),
     re.compile(r"(?:\\){2,}[A-Za-z0-9._$-]+[\\/]"),
@@ -254,17 +262,132 @@ def _assert_text_paths_are_relative(text: str, label: str) -> None:
 def _elide_recognized_network_uris(text: str) -> str:
     def replace(match: re.Match[str]) -> str:
         candidate = match.group(0)
-        try:
-            parsed = urlsplit(candidate)
-            hostname = parsed.hostname
-            _port = parsed.port
-        except ValueError:
-            return candidate
-        if parsed.scheme.lower() in _NETWORK_URI_SCHEMES and hostname:
+        if _is_valid_network_uri(candidate):
             return " " * len(candidate)
         return candidate
 
     return _NETWORK_URI_CANDIDATE.sub(replace, text)
+
+
+def _is_valid_network_uri(candidate: str) -> bool:
+    try:
+        parsed = urlsplit(candidate)
+    except ValueError:
+        return False
+    return (
+        parsed.scheme.lower() in _NETWORK_URI_SCHEMES
+        and _is_valid_network_authority(parsed)
+    )
+
+
+def _is_valid_network_authority(parsed: SplitResult) -> bool:
+    try:
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return False
+    if not hostname or not parsed.netloc:
+        return False
+
+    userinfo, separator, host_port = parsed.netloc.rpartition("@")
+    if separator:
+        if not _is_valid_userinfo(userinfo):
+            return False
+    else:
+        host_port = parsed.netloc
+    if not host_port:
+        return False
+
+    if host_port.startswith("["):
+        closing_bracket = host_port.find("]")
+        if closing_bracket < 0:
+            return False
+        raw_hostname = host_port[1:closing_bracket]
+        port_suffix = host_port[closing_bracket + 1 :]
+        if not _is_valid_port_suffix(port_suffix, port):
+            return False
+        if "%" in raw_hostname:
+            return False
+        try:
+            return isinstance(
+                ipaddress.ip_address(hostname),
+                ipaddress.IPv6Address,
+            )
+        except ValueError:
+            return False
+
+    if "[" in host_port or "]" in host_port or host_port.count(":") > 1:
+        return False
+    raw_hostname, port_separator, raw_port = host_port.partition(":")
+    if port_separator:
+        if not _is_valid_explicit_port(raw_port, port):
+            return False
+    elif port is not None:
+        return False
+    if not raw_hostname:
+        return False
+    return _is_valid_ipv4_or_dns_hostname(hostname)
+
+
+def _is_valid_port_suffix(port_suffix: str, port: int | None) -> bool:
+    if not port_suffix:
+        return port is None
+    if not port_suffix.startswith(":"):
+        return False
+    return _is_valid_explicit_port(port_suffix[1:], port)
+
+
+def _is_valid_explicit_port(raw_port: str, port: int | None) -> bool:
+    return (
+        bool(raw_port)
+        and raw_port.isascii()
+        and raw_port.isdecimal()
+        and port is not None
+    )
+
+
+def _is_valid_userinfo(userinfo: str) -> bool:
+    index = 0
+    while index < len(userinfo):
+        character = userinfo[index]
+        if character == "%":
+            escape = userinfo[index + 1 : index + 3]
+            if len(escape) != 2 or any(
+                value not in _HEX_DIGITS for value in escape
+            ):
+                return False
+            index += 3
+            continue
+        if character not in _USERINFO_CHARS:
+            return False
+        index += 1
+    return True
+
+
+def _is_valid_ipv4_or_dns_hostname(hostname: str) -> bool:
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        pass
+    else:
+        return isinstance(address, ipaddress.IPv4Address)
+
+    try:
+        ascii_hostname = hostname.encode("idna").decode("ascii")
+        ascii_hostname.encode("ascii").decode("idna")
+    except UnicodeError:
+        return False
+    if len(ascii_hostname) > 253:
+        return False
+    labels = ascii_hostname.split(".")
+    return all(
+        bool(label)
+        and len(label) <= 63
+        and label[0] != "-"
+        and label[-1] != "-"
+        and all(character in _DNS_LABEL_CHARS for character in label)
+        for label in labels
+    )
 
 
 def _checksum_bytes(stage: Path) -> bytes:
