@@ -357,7 +357,7 @@ def test_missing_or_wrong_ollama_identity_fails_before_execution(
     assert executed == []
 
 
-def test_occupied_matrix_target_fails_before_execution(
+def test_invalid_existing_matrix_fails_before_identity_or_execution(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -368,14 +368,73 @@ def test_occupied_matrix_target_fails_before_execution(
     called: list[object] = []
     monkeypatch.setattr(
         eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
         "execute_live_security_run",
         lambda request: called.append(request),
     )
 
-    with pytest.raises(FileExistsError, match="matrix output"):
+    with pytest.raises(ValueError, match="artifact set"):
         eval_indirect_injection_cross_model.main(["--matrix-out-dir", str(matrix_root)])
 
     assert called == []
+
+
+def test_exact_existing_matrix_is_reused_without_identity_or_component_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: _clean_git(),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_load_component_context",
+        lambda _plan: _component_context(_plan),
+    )
+    matrix_root = tmp_path / "matrix"
+    matrix_target = matrix_root / plan.matrix_run_id
+    matrix_target.mkdir(parents=True)
+    called: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "validate_current_cross_model_bindings",
+        lambda *args, **kwargs: SimpleNamespace(
+            matrix_run_id=plan.matrix_run_id,
+            decision="CONSISTENT_OBSERVATION",
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "run_component",
+        lambda *args, **kwargs: called.append("component"),
+    )
+
+    assert eval_indirect_injection_cross_model.main(
+        [
+            "--out-dir", str(tmp_path / "components"),
+            "--index-root", str(tmp_path / "indexes"),
+            "--matrix-out-dir", str(matrix_root),
+        ]
+    ) == 0
+
+    assert called == []
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["matrix_run_id"] == plan.matrix_run_id
+    assert payload["reused"] is True
 
 
 def test_runs_absent_components_baseline_then_replication(
@@ -387,6 +446,7 @@ def test_runs_absent_components_baseline_then_replication(
     _patch_main_preflight(monkeypatch, plan)
     requests: list[object] = []
     outcomes: dict[str, object] = {}
+    published: list[object] = []
 
     def execute(request):
         requests.append(request)
@@ -412,6 +472,38 @@ def test_runs_absent_components_baseline_then_replication(
         "admit_existing_component",
         lambda target, **_kwargs: outcomes[target.name],
     )
+    comparison = SimpleNamespace(
+        matrix_run_id=plan.matrix_run_id,
+        decision="CONSISTENT_OBSERVATION",
+        invariant_mismatches=(),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "compare_verified_runs",
+        lambda *args, **kwargs: comparison,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "publish_cross_model_run",
+        lambda *args, **kwargs: published.append((args, kwargs))
+        or (tmp_path / "matrix" / plan.matrix_run_id),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_forbidden_fixture_texts",
+        lambda _bundle: ("private-fixture-text",),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "validate_current_cross_model_bindings",
+        lambda *args, **kwargs: SimpleNamespace(
+            matrix_run_id=plan.matrix_run_id,
+            decision="CONSISTENT_OBSERVATION",
+        ),
+        raising=False,
+    )
 
     assert eval_indirect_injection_cross_model.main(
         [
@@ -429,6 +521,7 @@ def test_runs_absent_components_baseline_then_replication(
         "qwen2.5:3b",
         "qwen3:8b",
     ]
+    assert len(published) == 1
     assert '"reused": false' in capsys.readouterr().out
 
 

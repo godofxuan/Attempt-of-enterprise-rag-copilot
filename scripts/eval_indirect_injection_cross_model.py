@@ -9,6 +9,7 @@ import argparse
 import json
 import platform
 import stat
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -25,7 +26,12 @@ from app.domain.retrieved_security import (
 from app.evaluation.indirect_injection_cross_model import (
     CrossModelModelPlan,
     CrossModelPlanV1,
+    compare_verified_runs,
     load_cross_model_plan,
+)
+from app.evaluation.indirect_injection_cross_model_writer import (
+    publish_cross_model_run,
+    validate_current_cross_model_bindings,
 )
 from app.evaluation.indirect_injection_dataset import (
     LoadedSecurityBundle,
@@ -46,6 +52,7 @@ from app.evaluation.indirect_injection_live_writer import (
 )
 from scripts.eval_indirect_injection import (
     _assert_git_provenance_stable,
+    _forbidden_fixture_texts,
     _git_provenance,
     _installed_dependency_snapshot,
     _safe_display_path,
@@ -310,6 +317,33 @@ def main(argv: list[str] | None = None) -> int:
     if git_provenance.get("dirty"):
         raise ValueError("cross-model execution requires one clean Git snapshot")
     context = _load_component_context(plan)
+    component_paths = {
+        component.role: Path(args.out_dir) / component.run_id
+        for component in plan.chat_models
+    }
+    matrix_target = Path(args.matrix_out_dir) / plan.matrix_run_id
+    if _lexical_exists(matrix_target):
+        manifest = validate_current_cross_model_bindings(
+            matrix_target,
+            plan_path=Path(args.plan),
+            component_runs=component_paths,
+            code_root=BASE_DIR,
+        )
+        _assert_git_provenance_stable(git_provenance, _git_provenance(BASE_DIR))
+        print(
+            json.dumps(
+                {
+                    "matrix_run_id": manifest.matrix_run_id,
+                    "decision": manifest.decision,
+                    "reused": True,
+                    "output_path": str(matrix_target),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
+        return 1 if manifest.decision == "INCONCLUSIVE" else 0
+
     runtime = fetch_ollama_identities(plan)
     _validate_runtime_identities(plan, runtime)
     execution = _capture_execution_invariants(plan, runtime, args)
@@ -329,6 +363,34 @@ def main(argv: list[str] | None = None) -> int:
         ))
         _assert_git_provenance_stable(git_provenance, _git_provenance(BASE_DIR))
     _assert_git_provenance_stable(git_provenance, _git_provenance(BASE_DIR))
+    component_paths = {
+        component.role: component.outcome.output_dir
+        for component in components
+    }
+    comparison = compare_verified_runs(
+        component_paths["baseline"],
+        component_paths["replication"],
+        plan=plan,
+        plan_sha256=plan_sha256,
+        dataset=context.data.dataset,
+    )
+    _assert_git_provenance_stable(git_provenance, _git_provenance(BASE_DIR))
+    matrix_path = publish_cross_model_run(
+        Path(args.matrix_out_dir),
+        comparison,
+        plan_path=Path(args.plan),
+        component_runs=component_paths,
+        commands=subprocess.list2cmdline(list(_canonical_argv(args))) + "\n",
+        forbidden_texts=_forbidden_fixture_texts(context.data),
+        code_root=BASE_DIR,
+    )
+    matrix_manifest = validate_current_cross_model_bindings(
+        matrix_path,
+        plan_path=Path(args.plan),
+        component_runs=component_paths,
+        code_root=BASE_DIR,
+    )
+    _assert_git_provenance_stable(git_provenance, _git_provenance(BASE_DIR))
     for component in components:
         manifest = component.outcome.manifest
         print(
@@ -345,10 +407,19 @@ def main(argv: list[str] | None = None) -> int:
                 sort_keys=True,
             )
         )
-    return 0 if all(
-        component.outcome.manifest.observation.protocol_complete
-        for component in components
-    ) else 1
+    print(
+        json.dumps(
+            {
+                "matrix_run_id": matrix_manifest.matrix_run_id,
+                "decision": matrix_manifest.decision,
+                "reused": False,
+                "output_path": str(matrix_path),
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
+    return 1 if matrix_manifest.decision == "INCONCLUSIVE" else 0
 
 
 def _load_component_context(plan: CrossModelPlanV1) -> ComponentContext:
@@ -593,8 +664,6 @@ def _validate_execution_paths(
     _validate_child_target(matrix_root, matrix_target, "matrix output")
     for label, path in targets:
         _reject_frozen_formal_d7_path(path, label)
-    if _lexical_exists(matrix_target):
-        raise FileExistsError(f"matrix output already exists: {matrix_target}")
 
 
 def _validated_lexical_directory(path: Path, label: str) -> Path:
