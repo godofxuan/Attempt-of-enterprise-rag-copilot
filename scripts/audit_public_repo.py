@@ -21,6 +21,7 @@ from app.evaluation.indirect_injection_sensitive_values import (
 from app.evaluation.indirect_injection_contracts import (
     FixtureManifest,
     IndirectInjectionDataset,
+    validate_dataset_fixture_alignment,
 )
 from app.evaluation.public_snapshot import PublicDemoSnapshot
 
@@ -28,10 +29,10 @@ from app.evaluation.public_snapshot import PublicDemoSnapshot
 MAX_PUBLIC_FILE_BYTES = 2 * 1024 * 1024
 _PUBLIC_SNAPSHOT_PATH = "data/v2/public/demo_snapshot.json"
 _REQUIRED_SECURITY_CORPUS_SOURCES = (
-    ("data/v2/security/indirect_injection_dev_v1.json", False),
-    ("data/v2/security/indirect_injection_test_v1.json", False),
-    ("data/v2/security/fixtures_v1/dev/manifest.json", True),
-    ("data/v2/security/fixtures_v1/test/manifest.json", True),
+    ("data/v2/security/indirect_injection_dev_v1.json", False, "dev"),
+    ("data/v2/security/indirect_injection_test_v1.json", False, "test"),
+    ("data/v2/security/fixtures_v1/dev/manifest.json", True, "dev"),
+    ("data/v2/security/fixtures_v1/test/manifest.json", True, "test"),
 )
 _SENSITIVE_PUBLIC_EVIDENCE_PREFIXES = (
     "data/v2/public/r2_s1_d7/",
@@ -526,10 +527,12 @@ def _contains_unsafe_credential_assignment(text: str) -> bool:
 def _load_frozen_security_values(
     root: Path,
 ) -> tuple[SecuritySensitiveValueCorpus, tuple[AuditFinding, ...]]:
-    datasets: list[IndirectInjectionDataset] = []
-    fixture_manifests: list[FixtureManifest] = []
+    datasets: dict[str, tuple[str, IndirectInjectionDataset]] = {}
+    fixture_manifests: dict[str, tuple[str, FixtureManifest]] = {}
     findings: list[AuditFinding] = []
-    for relative, is_fixture_manifest in _REQUIRED_SECURITY_CORPUS_SOURCES:
+    for relative, is_fixture_manifest, expected_split in (
+        _REQUIRED_SECURITY_CORPUS_SOURCES
+    ):
         value, finding = _load_required_security_corpus_source(
             root,
             relative,
@@ -537,15 +540,64 @@ def _load_frozen_security_values(
         )
         if finding is not None:
             findings.append(finding)
-        elif value is not None:
-            target = fixture_manifests if is_fixture_manifest else datasets
-            target.append(value)
+            continue
+        if value is None:
+            findings.append(
+                _security_corpus_finding(
+                    relative,
+                    "required security corpus split is missing",
+                )
+            )
+            continue
+        if value.split != expected_split:
+            findings.append(
+                _security_corpus_finding(
+                    relative,
+                    "security corpus split does not match its source path",
+                )
+            )
+            continue
+        if is_fixture_manifest and isinstance(value, FixtureManifest):
+            target = fixture_manifests
+        elif not is_fixture_manifest and isinstance(value, IndirectInjectionDataset):
+            target = datasets
+        else:
+            findings.append(
+                _security_corpus_finding(
+                    relative,
+                    "security corpus type does not match its source path",
+                )
+            )
+            continue
+        if value.split in target:
+            previous_relative = target[value.split][0]
+            detail = "security corpus contains a duplicate split"
+            findings.append(_security_corpus_finding(previous_relative, detail))
+            findings.append(_security_corpus_finding(relative, detail))
+            continue
+        target[value.split] = (relative, value)
     if findings:
         return SecuritySensitiveValueCorpus((), ()), tuple(findings)
+
+    for split in ("dev", "test"):
+        dataset_relative, dataset = datasets[split]
+        fixture_relative, fixture_manifest = fixture_manifests[split]
+        try:
+            validate_dataset_fixture_alignment(dataset, fixture_manifest)
+        except ValueError:
+            detail = f"security dataset and fixture are not aligned for {split} split"
+            findings.append(_security_corpus_finding(dataset_relative, detail))
+            findings.append(_security_corpus_finding(fixture_relative, detail))
+    if findings:
+        return SecuritySensitiveValueCorpus((), ()), tuple(findings)
+
     return (
         collect_security_sensitive_values(
-            datasets=datasets,
-            fixture_manifests=fixture_manifests,
+            datasets=(datasets["dev"][1], datasets["test"][1]),
+            fixture_manifests=(
+                fixture_manifests["dev"][1],
+                fixture_manifests["test"][1],
+            ),
         ),
         (),
     )
@@ -607,6 +659,9 @@ def _load_required_security_corpus_source(
             "security corpus cases entries must be objects",
         )
     if is_fixture_manifest:
+        finding = _validate_fixture_case_collections(relative, cases)
+        if finding is not None:
+            return None, finding
         model = FixtureManifest
     else:
         model = IndirectInjectionDataset
@@ -617,6 +672,34 @@ def _load_required_security_corpus_source(
             relative,
             "security corpus does not satisfy its strict production schema",
         )
+
+
+def _validate_fixture_case_collections(
+    relative: str,
+    cases: list[object],
+) -> AuditFinding | None:
+    for case in cases:
+        if not isinstance(case, dict):
+            raise AssertionError("fixture cases were not prevalidated")
+        for collection in ("candidates", "open_results"):
+            if collection not in case:
+                article = "an" if collection == "open_results" else "a"
+                return _security_corpus_finding(
+                    relative,
+                    f"fixture case requires {article} {collection} collection",
+                )
+            entries = case[collection]
+            if not isinstance(entries, list):
+                return _security_corpus_finding(
+                    relative,
+                    f"fixture {collection} collection must be an array",
+                )
+            if any(not isinstance(item, dict) for item in entries):
+                return _security_corpus_finding(
+                    relative,
+                    f"fixture {collection} entries must be objects",
+                )
+    return None
 
 
 def _security_corpus_finding(relative: str, detail: str) -> AuditFinding:

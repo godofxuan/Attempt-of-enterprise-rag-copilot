@@ -557,8 +557,9 @@ decision                                      NO_CURRENT_BYPASS_OBSERVED
 production change admission                   NOT ADMITTED
 independent holdout                           NOT RUN
 semantic judge / cross-model replication      NOT RUN
-final focused pytest                          449 PASSED / 10 PLATFORM SKIPS / 3 KNOWN WARNINGS
-final full pytest                             1387 PASSED / 13 PLATFORM SKIPS / 3 KNOWN WARNINGS
+final focused pytest                          457 PASSED / 10 SKIPPED / 3 KNOWN WARNINGS
+final full pytest                             1395 PASSED / 13 SKIPPED / 3 KNOWN WARNINGS
+skip qualification                            platform-dependent symlink/junction variants unavailable on this host
 compile / pip                                 CLEAN / CLEAN
 public audit                                  454 CANDIDATES / 0 FINDINGS
 source / private / public verifier            VERIFIED

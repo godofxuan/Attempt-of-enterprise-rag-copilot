@@ -152,8 +152,9 @@ wave.
 | Task 7 private leak gate | `2 failed, 1 passed`: private exposure root was neither ignored nor fully audited. | Added scoped ignore, forbidden-prefix, and private-runtime-reference rules without rejecting the public package: `3 passed`. |
 | Task 8 status-document contract | Fresh focused verification first returned `2 failed, 245 passed, 2 skipped`: the synchronized root status header had removed the required historical `2026-07-19` marker and `V1-V5` stage token. | Preserved the historical update marker with an explicit R2-S3 addendum date and restored the canonical stage token without changing claims. Targeted tests returned `2 passed`; the complete focused gate returned `247 passed, 2 skipped`. |
 
-The skipped Task 5/6 tests require Windows symlink privileges unavailable in
-this environment. They are platform-gated, not silently counted as passes.
+The skipped Task 5/6 tests are platform-dependent symlink/junction variants
+unavailable on this host. They are platform-gated, not silently counted as
+passes.
 
 ## 6. File-by-File Code Map
 
@@ -400,11 +401,12 @@ recomputed the unchanged metrics: candidate presence `26/28`, live/replay reach
 search reach `6/26 -> 22/26 -> 26/26`, total reach
 `15/28 -> 28/28 -> 28/28`, and additional scan units/characters
 `0/0 -> 29/3845 -> 33/4200`. Final local gates were focused
-`449 passed / 10 platform skips / 3 known warnings`, full
-`1387 passed / 13 platform skips / 3 known warnings`, compile/pip clean, and
-public audit `454/0`. Push is allowed only after fixed-HEAD reviews and local
-gates pass; actual delivery and CI state are established by Git and GitHub
-Actions.
+`457 passed / 10 skipped / 3 known warnings`, full
+`1395 passed / 13 skipped / 3 known warnings`, compile/pip clean, and public
+audit `454/0`. The skips are platform-dependent symlink/junction variants
+unavailable on this host. Push is allowed only after fixed-HEAD reviews and
+local gates pass; actual delivery and CI state are established by Git and
+GitHub Actions.
 
 ## Static Path Re-review Trust Boundary
 
@@ -425,3 +427,52 @@ behavior, or producer identity. Concurrent ABA replacement by a local writer
 and compromised runtime/import state are outside the frozen threat model.
 Stronger guarantees require an external immutable execution/attestation
 boundary.
+
+## Final Re-review Public-Audit Pair Alignment (Wave 2)
+
+Strict per-file schemas were necessary but not sufficient for the four files
+that seed the public leak corpus. `FixtureCase.open_results` defaults to an
+empty tuple, so deleting that raw key from an otherwise canonical manifest
+still produced a valid `FixtureManifest`. Replacing a canonical nonempty list
+with `[]` also left the manifest individually valid. In both cases the old
+audit built a smaller sensitive-value corpus and silently lost protected source
+content because it never checked the fixture against its dataset.
+
+The audit now preserves raw `candidates` and `open_results` presence and shape
+checks before Pydantic validation. It then loads all four sources as strict
+`IndirectInjectionDataset` or `FixtureManifest` instances, requires each model's
+split to match its declared source path, rejects duplicate or missing split
+state, and calls `validate_dataset_fixture_alignment` for the dev and test
+pairs. Any load, split, or pair-alignment failure yields deterministic
+`invalid_security_corpus` findings and prevents construction of even a partial
+`SecuritySensitiveValueCorpus`.
+
+The first RED command targeted the two canonical open-result omissions:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q tests\test_public_repository.py -k "omits_canonical_open_results"
+```
+
+It produced `2 failed, 59 deselected, 3 warnings`: removing the key and
+emptying the original nonempty list both passed the base audit. The expanded
+RED command covered raw fixture shapes, both omission mutations, and misplaced
+dataset/fixture splits; it produced `10 failed, 6 passed, 47 deselected, 3
+warnings`. After implementation, that same expanded command produced `16
+passed, 47 deselected, 3 warnings`, and the complete audit module produced `63
+passed, 3 warnings`.
+
+Fresh final gates on the resulting code were:
+
+```text
+focused six-file R2-S3/public pytest   457 passed / 10 skipped / 3 warnings
+full repository pytest                1395 passed / 13 skipped / 3 warnings
+compileall                             exit 0
+pip check                              no broken requirements
+public repository audit               454 candidates / 0 findings
+```
+
+The skips are platform-dependent symlink/junction variants unavailable on this
+host. The three warnings are the existing SWIG deprecations. No evaluator,
+publisher, live model, source/private/public verifier, isolated verifier, or
+evidence-generation command was run, and no immutable run or evidence file was
+changed.

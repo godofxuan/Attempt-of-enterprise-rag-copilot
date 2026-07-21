@@ -197,32 +197,32 @@ def test_audit_fails_closed_when_security_corpus_is_absent(
         (
             SECURITY_CORPUS_PATHS[2],
             b'{"cases":[{"open_results":[]}]}\n',
-            "security corpus does not satisfy its strict production schema",
+            "fixture case requires a candidates collection",
         ),
         (
             SECURITY_CORPUS_PATHS[2],
             b'{"cases":[{"candidates":[]}]}\n',
-            "security corpus does not satisfy its strict production schema",
+            "fixture case requires an open_results collection",
         ),
         (
             SECURITY_CORPUS_PATHS[2],
             b'{"cases":[{"candidates":{},"open_results":[]}]}\n',
-            "security corpus does not satisfy its strict production schema",
+            "fixture candidates collection must be an array",
         ),
         (
             SECURITY_CORPUS_PATHS[2],
             b'{"cases":[{"candidates":[[]],"open_results":[]}]}\n',
-            "security corpus does not satisfy its strict production schema",
+            "fixture candidates entries must be objects",
         ),
         (
             SECURITY_CORPUS_PATHS[2],
             b'{"cases":[{"candidates":[],"open_results":{}}]}\n',
-            "security corpus does not satisfy its strict production schema",
+            "fixture open_results collection must be an array",
         ),
         (
             SECURITY_CORPUS_PATHS[2],
             b'{"cases":[{"candidates":[],"open_results":[[]]}]}\n',
-            "security corpus does not satisfy its strict production schema",
+            "fixture open_results entries must be objects",
         ),
     ),
 )
@@ -278,6 +278,59 @@ def test_audit_rejects_incomplete_or_wrong_typed_security_corpus(
     else:
         raise AssertionError(f"unexpected mutation: {mutation}")
     path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = audit_repository(tmp_path, candidate_files=())
+
+    assert ("invalid_security_corpus", relative) in {
+        (item.code, item.path) for item in report.findings
+    }
+    assert report.passed is False
+
+
+@pytest.mark.parametrize("mutation", ("remove", "empty"))
+def test_audit_rejects_fixture_that_omits_canonical_open_results(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    relative = SECURITY_CORPUS_PATHS[2]
+    path = tmp_path / relative
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    fixture_case = next(case for case in payload["cases"] if case["open_results"])
+    if mutation == "remove":
+        del fixture_case["open_results"]
+    elif mutation == "empty":
+        fixture_case["open_results"] = []
+    else:
+        raise AssertionError(f"unexpected mutation: {mutation}")
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = audit_repository(tmp_path, candidate_files=())
+
+    assert ("invalid_security_corpus", relative) in {
+        (item.code, item.path) for item in report.findings
+    }
+    assert report.passed is False
+
+
+@pytest.mark.parametrize(
+    ("relative", "replacement_relative"),
+    (
+        (SECURITY_CORPUS_PATHS[0], SECURITY_CORPUS_PATHS[1]),
+        (SECURITY_CORPUS_PATHS[2], SECURITY_CORPUS_PATHS[3]),
+    ),
+)
+def test_audit_rejects_security_corpus_source_with_misplaced_split(
+    tmp_path: Path,
+    relative: str,
+    replacement_relative: str,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    shutil.copyfile(ROOT / replacement_relative, tmp_path / relative)
 
     report = audit_repository(tmp_path, candidate_files=())
 
@@ -832,6 +885,17 @@ def test_audit_scans_shared_dev_sensitive_identifiers_and_open_sections(
     dataset.write_text(json.dumps(dataset_payload), encoding="utf-8")
     fixture = security_root / "fixtures_v1" / "dev" / "manifest.json"
     fixture_payload = json.loads(fixture.read_text(encoding="utf-8"))
+    aligned_fixture_case = next(
+        case
+        for case in fixture_payload["cases"]
+        if case["case_id"] == benign_case["case_id"]
+    )
+    aligned_candidate = next(
+        candidate
+        for candidate in aligned_fixture_case["candidates"]
+        if candidate["matched_unit_id"] == original_unit_id
+    )
+    aligned_candidate["matched_unit_id"] = "benign-unit-private-001"
     fixture_payload["cases"][0]["candidates"][0]["section_path"][0] = (
         "OPEN_SECTION_PRIVATE_PATH"
     )
@@ -1358,8 +1422,12 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     ]
 
     status = contents["PROJECT_STATUS.md"]
-    assert "focused `449 passed / 10 platform skips / 3 known warnings`" in status
-    assert "full `1387 passed / 13 platform skips / 3 known warnings`" in status
+    assert "focused `457 passed / 10 skipped / 3 known warnings`" in status
+    assert "full `1395 passed / 13 skipped / 3 known warnings`" in status
+    assert (
+        "platform-dependent symlink/junction variants unavailable on this host"
+        in status
+    )
     assert "public audit `454 candidates / 0 findings`" in status
     assert required_boundary in status
     assert "433 passed / 5 platform skips" not in status
@@ -1369,7 +1437,7 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     r2_s3_status = status.split("## 10. R2-S3 当前状态", 1)[1]
     expected_r2_s2_lines = (
         "current full repository regression             "
-        "1387 PASSED / 13 SKIPPED / 3 KNOWN WARNINGS",
+        "1395 PASSED / 13 SKIPPED / 3 KNOWN WARNINGS",
         "current public repository audit                "
         "454 CANDIDATES / 0 FINDINGS",
     )
@@ -1381,8 +1449,8 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     )
     assert (
         "final focused / full pytest                      "
-        "449 passed / 10 skipped / 3 warnings; "
-        "1387 passed / 13 skipped / 3 warnings"
+        "457 passed / 10 skipped / 3 warnings; "
+        "1395 passed / 13 skipped / 3 warnings"
     ) in r2_s3_status
     assert (
         "compile / pip / public audit                    "
