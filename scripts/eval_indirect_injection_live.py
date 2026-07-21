@@ -48,6 +48,7 @@ from app.evaluation.indirect_injection_live_writer import (
     LiveIndexReference,
     LiveSecurityRunManifestV2,
     LiveSecurityRunManifestV3,
+    LiveTransportProvenance,
     OllamaModelIdentity,
     publish_live_security_run,
     resolve_ollama_model_identity,
@@ -300,6 +301,11 @@ def execute_live_security_run(
         case.case_id for case in bundle.dataset.cases
     )
     settings = get_settings()
+    transport = LiveTransportProvenance(
+        model_request_timeout_seconds=settings.model_request_timeout_seconds,
+        model_max_attempts=settings.model_max_attempts,
+        model_retry_backoff_ms=settings.model_retry_backoff_ms,
+    )
     config = LiveSecurityConfig(
         llm_endpoint=settings.llm_base_url,
         chat_model=request.chat_model,
@@ -393,6 +399,7 @@ def execute_live_security_run(
         index_embedding_call_count=built.embedding_call_count,
         experiment=request.experiment,
         evaluator_path=request.evaluator_path,
+        transport=transport,
     )
     forbidden_texts = _forbidden_fixture_texts(bundle)
     output = publish_live_security_run(
@@ -459,6 +466,7 @@ def _build_manifest(
     index_embedding_call_count: int,
     experiment: CrossModelExperimentBinding | None,
     evaluator_path: str,
+    transport: LiveTransportProvenance,
 ) -> LiveSecurityRunManifestV2 | LiveSecurityRunManifestV3:
     ruleset = BASE_DIR / "app" / "security" / "retrieved_content.py"
     is_cross_model = experiment is not None
@@ -582,6 +590,7 @@ def _build_manifest(
         }
     if experiment is not None:
         payload["experiment"] = experiment
+        payload["transport"] = transport
     return manifest_type.model_validate(payload)
 
 

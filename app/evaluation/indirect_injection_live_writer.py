@@ -302,6 +302,12 @@ class CrossModelExperimentBinding(_StrictFrozenModel):
     only_changed_variable: Literal["chat_model_identity"]
 
 
+class LiveTransportProvenance(_StrictFrozenModel):
+    model_request_timeout_seconds: float = Field(gt=0.0, le=300.0)
+    model_max_attempts: int = Field(ge=1, le=3)
+    model_retry_backoff_ms: int = Field(ge=0, le=10_000)
+
+
 class LiveSecurityRunManifestV3(LiveSecurityRunManifestV2):
     schema_version: Literal[
         "indirect_injection_live_security_run_manifest_v3"
@@ -309,6 +315,7 @@ class LiveSecurityRunManifestV3(LiveSecurityRunManifestV2):
     mode: Literal["local_live_paired_counterbalanced_cross_model_dev"]
     split: Literal["dev"]
     experiment: CrossModelExperimentBinding
+    transport: LiveTransportProvenance
 
 
 def validate_v3_cross_model_plan_binding(
@@ -1177,6 +1184,7 @@ __all__ = [
     "LiveSecurityRunManifest",
     "LiveSecurityRunManifestV2",
     "LiveSecurityRunManifestV3",
+    "LiveTransportProvenance",
     "OllamaModelIdentity",
     "VerifiedLiveSecurityRunSnapshot",
     "load_verified_live_security_run_snapshot",

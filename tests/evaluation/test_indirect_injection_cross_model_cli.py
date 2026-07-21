@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import argparse
 from dataclasses import replace
 from pathlib import Path
@@ -14,7 +15,10 @@ from app.evaluation.indirect_injection_live_writer import (
     OllamaModelIdentity,
     publish_live_security_run,
 )
-from tests.evaluation.path_redirect_helpers import with_reparse_point_attribute
+from tests.evaluation.path_redirect_helpers import (
+    directory_redirect,
+    with_reparse_point_attribute,
+)
 from tests.evaluation import test_indirect_injection_live_writer as live_writer_tests
 from scripts import eval_indirect_injection_cross_model
 
@@ -171,6 +175,11 @@ def _real_admission_inputs(tmp_path: Path, writer_v3_inputs):
         llm_endpoint=manifest.environment.ollama_endpoint + "/v1",
         ollama_origin=manifest.environment.ollama_endpoint,
         structured_generation_max_attempts=manifest.models.max_attempts,
+        model_request_timeout_seconds=(
+            manifest.transport.model_request_timeout_seconds
+        ),
+        model_max_attempts=manifest.transport.model_max_attempts,
+        model_retry_backoff_ms=manifest.transport.model_retry_backoff_ms,
         ollama_version=manifest.environment.ollama_version,
         python_version=manifest.environment.python_version,
         platform=manifest.environment.platform,
@@ -932,6 +941,42 @@ def test_admission_rejects_real_v3_environment_or_evaluator_mismatch(
             execution=execution,
         )
 
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("model_request_timeout_seconds", 1.0),
+        ("model_max_attempts", 1),
+        ("model_retry_backoff_ms", 0),
+    ],
+)
+def test_admission_rejects_real_v3_transport_policy_mismatch(
+    tmp_path: Path,
+    writer_v3_inputs,
+    field: str,
+    value: object,
+) -> None:
+    target, plan, plan_sha256, component, context, runtime, execution = (
+        _real_admission_inputs(tmp_path, writer_v3_inputs)
+    )
+    payload = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
+    payload["transport"][field] = value
+    (target / "manifest.json").write_bytes(
+        live_writer_tests.live_writer._json_bytes(payload)
+    )
+
+    with pytest.raises(ValueError, match="execution invariant"):
+        eval_indirect_injection_cross_model.admit_existing_component(
+            target,
+            plan=plan,
+            plan_sha256=plan_sha256,
+            component=component,
+            git_provenance=_clean_git(),
+            context=context,
+            runtime=runtime,
+            execution=execution,
+        )
+
 @pytest.mark.parametrize("schema", ["v1", "v2"])
 def test_admission_rejects_real_verified_legacy_packages(
     tmp_path: Path,
@@ -1034,6 +1079,172 @@ def test_dangling_component_target_fails_before_identity_activity(
                 "--out-dir", str(root),
                 "--index-root", str(tmp_path / "safe-index"),
                 "--matrix-out-dir", str(tmp_path / "safe-matrix"),
+            ]
+        )
+
+    assert called == []
+
+
+@pytest.mark.parametrize(
+    ("option", "label"),
+    [
+        ("--out-dir", "output root"),
+        ("--index-root", "index root"),
+        ("--matrix-out-dir", "matrix output root"),
+    ],
+)
+def test_real_directory_redirect_roots_fail_before_identity_or_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    option: str,
+    label: str,
+) -> None:
+    referent = tmp_path / "redirect-referent"
+    referent.mkdir()
+    redirect = tmp_path / "redirect-root"
+    called: list[str] = []
+    values = {
+        "--out-dir": str(tmp_path / "safe-output"),
+        "--index-root": str(tmp_path / "safe-index"),
+        "--matrix-out-dir": str(tmp_path / "safe-matrix"),
+    }
+    values[option] = str(redirect)
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        lambda _request: called.append("execution"),
+    )
+
+    with directory_redirect(redirect, referent):
+        with pytest.raises(ValueError, match=rf"{label} cannot be a symlink"):
+            eval_indirect_injection_cross_model.main(
+                [
+                    "--out-dir", values["--out-dir"],
+                    "--index-root", values["--index-root"],
+                    "--matrix-out-dir", values["--matrix-out-dir"],
+                ]
+            )
+
+    assert called == []
+
+
+@pytest.mark.parametrize("target_kind", ["component", "matrix"])
+def test_real_dangling_targets_fail_before_identity_or_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    target_kind: str,
+) -> None:
+    plan, plan_sha256 = load_cross_model_plan(PLAN_PATH)
+    output_root = tmp_path / "safe-output"
+    index_root = tmp_path / "safe-index"
+    matrix_root = tmp_path / "safe-matrix"
+    root = output_root if target_kind == "component" else matrix_root
+    root.mkdir()
+    if target_kind == "component":
+        component = plan.model_for_role("baseline").model_copy(
+            update={"run_id": "r2-s4-dangling-component-fixture"}
+        )
+        plan = plan.model_copy(
+            update={
+                "chat_models": tuple(
+                    component if item.role == "baseline" else item
+                    for item in plan.chat_models
+                )
+            }
+        )
+        target = root / component.run_id
+        label = "component output"
+    else:
+        plan = plan.model_copy(
+            update={"matrix_run_id": "r2-s4-dangling-matrix-fixture"}
+        )
+        target = root / plan.matrix_run_id
+        label = "matrix output"
+    called: list[str] = []
+    try:
+        target.symlink_to(tmp_path / "missing-target", target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"dangling directory symlink creation is unavailable: {exc}")
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "load_cross_model_plan",
+        lambda _path: (plan, plan_sha256),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        lambda _request: called.append("execution"),
+    )
+
+    try:
+        with pytest.raises(ValueError, match=rf"{label} cannot be a symlink"):
+            eval_indirect_injection_cross_model.main(
+                [
+                    "--out-dir", str(output_root),
+                    "--index-root", str(index_root),
+                    "--matrix-out-dir", str(matrix_root),
+                ]
+            )
+    finally:
+        if os.path.lexists(target):
+            target.unlink()
+
+    assert called == []
+
+
+@pytest.mark.parametrize(
+    ("option", "label"),
+    [
+        ("--out-dir", "output root"),
+        ("--index-root", "index root"),
+        ("--matrix-out-dir", "matrix output root"),
+    ],
+)
+def test_frozen_d7_roots_fail_before_identity_or_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    option: str,
+    label: str,
+) -> None:
+    called: list[str] = []
+    frozen_child = (
+        eval_indirect_injection_cross_model.DEFAULT_OUT_DIR
+        / eval_indirect_injection_cross_model.FROZEN_FORMAL_D7_RUN_ID
+        / f"{label.replace(' ', '-')}-fixture"
+    )
+    values = {
+        "--out-dir": str(tmp_path / "safe-output"),
+        "--index-root": str(tmp_path / "safe-index"),
+        "--matrix-out-dir": str(tmp_path / "safe-matrix"),
+    }
+    values[option] = str(frozen_child)
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        lambda _request: called.append("execution"),
+    )
+
+    with pytest.raises(ValueError, match=rf"{label} cannot be inside the frozen formal D7"):
+        eval_indirect_injection_cross_model.main(
+            [
+                "--out-dir", values["--out-dir"],
+                "--index-root", values["--index-root"],
+                "--matrix-out-dir", values["--matrix-out-dir"],
             ]
         )
 

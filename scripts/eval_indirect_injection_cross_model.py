@@ -93,6 +93,9 @@ class ExecutionInvariantSnapshot:
     llm_endpoint: str
     ollama_origin: str
     structured_generation_max_attempts: int
+    model_request_timeout_seconds: float
+    model_max_attempts: int
+    model_retry_backoff_ms: int
     ollama_version: str
     python_version: str
     platform: str
@@ -383,6 +386,9 @@ def _capture_execution_invariants(
         llm_endpoint=config.llm_endpoint,
         ollama_origin=config.ollama_origin,
         structured_generation_max_attempts=config.structured_generation_max_attempts,
+        model_request_timeout_seconds=settings.model_request_timeout_seconds,
+        model_max_attempts=settings.model_max_attempts,
+        model_retry_backoff_ms=settings.model_retry_backoff_ms,
         ollama_version=runtime.version,
         python_version=platform.python_version(),
         platform=platform.platform(),
@@ -533,6 +539,11 @@ def _validate_execution_invariants(
         or models.structured_output_variant != "generation-v2-json-schema"
         or models.think is not False
         or models.max_attempts != execution.structured_generation_max_attempts
+        or manifest.transport.model_request_timeout_seconds
+        != execution.model_request_timeout_seconds
+        or manifest.transport.model_max_attempts != execution.model_max_attempts
+        or manifest.transport.model_retry_backoff_ms
+        != execution.model_retry_backoff_ms
         or retrieval.production_active_index != execution.production_active_index
         or retrieval.top_k != execution.top_k
         or retrieval.candidate_k != execution.candidate_k

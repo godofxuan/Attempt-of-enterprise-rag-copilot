@@ -208,6 +208,9 @@ def test_cross_model_runtime_identity_mismatch_aborts_before_index_or_model_work
         chat_model="qwen2.5:3b",
         embedding_model="bge-m3",
         structured_generation_max_attempts=2,
+        model_request_timeout_seconds=12.0,
+        model_max_attempts=2,
+        model_retry_backoff_ms=100,
         v2_indexes_dir=tmp_path / "production-index",
     )
     monkeypatch.setattr(
@@ -552,6 +555,9 @@ def test_completed_live_observation_publishes_and_returns_zero_even_with_attacks
             chat_model="qwen2.5:3b",
             embedding_model="bge-m3",
             structured_generation_max_attempts=2,
+            model_request_timeout_seconds=12.0,
+            model_max_attempts=2,
+            model_retry_backoff_ms=100,
             v2_indexes_dir=tmp_path / "production-index",
         ),
     )

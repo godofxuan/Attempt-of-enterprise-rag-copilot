@@ -362,6 +362,11 @@ def _manifest_v3(bundle, built, result):
             "digest": PLAN.embedding.digest,
         }
     )
+    payload["transport"] = {
+        "model_request_timeout_seconds": 12.0,
+        "model_max_attempts": 2,
+        "model_retry_backoff_ms": 100,
+    }
     return live_writer.LiveSecurityRunManifestV3.model_validate(payload)
 
 
@@ -426,6 +431,15 @@ def test_publish_and_verify_v3_live_run(
         "indirect_injection_live_security_run_manifest_v3"
     )
     assert verified.experiment == manifest.experiment
+
+
+def test_v3_requires_typed_transport_provenance(writer_v3_inputs) -> None:
+    bundle, built, result = writer_v3_inputs
+    payload = _manifest_v3(bundle, built, result).model_dump(mode="python")
+
+    payload.pop("transport")
+    with pytest.raises(ValidationError, match="transport"):
+        live_writer.LiveSecurityRunManifestV3.model_validate(payload)
 
 
 @pytest.mark.parametrize(
