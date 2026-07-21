@@ -788,10 +788,10 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
         for relative in current_paths
     }
     identity_paths = current_paths[4:]
-    accepted_run_id = "r2-s3-dev-exposure-20260721-02"
+    accepted_run_id = "r2-s3-dev-exposure-20260721-03"
     private_manifest_sha256 = manifest["source_private_manifest_sha256"]
     evaluator_sha256 = (
-        "86d87d018948f1276a8c9ce3f7105fb7cd90f7ce78bc98aeae1e79bba6699b33"
+        "24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce"
     )
 
     assert manifest["schema_version"] == (

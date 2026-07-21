@@ -45,9 +45,10 @@
 
 ### Generated and documentation files
 
-- `exposure_runs/r2-s3-dev-exposure-20260721-02/`: ignored private accepted v2 run.
-- `exposure_runs/r2-s3-dev-exposure-20260721-01/`: superseded local history;
-  preserved unchanged and still v1-verifiable.
+- `exposure_runs/r2-s3-dev-exposure-20260721-03/`: ignored private accepted v2 run.
+- `exposure_runs/r2-s3-dev-exposure-20260721-01/` and
+  `exposure_runs/r2-s3-dev-exposure-20260721-02/`: superseded local history;
+  preserved unchanged and still verifiable.
 - `data/v2/public/r2_s3_exposure/`: checked-in content-free evidence package.
 - `docs/security/r2_s3/00_exposure_ablation_protocol.md`: definitions and operator protocol.
 - `docs/security/r2_s3/01_results.md`: exact accepted metrics and decision.
@@ -61,12 +62,12 @@ must not be rerun. Final-review fixes changed replay-critical bytes and required
 one new immutable identity from the unchanged S2-1 source:
 
 ```text
-accepted private run          r2-s3-dev-exposure-20260721-02
+accepted private run          r2-s3-dev-exposure-20260721-03
 private manifest schema       indirect_injection_exposure_run_manifest_v2
-private manifest SHA-256      0c2e074d5b8ba2c4396691a58f1d81cc802d5feb1c200f2eccf661f11d5f0585
-accepted evaluator SHA-256    86d87d018948f1276a8c9ce3f7105fb7cd90f7ce78bc98aeae1e79bba6699b33
+private manifest SHA-256      7156b24ee27c929397effb64715e20e473e091533f1123502811f3edabe2b69e
+accepted evaluator SHA-256    24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce
 public manifest schema        indirect_injection_exposure_public_manifest_v2
-public manifest SHA-256       530b089b0e216f41cba014bf83dcdc2dfbcb7e60310f86f80cc9fb9da3c40910
+public manifest SHA-256       cfa626388a2ec37f0b8b68c6a922c2769e41a5fb9f728e9a780f317a3a2eab53
 ```
 
 Both v2 manifests bind the replay implementation dependencies exactly:
@@ -78,12 +79,20 @@ app/evaluation/indirect_injection_runner.py          c2c5c5e1815d8a77beebb502738
 app/evaluation/indirect_injection_live_runner.py     a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958
 ```
 
-The accepted `-02` run preserves every frozen admission metric and decision.
-The original `r2-s3-dev-exposure-20260721-01` is superseded local history, not
-the source of the tracked public package. Final local gates are focused
-`372 passed / 5 skipped`, full `1312 passed / 5 skipped`, compile/pip clean, and
-public audit `451/0`. Step 6 remains open: push is prohibited pending a new
-whole-branch synthesis of the fixed exact HEAD.
+The fixed-HEAD re-review added a second publication authority layer after the
+first v2 run: the supported writer reloads the manifest-pinned source, reruns
+the deterministic analysis, and compares the complete typed result before
+writing. It also verifies the exact bytes consumed from `per_case.jsonl`
+against source artifact byte/hash evidence. These evaluator-byte changes made
+`-02` historical and required the one-time `-03` identity above; frozen summary
+and private per-unit hashes remained unchanged.
+
+The accepted `-03` run preserves every frozen admission metric and decision.
+Runs `r2-s3-dev-exposure-20260721-01` and `-02` are superseded local history,
+not the source of the tracked public package. Final local gates are focused
+`376 passed / 5 skipped`, full `1316 passed / 5 skipped`, compile/pip clean,
+and public audit `451/0`. Step 6 remains open: push is prohibited pending a new
+whole-branch synthesis of that exact HEAD.
 
 ---
 
@@ -1618,7 +1627,7 @@ Do not call `NO_CURRENT_BYPASS_OBSERVED` a release pass or universal prompt-inje
 .\.venv\Scripts\python.exe -m pip check
 .\.venv\Scripts\python.exe -m scripts.audit_public_repo
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_live_run security_runs\r2-s2-s1-dev-20260719-01
-.\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure exposure_runs\r2-s3-dev-exposure-20260721-02
+.\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure exposure_runs\r2-s3-dev-exposure-20260721-03
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure_public data\v2\public\r2_s3_exposure
 git diff --check
 ```

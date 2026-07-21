@@ -538,13 +538,13 @@ source live run state                        UNCHANGED
 source manifest SHA-256                      3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e
 source live evaluator path                   app/evaluation/indirect_injection_live_runner.py
 source live evaluator SHA-256                a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958
-accepted exposure run                        r2-s3-dev-exposure-20260721-02
+accepted exposure run                        r2-s3-dev-exposure-20260721-03
 private manifest schema                      indirect_injection_exposure_run_manifest_v2
-private exposure manifest SHA-256            0c2e074d5b8ba2c4396691a58f1d81cc802d5feb1c200f2eccf661f11d5f0585
+private exposure manifest SHA-256            7156b24ee27c929397effb64715e20e473e091533f1123502811f3edabe2b69e
 accepted exposure evaluator path             app/evaluation/indirect_injection_exposure.py
-accepted exposure evaluator SHA-256          86d87d018948f1276a8c9ce3f7105fb7cd90f7ce78bc98aeae1e79bba6699b33
+accepted exposure evaluator SHA-256          24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce
 public manifest schema                       indirect_injection_exposure_public_manifest_v2
-public redacted manifest SHA-256             530b089b0e216f41cba014bf83dcdc2dfbcb7e60310f86f80cc9fb9da3c40910
+public redacted manifest SHA-256             cfa626388a2ec37f0b8b68c6a922c2769e41a5fb9f728e9a780f317a3a2eab53
 production Guard / retrieval / Agent         UNCHANGED
 live/replay Guard reach                      15/28 / 15/28
 quarantine given live reach                  15/15
@@ -558,8 +558,8 @@ decision                                      NO_CURRENT_BYPASS_OBSERVED
 production change admission                   NOT ADMITTED
 independent holdout                           NOT RUN
 semantic judge / cross-model replication      NOT RUN
-final focused pytest                          372 PASSED / 5 SKIPPED / 3 WARNINGS
-final full pytest                             1312 PASSED / 5 SKIPPED / 3 WARNINGS
+final focused pytest                          376 PASSED / 5 SKIPPED / 3 WARNINGS
+final full pytest                             1316 PASSED / 5 SKIPPED / 3 WARNINGS
 compile / pip                                 CLEAN / CLEAN
 public audit                                  451 CANDIDATES / 0 FINDINGS
 source / private / public verifier            VERIFIED
@@ -577,9 +577,10 @@ app/evaluation/indirect_injection_runner.py          c2c5c5e1815d8a77beebb502738
 app/evaluation/indirect_injection_live_runner.py     a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958
 ```
 
-`r2-s3-dev-exposure-20260721-01` is superseded local history. Its ignored v1
-bytes remain unchanged and verifiable, but the tracked package derives only
-from accepted v2 run `r2-s3-dev-exposure-20260721-02`.
+`r2-s3-dev-exposure-20260721-01` and `r2-s3-dev-exposure-20260721-02` are
+superseded local history. Their ignored bytes remain unchanged and verifiable,
+but the tracked package derives only from accepted v2 run
+`r2-s3-dev-exposure-20260721-03`.
 
 Decision semantics: `NO_CURRENT_BYPASS_OBSERVED` is a narrow frozen-dev
 observation. Counterfactual depth coverage is diagnostic and was not executed by

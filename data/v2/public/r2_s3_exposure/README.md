@@ -2,9 +2,9 @@
 
 Package: `r2_s3_exposure`
 
-Private source run: `r2-s3-dev-exposure-20260721-02`
+Private source run: `r2-s3-dev-exposure-20260721-03`
 
-Private manifest SHA-256: `0c2e074d5b8ba2c4396691a58f1d81cc802d5feb1c200f2eccf661f11d5f0585`
+Private manifest SHA-256: `7156b24ee27c929397effb64715e20e473e091533f1123502811f3edabe2b69e`
 
 Decision: `NO_CURRENT_BYPASS_OBSERVED`
 

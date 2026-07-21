@@ -21,22 +21,22 @@ adding a broader runtime prefilter.
 | Source live evaluator path | `app/evaluation/indirect_injection_live_runner.py` |
 | Source live evaluator SHA-256 | `a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958` |
 | Accepted exposure evaluator path | `app/evaluation/indirect_injection_exposure.py` |
-| Accepted exposure evaluator SHA-256 | `86d87d018948f1276a8c9ce3f7105fb7cd90f7ce78bc98aeae1e79bba6699b33` |
-| Private exposure run | `r2-s3-dev-exposure-20260721-02` |
+| Accepted exposure evaluator SHA-256 | `24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce` |
+| Private exposure run | `r2-s3-dev-exposure-20260721-03` |
 | Private manifest schema | `indirect_injection_exposure_run_manifest_v2` |
 | Private summary schema | `indirect_injection_exposure_summary_v2` |
-| Private exposure manifest SHA-256 | `0c2e074d5b8ba2c4396691a58f1d81cc802d5feb1c200f2eccf661f11d5f0585` |
+| Private exposure manifest SHA-256 | `7156b24ee27c929397effb64715e20e473e091533f1123502811f3edabe2b69e` |
 | Private summary SHA-256 | `115d9f1e973c1341e4059d4c4bd28615e31a76104922e10ab877dbfbf5d2e50c` |
 | Unit evidence SHA-256 | `d747d895c26450dd53c9a61623f3ba9572eaf25d0e292775b2f5ea3eedd0bb98` |
 | Verification-input witness SHA-256 | `e1910a458b3541abc47d515cf46a3b5ab6daa614e971e2f701097ebdce67befc` |
 | Public package | `data/v2/public/r2_s3_exposure` |
 | Public manifest schema | `indirect_injection_exposure_public_manifest_v2` |
-| Public redacted manifest SHA-256 | `530b089b0e216f41cba014bf83dcdc2dfbcb7e60310f86f80cc9fb9da3c40910` |
-| Public checksums file SHA-256 | `8f49aee65351977410d83e1d4112b2b14eaa27eac43efb16dc367e20b96d6db6` |
+| Public redacted manifest SHA-256 | `cfa626388a2ec37f0b8b68c6a922c2769e41a5fb9f728e9a780f317a3a2eab53` |
+| Public checksums file SHA-256 | `0a58f958efc267353dd8509cc14a599e46c02573f50ce9b276bd0e59976b2832` |
 | Public verifier SHA-256 | `f2fce72a6f18d0a66c194cb7819298721a62ad6a3f34c523e7ab3142ec747732` |
 | Metric definitions SHA-256 | `c5e79e23bbbfca0542bbadfa1e4a371fbb61d7f89e2e67e056b571acee63ecf3` |
 | Public summary SHA-256 | `91a8403d71acec82eecbe0fc2b8f2316d6a658b972e7da2a57235a863eeb8ea2` |
-| Public per-unit JSONL SHA-256 | `cadfe530ac8184a0d00cb172587d1c528078bce41e24760d847c7caff71faa57` |
+| Public per-unit JSONL SHA-256 | `93d62a64c53e4b93054ebbac2f9d82d7094d766577572575c3df9c3c24ab6ea1` |
 
 The source run has 36 cases and 72 arm events, allocated OFF-to-ON `18` and
 ON-to-OFF `18`. The public package has exactly eight files and 28 content-free
@@ -189,8 +189,8 @@ replication remain `NOT RUN`.
 Fresh local verification on 2026-07-21 produced:
 
 ```text
-focused R2-S3/public tests    372 passed / 5 platform skips / 3 known warnings
-full repository pytest       1312 passed / 5 platform skips / 3 known warnings
+focused R2-S3/public tests    376 passed / 5 platform skips / 3 known warnings
+full repository pytest       1316 passed / 5 platform skips / 3 known warnings
 compileall                    exit 0
 pip check                     no broken requirements
 public repository audit      451 candidates / 0 findings

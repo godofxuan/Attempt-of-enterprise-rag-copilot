@@ -103,9 +103,11 @@ is `app/evaluation/indirect_injection_live_runner.py` at SHA-256
 The original `-01` exposure evaluator was
 `app/evaluation/indirect_injection_exposure.py` at SHA-256
 `e043f198c669708d1da2acd5afeb1503bd04f2849d0488ea845d120ee1842bfb`;
-the final-review fixes changed those bytes, so the current accepted `-02`
-evaluator SHA-256 is
+the first final-review fix wave produced the superseded `-02` evaluator at
 `86d87d018948f1276a8c9ce3f7105fb7cd90f7ce78bc98aeae1e79bba6699b33`.
+The fixed-HEAD re-review then added source-bound publication and exact source-row
+snapshot checks. The current accepted `-03` evaluator SHA-256 is
+`24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce`.
 
 This distinction later prevented a second attribution error in the private
 writer: `failures.csv` originally repeated a case-level exposure once per unit.
@@ -334,16 +336,49 @@ The fixed evaluator was then executed exactly once against the unchanged source.
 The accepted evidence identity is:
 
 ```text
-accepted private run          r2-s3-dev-exposure-20260721-02
+accepted private run          r2-s3-dev-exposure-20260721-03
 private manifest schema       indirect_injection_exposure_run_manifest_v2
-private manifest SHA-256      0c2e074d5b8ba2c4396691a58f1d81cc802d5feb1c200f2eccf661f11d5f0585
-accepted evaluator SHA-256    86d87d018948f1276a8c9ce3f7105fb7cd90f7ce78bc98aeae1e79bba6699b33
+private manifest SHA-256      7156b24ee27c929397effb64715e20e473e091533f1123502811f3edabe2b69e
+accepted evaluator SHA-256    24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce
 public manifest schema        indirect_injection_exposure_public_manifest_v2
-public manifest SHA-256       530b089b0e216f41cba014bf83dcdc2dfbcb7e60310f86f80cc9fb9da3c40910
+public manifest SHA-256       cfa626388a2ec37f0b8b68c6a922c2769e41a5fb9f728e9a780f317a3a2eab53
 ```
 
-The original `r2-s3-dev-exposure-20260721-01` v1 artifact is superseded local history.
-It was not changed or rerun and remains independently verifiable.
+The `r2-s3-dev-exposure-20260721-01` v1 artifact and first v2
+`r2-s3-dev-exposure-20260721-02` artifact are superseded local history. Neither
+was changed or rerun, and both remain independently verifiable.
+
+### Fixed-HEAD source-binding follow-up
+
+The first whole-branch re-review correctly observed that the result model's
+hashes established self-consistency, not an independent source authority. A
+caller able to rewrite rows or non-row witnesses together with their hashes and
+recomputed summary could create a different internally valid result before the
+writer ran. It also found that `load_exposure_inputs()` verified the source run
+and then reread `per_case.jsonl` without checking the bytes of that second read
+against the verified manifest.
+
+The RED suite covered four coherent row rewrites, one coherent witness rewrite,
+one post-verifier source-row mutation, and one writer-boundary rejection. All
+seven failed before implementation. The fix made the supported
+`publish_exposure_run()` reload the source by its trusted manifest hash, rerun
+the deterministic analysis, and require exact typed-result equality before any
+staging directory is created. The source loader now compares the exact bytes
+and SHA-256 of the consumed `per_case.jsonl` with manifest artifact evidence
+before parsing. A same-length fingerprint mutation proves the SHA check itself,
+not only the byte-count check. The byte-only `_publish_exposure_run()` helper is
+private, absent from `__all__`, and referenced only by synthetic test fixtures.
+
+The change was committed as `33104e1f99fbb67d3a63dabf1c5808611b4d1cdb`.
+At that exact commit, before the one-time evaluator invocation, gates were
+`1316 passed / 5 skipped`, compile clean, `pip check` clean, and public audit
+`451/0`. The `-03` evaluator was then invoked
+exactly once. Private verification passed, and its `summary.json` and
+`per_unit.jsonl` hashes remained exactly
+`115d9f1e973c1341e4059d4c4bd28615e31a76104922e10ab877dbfbf5d2e50c` and
+`d747d895c26450dd53c9a61623f3ba9572eaf25d0e292775b2f5ea3eedd0bb98`,
+matching `-02`; the security result did not change, only its publication trust
+boundary did.
 
 Both v2 manifests carry these exact replay implementation dependencies:
 
@@ -360,6 +395,6 @@ recomputed the unchanged metrics: candidate presence `26/28`, live/replay reach
 search reach `6/26 -> 22/26 -> 26/26`, total reach
 `15/28 -> 28/28 -> 28/28`, and additional scan units/characters
 `0/0 -> 29/3845 -> 33/4200`. Final local gates were focused
-`372 passed / 5 skipped`, full `1312 passed / 5 skipped`, compile/pip clean,
+`376 passed / 5 skipped`, full `1316 passed / 5 skipped`, compile/pip clean,
 and public audit `451/0`. Push remains prohibited/deferred until whole-branch
 synthesis approves the fixed exact HEAD; that re-review is controller-owned.

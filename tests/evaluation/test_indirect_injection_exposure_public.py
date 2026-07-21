@@ -348,7 +348,7 @@ def test_trusted_verifier_accepts_tracked_v2_package() -> None:
     )
 
     assert result.verified is True
-    assert result.source_run_id == "r2-s3-dev-exposure-20260721-02"
+    assert result.source_run_id == "r2-s3-dev-exposure-20260721-03"
     assert result.case_count == 36
     assert result.row_count == 28
 
