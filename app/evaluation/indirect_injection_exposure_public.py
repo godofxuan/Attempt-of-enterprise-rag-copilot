@@ -254,8 +254,13 @@ def _assert_text_paths_are_relative(text: str, label: str) -> None:
 def _elide_recognized_network_uris(text: str) -> str:
     def replace(match: re.Match[str]) -> str:
         candidate = match.group(0)
-        parsed = urlsplit(candidate)
-        if parsed.scheme.lower() in _NETWORK_URI_SCHEMES and parsed.netloc:
+        try:
+            parsed = urlsplit(candidate)
+            hostname = parsed.hostname
+            _port = parsed.port
+        except ValueError:
+            return candidate
+        if parsed.scheme.lower() in _NETWORK_URI_SCHEMES and hostname:
             return " " * len(candidate)
         return candidate
 

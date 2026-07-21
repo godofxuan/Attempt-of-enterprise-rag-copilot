@@ -717,6 +717,10 @@ def test_export_scans_decoded_structured_values_before_json_escaping(
         "local path:/etc/hosts",
         "local path://etc/hosts",
         "local path:///etc/hosts",
+        "https://:/etc/hosts",
+        "https://@/etc/hosts",
+        "https://[::1/etc/hosts",
+        "https://example.com:notaport/etc/hosts",
         "file:///etc/hosts",
         "file:/etc/hosts",
         "file://server/share/file.txt",
@@ -752,6 +756,10 @@ def test_export_rejects_absolute_local_paths(
     (
         "local path://etc/hosts",
         "local path:///etc/hosts",
+        "https://:/etc/hosts",
+        "https://@/etc/hosts",
+        "https://[::1/etc/hosts",
+        "https://example.com:notaport/etc/hosts",
     ),
 )
 def test_final_byte_scanner_rejects_colon_adjacent_posix_absolute_path(
