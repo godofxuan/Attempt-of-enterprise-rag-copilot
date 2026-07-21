@@ -44,11 +44,14 @@ from app.evaluation.indirect_injection_live_runner import (
     evaluate_live_paired,
 )
 from app.evaluation.indirect_injection_live_writer import (
+    CrossModelExperimentBinding,
     LiveIndexReference,
     LiveSecurityRunManifestV2,
+    LiveSecurityRunManifestV3,
     OllamaModelIdentity,
     publish_live_security_run,
     resolve_ollama_model_identity,
+    verify_live_security_run,
 )
 from app.evaluation.indirect_injection_writer import R1HashPair, validate_security_run_id
 from app.indexing.store import load_index_version
@@ -76,6 +79,9 @@ FROZEN_TEST_DATASET_SHA256 = (
 FROZEN_TEST_FIXTURE_SHA256 = (
     "eea41009bd5a8eda2b0a1ff7c29e593895d917b4055e9712b1db48daa9d51c1d"
 )
+FROZEN_QWEN25_CHAT_DIGEST = (
+    "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b"
+)
 _SMOKE_RESPONSE_FORMAT = {
     "type": "object",
     "properties": {"status": {"type": "string", "enum": ["ready"]}},
@@ -96,6 +102,22 @@ class ModelSmokeEvidence:
     structured_chat_valid: bool
     allowed_http_request_count: int
     blocked_egress_attempt_count: int
+
+
+@dataclass(frozen=True)
+class LiveExecutionRequest:
+    args: argparse.Namespace
+    chat_model: str
+    expected_chat_digest: str
+    experiment: CrossModelExperimentBinding | None = None
+    evaluator_path: str = "scripts/eval_indirect_injection_live.py"
+    canonical_argv: tuple[str, ...] | None = None
+
+
+@dataclass(frozen=True)
+class LiveExecutionOutcome:
+    output_dir: Path
+    manifest: LiveSecurityRunManifestV2 | LiveSecurityRunManifestV3
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -207,6 +229,38 @@ def production_active_index_reference(index_root: Path) -> LiveIndexReference:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    request = LiveExecutionRequest(
+        args=args,
+        chat_model="qwen2.5:3b",
+        expected_chat_digest=FROZEN_QWEN25_CHAT_DIGEST,
+        canonical_argv=_canonical_argv(args),
+    )
+    outcome = execute_live_security_run(request)
+    manifest = outcome.manifest
+    print(
+        json.dumps(
+            {
+                "run_id": manifest.run_id,
+                "split": manifest.split,
+                "status": manifest.status,
+                "protocol_complete": manifest.observation.protocol_complete,
+                "arm_order_protocol": manifest.arm_order.protocol_id,
+                "off_then_on_case_count": manifest.arm_order.off_then_on_count,
+                "on_then_off_case_count": manifest.arm_order.on_then_off_count,
+                "output_dir": str(outcome.output_dir),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0 if manifest.observation.protocol_complete else 1
+
+
+def execute_live_security_run(
+    request: LiveExecutionRequest,
+) -> LiveExecutionOutcome:
+    args = request.args
+    _validate_execution_request(request)
     validate_security_run_id(args.run_id)
     if args.run_id == FROZEN_FORMAL_D7_RUN_ID:
         raise ValueError("the frozen formal D7 run ID cannot be rerun")
@@ -215,7 +269,9 @@ def main(argv: list[str] | None = None) -> int:
     if output_target.parent != output_root:
         raise ValueError("run ID resolves outside output root")
     if output_target.exists():
-        raise FileExistsError(f"live security output run already exists: {output_target}")
+        raise FileExistsError(
+            f"live security output run already exists: {output_target}"
+        )
     frozen_formal_dir = (
         DEFAULT_OUT_DIR / FROZEN_FORMAL_D7_RUN_ID
     ).resolve()
@@ -245,18 +301,28 @@ def main(argv: list[str] | None = None) -> int:
     settings = get_settings()
     config = LiveSecurityConfig(
         llm_endpoint=settings.llm_base_url,
-        chat_model=settings.chat_model,
+        chat_model=request.chat_model,
         structured_generation_max_attempts=(
             settings.structured_generation_max_attempts
         ),
     )
-    _validate_frozen_models(settings.embedding_model, config.chat_model)
+    if request.experiment is None:
+        _validate_frozen_models(settings.embedding_model, settings.chat_model)
+        if settings.chat_model != request.chat_model:
+            raise ValueError("D7 frozen protocol chat model changed internally")
+    else:
+        _validate_frozen_embedding_model(settings.embedding_model)
 
     started_at = datetime.now(timezone.utc)
     git_provenance = _git_provenance(BASE_DIR)
     installed_dependencies = _installed_dependency_snapshot()
     production_index = production_active_index_reference(settings.v2_indexes_dir)
     runtime = fetch_ollama_runtime(config, settings.embedding_model)
+    if runtime.chat.digest != request.expected_chat_digest:
+        raise ValueError(
+            "resolved Ollama chat model digest does not match expected "
+            "chat model digest"
+        )
     smoke = run_model_smoke(config, settings.embedding_model, runtime)
 
     security_index_root = (args.index_root.resolve() / args.run_id).resolve()
@@ -294,7 +360,7 @@ def main(argv: list[str] | None = None) -> int:
         _git_provenance(BASE_DIR),
     )
     completed_at = datetime.now(timezone.utc)
-    canonical_argv = _canonical_argv(args)
+    canonical_argv = request.canonical_argv or _canonical_argv(args)
     security_index = _security_index_reference(built)
     manifest = _build_manifest(
         args=args,
@@ -311,6 +377,8 @@ def main(argv: list[str] | None = None) -> int:
         started_at=started_at,
         completed_at=completed_at,
         index_embedding_call_count=built.embedding_call_count,
+        experiment=request.experiment,
+        evaluator_path=request.evaluator_path,
     )
     forbidden_texts = _forbidden_fixture_texts(bundle)
     output = publish_live_security_run(
@@ -329,23 +397,29 @@ def main(argv: list[str] | None = None) -> int:
         ),
         forbidden_texts=forbidden_texts,
     )
-    print(
-        json.dumps(
-            {
-                "run_id": args.run_id,
-                "split": args.split,
-                "status": result.status,
-                "protocol_complete": result.protocol_complete,
-                "arm_order_protocol": result.arm_order.protocol_id,
-                "off_then_on_case_count": result.arm_order.off_then_on_count,
-                "on_then_off_case_count": result.arm_order.on_then_off_count,
-                "output_dir": str(output),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-    )
-    return 0 if result.protocol_complete else 1
+    verified = verify_live_security_run(output)
+    if not isinstance(
+        verified,
+        (LiveSecurityRunManifestV3, LiveSecurityRunManifestV2),
+    ):
+        raise RuntimeError("published live run did not verify as a v2/v3 manifest")
+    return LiveExecutionOutcome(output_dir=output, manifest=verified)
+
+
+def _validate_execution_request(request: LiveExecutionRequest) -> None:
+    if (
+        len(request.expected_chat_digest) != 64
+        or not set(request.expected_chat_digest) <= set("0123456789abcdef")
+    ):
+        raise ValueError("expected chat model digest must be lowercase SHA-256")
+    if not request.chat_model:
+        raise ValueError("chat model is required")
+    if request.experiment is not None and request.args.split != "dev":
+        raise ValueError("cross-model live execution requires the dev split")
+    if request.canonical_argv is not None and not request.canonical_argv:
+        raise ValueError("canonical argv cannot be empty")
+    if request.experiment is not None:
+        _repository_file(request.evaluator_path, "evaluator path")
 
 
 def _build_manifest(
@@ -364,19 +438,37 @@ def _build_manifest(
     started_at: datetime,
     completed_at: datetime,
     index_embedding_call_count: int,
-) -> LiveSecurityRunManifestV2:
+    experiment: CrossModelExperimentBinding | None,
+    evaluator_path: str,
+) -> LiveSecurityRunManifestV2 | LiveSecurityRunManifestV3:
     ruleset = BASE_DIR / "app" / "security" / "retrieved_content.py"
-    evaluator = BASE_DIR / "app" / "evaluation" / "indirect_injection_live_runner.py"
+    is_cross_model = experiment is not None
+    manifest_type = (
+        LiveSecurityRunManifestV3 if is_cross_model else LiveSecurityRunManifestV2
+    )
+    manifest_evaluator_path = (
+        evaluator_path
+        if is_cross_model
+        else "app/evaluation/indirect_injection_live_runner.py"
+    )
+    evaluator = _repository_file(manifest_evaluator_path, "evaluator path")
     requirements = BASE_DIR / "requirements.txt"
     exit_code = 0 if result.protocol_complete else 1
-    return LiveSecurityRunManifestV2.model_validate(
-        {
-            "schema_version": "indirect_injection_live_security_run_manifest_v2",
+    payload = {
+            "schema_version": (
+                "indirect_injection_live_security_run_manifest_v3"
+                if is_cross_model
+                else "indirect_injection_live_security_run_manifest_v2"
+            ),
             "producer": "enterprise_agentic_rag_v2",
             "run_id": args.run_id,
             "suite": "retrieved_content_indirect_injection",
             "split": args.split,
-            "mode": "local_live_paired_counterbalanced",
+            "mode": (
+                "local_live_paired_counterbalanced_cross_model_dev"
+                if is_cross_model
+                else "local_live_paired_counterbalanced"
+            ),
             "started_at_utc": started_at,
             "completed_at_utc": completed_at,
             "status": result.status,
@@ -429,7 +521,7 @@ def _build_manifest(
                 },
             },
             "evaluator": {
-                "path": "app/evaluation/indirect_injection_live_runner.py",
+                "path": manifest_evaluator_path,
                 "sha256": _sha256(evaluator),
                 "argv": canonical_argv,
                 "exit_code": exit_code,
@@ -469,7 +561,9 @@ def _build_manifest(
                 "Hash-rank counterbalancing reduces one order confounder but does not remove all temporal or model-state effects.",
             ),
         }
-    )
+    if experiment is not None:
+        payload["experiment"] = experiment
+    return manifest_type.model_validate(payload)
 
 
 def _security_index_reference(built: LiveFixtureIndexBuild) -> LiveIndexReference:
@@ -569,10 +663,30 @@ def _canonical_argv(args: argparse.Namespace) -> tuple[str, ...]:
 
 
 def _validate_frozen_models(embedding_model: str, chat_model: str) -> None:
-    if embedding_model not in {"bge-m3", "bge-m3:latest"}:
-        raise ValueError("D7 frozen protocol requires BGE-M3")
+    _validate_frozen_embedding_model(embedding_model)
     if chat_model != "qwen2.5:3b":
         raise ValueError("D7 frozen protocol requires qwen2.5:3b")
+
+
+def _validate_frozen_embedding_model(embedding_model: str) -> None:
+    if embedding_model not in {"bge-m3", "bge-m3:latest"}:
+        raise ValueError("D7 frozen protocol requires BGE-M3")
+
+
+def _repository_file(relative_path: str, label: str) -> Path:
+    if "\\" in relative_path:
+        raise ValueError(f"{label} must use repository-relative POSIX form")
+    path = Path(relative_path)
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError(f"{label} must be repository-relative")
+    resolved = (BASE_DIR / path).resolve()
+    try:
+        resolved.relative_to(BASE_DIR.resolve())
+    except ValueError as exc:
+        raise ValueError(f"{label} resolves outside the repository") from exc
+    if not resolved.is_file():
+        raise FileNotFoundError(f"{label} does not exist: {relative_path}")
+    return resolved
 
 
 def _reject_frozen_formal_run_path(

@@ -107,6 +107,46 @@ def writer_v2_inputs(writer_inputs):
     return bundle, built, result
 
 
+@pytest.fixture(scope="module")
+def writer_v3_inputs(tmp_path_factory: pytest.TempPathFactory):
+    root = tmp_path_factory.mktemp("r2-s4-live-writer")
+    security_root = root / "security-data"
+    build_v1_bundle(
+        security_root,
+        frozen_at_utc=FROZEN_AT,
+        freeze_git_head=FREEZE_HEAD,
+    )
+    bundle = load_security_bundle(security_root, "dev")
+    built = build_live_fixture_index(
+        dataset=bundle.dataset,
+        fixtures=bundle.fixture_manifest,
+        root=root / "security-index",
+        run_id="r2-s4-live-writer-index",
+        fixture_sha256=bundle.fixture_manifest_sha256,
+        embedding_model="bge-m3",
+        embed_text=_embedding,
+        started_at=BUILD_TIME,
+        finished_at=BUILD_TIME,
+    )
+    plan = build_counterbalanced_arm_order_plan(
+        case.case_id for case in bundle.dataset.cases
+    )
+    result = evaluate_live_paired(
+        dataset=bundle.dataset,
+        fixtures=bundle.fixture_manifest,
+        snapshot=built.snapshot,
+        embed_text=_embedding,
+        chat_fn=_StructuredFixtureChat(),
+        config=LiveSecurityConfig(
+            llm_endpoint="http://127.0.0.1:11434/v1",
+            chat_model="qwen3:8b",
+        ),
+        clock_ms=lambda: 1_000.0,
+        arm_order=plan,
+    )
+    return bundle, built, result
+
+
 def _identity(name: str, digest_seed: str, capability: str) -> OllamaModelIdentity:
     return OllamaModelIdentity(
         requested_name=name,
@@ -262,6 +302,49 @@ def _manifest_v2(bundle, built, result):
     return live_writer.LiveSecurityRunManifestV2.model_validate(payload)
 
 
+def _manifest_v3(bundle, built, result):
+    payload = _manifest(bundle, built, result).model_dump(mode="python")
+    payload.update(
+        {
+            "schema_version": "indirect_injection_live_security_run_manifest_v3",
+            "run_id": "r2-s4-live-writer-test",
+            "split": "dev",
+            "mode": "local_live_paired_counterbalanced_cross_model_dev",
+            "arm_order": result.arm_order,
+            "experiment": {
+                "plan_id": "r2-s4-cross-model-dev-v1",
+                "plan_sha256": "a" * 64,
+                "model_role": "replication",
+                "only_changed_variable": "chat_model_identity",
+            },
+        }
+    )
+    payload["data"].update(
+        {
+            "dataset_path": "data/v2/security/indirect_injection_dev_v1.json",
+            "dataset_sha256": bundle.dataset_sha256,
+            "fixture_manifest_path": (
+                "data/v2/security/fixtures_v1/dev/manifest.json"
+            ),
+            "fixture_manifest_sha256": bundle.fixture_manifest_sha256,
+        }
+    )
+    payload["retrieval"]["security_fixture_index"].update(
+        {
+            "run_id": built.manifest.run_id,
+            "manifest_sha256": built.manifest_sha256,
+            "corpus_sha256": bundle.fixture_manifest_sha256,
+            "indexed_chunk_count": built.manifest.indexed_chunk_count,
+        }
+    )
+    payload["models"]["chat"] = _identity(
+        "qwen3:8b",
+        "replication-chat",
+        "completion",
+    )
+    return live_writer.LiveSecurityRunManifestV3.model_validate(payload)
+
+
 def _forbidden_texts(bundle) -> tuple[str, ...]:
     values: set[str] = set()
     for case in bundle.dataset.cases:
@@ -276,6 +359,178 @@ def _forbidden_texts(bundle) -> tuple[str, ...]:
         for opened in fixture.open_results:
             values.add(opened.content)
     return tuple(sorted(values))
+
+
+def test_v3_experiment_binding_requires_exact_contract() -> None:
+    binding = live_writer.CrossModelExperimentBinding(
+        plan_id="r2-s4-cross-model-dev-v1",
+        plan_sha256="a" * 64,
+        model_role="replication",
+        only_changed_variable="chat_model_identity",
+    )
+
+    assert binding.model_role == "replication"
+
+    for field, value in (
+        ("plan_id", "another-plan"),
+        ("plan_sha256", "altered"),
+        ("model_role", "observer"),
+        ("only_changed_variable", "chat_and_embedding_model_identity"),
+    ):
+        with pytest.raises(ValidationError):
+            live_writer.CrossModelExperimentBinding.model_validate(
+                binding.model_copy(update={field: value}).model_dump(mode="python")
+            )
+
+
+def test_publish_and_verify_v3_live_run(
+    tmp_path: Path,
+    writer_v3_inputs,
+) -> None:
+    bundle, built, result = writer_v3_inputs
+    manifest = _manifest_v3(bundle, built, result)
+
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        manifest,
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+    verified = live_writer.verify_live_security_run(target)
+
+    assert type(verified) is live_writer.LiveSecurityRunManifestV3
+    assert verified.schema_version == (
+        "indirect_injection_live_security_run_manifest_v3"
+    )
+    assert verified.experiment == manifest.experiment
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    (
+        (("experiment", "plan_sha256"), "altered"),
+        (("experiment", "model_role"), "observer"),
+        (("models", "chat", "digest"), "altered"),
+    ),
+)
+def test_v3_verifier_rejects_invalid_manifest_identity_fields(
+    tmp_path: Path,
+    writer_v3_inputs,
+    path: tuple[str, ...],
+    value: str,
+) -> None:
+    bundle, built, result = writer_v3_inputs
+    manifest = _manifest_v3(bundle, built, result)
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        manifest,
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+    payload = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
+    cursor = payload
+    for key in path[:-1]:
+        cursor = cursor[key]
+    cursor[path[-1]] = value
+    (target / "manifest.json").write_bytes(live_writer._json_bytes(payload))
+
+    with pytest.raises(ValidationError):
+        live_writer.verify_live_security_run(target)
+
+
+def test_v3_verifier_rejects_altered_artifact_bytes(
+    tmp_path: Path,
+    writer_v3_inputs,
+) -> None:
+    bundle, built, result = writer_v3_inputs
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        _manifest_v3(bundle, built, result),
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+    with (target / "commands.txt").open("a", encoding="utf-8") as stream:
+        stream.write("altered\n")
+
+    with pytest.raises(ValueError, match="artifact evidence mismatch"):
+        live_writer.verify_live_security_run(target)
+
+
+def test_v3_verifier_rejects_self_consistent_contradictory_summary(
+    tmp_path: Path,
+    writer_v3_inputs,
+) -> None:
+    bundle, built, result = writer_v3_inputs
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        _manifest_v3(bundle, built, result),
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+    summary_path = target / "summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary["guard_off_live"]["case_count"] += 1
+    summary_path.write_bytes(live_writer._json_bytes(summary))
+    _rewrite_v3_integrity_metadata(target)
+
+    with pytest.raises(ValueError, match="summary"):
+        live_writer.verify_live_security_run(target)
+
+
+def test_v3_verifier_rejects_self_consistent_contradictory_arm_order(
+    tmp_path: Path,
+    writer_v3_inputs,
+) -> None:
+    bundle, built, result = writer_v3_inputs
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        _manifest_v3(bundle, built, result),
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+    rows_path = target / "per_case.jsonl"
+    rows = rows_path.read_text(encoding="utf-8").splitlines()
+    first = json.loads(rows[0])
+    first["arm_execution"]["arm_position"] = 2
+    rows[0] = json.dumps(first, ensure_ascii=False, sort_keys=True)
+    rows_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    _rewrite_v3_integrity_metadata(target)
+
+    with pytest.raises(ValueError, match="arm position"):
+        live_writer.verify_live_security_run(target)
+
+
+def _rewrite_v3_integrity_metadata(target: Path) -> None:
+    checksum_payload = "".join(
+        f"{live_writer._sha256(target / name)}  {name}\n"
+        for name in live_writer._CHECKSUM_CONTENT_NAMES
+    ).encode("utf-8")
+    (target / "checksums.sha256").write_bytes(checksum_payload)
+    payload = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
+    payload["artifacts"] = {
+        name: {
+            "path": name,
+            "bytes": (target / name).stat().st_size,
+            "sha256": live_writer._sha256(target / name),
+        }
+        for name in sorted(live_writer._ARTIFACT_NAMES)
+    }
+    (target / "manifest.json").write_bytes(live_writer._json_bytes(payload))
 
 
 def test_publish_live_run_is_immutable_complete_and_content_free(

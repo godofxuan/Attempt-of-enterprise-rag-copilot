@@ -295,6 +295,22 @@ class LiveSecurityRunManifestV2(LiveSecurityRunManifest):
         return self
 
 
+class CrossModelExperimentBinding(_StrictFrozenModel):
+    plan_id: Literal["r2-s4-cross-model-dev-v1"]
+    plan_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    model_role: Literal["baseline", "replication"]
+    only_changed_variable: Literal["chat_model_identity"]
+
+
+class LiveSecurityRunManifestV3(LiveSecurityRunManifestV2):
+    schema_version: Literal[
+        "indirect_injection_live_security_run_manifest_v3"
+    ]
+    mode: Literal["local_live_paired_counterbalanced_cross_model_dev"]
+    split: Literal["dev"]
+    experiment: CrossModelExperimentBinding
+
+
 def resolve_ollama_model_identity(
     tags_payload: Mapping[str, object],
     requested_name: str,
@@ -405,11 +421,19 @@ def _validate_consistency(
     manifest: LiveSecurityRunManifest,
     result: LivePairedResult,
 ) -> None:
-    manifest_is_v2 = isinstance(manifest, LiveSecurityRunManifestV2)
+    manifest_schema = manifest.schema_version
+    manifest_is_v2_or_v3 = manifest_schema in {
+        "indirect_injection_live_security_run_manifest_v2",
+        "indirect_injection_live_security_run_manifest_v3",
+    }
     result_is_v2 = isinstance(result, LivePairedResultV2)
-    if manifest_is_v2 != result_is_v2:
+    if manifest_is_v2_or_v3 != result_is_v2:
         raise ValueError("live manifest/result schema versions differ")
-    if manifest_is_v2 and result_is_v2 and manifest.arm_order != result.arm_order:
+    if (
+        manifest_is_v2_or_v3
+        and result_is_v2
+        and manifest.arm_order != result.arm_order
+    ):
         raise ValueError("live manifest/result arm-order plans differ")
     if manifest.split != result.split:
         raise ValueError("live manifest/result split mismatch")
@@ -875,7 +899,13 @@ def _validate_stage(
     summary = json.loads(summary_bytes.decode("utf-8"))
     if summary_bytes != _json_bytes(summary):
         raise ValueError("live summary is not canonical JSON")
-    if isinstance(manifest, LiveSecurityRunManifestV2):
+    if isinstance(manifest, LiveSecurityRunManifestV3):
+        parsed_rows = _validate_v2_per_case_rows(
+            stage / "per_case.jsonl",
+            manifest,
+        )
+        _validate_v2_summary(summary, manifest, parsed_rows)
+    elif isinstance(manifest, LiveSecurityRunManifestV2):
         parsed_rows = _validate_v2_per_case_rows(
             stage / "per_case.jsonl",
             manifest,
@@ -932,6 +962,9 @@ def load_verified_live_security_run_snapshot(
         ),
         "indirect_injection_live_security_run_manifest_v2": (
             LiveSecurityRunManifestV2
+        ),
+        "indirect_injection_live_security_run_manifest_v3": (
+            LiveSecurityRunManifestV3
         ),
     }.get(schema_version)
     if manifest_type is None:
@@ -1059,9 +1092,11 @@ def _sha256(path: Path) -> str:
 
 
 __all__ = [
+    "CrossModelExperimentBinding",
     "LiveIndexReference",
     "LiveSecurityRunManifest",
     "LiveSecurityRunManifestV2",
+    "LiveSecurityRunManifestV3",
     "OllamaModelIdentity",
     "VerifiedLiveSecurityRunSnapshot",
     "load_verified_live_security_run_snapshot",

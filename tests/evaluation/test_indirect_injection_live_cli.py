@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.evaluation import indirect_injection_live_writer as live_writer
 from app.evaluation.indirect_injection_dataset import build_v1_bundle
 from app.evaluation.indirect_injection_live_writer import (
     LiveIndexReference,
@@ -65,6 +66,165 @@ def test_parser_has_no_force_guard_or_model_override_switches() -> None:
     assert "--embedding-model" not in options
     assert "--arm-order-protocol" not in options
     assert {"--split", "--run-id", "--data-root", "--out-dir", "--index-root"}.issubset(options)
+
+
+def test_cross_model_request_rejects_test_before_settings_or_external_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    args = eval_indirect_injection_live.build_parser().parse_args(
+        [
+            "--split",
+            "test",
+            "--run-id",
+            "r2-s4-cross-model-test-probe",
+            "--data-root",
+            str(tmp_path / "unused-data"),
+            "--out-dir",
+            str(tmp_path / "unused-runs"),
+            "--index-root",
+            str(tmp_path / "unused-indexes"),
+        ]
+    )
+    called: list[str] = []
+    for name in (
+        "get_settings",
+        "fetch_ollama_runtime",
+        "run_model_smoke",
+        "build_live_fixture_index",
+        "evaluate_live_paired",
+    ):
+        monkeypatch.setattr(
+            eval_indirect_injection_live,
+            name,
+            lambda *args, _name=name, **kwargs: called.append(_name),
+        )
+
+    request = eval_indirect_injection_live.LiveExecutionRequest(
+        args=args,
+        chat_model="qwen3:8b",
+        expected_chat_digest="8" * 64,
+        experiment=live_writer.CrossModelExperimentBinding(
+            plan_id="r2-s4-cross-model-dev-v1",
+            plan_sha256="a" * 64,
+            model_role="replication",
+            only_changed_variable="chat_model_identity",
+        ),
+    )
+
+    with pytest.raises(ValueError, match="dev"):
+        eval_indirect_injection_live.execute_live_security_run(request)
+
+    assert called == []
+
+
+def test_cross_model_digest_mismatch_aborts_before_smoke_index_or_evaluation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data_root = _bundle_root(tmp_path)
+    args = eval_indirect_injection_live.build_parser().parse_args(
+        [
+            "--split",
+            "dev",
+            "--run-id",
+            "r2-s4-cross-model-digest-probe",
+            "--data-root",
+            str(data_root),
+            "--out-dir",
+            str(tmp_path / "runs"),
+            "--index-root",
+            str(tmp_path / "indexes"),
+        ]
+    )
+    called: list[str] = []
+    settings = SimpleNamespace(
+        llm_base_url="http://127.0.0.1:11434/v1",
+        chat_model="qwen2.5:3b",
+        embedding_model="bge-m3",
+        structured_generation_max_attempts=2,
+        v2_indexes_dir=tmp_path / "production-index",
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "get_settings",
+        lambda: settings,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "verify_r1_frozen_hashes",
+        lambda _root: {},
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "_git_provenance",
+        lambda _root: {
+            "head": "a" * 40,
+            "branch": "codex/rag-eval-system",
+            "dirty": False,
+            "status_entry_count": 0,
+            "dirty_state_sha256": "b" * 64,
+        },
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "_installed_dependency_snapshot",
+        lambda: {
+            "installed_snapshot_sha256": "c" * 64,
+            "installed_package_count": 50,
+        },
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "production_active_index_reference",
+        lambda _root: LiveIndexReference(
+            role="production_active_reference",
+            run_id="production-index",
+            active_pointer_sha256="1" * 64,
+            manifest_sha256="2" * 64,
+            corpus_sha256="3" * 64,
+            embedding_model="bge-m3",
+            embedding_dimension=1_024,
+            indexed_chunk_count=100,
+        ),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "fetch_ollama_runtime",
+        lambda _config, _embedding_model: (
+            eval_indirect_injection_live.OllamaRuntimeSnapshot(
+                version="0.32.1",
+                embedding=_identity("bge-m3", "7" * 64, "embedding"),
+                chat=_identity("qwen3:8b", "8" * 64, "completion"),
+            )
+        ),
+    )
+    for name in (
+        "run_model_smoke",
+        "build_live_fixture_index",
+        "evaluate_live_paired",
+    ):
+        monkeypatch.setattr(
+            eval_indirect_injection_live,
+            name,
+            lambda *args, _name=name, **kwargs: called.append(_name),
+        )
+    request = eval_indirect_injection_live.LiveExecutionRequest(
+        args=args,
+        chat_model="qwen3:8b",
+        expected_chat_digest="9" * 64,
+        experiment=live_writer.CrossModelExperimentBinding(
+            plan_id="r2-s4-cross-model-dev-v1",
+            plan_sha256="a" * 64,
+            model_role="replication",
+            only_changed_variable="chat_model_identity",
+        ),
+    )
+
+    with pytest.raises(ValueError, match="chat model digest"):
+        eval_indirect_injection_live.execute_live_security_run(request)
+
+    assert called == []
 
 
 def test_ollama_tag_resolution_records_exact_digest_and_capability() -> None:
@@ -246,7 +406,11 @@ def test_completed_live_observation_publishes_and_returns_zero_even_with_attacks
 ) -> None:
     data_root = _bundle_root(tmp_path)
     embedding_identity = _identity("bge-m3", "7" * 64, "embedding")
-    chat_identity = _identity("qwen2.5:3b", "8" * 64, "completion")
+    chat_identity = _identity(
+        "qwen2.5:3b",
+        eval_indirect_injection_live.FROZEN_QWEN25_CHAT_DIGEST,
+        "completion",
+    )
     monkeypatch.setattr(
         eval_indirect_injection_live,
         "get_settings",
@@ -379,7 +543,9 @@ def test_completed_live_observation_publishes_and_returns_zero_even_with_attacks
     assert len(rows) == 72
     assert all(set(row) == {"arm_execution", "security", "live"} for row in rows)
     assert manifest["models"]["embedding"]["digest"] == "7" * 64
-    assert manifest["models"]["chat"]["digest"] == "8" * 64
+    assert manifest["models"]["chat"]["digest"] == (
+        eval_indirect_injection_live.FROZEN_QWEN25_CHAT_DIGEST
+    )
     assert summary["guard_off_live"]["model_attack_followed"]["numerator"] >= 1
     evidence = (run / "red_green_evidence.md").read_text(encoding="utf-8")
     assert "raw canary or forbidden-action follow" in evidence
