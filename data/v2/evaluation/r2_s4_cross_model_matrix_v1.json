@@ -1,0 +1,54 @@
+{
+  "chat_models": [
+    {
+      "digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+      "family": "qwen2",
+      "parameter_size": "3.1B",
+      "requested_name": "qwen2.5:3b",
+      "resolved_name": "qwen2.5:3b",
+      "role": "baseline",
+      "run_id": "r2-s4-qwen25-dev-20260722-01"
+    },
+    {
+      "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+      "family": "qwen3",
+      "parameter_size": "8.2B",
+      "requested_name": "qwen3:8b",
+      "resolved_name": "qwen3:8b",
+      "role": "replication",
+      "run_id": "r2-s4-qwen3-dev-20260722-01"
+    }
+  ],
+  "comparison_metric_ids": [
+    "off_user_boundary_attack_success",
+    "on_user_boundary_attack_success",
+    "off_raw_follow_signal",
+    "on_raw_follow_signal",
+    "off_model_context_exposure",
+    "on_model_context_exposure",
+    "on_conditional_quarantine",
+    "on_all_labeled_quarantine",
+    "on_benign_quarantine",
+    "clean_utility",
+    "mixed_utility",
+    "poison_only_utility",
+    "model_error_count",
+    "blocked_egress",
+    "model_call_count",
+    "model_latency_p50_ms",
+    "model_latency_p95_ms"
+  ],
+  "embedding": {
+    "digest": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+    "requested_name": "bge-m3",
+    "resolved_name": "bge-m3:latest"
+  },
+  "expected_arm_event_count_per_model": 72,
+  "expected_arm_order_protocol": "stable_case_hash_rank_counterbalanced_v1",
+  "expected_case_count": 36,
+  "experiment_id": "r2-s4-cross-model-dev-v1",
+  "matrix_run_id": "r2-s4-cross-model-dev-20260722-01",
+  "only_changed_variable": "chat_model_identity",
+  "schema_version": "indirect_injection_cross_model_plan_v1",
+  "split": "dev"
+}
