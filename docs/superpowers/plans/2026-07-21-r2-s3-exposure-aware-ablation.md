@@ -45,12 +45,45 @@
 
 ### Generated and documentation files
 
-- `exposure_runs/r2-s3-dev-exposure-20260721-01/`: ignored private accepted run.
+- `exposure_runs/r2-s3-dev-exposure-20260721-02/`: ignored private accepted v2 run.
+- `exposure_runs/r2-s3-dev-exposure-20260721-01/`: superseded local history;
+  preserved unchanged and still v1-verifiable.
 - `data/v2/public/r2_s3_exposure/`: checked-in content-free evidence package.
 - `docs/security/r2_s3/00_exposure_ablation_protocol.md`: definitions and operator protocol.
 - `docs/security/r2_s3/01_results.md`: exact accepted metrics and decision.
 - `docs/security/r2_s3/02_engineering_journal.md`: RED/GREEN history, failures, fixes, code map, and interview answers.
 - `PROJECT_STATUS.md`, `README.md`, `docs/known_limitations.md`, `docs/industrialization_backlog.md`, and `docs/roadmap/CURRENT_EXECUTION_HANDOFF.md`: current-state synchronization.
+
+## Final Fix-Wave Acceptance Addendum
+
+The Task 7 `-01` commands below are retained as historical execution records and
+must not be rerun. Final-review fixes changed replay-critical bytes and required
+one new immutable identity from the unchanged S2-1 source:
+
+```text
+accepted private run          r2-s3-dev-exposure-20260721-02
+private manifest schema       indirect_injection_exposure_run_manifest_v2
+private manifest SHA-256      0c2e074d5b8ba2c4396691a58f1d81cc802d5feb1c200f2eccf661f11d5f0585
+accepted evaluator SHA-256    86d87d018948f1276a8c9ce3f7105fb7cd90f7ce78bc98aeae1e79bba6699b33
+public manifest schema        indirect_injection_exposure_public_manifest_v2
+public manifest SHA-256       530b089b0e216f41cba014bf83dcdc2dfbcb7e60310f86f80cc9fb9da3c40910
+```
+
+Both v2 manifests bind the replay implementation dependencies exactly:
+
+```text
+app/security/retrieved_content.py                    78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2
+app/security/retrieved_admission.py                  1f835ba3aa79b1450e8ae906946bba019c21b531fce114cd375b094411c88afb
+app/evaluation/indirect_injection_runner.py          c2c5c5e1815d8a77beebb5027384ea58dd3e73b8536533c8d7898d40668ed36c
+app/evaluation/indirect_injection_live_runner.py     a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958
+```
+
+The accepted `-02` run preserves every frozen admission metric and decision.
+The original `r2-s3-dev-exposure-20260721-01` is superseded local history, not
+the source of the tracked public package. Final local gates are focused
+`372 passed / 5 skipped`, full `1312 passed / 5 skipped`, compile/pip clean, and
+public audit `451/0`. Step 6 remains open: push is prohibited pending a new
+whole-branch synthesis of the fixed exact HEAD.
 
 ---
 
@@ -1585,7 +1618,7 @@ Do not call `NO_CURRENT_BYPASS_OBSERVED` a release pass or universal prompt-inje
 .\.venv\Scripts\python.exe -m pip check
 .\.venv\Scripts\python.exe -m scripts.audit_public_repo
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_live_run security_runs\r2-s2-s1-dev-20260719-01
-.\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure exposure_runs\r2-s3-dev-exposure-20260721-01
+.\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure exposure_runs\r2-s3-dev-exposure-20260721-02
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure_public data\v2\public\r2_s3_exposure
 git diff --check
 ```

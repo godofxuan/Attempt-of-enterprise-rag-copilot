@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -750,3 +751,63 @@ def test_r2_s3_backlog_remote_ci_claims_are_exact_head_scoped() -> None:
     )
     assert "Historical `9607e55` evidence applies only to that commit." in backlog
     assert "- current R2-S3 exact HEAD remote CI passed;" in backlog
+
+
+def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
+    package = ROOT / "data" / "v2" / "public" / "r2_s3_exposure"
+    manifest_path = package / "manifest.redacted.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    public_manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    current_paths = (
+        "README.md",
+        "PROJECT_STATUS.md",
+        "docs/known_limitations.md",
+        "docs/industrialization_backlog.md",
+        "docs/roadmap/CURRENT_EXECUTION_HANDOFF.md",
+        "docs/security/r2_s3/00_exposure_ablation_protocol.md",
+        "docs/security/r2_s3/01_results.md",
+        "docs/security/r2_s3/02_engineering_journal.md",
+        "docs/superpowers/plans/2026-07-21-r2-s3-exposure-aware-ablation.md",
+    )
+    contents = {
+        relative: (ROOT / relative).read_text(encoding="utf-8")
+        for relative in current_paths
+    }
+    identity_paths = current_paths[4:]
+    accepted_run_id = "r2-s3-dev-exposure-20260721-02"
+    private_manifest_sha256 = manifest["source_private_manifest_sha256"]
+    evaluator_sha256 = (
+        "86d87d018948f1276a8c9ce3f7105fb7cd90f7ce78bc98aeae1e79bba6699b33"
+    )
+
+    assert manifest["schema_version"] == (
+        "indirect_injection_exposure_public_manifest_v2"
+    )
+    assert manifest["source_private_run_id"] == accepted_run_id
+    for relative, content in contents.items():
+        assert accepted_run_id in content, relative
+    for relative in identity_paths:
+        content = contents[relative]
+        assert private_manifest_sha256 in content, relative
+        assert public_manifest_sha256 in content, relative
+        assert evaluator_sha256 in content, relative
+        assert "indirect_injection_exposure_run_manifest_v2" in content, relative
+        assert (
+            "indirect_injection_exposure_public_manifest_v2" in content
+        ), relative
+        assert "r2-s3-dev-exposure-20260721-01" in content, relative
+        assert "superseded local history" in content.casefold(), relative
+        for dependency in manifest["replay_dependencies"]:
+            assert dependency["path"] in content, relative
+            assert dependency["sha256"] in content, relative
+
+    required_boundary = (
+        "push current feature branch: PROHIBITED / DEFERRED until whole-branch "
+        "synthesis approves the fixed exact HEAD"
+    )
+    assert required_boundary in contents[
+        "docs/roadmap/CURRENT_EXECUTION_HANDOFF.md"
+    ]
+    assert required_boundary in contents[
+        "docs/superpowers/plans/2026-07-21-r2-s3-exposure-aware-ablation.md"
+    ]

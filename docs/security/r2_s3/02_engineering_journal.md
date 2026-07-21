@@ -99,10 +99,13 @@ The design therefore created a strict separation:
 
 The provenance identities are also separate: the frozen source live evaluator
 is `app/evaluation/indirect_injection_live_runner.py` at SHA-256
-`a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958`;
-the accepted exposure evaluator is
+`a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958`.
+The original `-01` exposure evaluator was
 `app/evaluation/indirect_injection_exposure.py` at SHA-256
-`e043f198c669708d1da2acd5afeb1503bd04f2849d0488ea845d120ee1842bfb`.
+`e043f198c669708d1da2acd5afeb1503bd04f2849d0488ea845d120ee1842bfb`;
+the final-review fixes changed those bytes, so the current accepted `-02`
+evaluator SHA-256 is
+`86d87d018948f1276a8c9ce3f7105fb7cd90f7ce78bc98aeae1e79bba6699b33`.
 
 This distinction later prevented a second attribution error in the private
 writer: `failures.csv` originally repeated a case-level exposure once per unit.
@@ -317,3 +320,46 @@ an unreached unit takes precedence and yields `RUNTIME_MITIGATION_REQUIRED`.
 It authorizes only the narrow statement that this frozen dev evidence does not
 justify a production retrieval-prefilter change. It does not authorize release,
 deployment, universal safety, or claims about unseen attacks or other models.
+
+## 12. Final Review Fix Wave and Evidence Migration
+
+The final whole-branch review found nine Important and seven same-wave Minor
+issues in result recomputation, source semantic joining, replay dependency byte
+binding, public auditing, path identity, snapshot export, URI scanning,
+delivery authority, and operator documentation. Each behavior repair was driven
+by a recorded RED test before production edits. Private/public verifiers retain
+v1 compatibility, while new producers emit explicit v2 manifests.
+
+The fixed evaluator was then executed exactly once against the unchanged source.
+The accepted evidence identity is:
+
+```text
+accepted private run          r2-s3-dev-exposure-20260721-02
+private manifest schema       indirect_injection_exposure_run_manifest_v2
+private manifest SHA-256      0c2e074d5b8ba2c4396691a58f1d81cc802d5feb1c200f2eccf661f11d5f0585
+accepted evaluator SHA-256    86d87d018948f1276a8c9ce3f7105fb7cd90f7ce78bc98aeae1e79bba6699b33
+public manifest schema        indirect_injection_exposure_public_manifest_v2
+public manifest SHA-256       530b089b0e216f41cba014bf83dcdc2dfbcb7e60310f86f80cc9fb9da3c40910
+```
+
+The original `r2-s3-dev-exposure-20260721-01` v1 artifact is superseded local history.
+It was not changed or rerun and remains independently verifiable.
+
+Both v2 manifests carry these exact replay implementation dependencies:
+
+```text
+app/security/retrieved_content.py                    78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2
+app/security/retrieved_admission.py                  1f835ba3aa79b1450e8ae906946bba019c21b531fce114cd375b094411c88afb
+app/evaluation/indirect_injection_runner.py          c2c5c5e1815d8a77beebb5027384ea58dd3e73b8536533c8d7898d40668ed36c
+app/evaluation/indirect_injection_live_runner.py     a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958
+```
+
+Private v2 verification and trusted plus isolated public verification all
+recomputed the unchanged metrics: candidate presence `26/28`, live/replay reach
+`15/28`, conditional quarantine `15/15`, unreached downstream exposure `0/13`,
+search reach `6/26 -> 22/26 -> 26/26`, total reach
+`15/28 -> 28/28 -> 28/28`, and additional scan units/characters
+`0/0 -> 29/3845 -> 33/4200`. Final local gates were focused
+`372 passed / 5 skipped`, full `1312 passed / 5 skipped`, compile/pip clean,
+and public audit `451/0`. Push remains prohibited/deferred until whole-branch
+synthesis approves the fixed exact HEAD; that re-review is controller-owned.

@@ -96,13 +96,29 @@ source live evaluator
 
 accepted exposure evaluator
   path    app/evaluation/indirect_injection_exposure.py
-  SHA-256 e043f198c669708d1da2acd5afeb1503bd04f2849d0488ea845d120ee1842bfb
+  SHA-256 86d87d018948f1276a8c9ce3f7105fb7cd90f7ce78bc98aeae1e79bba6699b33
 ```
 
 The first identifies the frozen source-evaluator bytes replayed by R2-S3. The
 second identifies the evaluator bytes that produced the accepted R2-S3 exposure
 run. Neither hash establishes behavioral or producer trust without the trusted
 manifest chain.
+
+The accepted evidence identity after final-review regeneration is:
+
+```text
+private run                 r2-s3-dev-exposure-20260721-02
+private manifest schema     indirect_injection_exposure_run_manifest_v2
+private summary schema      indirect_injection_exposure_summary_v2
+private manifest SHA-256    0c2e074d5b8ba2c4396691a58f1d81cc802d5feb1c200f2eccf661f11d5f0585
+public manifest schema      indirect_injection_exposure_public_manifest_v2
+public manifest SHA-256     530b089b0e216f41cba014bf83dcdc2dfbcb7e60310f86f80cc9fb9da3c40910
+public verifier SHA-256     f2fce72a6f18d0a66c194cb7819298721a62ad6a3f34c523e7ab3142ec747732
+```
+
+The original `r2-s3-dev-exposure-20260721-01` v1 run is superseded local history.
+It remains ignored and verifiable but is not the source of the tracked
+public package.
 
 ## 4. Search Depths `1`, `2`, and `4`
 
@@ -186,15 +202,15 @@ Verify the immutable source run:
   security_runs\r2-s2-s1-dev-20260719-01
 ```
 
-The accepted exposure evaluator command was executed exactly once during Task 7 and
-must not be rerun to recreate the accepted artifact:
+The fixed exposure evaluator command was executed exactly once during the final
+fix wave and must never be rerun:
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.eval_indirect_injection_exposure `
   --source-run security_runs\r2-s2-s1-dev-20260719-01 `
   --security-data-root data\v2\security `
   --out-dir exposure_runs `
-  --run-id r2-s3-dev-exposure-20260721-01 `
+  --run-id r2-s3-dev-exposure-20260721-02 `
   --expected-source-manifest-sha256 3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e
 ```
 
@@ -202,19 +218,23 @@ Verify the accepted private exposure run:
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure `
-  exposure_runs\r2-s3-dev-exposure-20260721-01
+  exposure_runs\r2-s3-dev-exposure-20260721-02
 ```
 
 Export the content-free public package from the already verified private run:
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.export_indirect_injection_exposure_public `
-  --source-run exposure_runs\r2-s3-dev-exposure-20260721-01 `
-  --output-root data\v2\public `
+  --source-run exposure_runs\r2-s3-dev-exposure-20260721-02 `
+  --output-root .tmp_r2_s3_final_public `
   --package-name r2_s3_exposure `
-  --expected-source-run-id r2-s3-dev-exposure-20260721-01 `
-  --expected-source-manifest-sha256 f7e519beb0c9e054b5de452348d214b2a39a4bec3979302063fdd2475cd6b0d6
+  --expected-source-run-id r2-s3-dev-exposure-20260721-02 `
+  --expected-source-manifest-sha256 0c2e074d5b8ba2c4396691a58f1d81cc802d5feb1c200f2eccf661f11d5f0585
 ```
+
+Verify `.tmp_r2_s3_final_public\r2_s3_exposure` with both trusted and isolated
+verifiers before mechanically replacing the same exact eight tracked files.
+Never hand-edit generated JSON, JSONL, checksum, README, or verifier bytes.
 
 Verify with the trusted repository wrapper:
 

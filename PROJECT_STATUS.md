@@ -2,7 +2,7 @@
 
 更新时间：2026-07-19（R2-S3 同步补充：2026-07-21）
 
-状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。R2-S1 已完成 D1-D7 与审计加固 V0-V5，其中 V0 是审计验证，V1-V5 是实现加固。R2-S2 S2-1 使用新 run ID 执行真实 BGE-M3 + Qwen2.5:3b 的 18/18 反平衡 dev replication：OFF raw/user-boundary signal `3/24`，ON `0/24`；真正到达 Guard 的 attack units 在 ON 下 `15/15` 隔离，但 all-labeled 口径为 `15/28`。R2-S3 已在不修改 source live run、production Guard、retrieval 或 Agent 的前提下完成 measurement-only exposure ablation：13 个 unreached units 全部位于 persisted runtime rank 2，相关 case 的 observed downstream exposure 为 `0/13`；depth `1/2/4` coverage 是 diagnostic counterfactual，不是 production execution，结论 `NO_CURRENT_BYPASS_OBSERVED` 不是 release pass 或 universal safety result。Task 8 fresh local gates 为 focused `247 passed / 2 skipped`、full `1187 passed / 2 skipped`、public audit `451/0`，source/private/public/isolated verifiers 与 frozen hashes 全部通过。S2-2 holdout freeze/verify 基础设施已实现，但 independent holdout、semantic judge、cross-model replication、50 行人工语义评分与 owner 代码/口述验收仍为 `NOT RUN`。push/remote CI 留给 mandatory whole-branch review 之后的 controller。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
+状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。R2-S1 已完成 D1-D7 与审计加固 V0-V5，其中 V0 是审计验证，V1-V5 是实现加固。R2-S2 S2-1 使用新 run ID 执行真实 BGE-M3 + Qwen2.5:3b 的 18/18 反平衡 dev replication：OFF raw/user-boundary signal `3/24`，ON `0/24`；真正到达 Guard 的 attack units 在 ON 下 `15/15` 隔离，但 all-labeled 口径为 `15/28`。R2-S3 accepted v2 run `r2-s3-dev-exposure-20260721-02` 在不修改 source live run、production Guard、retrieval 或 Agent 的前提下完成 measurement-only exposure ablation：13 个 unreached units 全部位于 persisted runtime rank 2，相关 case 的 observed downstream exposure 为 `0/13`；depth `1/2/4` coverage 是 diagnostic counterfactual，不是 production execution，结论 `NO_CURRENT_BYPASS_OBSERVED` 不是 release pass 或 universal safety result。Final local gates 为 focused `372 passed / 5 skipped`、full `1312 passed / 5 skipped`、public audit `451/0`，source/private/public/isolated verifiers 与 frozen hashes 全部通过。S2-2 holdout freeze/verify 基础设施已实现，但 independent holdout、semantic judge、cross-model replication、50 行人工语义评分与 owner 代码/口述验收仍为 `NOT RUN`。当前 R2-S3 exact HEAD 禁止 push；只有 whole-branch synthesis 批准 fixed exact HEAD 后 controller 才可交付。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
 
 ## 1. 当前定位
 
@@ -246,7 +246,7 @@ V0-V5 完成后又进行一次独立 closeout review，结果为 `0 Critical / 6
 
 ### R2-S3 measurement-only exposure ablation
 
-R2-S3 只测量、不改变执行路径。accepted private run `r2-s3-dev-exposure-20260721-01` 绑定未重跑的 source run `r2-s2-s1-dev-20260719-01` 及其 manifest SHA-256 `3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e`；private exposure manifest SHA-256 为 `f7e519beb0c9e054b5de452348d214b2a39a4bec3979302063fdd2475cd6b0d6`。production Guard、retrieval、Agent、prompt、`top_k`、`candidate_k` 和 ranking 均未修改。
+R2-S3 只测量、不改变执行路径。accepted private run `r2-s3-dev-exposure-20260721-02` 使用 `indirect_injection_exposure_run_manifest_v2`，绑定未重跑的 source run `r2-s2-s1-dev-20260719-01` 及其 manifest SHA-256 `3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e`；private exposure manifest SHA-256 为 `0c2e074d5b8ba2c4396691a58f1d81cc802d5feb1c200f2eccf661f11d5f0585`。tracked public package 使用 `indirect_injection_exposure_public_manifest_v2`。production Guard、retrieval、Agent、prompt、`top_k`、`candidate_k` 和 ranking 均未修改；`r2-s3-dev-exposure-20260721-01` 仅为 superseded local history。
 
 严格 replay 与 actual live aggregates 相等：live/replay Guard reach `15/28`，quarantine `15/28`，conditional quarantine `15/15`。13 个 unreached units 全部位于 runtime rank 2，13 个相关 case 的 controller/ledger/model-context/verifier/response/action/egress/attack-success downstream exposure 为 observed `0/13`。counterfactual search reach 在 depth `1/2/4` 为 `6/26 -> 22/26 -> 26/26`，total reach 为 `15/28 -> 28/28 -> 28/28`，额外 scan units/chars 为 `0/0 -> 29/3845 -> 33/4200`。这些 coverage/cost 只是 deterministic diagnostic，不是已执行 production behavior 或 wall-clock latency。
 
@@ -390,7 +390,7 @@ independent reviewer package                   NOT CREATED
 independent holdout model run                  NOT RUN
 blind double review / agreement                NOT RUN
 semantic judge / cross-model replication       NOT RUN
-current full repository regression             1187 PASSED / 2 SKIPPED / 3 KNOWN WARNINGS
+current full repository regression             1312 PASSED / 5 SKIPPED / 3 KNOWN WARNINGS
 current public repository audit                451 CANDIDATES / 0 FINDINGS
 compileall / pip check                         CLEAN / CLEAN
 ```
@@ -411,11 +411,11 @@ counterfactual total reach d1/d2/d4             15/28 / 28/28 / 28/28
 counterfactual production execution             NOT RUN / DIAGNOSTIC ONLY
 independent holdout                              NOT RUN
 semantic judge / cross-model replication        NOT RUN
-Task 8 focused / full pytest                     247 / 1187 PASSED; 2 SKIPPED EACH
+final focused / full pytest                      372 / 1312 PASSED; 5 SKIPPED EACH
 compile / pip / public audit                    CLEAN / CLEAN / 451-0
 source / private / public / isolated verifier   VERIFIED
 frozen hash comparisons                         EXACT
-push / remote CI                                 DEFERRED TO CONTROLLER
+push / remote CI                                 PROHIBITED / DEFERRED PENDING SYNTHESIS
 ```
 
 `NO_CURRENT_BYPASS_OBSERVED` 只表示当前冻结 dev observation 没有为 production retrieval/prefilter change 提供准入证据。它不能写成 release pass、universal safety result 或 production deployment approval。

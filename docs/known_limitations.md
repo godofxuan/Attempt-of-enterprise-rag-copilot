@@ -60,7 +60,10 @@ D1 froze the design; D3 built the model-free detector; D4 connected it to the de
 ## 6. R2-S3 current boundary
 
 R2-S3 deterministically replayed the unchanged S2-1 source admission path and
-published content-free evidence. Actual and replay Guard reach agree at `15/28`;
+published content-free evidence from accepted v2 run
+`r2-s3-dev-exposure-20260721-02`. The private and public manifests use explicit
+v2 schemas and bind the replay implementation dependencies. Actual and replay
+Guard reach agree at `15/28`;
 conditional quarantine is `15/15`; all 13 unreached units are runtime rank 2;
 and affected-case downstream exposure is observed `0/13`. Search coverage at
 depths `1/2/4` is `6/26`, `22/26`, and `26/26`, but only as a measurement-only
