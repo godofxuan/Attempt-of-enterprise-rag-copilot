@@ -13,18 +13,21 @@ from pydantic import ValidationError
 from app.evaluation import indirect_injection_exposure_writer as exposure_writer
 from app.evaluation.indirect_injection_exposure import (
     COUNTERFACTUAL_DEPTHS,
+    EXPOSURE_LIMITATIONS,
     ExposureAnalysisResult,
     ExposureSourceEvidence,
     ExposureUnitObservation,
+    ExposureVerificationInputs,
     UnguardedPathFinding,
     _build_exposure_strata,
+    compute_exposure_unit_evidence_sha256,
+    compute_exposure_verification_inputs_sha256,
+    recompute_exposure_summary,
 )
 from app.evaluation.indirect_injection_exposure_writer import (
     PRIVATE_EXPOSURE_ARTIFACT_FILES,
     ExposureRunManifest,
-    ExposureVerificationInputs,
     publish_exposure_run,
-    recompute_exposure_summary,
     verify_exposure_run,
 )
 
@@ -149,14 +152,19 @@ def exposure_result(
     units = _units()
     summary = recompute_exposure_summary(units, verification_inputs)
     return ExposureAnalysisResult(
-        schema_version="indirect_injection_exposure_analysis_v1",
+        schema_version="indirect_injection_exposure_analysis_v2",
         source=_source(),
         units=units,
+        unit_evidence_sha256=compute_exposure_unit_evidence_sha256(units),
+        verification_inputs=verification_inputs,
+        verification_inputs_sha256=(
+            compute_exposure_verification_inputs_sha256(verification_inputs)
+        ),
         summary=summary,
         strata=_build_exposure_strata(units),
         decision="NO_CURRENT_BYPASS_OBSERVED",
         unguarded_path_findings=(),
-        limitations=("Synthetic content-free writer fixture.",),
+        limitations=EXPOSURE_LIMITATIONS,
     )
 
 
@@ -166,7 +174,7 @@ def _manifest(
     run_id: str = "r2-s3-writer-test",
 ) -> ExposureRunManifest:
     return ExposureRunManifest(
-        schema_version="indirect_injection_exposure_run_manifest_v1",
+        schema_version="indirect_injection_exposure_run_manifest_v2",
         producer="enterprise_agentic_rag_v2",
         run_id=run_id,
         created_at_utc=datetime(2026, 7, 21, tzinfo=timezone.utc),
@@ -175,6 +183,8 @@ def _manifest(
         guard_ruleset_sha256=result.source.guard_ruleset_sha256,
         evaluator_path="app/evaluation/indirect_injection_exposure.py",
         evaluator_sha256="d" * 64,
+        unit_evidence_sha256=result.unit_evidence_sha256,
+        verification_inputs_sha256=result.verification_inputs_sha256,
         counterfactual_depths=COUNTERFACTUAL_DEPTHS,
         decision=result.decision,
         case_count=36,
@@ -219,6 +229,21 @@ def _refresh_checksums_and_manifest(run_dir: Path) -> None:
         for name in ARTIFACT_NAMES
     }
     (run_dir / "manifest.json").write_bytes(_canonical_json(payload))
+
+
+def _refresh_unit_evidence_binding(run_dir: Path) -> None:
+    units = tuple(
+        ExposureUnitObservation.model_validate_json(line)
+        for line in (run_dir / "per_unit.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    )
+    digest = compute_exposure_unit_evidence_sha256(units)
+    for name in ("manifest.json", "summary.json"):
+        path = run_dir / name
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["unit_evidence_sha256"] = digest
+        path.write_bytes(_canonical_json(payload))
 
 
 def test_private_writer_is_immutable_canonical_and_recomputable(
@@ -287,9 +312,16 @@ def test_failure_rows_attribute_risk_once_per_case(
         operation="find", evidence_id="future-find-consumer"
     )
     result = ExposureAnalysisResult(
-        schema_version="indirect_injection_exposure_analysis_v1",
+        schema_version="indirect_injection_exposure_analysis_v2",
         source=exposure_result.source,
         units=frozen_units,
+        unit_evidence_sha256=compute_exposure_unit_evidence_sha256(
+            frozen_units
+        ),
+        verification_inputs=verification_inputs,
+        verification_inputs_sha256=(
+            compute_exposure_verification_inputs_sha256(verification_inputs)
+        ),
         summary=recompute_exposure_summary(frozen_units, verification_inputs),
         strata=_build_exposure_strata(frozen_units),
         decision="RUNTIME_MITIGATION_REQUIRED",
@@ -359,6 +391,7 @@ def test_verifier_refuses_coherently_tampered_unit_row(
     (target / "per_unit.jsonl").write_text(
         "\n".join(rows) + "\n", encoding="utf-8", newline=""
     )
+    _refresh_unit_evidence_binding(target)
     _refresh_checksums_and_manifest(target)
 
     with pytest.raises(ValueError, match="summary does not recompute"):
@@ -391,6 +424,7 @@ def test_verifier_rejects_per_case_live_count_redistribution(
     (target / "per_unit.jsonl").write_text(
         "\n".join(rewritten) + "\n", encoding="utf-8", newline=""
     )
+    _refresh_unit_evidence_binding(target)
     _refresh_checksums_and_manifest(target)
 
     with pytest.raises(ValueError, match="replay/live case mismatch"):
@@ -414,7 +448,18 @@ def test_writer_refuses_escaped_forbidden_content_in_structured_value(
     exposure_result: ExposureAnalysisResult,
 ) -> None:
     forbidden = 'raw "attack" \\ path\n\u653b\u51fb'
-    result = exposure_result.model_copy(update={"limitations": (forbidden,)})
+    units = list(exposure_result.units)
+    units[0] = units[0].model_copy(update={"category": forbidden})
+    frozen_units = tuple(units)
+    result = exposure_result.model_copy(
+        update={
+            "units": frozen_units,
+            "unit_evidence_sha256": compute_exposure_unit_evidence_sha256(
+                frozen_units
+            ),
+            "strata": _build_exposure_strata(frozen_units),
+        }
+    )
     root = tmp_path / "runs"
 
     with pytest.raises(ValueError, match="forbidden content"):
@@ -643,3 +688,104 @@ def test_verifier_rejects_symlinked_artifact_when_supported(
 
     with pytest.raises(ValueError, match="regular files"):
         verify_exposure_run(target)
+
+
+def test_writer_rejects_coherent_row_and_summary_tampering_before_output(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+    verification_inputs: ExposureVerificationInputs,
+) -> None:
+    units = list(exposure_result.units)
+    index = next(
+        index
+        for index, item in enumerate(units)
+        if item.case_id == "synthetic-case-23"
+    )
+    row = units[index]
+    units[index] = row.model_copy(
+        update={
+            "case_replay_additional_scan_units_at_2": 1,
+            "case_replay_additional_scan_units_at_4": 1,
+            "case_replay_additional_scan_input_chars_at_2": 1,
+            "case_replay_additional_scan_input_chars_at_4": 1,
+        }
+    )
+    frozen_units = tuple(
+        ExposureUnitObservation.model_validate(item.model_dump(mode="python"))
+        for item in units
+    )
+    tampered = exposure_result.model_copy(
+        update={
+            "units": frozen_units,
+            "summary": recompute_exposure_summary(
+                frozen_units,
+                verification_inputs,
+            ),
+        }
+    )
+    root = tmp_path / "runs"
+
+    with pytest.raises(ValueError, match="unit evidence SHA-256 mismatch"):
+        publish_exposure_run(
+            root,
+            manifest=_manifest(tampered),
+            result=tampered,
+            commands="safe\n",
+            test_output="safe\n",
+            forbidden_texts=("raw question",),
+        )
+
+    assert not (root / "r2-s3-writer-test").exists()
+
+
+def test_writer_does_not_derive_non_row_witnesses_from_tampered_summary(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    payload = exposure_result.summary.model_dump(mode="python")
+    payload["clean_task_success"] = {
+        "numerator": 11,
+        "denominator": 12,
+        "rate": 11 / 12,
+        "applicable": True,
+    }
+    summary = exposure_result.summary.model_validate(payload)
+    tampered = exposure_result.model_copy(update={"summary": summary})
+    root = tmp_path / "runs"
+
+    with pytest.raises(ValueError, match="analysis summary does not recompute"):
+        publish_exposure_run(
+            root,
+            manifest=_manifest(tampered),
+            result=tampered,
+            commands="safe\n",
+            test_output="safe\n",
+            forbidden_texts=("raw question",),
+        )
+
+    assert not (root / "r2-s3-writer-test").exists()
+
+
+def test_writer_requires_exact_ordered_limitations(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    tampered = exposure_result.model_copy(
+        update={"limitations": ("Replacement limitation.",)}
+    )
+    manifest = _manifest(exposure_result).model_copy(
+        update={"limitations": tampered.limitations}
+    )
+    root = tmp_path / "runs"
+
+    with pytest.raises(ValueError, match="limitations must be exact"):
+        publish_exposure_run(
+            root,
+            manifest=manifest,
+            result=tampered,
+            commands="safe\n",
+            test_output="safe\n",
+            forbidden_texts=("raw question",),
+        )
+
+    assert not (root / "r2-s3-writer-test").exists()

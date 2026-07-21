@@ -68,7 +68,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         guard_path = BASE_DIR / GUARD_RULESET_PATH
         evaluator_path = BASE_DIR / EXPOSURE_EVALUATOR_PATH
         manifest = ExposureRunManifest(
-            schema_version="indirect_injection_exposure_run_manifest_v1",
+            schema_version="indirect_injection_exposure_run_manifest_v2",
             producer="enterprise_agentic_rag_v2",
             run_id=args.run_id,
             created_at_utc=created_at,
@@ -77,6 +77,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             guard_ruleset_sha256=_sha256(guard_path),
             evaluator_path=EXPOSURE_EVALUATOR_PATH,
             evaluator_sha256=_sha256(evaluator_path),
+            unit_evidence_sha256=result.unit_evidence_sha256,
+            verification_inputs_sha256=(
+                result.verification_inputs_sha256
+            ),
             counterfactual_depths=COUNTERFACTUAL_DEPTHS,
             decision=result.decision,
             case_count=36,
@@ -228,4 +232,3 @@ def _sha256(path: Path) -> str:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

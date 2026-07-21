@@ -1492,7 +1492,7 @@ def test_result_rejects_naively_double_counted_counterfactual_total_reach(
 
     with pytest.raises(
         ValueError,
-        match="counterfactual total reach does not match unit rows",
+        match="analysis summary does not recompute",
     ):
         exposure.ExposureAnalysisResult.model_validate(payload)
 
@@ -1513,7 +1513,7 @@ def test_result_rejects_counterfactual_search_numerator_not_derived_from_rows(
 
     with pytest.raises(
         ValueError,
-        match="counterfactual search reach does not match unit rows",
+        match="analysis summary does not recompute",
     ):
         exposure.ExposureAnalysisResult.model_validate(payload)
 
@@ -1539,7 +1539,7 @@ def test_result_rejects_counterfactual_search_denominator_not_derived_from_rows(
 
     with pytest.raises(
         ValueError,
-        match="search-addressable attack-unit count mismatch",
+        match="analysis summary does not recompute",
     ):
         exposure.ExposureAnalysisResult.model_validate(payload)
 
@@ -1813,7 +1813,6 @@ def test_result_rejects_stratum_search_depth_denominator_tampering(
         depth["counterfactual_search_reach"] = exposure.ExposureMetric.from_counts(
             metric["numerator"],
             metric["denominator"] + 1,
-            applicable=metric["applicable"],
         ).model_dump(mode="python")
 
     with pytest.raises(ValueError, match="analysis strata do not match unit rows"):
@@ -1938,7 +1937,7 @@ def test_result_rejects_downstream_exposure_with_no_bypass_decision(
     payload = exposure.analyze_exposure(accepted_inputs).model_dump(mode="python")
     _set_result_downstream_exposure(payload)
 
-    with pytest.raises(ValueError, match="analysis decision does not match evidence"):
+    with pytest.raises(ValueError, match="analysis summary does not recompute"):
         exposure.ExposureAnalysisResult.model_validate(payload)
 
 
@@ -1952,7 +1951,7 @@ def test_result_rejects_experiment_decision_when_mitigation_takes_precedence(
     )
     payload["decision"] = "RUNTIME_EXPERIMENT_ADMITTED"
 
-    with pytest.raises(ValueError, match="analysis decision does not match evidence"):
+    with pytest.raises(ValueError, match="analysis summary does not recompute"):
         exposure.ExposureAnalysisResult.model_validate(payload)
 
 
@@ -2082,3 +2081,305 @@ def test_invalid_evidence_precedes_unguarded_path_decision(
             invalid,
             unguarded_path_findings=(finding,),
         )
+
+
+def _result_verification_inputs(
+    result: exposure.ExposureAnalysisResult,
+) -> exposure.ExposureVerificationInputs:
+    return result.verification_inputs
+
+
+def _payload_with_recomputed_units(
+    result: exposure.ExposureAnalysisResult,
+    units: tuple[exposure.ExposureUnitObservation, ...],
+) -> dict[str, object]:
+    payload = result.model_dump(mode="python")
+    payload["units"] = tuple(item.model_dump(mode="python") for item in units)
+    payload["summary"] = exposure.recompute_exposure_summary(
+        units,
+        _result_verification_inputs(result),
+    ).model_dump(mode="python")
+    payload["strata"] = tuple(
+        item.model_dump(mode="python")
+        for item in exposure._build_exposure_strata(units)
+    )
+    return payload
+
+
+def _single_case_row_index(
+    units: tuple[exposure.ExposureUnitObservation, ...],
+    *,
+    reached: bool | None = None,
+    search: bool | None = None,
+) -> int:
+    counts = {
+        row.case_id: sum(item.case_id == row.case_id for item in units)
+        for row in units
+    }
+    return next(
+        index
+        for index, row in enumerate(units)
+        if counts[row.case_id] == 1
+        and (reached is None or row.replay_guard_reached is reached)
+        and (
+            search is None
+            or row.counterfactual_search_applicable is search
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    ("numerator", "denominator", "rate", "applicable"),
+    (
+        (1, 2, None, False),
+        (0, 0, None, True),
+    ),
+)
+def test_metric_applicability_must_equal_positive_denominator(
+    numerator: int,
+    denominator: int,
+    rate: float | None,
+    applicable: bool,
+) -> None:
+    with pytest.raises(
+        ValueError,
+        match="metric applicability must match denominator",
+    ):
+        exposure.ExposureMetric(
+            numerator=numerator,
+            denominator=denominator,
+            rate=rate,
+            applicable=applicable,
+        )
+
+
+def test_metric_from_counts_infers_applicability() -> None:
+    assert exposure.ExposureMetric.from_counts(0, 0).applicable is False
+    assert exposure.ExposureMetric.from_counts(1, 2).applicable is True
+    with pytest.raises(
+        ValueError,
+        match="metric applicability must match denominator",
+    ):
+        exposure.ExposureMetric.from_counts(1, 2, applicable=False)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("omission", "replacement", "duplication", "reordering"),
+)
+def test_result_requires_exact_ordered_limitations(
+    accepted_inputs: exposure.ExposureInputs,
+    mutation: str,
+) -> None:
+    payload = exposure.analyze_exposure(accepted_inputs).model_dump(mode="python")
+    if mutation == "omission":
+        payload.pop("limitations")
+        message = "Field required"
+    elif mutation == "replacement":
+        payload["limitations"] = ("Replacement limitation.",)
+        message = "analysis limitations must be exact"
+    elif mutation == "duplication":
+        payload["limitations"] = (
+            *exposure.EXPOSURE_LIMITATIONS,
+            exposure.EXPOSURE_LIMITATIONS[0],
+        )
+        message = "analysis limitations must be exact"
+    else:
+        payload["limitations"] = tuple(reversed(exposure.EXPOSURE_LIMITATIONS))
+        message = "analysis limitations must be exact"
+
+    with pytest.raises(ValueError, match=message):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
+def test_result_carries_independent_non_row_witnesses(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+
+    assert result.verification_inputs.clean_task_success_count == 12
+    assert result.verification_inputs.clean_case_count == 12
+    assert result.verification_inputs.benign_quarantine_count == 0
+    assert result.verification_inputs.benign_unit_count == 32
+    assert result.verification_inputs.model_error_count == 0
+    assert result.verification_inputs.blocked_egress_attempt_count == 0
+    assert result.verification_inputs.consumed_tool_paths_guard_covered is True
+    assert result.verification_inputs_sha256 == (
+        exposure.compute_exposure_verification_inputs_sha256(
+            result.verification_inputs
+        )
+    )
+    assert result.unit_evidence_sha256 == (
+        exposure.compute_exposure_unit_evidence_sha256(result.units)
+    )
+
+
+@pytest.mark.parametrize("all_repeated_rows", (False, True))
+def test_result_rejects_unreached_row_downstream_tampering(
+    accepted_inputs: exposure.ExposureInputs,
+    all_repeated_rows: bool,
+) -> None:
+    original = exposure.analyze_exposure(accepted_inputs)
+    grouped = exposure._group_unit_rows(original.units)
+    case_id = next(case_id for case_id, rows in grouped.items() if len(rows) > 1)
+    baseline_rows = list(original.units)
+    for index, row in enumerate(baseline_rows):
+        if row.case_id == case_id:
+            baseline_rows[index] = row.model_copy(
+                update={
+                    "replay_selected_for_evidence": False,
+                    "replay_guard_reached": False,
+                    "replay_guard_quarantined": False,
+                    "live_case_guard_reached_count": 0,
+                    "live_case_guard_quarantined_count": 0,
+                }
+            )
+    frozen_baseline = tuple(
+        exposure.ExposureUnitObservation.model_validate(
+            row.model_dump(mode="python")
+        )
+        for row in baseline_rows
+    )
+    baseline_payload = _payload_with_recomputed_units(original, frozen_baseline)
+    if "unit_evidence_sha256" in baseline_payload:
+        baseline_payload["unit_evidence_sha256"] = (
+            exposure.compute_exposure_unit_evidence_sha256(frozen_baseline)
+        )
+    result = exposure.ExposureAnalysisResult.model_validate(baseline_payload)
+    rows = list(result.units)
+    indexes = [index for index, row in enumerate(rows) if row.case_id == case_id]
+    for index in indexes if all_repeated_rows else indexes[:1]:
+        rows[index] = rows[index].model_copy(
+            update={"case_model_context_exposure": True}
+        )
+    payload = result.model_dump(mode="python")
+    payload["units"] = tuple(row.model_dump(mode="python") for row in rows)
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "inconsistent repeated case fields|"
+            "analysis summary does not recompute|"
+            "unit evidence SHA-256 mismatch"
+        ),
+    ):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
+def test_result_rejects_summary_and_decision_tampering_with_clean_rows(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    payload = result.model_dump(mode="python")
+    summary = payload["summary"]
+    assert isinstance(summary, dict)
+    denominator = summary["unreached_case_count"]
+    assert isinstance(denominator, int) and denominator > 0
+    summary["unreached_case_downstream_exposure"] = (
+        exposure.ExposureMetric.from_counts(1, denominator).model_dump(
+            mode="python"
+        )
+    )
+    payload["decision"] = "RUNTIME_MITIGATION_REQUIRED"
+
+    with pytest.raises(
+        ValueError,
+        match="analysis summary does not recompute",
+    ):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
+def test_result_rejects_non_row_summary_tampering_against_witnesses(
+    accepted_inputs: exposure.ExposureInputs,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    payload = result.model_dump(mode="python")
+    summary = payload["summary"]
+    assert isinstance(summary, dict)
+    summary["clean_task_success"] = exposure.ExposureMetric.from_counts(
+        11,
+        12,
+    ).model_dump(mode="python")
+
+    with pytest.raises(
+        ValueError,
+        match="analysis summary does not recompute",
+    ):
+        exposure.ExposureAnalysisResult.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("candidate_presence", "selection", "reach_quarantine", "case_cost"),
+)
+def test_result_rejects_coherent_row_and_summary_tampering(
+    accepted_inputs: exposure.ExposureInputs,
+    mutation: str,
+) -> None:
+    result = exposure.analyze_exposure(accepted_inputs)
+    rows = list(result.units)
+    if mutation == "candidate_presence":
+        index = _single_case_row_index(result.units, search=True)
+        rows[index] = rows[index].model_copy(
+            update={
+                "location": "open_result",
+                "source_surface": "open",
+                "actual_candidate_rank": None,
+                "candidate_pool_present": False,
+                "counterfactual_search_applicable": False,
+                "counterfactual_search_reached_at_1": None,
+                "counterfactual_search_reached_at_2": None,
+                "counterfactual_search_reached_at_4": None,
+            }
+        )
+    elif mutation == "selection":
+        index = _single_case_row_index(result.units, reached=False)
+        rows[index] = rows[index].model_copy(
+            update={
+                "replay_selected_for_evidence": True,
+                "replay_guard_reached": True,
+                "live_case_guard_reached_count": 1,
+            }
+        )
+    elif mutation == "reach_quarantine":
+        index = _single_case_row_index(result.units, reached=False)
+        rows[index] = rows[index].model_copy(
+            update={
+                "replay_guard_reached": True,
+                "replay_guard_quarantined": True,
+                "live_case_guard_reached_count": 1,
+                "live_case_guard_quarantined_count": 1,
+            }
+        )
+    else:
+        index = _single_case_row_index(result.units)
+        row = rows[index]
+        rows[index] = row.model_copy(
+            update={
+                "case_replay_additional_scan_units_at_2": (
+                    row.case_replay_additional_scan_units_at_2 + 1
+                ),
+                "case_replay_additional_scan_units_at_4": (
+                    row.case_replay_additional_scan_units_at_4 + 1
+                ),
+                "case_replay_additional_scan_input_chars_at_2": (
+                    row.case_replay_additional_scan_input_chars_at_2 + 1
+                ),
+                "case_replay_additional_scan_input_chars_at_4": (
+                    row.case_replay_additional_scan_input_chars_at_4 + 1
+                ),
+            }
+        )
+    frozen_rows = tuple(
+        exposure.ExposureUnitObservation.model_validate(
+            row.model_dump(mode="python")
+        )
+        for row in rows
+    )
+    payload = _payload_with_recomputed_units(result, frozen_rows)
+
+    with pytest.raises(
+        ValueError,
+        match="unit evidence SHA-256 mismatch",
+    ):
+        exposure.ExposureAnalysisResult.model_validate(payload)

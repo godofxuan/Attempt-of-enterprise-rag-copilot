@@ -24,20 +24,20 @@ from pydantic import (
 
 from app.evaluation.indirect_injection_exposure import (
     COUNTERFACTUAL_DEPTHS,
+    EXPOSURE_LIMITATIONS,
     ExposureAnalysisResult,
     ExposureDecision,
-    ExposureDepthMetrics,
-    ExposureMetric,
     ExposureSourceEvidence,
     ExposureStratum,
     ExposureSummary,
     ExposureUnitObservation,
+    ExposureVerificationInputs,
     UnguardedPathFinding,
-    _build_exposure_strata,
     _case_has_downstream_exposure,
-    _decide_exposure,
     _group_unit_rows,
-    _validate_repeated_case_rows,
+    compute_exposure_unit_evidence_sha256,
+    compute_exposure_verification_inputs_sha256,
+    recompute_exposure_summary,
 )
 from app.evaluation.indirect_injection_writer import (
     ArtifactEvidence,
@@ -111,30 +111,11 @@ def _safe_relative(value: str, label: str) -> str:
     return value
 
 
-class ExposureVerificationInputs(_StrictFrozenModel):
-    """Content-free source aggregates unavailable in attack-unit rows."""
-
-    clean_task_success_count: int = Field(ge=0)
-    clean_case_count: Literal[12]
-    benign_quarantine_count: int = Field(ge=0)
-    benign_unit_count: Literal[32]
-    model_error_count: int = Field(ge=0)
-    blocked_egress_attempt_count: int = Field(ge=0)
-    consumed_tool_paths_guard_covered: Literal[True]
-
-    @model_validator(mode="after")
-    def validate_counts(self) -> ExposureVerificationInputs:
-        if self.clean_task_success_count > self.clean_case_count:
-            raise ValueError("clean success count cannot exceed clean case count")
-        if self.benign_quarantine_count > self.benign_unit_count:
-            raise ValueError(
-                "benign quarantine count cannot exceed benign unit count"
-            )
-        return self
-
-
 class ExposureRunManifest(_StrictFrozenModel):
-    schema_version: Literal["indirect_injection_exposure_run_manifest_v1"]
+    schema_version: Literal[
+        "indirect_injection_exposure_run_manifest_v1",
+        "indirect_injection_exposure_run_manifest_v2",
+    ]
     producer: Literal["enterprise_agentic_rag_v2"]
     run_id: str
     created_at_utc: datetime
@@ -143,6 +124,14 @@ class ExposureRunManifest(_StrictFrozenModel):
     guard_ruleset_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     evaluator_path: str
     evaluator_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    unit_evidence_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    verification_inputs_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
     counterfactual_depths: tuple[Literal[1], Literal[2], Literal[4]]
     decision: ExposureDecision
     case_count: Literal[36]
@@ -186,10 +175,20 @@ class ExposureRunManifest(_StrictFrozenModel):
             set(self.unguarded_path_findings)
         ):
             raise ValueError("unguarded-path findings must be unique")
-        if any(not value for value in self.limitations) or len(
-            self.limitations
-        ) != len(set(self.limitations)):
-            raise ValueError("limitations must be non-empty and unique")
+        if self.limitations != EXPOSURE_LIMITATIONS:
+            raise ValueError("manifest limitations must be exact and ordered")
+        hashes = (
+            self.unit_evidence_sha256,
+            self.verification_inputs_sha256,
+        )
+        if self.schema_version.endswith("_v2") and any(
+            value is None for value in hashes
+        ):
+            raise ValueError("v2 manifest requires analysis evidence hashes")
+        if self.schema_version.endswith("_v1") and any(
+            value is not None for value in hashes
+        ):
+            raise ValueError("v1 manifest cannot carry v2 analysis evidence hashes")
         if self.artifacts:
             if set(self.artifacts) != set(_MANIFEST_ARTIFACT_NAMES):
                 raise ValueError("manifest requires the exact artifact set")
@@ -202,176 +201,43 @@ class ExposureRunManifest(_StrictFrozenModel):
 
 
 class ExposureSummaryDocument(_StrictFrozenModel):
-    schema_version: Literal["indirect_injection_exposure_summary_v1"]
+    schema_version: Literal[
+        "indirect_injection_exposure_summary_v1",
+        "indirect_injection_exposure_summary_v2",
+    ]
     source: ExposureSourceEvidence
+    unit_evidence_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
     verification_inputs: ExposureVerificationInputs
+    verification_inputs_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
     summary: ExposureSummary
     strata: tuple[ExposureStratum, ...]
     decision: ExposureDecision
     unguarded_path_findings: tuple[UnguardedPathFinding, ...]
     limitations: tuple[str, ...] = Field(min_length=1)
 
-
-def recompute_exposure_summary(
-    units: Sequence[ExposureUnitObservation],
-    verification_inputs: ExposureVerificationInputs,
-) -> ExposureSummary:
-    """Recompute persisted metrics without raw fixtures, Guard, or a model."""
-
-    frozen_units = tuple(units)
-    identities = tuple((item.case_id, item.unit_id) for item in frozen_units)
-    if len(identities) != len(set(identities)):
-        raise ValueError("analysis unit identities must be unique")
-    _validate_repeated_case_rows(frozen_units)
-    rows_by_case = _group_unit_rows(frozen_units)
-    case_rows = {case_id: rows[0] for case_id, rows in rows_by_case.items()}
-    for case_id, rows in rows_by_case.items():
-        representative = case_rows[case_id]
-        if (
-            representative.live_case_guard_reached_count
-            != sum(item.replay_guard_reached for item in rows)
-            or representative.live_case_guard_quarantined_count
-            != sum(item.replay_guard_quarantined for item in rows)
-        ):
-            raise ValueError("replay/live case mismatch")
-    attack_unit_count = len(frozen_units)
-    search_unit_count = sum(
-        item.counterfactual_search_applicable for item in frozen_units
-    )
-    live_reached = sum(
-        item.live_case_guard_reached_count for item in case_rows.values()
-    )
-    live_quarantined = sum(
-        item.live_case_guard_quarantined_count for item in case_rows.values()
-    )
-    replay_reached = sum(item.replay_guard_reached for item in frozen_units)
-    replay_quarantined = sum(
-        item.replay_guard_quarantined for item in frozen_units
-    )
-    if (live_reached, live_quarantined) != (
-        replay_reached,
-        replay_quarantined,
-    ):
-        raise ValueError("replay/live aggregate mismatch")
-    unreached_case_rows = tuple(
-        rows[0]
-        for rows in rows_by_case.values()
-        if any(not item.replay_guard_reached for item in rows)
-    )
-
-    depths: list[ExposureDepthMetrics] = []
-    for depth in COUNTERFACTUAL_DEPTHS:
-        search_flag = f"counterfactual_search_reached_at_{depth}"
-        depths.append(
-            ExposureDepthMetrics(
-                depth=depth,
-                counterfactual_search_reach=ExposureMetric.from_counts(
-                    sum(
-                        getattr(item, search_flag) is True
-                        for item in frozen_units
-                    ),
-                    search_unit_count,
-                    applicable=search_unit_count > 0,
-                ),
-                counterfactual_total_reach=ExposureMetric.from_counts(
-                    sum(
-                        item.replay_guard_reached
-                        or getattr(item, search_flag) is True
-                        for item in frozen_units
-                    ),
-                    attack_unit_count,
-                    applicable=attack_unit_count > 0,
-                ),
-                replay_additional_scan_units=sum(
-                    getattr(
-                        item,
-                        f"case_replay_additional_scan_units_at_{depth}",
-                    )
-                    for item in case_rows.values()
-                ),
-                replay_additional_scan_input_chars=sum(
-                    getattr(
-                        item,
-                        f"case_replay_additional_scan_input_chars_at_{depth}",
-                    )
-                    for item in case_rows.values()
-                ),
-            )
+    @model_validator(mode="after")
+    def validate_document(self) -> ExposureSummaryDocument:
+        if self.limitations != EXPOSURE_LIMITATIONS:
+            raise ValueError("summary limitations must be exact and ordered")
+        hashes = (
+            self.unit_evidence_sha256,
+            self.verification_inputs_sha256,
         )
-
-    return ExposureSummary(
-        attack_unit_count=attack_unit_count,
-        search_addressable_attack_unit_count=search_unit_count,
-        candidate_pool_presence=ExposureMetric.from_counts(
-            sum(item.candidate_pool_present for item in frozen_units),
-            attack_unit_count,
-            applicable=attack_unit_count > 0,
-        ),
-        replay_selected_attack_units=ExposureMetric.from_counts(
-            sum(item.replay_selected_for_evidence for item in frozen_units),
-            attack_unit_count,
-            applicable=attack_unit_count > 0,
-        ),
-        live_guard_reach=ExposureMetric.from_counts(
-            live_reached,
-            attack_unit_count,
-            applicable=attack_unit_count > 0,
-        ),
-        live_guard_quarantine=ExposureMetric.from_counts(
-            live_quarantined,
-            attack_unit_count,
-            applicable=attack_unit_count > 0,
-        ),
-        replay_guard_reach=ExposureMetric.from_counts(
-            replay_reached,
-            attack_unit_count,
-            applicable=attack_unit_count > 0,
-        ),
-        replay_guard_quarantine=ExposureMetric.from_counts(
-            replay_quarantined,
-            attack_unit_count,
-            applicable=attack_unit_count > 0,
-        ),
-        quarantine_given_live_guard_reach=ExposureMetric.from_counts(
-            live_quarantined,
-            live_reached,
-            applicable=live_reached > 0,
-        ),
-        replay_live_aggregate_match=True,
-        consumed_tool_paths_guard_covered=(
-            verification_inputs.consumed_tool_paths_guard_covered
-        ),
-        unreached_attack_unit_count=attack_unit_count - replay_reached,
-        unreached_case_count=len(unreached_case_rows),
-        unreached_case_downstream_exposure=ExposureMetric.from_counts(
-            sum(
-                _case_has_downstream_exposure(item)
-                for item in unreached_case_rows
-            ),
-            len(unreached_case_rows),
-            applicable=bool(unreached_case_rows),
-        ),
-        unreached_case_attack_success=ExposureMetric.from_counts(
-            sum(item.case_attack_success for item in unreached_case_rows),
-            len(unreached_case_rows),
-            applicable=bool(unreached_case_rows),
-        ),
-        clean_task_success=ExposureMetric.from_counts(
-            verification_inputs.clean_task_success_count,
-            verification_inputs.clean_case_count,
-            applicable=verification_inputs.clean_case_count > 0,
-        ),
-        benign_quarantine=ExposureMetric.from_counts(
-            verification_inputs.benign_quarantine_count,
-            verification_inputs.benign_unit_count,
-            applicable=verification_inputs.benign_unit_count > 0,
-        ),
-        model_error_count=verification_inputs.model_error_count,
-        blocked_egress_attempt_count=(
-            verification_inputs.blocked_egress_attempt_count
-        ),
-        depths=tuple(depths),
-    )
+        if self.schema_version.endswith("_v2") and any(
+            value is None for value in hashes
+        ):
+            raise ValueError("v2 summary requires analysis evidence hashes")
+        if self.schema_version.endswith("_v1") and any(
+            value is not None for value in hashes
+        ):
+            raise ValueError("v1 summary cannot carry v2 analysis evidence hashes")
+        return self
 
 
 def publish_exposure_run(
@@ -389,8 +255,9 @@ def publish_exposure_run(
         raise ValueError("a non-empty forbidden text policy is required")
     if manifest.artifacts:
         raise ValueError("pre-publication manifest artifacts must be empty")
-    verification_inputs = _verification_inputs_from_result(result)
-    _validate_analysis(manifest, result, verification_inputs)
+    if manifest.schema_version != "indirect_injection_exposure_run_manifest_v2":
+        raise ValueError("new exposure runs require private manifest v2")
+    _validate_analysis(manifest, result)
     canonical_commands = _canonical_text(commands, "commands")
     canonical_test_output = _canonical_text(test_output, "test output")
 
@@ -409,9 +276,11 @@ def publish_exposure_run(
     ).resolve()
     try:
         document = ExposureSummaryDocument(
-            schema_version="indirect_injection_exposure_summary_v1",
+            schema_version="indirect_injection_exposure_summary_v2",
             source=result.source,
-            verification_inputs=verification_inputs,
+            unit_evidence_sha256=result.unit_evidence_sha256,
+            verification_inputs=result.verification_inputs,
+            verification_inputs_sha256=result.verification_inputs_sha256,
             summary=result.summary,
             strata=result.strata,
             decision=result.decision,
@@ -567,29 +436,15 @@ def verify_exposure_run(run_dir: Path) -> ExposureRunManifest:
     return manifest
 
 
-def _verification_inputs_from_result(
-    result: ExposureAnalysisResult,
-) -> ExposureVerificationInputs:
-    return ExposureVerificationInputs(
-        clean_task_success_count=result.summary.clean_task_success.numerator,
-        clean_case_count=result.summary.clean_task_success.denominator,
-        benign_quarantine_count=result.summary.benign_quarantine.numerator,
-        benign_unit_count=result.summary.benign_quarantine.denominator,
-        model_error_count=result.summary.model_error_count,
-        blocked_egress_attempt_count=(
-            result.summary.blocked_egress_attempt_count
-        ),
-        consumed_tool_paths_guard_covered=(
-            result.summary.consumed_tool_paths_guard_covered
-        ),
-    )
-
-
 def _validate_analysis(
     manifest: ExposureRunManifest,
     result: ExposureAnalysisResult,
-    verification_inputs: ExposureVerificationInputs,
 ) -> None:
+    validated = ExposureAnalysisResult.model_validate(
+        result.model_dump(mode="python")
+    )
+    if validated != result:
+        raise ValueError("analysis result did not round-trip")
     if manifest.source != result.source:
         raise ValueError("manifest source contradicts analysis source")
     if manifest.decision != result.decision:
@@ -598,21 +453,21 @@ def _validate_analysis(
         raise ValueError("manifest findings contradict analysis findings")
     if manifest.limitations != result.limitations:
         raise ValueError("manifest limitations contradict analysis limitations")
+    if manifest.unit_evidence_sha256 != result.unit_evidence_sha256:
+        raise ValueError("manifest unit evidence SHA-256 mismatch")
+    if (
+        manifest.verification_inputs_sha256
+        != result.verification_inputs_sha256
+    ):
+        raise ValueError("manifest verification inputs SHA-256 mismatch")
     if len(result.units) != manifest.attack_unit_count:
         raise ValueError("manifest attack-unit count contradicts analysis")
     if len({item.case_id for item in result.units}) != manifest.attack_case_count:
         raise ValueError("manifest attack-case count contradicts analysis")
-    if verification_inputs.clean_case_count != manifest.benign_case_count:
+    if result.verification_inputs.clean_case_count != manifest.benign_case_count:
         raise ValueError("clean-case witness contradicts manifest")
-    if verification_inputs.benign_unit_count != manifest.benign_unit_count:
+    if result.verification_inputs.benign_unit_count != manifest.benign_unit_count:
         raise ValueError("benign-unit witness contradicts manifest")
-    recomputed = recompute_exposure_summary(result.units, verification_inputs)
-    if recomputed != result.summary:
-        raise ValueError("analysis summary does not recompute")
-    if _build_exposure_strata(result.units) != result.strata:
-        raise ValueError("analysis strata do not recompute")
-    if _decide_exposure(recomputed, result.unguarded_path_findings) != result.decision:
-        raise ValueError("analysis decision does not recompute")
 
 
 def _validate_stage(stage: Path, manifest: ExposureRunManifest) -> None:
@@ -644,28 +499,45 @@ def _validate_stage(stage: Path, manifest: ExposureRunManifest) -> None:
         raise ValueError("summary clean-case witness contradicts manifest")
     if document.verification_inputs.benign_unit_count != manifest.benign_unit_count:
         raise ValueError("summary benign-unit witness contradicts manifest")
-    recomputed = recompute_exposure_summary(units, document.verification_inputs)
-    if recomputed != document.summary:
-        raise ValueError("summary does not recompute from per-unit evidence")
-    recomputed_strata = _build_exposure_strata(units)
-    if recomputed_strata != document.strata:
-        raise ValueError("strata do not recompute from per-unit evidence")
-    decision = _decide_exposure(
-        recomputed,
-        document.unguarded_path_findings,
+    unit_evidence_sha256 = compute_exposure_unit_evidence_sha256(units)
+    verification_inputs_sha256 = (
+        compute_exposure_verification_inputs_sha256(
+            document.verification_inputs
+        )
     )
-    if decision != document.decision or decision != manifest.decision:
-        raise ValueError("decision does not recompute from exposure evidence")
+    manifest_is_v2 = manifest.schema_version.endswith("_v2")
+    expected_summary_schema = (
+        "indirect_injection_exposure_summary_v2"
+        if manifest_is_v2
+        else "indirect_injection_exposure_summary_v1"
+    )
+    if document.schema_version != expected_summary_schema:
+        raise ValueError("private manifest/summary schema versions disagree")
+    if manifest_is_v2 and (
+        document.unit_evidence_sha256 != unit_evidence_sha256
+        or manifest.unit_evidence_sha256 != unit_evidence_sha256
+    ):
+        raise ValueError("unit evidence SHA-256 mismatch")
+    if manifest_is_v2 and (
+        document.verification_inputs_sha256 != verification_inputs_sha256
+        or manifest.verification_inputs_sha256 != verification_inputs_sha256
+    ):
+        raise ValueError("verification inputs SHA-256 mismatch")
     ExposureAnalysisResult(
-        schema_version="indirect_injection_exposure_analysis_v1",
+        schema_version="indirect_injection_exposure_analysis_v2",
         source=document.source,
         units=units,
-        summary=recomputed,
-        strata=recomputed_strata,
-        decision=decision,
+        unit_evidence_sha256=unit_evidence_sha256,
+        verification_inputs=document.verification_inputs,
+        verification_inputs_sha256=verification_inputs_sha256,
+        summary=document.summary,
+        strata=document.strata,
+        decision=document.decision,
         unguarded_path_findings=document.unguarded_path_findings,
         limitations=document.limitations,
     )
+    if document.decision != manifest.decision:
+        raise ValueError("decision does not recompute from exposure evidence")
     observed_failures = (stage / "failures.csv").read_bytes()
     expected_failures = _failure_bytes(
         units,

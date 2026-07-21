@@ -81,6 +81,12 @@ _PUBLIC_UNIT_ROW_DEFINED_FIELDS = (
     - _PUBLIC_UNIT_ROW_METADATA_FIELDS
 )
 COUNTERFACTUAL_DEPTHS = (1, 2, 4)
+EXPOSURE_LIMITATIONS = (
+    "This dev-only deterministic replay does not establish universal runtime safety.",
+    "Counterfactual cost covers additional Guard calls and scanned input characters, "
+    "not wall-clock latency.",
+    "Counterfactual coverage alone does not admit a production retrieval change.",
+)
 _HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _SAFE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 _ATTACK_CATEGORIES = frozenset(
@@ -1251,13 +1257,10 @@ def _validate_findings(value: Any) -> None:
 
 
 def _validate_limitations(value: Any) -> None:
-    if (
-        not isinstance(value, list)
-        or not value
-        or any(not isinstance(item, str) or not item for item in value)
-        or len(value) != len(set(value))
-    ):
-        raise ExposurePublicVerificationError("invalid public limitations")
+    if value != list(EXPOSURE_LIMITATIONS):
+        raise ExposurePublicVerificationError(
+            "public limitations must be exact and ordered"
+        )
 
 
 def _validate_source_hash(package: Path, manifest: dict[str, Any]) -> None:

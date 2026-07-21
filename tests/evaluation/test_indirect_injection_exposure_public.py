@@ -12,9 +12,11 @@ import pytest
 
 from app.evaluation import indirect_injection_exposure_public as public_writer
 from app.evaluation.indirect_injection_exposure import (
+    EXPOSURE_LIMITATIONS,
     ExposureAnalysisResult,
     ExposureUnitObservation,
     _build_exposure_strata,
+    compute_exposure_unit_evidence_sha256,
 )
 from app.evaluation.indirect_injection_exposure_public import (
     export_exposure_public_evidence,
@@ -155,6 +157,11 @@ def formal_exposure_result(
         schema_version=exposure_result.schema_version,
         source=exposure_result.source,
         units=units,
+        unit_evidence_sha256=compute_exposure_unit_evidence_sha256(units),
+        verification_inputs=exposure_result.verification_inputs,
+        verification_inputs_sha256=(
+            exposure_result.verification_inputs_sha256
+        ),
         summary=exposure_result.summary,
         strata=_build_exposure_strata(units),
         decision=exposure_result.decision,
@@ -220,6 +227,43 @@ def test_public_export_is_exact_content_free_and_deterministic(
     assert b"raw question" not in public_bytes
     assert b"raw attack" not in public_bytes
     assert verify_exposure_public_package(first).verified is True
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("omission", "replacement", "duplication", "reordering"),
+)
+def test_public_verifier_requires_exact_ordered_limitations(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    public_exposure_package = tmp_path / "package"
+    shutil.copytree(
+        Path("data/v2/public/r2_s3_exposure"),
+        public_exposure_package,
+    )
+    limitations = list(EXPOSURE_LIMITATIONS)
+    if mutation == "omission":
+        changed = limitations[:-1]
+    elif mutation == "replacement":
+        changed = [*limitations[:-1], "Replacement limitation."]
+    elif mutation == "duplication":
+        changed = [*limitations, limitations[0]]
+    else:
+        changed = list(reversed(limitations))
+
+    for name in ("manifest.redacted.json", "summary.json"):
+        path = public_exposure_package / name
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["limitations"] = changed
+        _write_json(path, payload)
+    _refresh_checksums(public_exposure_package)
+
+    with pytest.raises(
+        ExposurePublicVerificationError,
+        match="public limitations",
+    ):
+        verify_exposure_public_package(public_exposure_package)
 
 
 def test_public_rows_use_exact_keys_fingerprints_and_order(
@@ -681,27 +725,13 @@ def test_export_rejects_wrong_private_hash_or_run_without_target(
 
 
 def test_export_scans_decoded_structured_values_before_json_escaping(
-    tmp_path: Path,
-    formal_exposure_result: ExposureAnalysisResult,
 ) -> None:
     forbidden = 'quoted "value"\\path\nline'
-    payload = formal_exposure_result.model_dump(mode="python")
-    payload["limitations"] = (*formal_exposure_result.limitations, forbidden)
-    changed = ExposureAnalysisResult.model_validate(payload)
-    private_run = _publish(tmp_path / "private", changed)
-
     with pytest.raises(ValueError, match="forbidden content"):
-        export_exposure_public_evidence(
-            private_run,
-            tmp_path / "public",
-            package_name="fixture",
-            expected_source_manifest_sha256=_sha256(
-                private_run / "manifest.json"
-            ),
-            expected_source_run_id=private_run.name,
-            forbidden_texts=(forbidden,),
+        public_writer._assert_structured_content_free(
+            {"value": forbidden},
+            (forbidden,),
         )
-    assert not (tmp_path / "public" / "fixture").exists()
 
 
 @pytest.mark.parametrize(
@@ -741,25 +771,15 @@ def test_export_scans_decoded_structured_values_before_json_escaping(
     ),
 )
 def test_export_rejects_absolute_local_paths(
-    tmp_path: Path,
-    formal_exposure_result: ExposureAnalysisResult,
     absolute_path: str,
 ) -> None:
-    payload = formal_exposure_result.model_dump(mode="python")
-    payload["limitations"] = (*formal_exposure_result.limitations, absolute_path)
-    changed = ExposureAnalysisResult.model_validate(payload)
-    private_run = _publish(tmp_path / "private", changed)
-
     with pytest.raises(ValueError, match="absolute local path"):
-        export_exposure_public_evidence(
-            private_run,
-            tmp_path / "public",
-            package_name="fixture",
-            expected_source_manifest_sha256=_sha256(
-                private_run / "manifest.json"
-            ),
-            expected_source_run_id=private_run.name,
-            forbidden_texts=("raw question", "raw attack"),
+        public_writer._assert_no_absolute_paths(
+            json.dumps(
+                {"value": absolute_path},
+                ensure_ascii=False,
+            ).encode("utf-8"),
+            "summary.json",
         )
 
 
@@ -808,26 +828,19 @@ def test_final_byte_scanner_rejects_colon_adjacent_posix_absolute_path(
     ),
 )
 def test_export_allows_recognized_https_url(
-    tmp_path: Path,
-    formal_exposure_result: ExposureAnalysisResult,
     network_url: str,
 ) -> None:
-    payload = formal_exposure_result.model_dump(mode="python")
-    payload["limitations"] = (*formal_exposure_result.limitations, network_url)
-    changed = ExposureAnalysisResult.model_validate(payload)
-    private_run = _publish(tmp_path / "private", changed)
-
-    package = export_exposure_public_evidence(
-        private_run,
-        tmp_path / "public",
-        package_name="fixture",
-        expected_source_manifest_sha256=_sha256(private_run / "manifest.json"),
-        expected_source_run_id=private_run.name,
-        forbidden_texts=("raw question", "raw attack"),
+    public_writer._assert_structured_paths_are_relative(
+        {"value": network_url},
+        "public structured data",
     )
-
-    assert network_url.encode("utf-8") in (package / "summary.json").read_bytes()
-    assert verify_exposure_public_package(package).verified is True
+    public_writer._assert_no_absolute_paths(
+        json.dumps(
+            {"value": network_url},
+            ensure_ascii=False,
+        ).encode("utf-8"),
+        "summary.json",
+    )
 
 
 @pytest.mark.parametrize(
