@@ -31,6 +31,7 @@ from app.evaluation.indirect_injection_live_writer import (
 from app.evaluation.indirect_injection_writer import (
     R1_FROZEN_EXPECTED_HASHES,
 )
+from tests.evaluation.path_redirect_helpers import directory_redirect
 from tests.evaluation.test_indirect_injection_live_runner import (
     BUILD_TIME,
     FIXTURE_SHA256,
@@ -607,6 +608,41 @@ def test_live_run_verifier_reports_counterbalanced_position_strata(
     for position in ("1", "2"):
         assert report["arm_position_strata"][position]["off"]["case_count"] == 18
         assert report["arm_position_strata"][position]["on"]["case_count"] == 18
+
+
+def test_live_run_verifier_cli_rejects_real_windows_run_junction(
+    tmp_path: Path,
+    writer_v2_inputs,
+) -> None:
+    from scripts.verify_indirect_injection_live_run import main as verify_main
+
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        manifest,
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+    alias = tmp_path / "live-run-junction"
+
+    with directory_redirect(
+        alias,
+        target,
+        windows_junction_only=True,
+    ) as primitive:
+        assert primitive == "junction"
+        with pytest.raises(
+            ValueError,
+            match="live security run directory cannot be a symlink or redirecting reparse point",
+        ):
+            verify_main([str(alias)])
+
+    assert target.is_dir()
+    assert (target / "manifest.json").is_file()
 
 
 def test_writer_rejects_v1_manifest_with_v2_result(

@@ -401,8 +401,12 @@ synthesis approves the fixed exact HEAD; that re-review is controller-owned.
 
 ## Static Path Re-review Trust Boundary
 
-The calibrated path re-review fixes static lexical redirection under each
-caller-declared root. Verification and publication assume a trusted local
+The calibrated path re-review rejects POSIX symlinks and Windows reparse
+points at each caller-declared root and its validated descendants before
+canonicalization. This includes private exposure snapshot/export source roots,
+each private exposure artifact snapshot and identity check, live-run snapshot
+roots/artifacts, and the live-run verifier CLI's lexical run-path handoff.
+Verification and publication assume a trusted local
 operator, a clean reviewed checkout, a stable filesystem during one
 verification/publication call, and a trusted Python interpreter, import cache,
 dependencies, and runtime memory. Redirecting ancestors above the declared

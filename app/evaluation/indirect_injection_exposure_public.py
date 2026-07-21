@@ -25,6 +25,7 @@ from app.evaluation.indirect_injection_exposure_writer import (
     _assert_content_free,
     _assert_structured_content_free,
     _atomic_publish_no_replace,
+    _validated_trusted_directory,
     load_verified_exposure_run_snapshot,
 )
 from app.evaluation.indirect_injection_writer import validate_security_run_id
@@ -71,10 +72,10 @@ def export_exposure_public_evidence(
         raise ValueError("expected source manifest hash must be lowercase SHA-256")
     if not forbidden_texts or any(not value for value in forbidden_texts):
         raise ValueError("a non-empty forbidden text policy is required")
-    source_run = Path(source_run)
-    if source_run.is_symlink():
-        raise ValueError("source run cannot be a symlink")
-    source_run = source_run.resolve()
+    source_run = _validated_trusted_directory(
+        Path(source_run),
+        "source run",
+    )
     source_snapshot = load_verified_exposure_run_snapshot(
         source_run,
         expected_manifest_sha256=expected_source_manifest_sha256,

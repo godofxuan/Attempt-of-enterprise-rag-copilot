@@ -1323,23 +1323,28 @@ def test_export_rejects_lexical_source_symlink_before_resolve(
 ) -> None:
     source_alias = tmp_path / "source-alias"
     output = tmp_path / "public"
-    is_symlink = Path.is_symlink
+    source_alias.mkdir()
+    real_lstat = Path.lstat
     resolve = Path.resolve
 
-    def mark_source_as_symlink(path: Path) -> bool:
+    def mark_source_as_redirect(path: Path):
+        observed = real_lstat(path)
         if path == source_alias:
-            return True
-        return is_symlink(path)
+            return with_reparse_point_attribute(observed)
+        return observed
 
     def reject_source_resolve(path: Path, *args, **kwargs) -> Path:
         if path == source_alias:
             raise AssertionError("source path resolved before symlink rejection")
         return resolve(path, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "is_symlink", mark_source_as_symlink)
+    monkeypatch.setattr(Path, "lstat", mark_source_as_redirect)
     monkeypatch.setattr(Path, "resolve", reject_source_resolve)
 
-    with pytest.raises(ValueError, match="source run cannot be a symlink"):
+    with pytest.raises(
+        ValueError,
+        match="source run cannot be a symlink or redirecting reparse point",
+    ):
         export_exposure_public_evidence(
             source_alias,
             output,
@@ -1385,6 +1390,69 @@ def test_export_rejects_source_run_symlink_when_supported(
     assert not (output / "fixture").exists()
     if output.exists():
         assert not tuple(output.glob(".*.staging-*"))
+
+
+def test_export_rejects_real_windows_private_source_junction(
+    private_exposure_run: Path,
+    tmp_path: Path,
+) -> None:
+    source_alias = tmp_path / "private-source-junction"
+    output = tmp_path / "public"
+
+    with directory_redirect(
+        source_alias,
+        private_exposure_run,
+        windows_junction_only=True,
+    ) as primitive:
+        assert primitive == "junction"
+        with pytest.raises(
+            ValueError,
+            match="source run cannot be a symlink or redirecting reparse point",
+        ):
+            export_exposure_public_evidence(
+                source_alias,
+                output,
+                package_name="fixture",
+                expected_source_manifest_sha256=_sha256(
+                    private_exposure_run / "manifest.json"
+                ),
+                expected_source_run_id=private_exposure_run.name,
+                forbidden_texts=("raw question", "raw attack"),
+            )
+
+    assert private_exposure_run.is_dir()
+    assert (private_exposure_run / "manifest.json").is_file()
+    assert not (output / "fixture").exists()
+
+
+def test_export_rejects_mocked_private_source_reparse_root_before_resolve(
+    private_exposure_run: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = private_exposure_run.absolute()
+    real_lstat = Path.lstat
+
+    def mark_source_root(path: Path):
+        observed = real_lstat(path)
+        if path == source:
+            return with_reparse_point_attribute(observed)
+        return observed
+
+    monkeypatch.setattr(Path, "lstat", mark_source_root)
+
+    with pytest.raises(
+        ValueError,
+        match="source run cannot be a symlink or redirecting reparse point",
+    ):
+        export_exposure_public_evidence(
+            source,
+            tmp_path / "public",
+            package_name="fixture",
+            expected_source_manifest_sha256=_sha256(source / "manifest.json"),
+            expected_source_run_id=source.name,
+            forbidden_texts=("raw question", "raw attack"),
+        )
 
 
 def test_export_empty_target_race_is_no_replace_and_cleans_stage(

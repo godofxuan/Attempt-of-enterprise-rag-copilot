@@ -26,7 +26,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    run_dir = args.run_dir.resolve()
+    run_dir = args.run_dir
     manifest = verify_live_security_run(run_dir)
     summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
     report = {

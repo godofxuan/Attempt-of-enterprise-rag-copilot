@@ -73,6 +73,11 @@ _CONTENT_ARTIFACT_NAMES = tuple(
 _MANIFEST_ARTIFACT_NAMES = tuple(
     sorted(PRIVATE_EXPOSURE_ARTIFACT_FILES - {"manifest.json"})
 )
+_REPARSE_POINT_ATTRIBUTE = getattr(
+    stat,
+    "FILE_ATTRIBUTE_REPARSE_POINT",
+    0x400,
+)
 _FAILURE_COLUMNS = (
     "scope",
     "case_id",
@@ -304,10 +309,11 @@ class VerifiedExposureRunSnapshot:
                 )
             for name, expected in self._file_identities.items():
                 path = self.run_dir / name
+                observed = path.lstat()
                 if (
-                    path.is_symlink()
-                    or not path.is_file()
-                    or _file_identity(path.stat()) != expected
+                    _is_redirecting_path(observed)
+                    or not stat.S_ISREG(observed.st_mode)
+                    or _file_identity(observed) != expected
                 ):
                     raise ValueError(
                         "private exposure artifact changed after verified "
@@ -602,12 +608,10 @@ def load_verified_exposure_run_snapshot(
     expected_manifest_sha256: str | None = None,
     expected_run_id: str | None = None,
 ) -> VerifiedExposureRunSnapshot:
-    run_dir = Path(run_dir)
-    if run_dir.is_symlink():
-        raise ValueError("exposure run directory cannot be a symlink")
-    run_dir = run_dir.resolve()
-    if not run_dir.is_dir():
-        raise FileNotFoundError(f"exposure run directory not found: {run_dir}")
+    run_dir = _validated_trusted_directory(
+        Path(run_dir),
+        "exposure run directory",
+    )
     snapshot = _load_verified_exposure_snapshot(
         run_dir,
         require_run_dir_identity=True,
@@ -806,11 +810,12 @@ def _validate_exact_files(run_dir: Path) -> None:
     names = {item.name for item in run_dir.iterdir()}
     if names != set(PRIVATE_EXPOSURE_ARTIFACT_FILES):
         raise ValueError("exposure run has an unexpected artifact set")
-    if any(
-        item.is_symlink() or not item.is_file()
-        for item in run_dir.iterdir()
-    ):
-        raise ValueError("exposure artifacts must be regular files")
+    for name in sorted(PRIVATE_EXPOSURE_ARTIFACT_FILES):
+        _validated_fixed_regular_path(
+            run_dir,
+            Path(name),
+            f"exposure artifact {name}",
+        )
 
 
 def _read_snapshot_artifacts(
@@ -820,18 +825,77 @@ def _read_snapshot_artifacts(
     identities: dict[str, _FileIdentity] = {}
     for name in sorted(PRIVATE_EXPOSURE_ARTIFACT_FILES):
         path = run_dir / name
-        if path.is_symlink() or not path.is_file():
-            raise ValueError("exposure artifacts must be regular files")
-        before = _file_identity(path.stat())
-        raw = path.read_bytes()
-        after = _file_identity(path.stat())
-        if before != after or len(raw) != before[3] or path.is_symlink():
-            raise ValueError(
-                f"private exposure artifact changed while snapshotting: {name}"
-            )
+        raw, identity = _read_regular_file_snapshot(
+            path,
+            f"exposure artifact {name}",
+        )
         artifacts[name] = raw
-        identities[name] = after
+        identities[name] = identity
     return artifacts, identities
+
+
+def _validated_trusted_directory(path: Path, label: str) -> Path:
+    try:
+        observed = path.lstat()
+    except OSError as exc:
+        raise FileNotFoundError(f"{label} not found: {path}") from exc
+    if _is_redirecting_path(observed):
+        raise ValueError(
+            f"{label} cannot be a symlink or redirecting reparse point"
+        )
+    if not stat.S_ISDIR(observed.st_mode):
+        raise FileNotFoundError(f"{label} not found: {path}")
+    return path.resolve()
+
+
+def _validated_fixed_regular_path(
+    root: Path,
+    relative: Path,
+    label: str,
+) -> Path:
+    current = root
+    for index, part in enumerate(relative.parts):
+        current = current / part
+        observed = current.lstat()
+        final = index == len(relative.parts) - 1
+        if _is_redirecting_path(observed):
+            raise ValueError(f"{label} has a redirecting path component")
+        if final:
+            if not stat.S_ISREG(observed.st_mode):
+                raise ValueError(f"{label} must be a regular file")
+        elif not stat.S_ISDIR(observed.st_mode):
+            raise ValueError(f"{label} path component must be a directory")
+    return current
+
+
+def _read_regular_file_snapshot(
+    path: Path,
+    label: str,
+) -> tuple[bytes, _FileIdentity]:
+    try:
+        before = path.lstat()
+        if _is_redirecting_path(before) or not stat.S_ISREG(before.st_mode):
+            raise ValueError(f"{label} must be a regular non-symlink file")
+        payload = path.read_bytes()
+        after = path.lstat()
+    except OSError as exc:
+        raise ValueError(f"{label} must be a regular non-symlink file") from exc
+    identity = _file_identity(before)
+    if (
+        _is_redirecting_path(after)
+        or not stat.S_ISREG(after.st_mode)
+        or _file_identity(after) != identity
+        or len(payload) != before.st_size
+    ):
+        raise ValueError(f"{label} changed during snapshot read")
+    return payload, identity
+
+
+def _is_redirecting_path(value) -> bool:
+    return stat.S_ISLNK(value.st_mode) or bool(
+        getattr(value, "st_file_attributes", 0)
+        & _REPARSE_POINT_ATTRIBUTE
+    )
 
 
 def _file_identity(value: os.stat_result) -> _FileIdentity:

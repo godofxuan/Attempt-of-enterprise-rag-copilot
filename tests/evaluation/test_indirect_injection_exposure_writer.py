@@ -32,6 +32,10 @@ from app.evaluation.indirect_injection_exposure_writer import (
     publish_exposure_run,
     verify_exposure_run,
 )
+from tests.evaluation.path_redirect_helpers import (
+    directory_redirect,
+    with_reparse_point_attribute,
+)
 
 
 SOURCE_GUARD_SHA256 = (
@@ -990,22 +994,33 @@ def test_verifier_rejects_symlinked_artifact_when_supported(
         verify_exposure_run(target)
 
 
-def test_verifier_rejects_lexical_top_level_symlink_before_resolve(
+def test_verifier_rejects_lexical_top_level_reparse_before_resolve(
     tmp_path: Path,
     exposure_result: ExposureAnalysisResult,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    target = _publish(tmp_path / "runs", exposure_result)
-    is_symlink = Path.is_symlink
+    target = _publish(tmp_path / "runs", exposure_result).absolute()
+    real_lstat = Path.lstat
+    resolve = Path.resolve
 
-    def mark_target_as_symlink(path: Path) -> bool:
+    def mark_target_as_redirect(path: Path):
+        observed = real_lstat(path)
         if path == target:
-            return True
-        return is_symlink(path)
+            return with_reparse_point_attribute(observed)
+        return observed
 
-    monkeypatch.setattr(Path, "is_symlink", mark_target_as_symlink)
+    def reject_target_resolve(path: Path, *args, **kwargs) -> Path:
+        if path == target:
+            raise AssertionError("run directory resolved before redirect rejection")
+        return resolve(path, *args, **kwargs)
 
-    with pytest.raises(ValueError, match="run directory cannot be a symlink"):
+    monkeypatch.setattr(Path, "lstat", mark_target_as_redirect)
+    monkeypatch.setattr(Path, "resolve", reject_target_resolve)
+
+    with pytest.raises(
+        ValueError,
+        match="exposure run directory cannot be a symlink or redirecting reparse point",
+    ):
         verify_exposure_run(target)
 
 
@@ -1025,6 +1040,76 @@ def test_verifier_rejects_top_level_run_symlink_when_supported(
 
     assert alias.is_symlink()
     assert target.is_dir()
+
+
+def test_verifier_rejects_real_windows_top_level_run_junction(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    target = _publish(tmp_path / "runs", exposure_result)
+    alias = tmp_path / "run-junction"
+
+    with directory_redirect(
+        alias,
+        target,
+        windows_junction_only=True,
+    ) as primitive:
+        assert primitive == "junction"
+        with pytest.raises(
+            ValueError,
+            match="exposure run directory cannot be a symlink or redirecting reparse point",
+        ):
+            verify_exposure_run(alias)
+
+    assert target.is_dir()
+    assert (target / "manifest.json").is_file()
+
+
+def test_verifier_rejects_mocked_top_level_run_reparse_before_resolve(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = _publish(tmp_path / "runs", exposure_result).absolute()
+    real_lstat = Path.lstat
+
+    def mark_run_root(path: Path):
+        observed = real_lstat(path)
+        if path == target:
+            return with_reparse_point_attribute(observed)
+        return observed
+
+    monkeypatch.setattr(Path, "lstat", mark_run_root)
+
+    with pytest.raises(
+        ValueError,
+        match="exposure run directory cannot be a symlink or redirecting reparse point",
+    ):
+        verify_exposure_run(target)
+
+
+def test_verifier_rejects_mocked_artifact_reparse_before_snapshot_read(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = _publish(tmp_path / "runs", exposure_result).absolute()
+    artifact = target / "summary.json"
+    real_lstat = Path.lstat
+
+    def mark_artifact(path: Path):
+        observed = real_lstat(path)
+        if path == artifact:
+            return with_reparse_point_attribute(observed)
+        return observed
+
+    monkeypatch.setattr(Path, "lstat", mark_artifact)
+
+    with pytest.raises(
+        ValueError,
+        match="exposure artifact summary.json has a redirecting path component",
+    ):
+        verify_exposure_run(target)
 
 
 def test_writer_rejects_coherent_row_and_summary_tampering_before_output(
