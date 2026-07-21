@@ -52,6 +52,7 @@ R2 的 5,000+ 文档、增量 upsert/delete、OpenTelemetry、Docker、专用向
 27. 当前公开状态与入口：`PROJECT_STATUS.md`、`README.md`
 28. 演示复现与截图契约：`docs/demo_runbook.md`、`docs/assets/README.md`
 29. 架构、限制与 R2 admission：`docs/architecture.md`、`docs/known_limitations.md`、`docs/industrialization_backlog.md`
+30. R2-S3 exposure ablation：`docs/security/r2_s3/00_exposure_ablation_protocol.md`、`docs/security/r2_s3/01_results.md`、`docs/security/r2_s3/02_engineering_journal.md`
 
 ## 3. Git 与操作边界
 
@@ -505,8 +506,8 @@ holdout_submissions Git/public leak guard      IMPLEMENTED
 independent reviewer raw package               NOT CREATED
 one-shot holdout model evaluation              NOT RUN
 blind double review / semantic judge           NOT RUN
-full repository regression                     954 PASSED / 3 KNOWN WARNINGS
-public repository audit                        426 CANDIDATES / 0 FINDINGS
+S2-2 stage-entry full regression                954 PASSED / 3 KNOWN WARNINGS
+S2-2 stage-entry public audit                   426 CANDIDATES / 0 FINDINGS
 compileall / pip check                         CLEAN / CLEAN
 ```
 
@@ -519,3 +520,64 @@ compileall / pip check                         CLEAN / CLEAN
 5. `docs/superpowers/plans/2026-07-19-r2-s2-holdout-freeze.md`
 
 下一执行点不是由当前开发者生成攻击数据。独立 reviewer 应在 `holdout_submissions/<submission-id>/` 创建三个原始文件并按 protocol freeze；另一 reviewer 验证 manifest 后，才批准一次性 holdout adapter 与模型运行。检索覆盖改进只能在新的 dev-only 实验中完成，不能查看 holdout 后追分。
+
+## 20. R2-S3 measurement-only exposure ablation 当前精确断点
+
+R2-S3 已完成 Task 1-8 的本地实现、独立 review hardening、accepted
+artifact publication、文档同步和 fresh local gates。用户明确要求本轮不
+push，controller 将在 mandatory whole-branch review 后负责 push 和 remote
+CI。
+
+```text
+source live run                              r2-s2-s1-dev-20260719-01
+source live run state                        UNCHANGED
+source manifest SHA-256                      3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e
+accepted exposure run                        r2-s3-dev-exposure-20260721-01
+private exposure manifest SHA-256            f7e519beb0c9e054b5de452348d214b2a39a4bec3979302063fdd2475cd6b0d6
+public redacted manifest SHA-256             673966ec1be4ec18d7e9a04e9e37df00b31ed5d9397d6ff40eb3c4c36627a60d
+production Guard / retrieval / Agent         UNCHANGED
+live/replay Guard reach                      15/28 / 15/28
+quarantine given live reach                  15/15
+rank-2 unreached units/cases                 13 / 13
+observed downstream exposure                 0/13
+counterfactual search d1/d2/d4               6/26 / 22/26 / 26/26
+counterfactual total d1/d2/d4                15/28 / 28/28 / 28/28
+additional scans d1/d2/d4                    0 / 29 / 33
+additional input chars d1/d2/d4              0 / 3845 / 4200
+decision                                      NO_CURRENT_BYPASS_OBSERVED
+production change admission                   NOT ADMITTED
+independent holdout                           NOT RUN
+semantic judge / cross-model replication      NOT RUN
+Task 8 focused pytest                         247 PASSED / 2 SKIPPED / 3 WARNINGS
+Task 8 full pytest                            1187 PASSED / 2 SKIPPED / 3 WARNINGS
+compile / pip                                 CLEAN / CLEAN
+public audit                                  451 CANDIDATES / 0 FINDINGS
+source / private / public verifier            VERIFIED
+isolated eight-file verifier                  VERIFIED / 28 ROWS
+frozen/source/package hash comparison         EXACT
+push / remote CI                              INTENTIONALLY DEFERRED
+```
+
+Decision semantics: `NO_CURRENT_BYPASS_OBSERVED` is a narrow frozen-dev
+observation. Counterfactual depth coverage is diagnostic and was not executed by
+the production Agent. This state is not a release pass or universal
+prompt-injection safety result.
+
+Task 8 local hash comparison must recompute these historical frozen values,
+without modifying their files:
+
+```text
+test dataset     062aec151d29854ffcebf6368b42fc768f7a0a5f64e1218e32fd326a441a137c
+test fixture     eea41009bd5a8eda2b0a1ff7c29e593895d917b4055e9712b1db48daa9d51c1d
+freeze manifest  5c9ba8aaa8cc1a0f8f02ddf011900ed4be022ece95b343902d1ad2469838fdd4
+formal D7 run    5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f97865e14e
+```
+
+Resume order:
+
+1. Verify the final Task 8 commit contains only the explicit documentation and
+   status files.
+2. Run the mandatory whole-branch review before push.
+3. Only the controller may then push and verify remote CI for the exact SHA.
+4. Keep independent holdout authoring and owner-only review outside automated
+   implementation scope.

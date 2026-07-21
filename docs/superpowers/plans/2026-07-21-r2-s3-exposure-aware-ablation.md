@@ -64,7 +64,7 @@
 - Consumes: `verify_live_security_run(run_dir: Path) -> LiveSecurityRunManifest` and `load_security_bundle(root: Path, split: str) -> LoadedSecurityBundle`.
 - Produces: `ExposureInputs`, `ExposureSourceEvidence`, `ExposureEvidenceError`, and `load_exposure_inputs(source_run_dir: Path, *, security_data_root: Path, expected_manifest_sha256: str) -> ExposureInputs`.
 
-- [ ] **Step 1: Write RED tests for exact source admission**
+- [x] **Step 1: Write RED tests for exact source admission**
 
 Add tests that use a temporary verified v2 source fixture and then mutate one condition at a time:
 
@@ -121,7 +121,7 @@ def test_load_exposure_inputs_rejects_invalid_source(
 
 The test fixture may monkeypatch the already-tested `verify_live_security_run()` boundary to isolate semantic admission, but at least one test must pass through the real verifier using a writer-generated v2 run. No test may depend on ignored `security_runs/`.
 
-- [ ] **Step 2: Run the source tests and confirm RED**
+- [x] **Step 2: Run the source tests and confirm RED**
 
 Run:
 
@@ -131,7 +131,7 @@ Run:
 
 Expected: collection or assertion failure because `indirect_injection_exposure` and `load_exposure_inputs` do not exist.
 
-- [ ] **Step 3: Implement strict source models and loader**
+- [x] **Step 3: Implement strict source models and loader**
 
 Start the module with these exact public contracts:
 
@@ -237,7 +237,7 @@ validated manifest fields into the strict model.
 
 Do not catch and relabel programmer exceptions. Convert evidence-contract failures into `ExposureEvidenceError` with one stable message per rejection class.
 
-- [ ] **Step 4: Run Task 1 tests and confirm GREEN**
+- [x] **Step 4: Run Task 1 tests and confirm GREEN**
 
 Run:
 
@@ -247,7 +247,7 @@ Run:
 
 Expected: all source-admission tests pass.
 
-- [ ] **Step 5: Commit Task 1**
+- [x] **Step 5: Commit Task 1**
 
 ```powershell
 git add -- app/evaluation/indirect_injection_exposure.py tests/evaluation/test_indirect_injection_exposure.py
@@ -266,7 +266,7 @@ git commit -m "eval: admit exact R2-S3 source evidence"
 - Consumes: `IndirectInjectionCase`, `FixtureCase`, and persisted runtime `candidate_order`.
 - Produces: `ExposureUnitLocation` and `map_attack_unit_locations(case: IndirectInjectionCase, fixture: FixtureCase, *, candidate_order: tuple[str, ...]) -> tuple[ExposureUnitLocation, ...]`.
 
-- [ ] **Step 1: Write RED mapping tests**
+- [x] **Step 1: Write RED mapping tests**
 
 Cover every source surface and runtime-rank rule:
 
@@ -317,7 +317,7 @@ def test_mapping_rejects_one_unit_bound_to_two_primary_locations(
 
 Add parameterized cases for `matched`, `parent`, `title`, `source_path`, `section`, `version`, and `open`. A find fixture is not present in v1; test the strict `find_result` model directly and keep runtime find attribution unavailable until a real fixture contract exists.
 
-- [ ] **Step 2: Run mapping tests and confirm RED**
+- [x] **Step 2: Run mapping tests and confirm RED**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_exposure.py -k "mapping or open_unit"
@@ -325,7 +325,7 @@ Add parameterized cases for `matched`, `parent`, `title`, `source_path`, `sectio
 
 Expected: failure because mapping contracts are absent.
 
-- [ ] **Step 3: Implement exact location mapping**
+- [x] **Step 3: Implement exact location mapping**
 
 Use these contracts:
 
@@ -389,7 +389,7 @@ open-result IDs explicitly; it must not inspect fixture text.
 
 Map by fixture IDs only. Never search raw text. Require every attack unit exactly once, require runtime candidate IDs to equal the fixture candidate set, and derive rank using `candidate_order.index(chunk_id) + 1`.
 
-- [ ] **Step 4: Run all core tests and confirm GREEN**
+- [x] **Step 4: Run all core tests and confirm GREEN**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_exposure.py
@@ -397,7 +397,7 @@ Map by fixture IDs only. Never search raw text. Require every attack unit exactl
 
 Expected: Task 1 and Task 2 tests pass.
 
-- [ ] **Step 5: Commit Task 2**
+- [x] **Step 5: Commit Task 2**
 
 ```powershell
 git add -- app/evaluation/indirect_injection_exposure.py tests/evaluation/test_indirect_injection_exposure.py
@@ -416,7 +416,7 @@ git commit -m "eval: map attack units to runtime candidate ranks"
 - Consumes: accepted source inputs and exact unit locations.
 - Produces: `ReplayedUnitState`, `ReplayedCaseState`, and `replay_guard_on_case(inputs: ExposureInputs, *, case_id: str) -> ReplayedCaseState`.
 
-- [ ] **Step 1: Write RED replay tests**
+- [x] **Step 1: Write RED replay tests**
 
 Required behavior:
 
@@ -457,7 +457,7 @@ def test_replay_rejects_guard_hash_or_live_aggregate_mismatch(
 
 Add an open-path test proving the open unit is reached only after replaying the recorded `open` operation, not through search depth.
 
-- [ ] **Step 2: Run replay tests and confirm RED**
+- [x] **Step 2: Run replay tests and confirm RED**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_exposure.py -k "replay or split_window"
@@ -465,7 +465,7 @@ Add an open-path test proving the open unit is reached only after replaying the 
 
 Expected: failure because replay contracts are absent.
 
-- [ ] **Step 3: Implement deterministic replay**
+- [x] **Step 3: Implement deterministic replay**
 
 Add strict models:
 
@@ -511,7 +511,7 @@ Implementation sequence:
 
 Do not import or call Ollama, embeddings, `V2AgentRunner`, or generation.
 
-- [ ] **Step 4: Run core and existing admission tests**
+- [x] **Step 4: Run core and existing admission tests**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_exposure.py tests\security\test_retrieved_admission.py tests\evaluation\test_indirect_injection_live_runner.py
@@ -519,7 +519,7 @@ Do not import or call Ollama, embeddings, `V2AgentRunner`, or generation.
 
 Expected: all pass; the existing admission behavior remains unchanged.
 
-- [ ] **Step 5: Commit Task 3**
+- [x] **Step 5: Commit Task 3**
 
 ```powershell
 git add -- app/evaluation/indirect_injection_exposure.py tests/evaluation/test_indirect_injection_exposure.py
@@ -538,7 +538,7 @@ git commit -m "eval: replay source-bound retrieved admission"
 - Consumes: all replayed case states.
 - Produces: `ExposureUnitObservation`, `ExposureMetric`, `ExposureDepthMetrics`, `ExposureSummary`, `ExposureAnalysisResult`, and `analyze_exposure(inputs) -> ExposureAnalysisResult`.
 
-- [ ] **Step 1: Write RED counterfactual and decision tests**
+- [x] **Step 1: Write RED counterfactual and decision tests**
 
 ```python
 def test_counterfactual_depths_are_monotonic_without_counting_open_as_search(
@@ -620,7 +620,7 @@ def test_higher_counterfactual_coverage_alone_never_admits_runtime_change(
 
 Add tests that reject non-monotonic depths, double counting, a quarantined-but-unreached unit, and case-level downstream attribution presented as unit-level exposure.
 
-- [ ] **Step 2: Run metric tests and confirm RED**
+- [x] **Step 2: Run metric tests and confirm RED**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_exposure.py -k "counterfactual or decision or downstream"
@@ -628,7 +628,7 @@ Add tests that reject non-monotonic depths, double counting, a quarantined-but-u
 
 Expected: failure because analysis and decision models are absent.
 
-- [ ] **Step 3: Implement metrics and decision policy**
+- [x] **Step 3: Implement metrics and decision policy**
 
 Use exact decision literals:
 
@@ -892,7 +892,7 @@ def analyze_exposure(
 
 The default analysis accepts no unguarded-path finding; no static code scanner is added in this stage.
 
-- [ ] **Step 4: Run the full core module tests**
+- [x] **Step 4: Run the full core module tests**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_exposure.py
@@ -900,7 +900,7 @@ The default analysis accepts no unguarded-path finding; no static code scanner i
 
 Expected: all source, mapping, replay, metric, and decision tests pass.
 
-- [ ] **Step 5: Commit Task 4**
+- [x] **Step 5: Commit Task 4**
 
 ```powershell
 git add -- app/evaluation/indirect_injection_exposure.py tests/evaluation/test_indirect_injection_exposure.py
@@ -922,7 +922,7 @@ git commit -m "eval: compute exposure-aware counterfactual metrics"
 - Consumes: `ExposureAnalysisResult` and source evidence.
 - Produces: `ExposureRunManifest`, `publish_exposure_run(root: Path, *, manifest: ExposureRunManifest, result: ExposureAnalysisResult, commands: str, test_output: str, forbidden_texts: tuple[str, ...]) -> Path`, `verify_exposure_run(run_dir: Path) -> ExposureRunManifest`, and two thin CLIs.
 
-- [ ] **Step 1: Write RED immutable-writer tests**
+- [x] **Step 1: Write RED immutable-writer tests**
 
 ```python
 PRIVATE_ARTIFACT_FILES = {
@@ -984,7 +984,7 @@ def test_writer_refuses_raw_content(
 
 Add tests for path traversal, exact checksums, non-canonical JSON, missing/extra files, source manifest mismatch, and stage cleanup after failure.
 
-- [ ] **Step 2: Run writer tests and confirm RED**
+- [x] **Step 2: Run writer tests and confirm RED**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_exposure_writer.py
@@ -992,7 +992,7 @@ Add tests for path traversal, exact checksums, non-canonical JSON, missing/extra
 
 Expected: failure because the writer module does not exist.
 
-- [ ] **Step 3: Implement private manifest, writer, and verifier**
+- [x] **Step 3: Implement private manifest, writer, and verifier**
 
 The manifest must bind:
 
@@ -1071,7 +1071,7 @@ def publish_exposure_run(
 
 `publish_exposure_run()` must validate first, write to a staging directory, canonicalize JSON/JSONL, scan forbidden texts, write checksums, re-parse and recompute, and use non-replacing directory rename. `verify_exposure_run()` must reload rows, strata inputs, and bounded findings; recompute the summary, strata, and decision without running Guard or reading raw fixture text; and require exact equality with both `summary.json` and manifest decision/count fields.
 
-- [ ] **Step 4: Write CLI RED tests**
+- [x] **Step 4: Write CLI RED tests**
 
 ```python
 def test_eval_cli_publishes_valid_evidence_and_returns_zero(
@@ -1125,7 +1125,7 @@ def test_verify_cli_recomputes_existing_run(
     assert "VERIFIED" in capsys.readouterr().out
 ```
 
-- [ ] **Step 5: Implement thin CLIs and run Task 5 tests**
+- [x] **Step 5: Implement thin CLIs and run Task 5 tests**
 
 `eval_indirect_injection_exposure.py` arguments:
 
@@ -1148,7 +1148,7 @@ Run:
 
 Expected: all pass.
 
-- [ ] **Step 6: Commit Task 5**
+- [x] **Step 6: Commit Task 5**
 
 ```powershell
 git add -- app/evaluation/indirect_injection_exposure_writer.py scripts/eval_indirect_injection_exposure.py scripts/verify_indirect_injection_exposure.py tests/evaluation/test_indirect_injection_exposure_writer.py tests/evaluation/test_indirect_injection_exposure_cli.py
@@ -1170,7 +1170,7 @@ git commit -m "eval: publish immutable exposure analysis runs"
 - Consumes: a verified private exposure run.
 - Produces: `export_exposure_public_evidence(source_run: Path, output_root: Path, *, package_name: str, expected_source_manifest_sha256: str, expected_source_run_id: str, forbidden_texts: tuple[str, ...]) -> Path` and `verify_exposure_public_package(package: Path) -> ExposurePublicVerificationResult`.
 
-- [ ] **Step 1: Write RED public-package tests**
+- [x] **Step 1: Write RED public-package tests**
 
 Freeze the exact package file set:
 
@@ -1265,7 +1265,7 @@ def test_copied_verifier_runs_without_project_imports(
 
 Also copy the package to a directory containing only the eight files and execute `python verify.py`; it must not import `app`, Pydantic, pytest, or project modules.
 
-- [ ] **Step 2: Run public tests and confirm RED**
+- [x] **Step 2: Run public tests and confirm RED**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_exposure_public.py
@@ -1273,7 +1273,7 @@ Also copy the package to a directory containing only the eight files and execute
 
 Expected: failure because the public writer/verifier do not exist.
 
-- [ ] **Step 3: Implement allowlisted public projection**
+- [x] **Step 3: Implement allowlisted public projection**
 
 Use the same explicit forbidden-text policy as the existing R2-S1 exporter:
 load the frozen dev bundle in the CLI, collect every question, canary, required
@@ -1360,7 +1360,7 @@ strata again from `per_unit.redacted.jsonl`, then apply decision precedence to
 the recomputed summary plus those findings. Equality with a stored summary is
 an assertion to check, never the source of truth.
 
-- [ ] **Step 4: Implement dependency-free verifier and CLI wrappers**
+- [x] **Step 4: Implement dependency-free verifier and CLI wrappers**
 
 The verifier must use only Python standard library and validate:
 
@@ -1377,7 +1377,7 @@ The verifier must use only Python standard library and validate:
 
 The app wrapper imports this verifier. The exporter copies its source bytes to package `verify.py`, matching the existing R2-S1 public-evidence pattern.
 
-- [ ] **Step 5: Run public tests and commit Task 6**
+- [x] **Step 5: Run public tests and commit Task 6**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_exposure_public.py
@@ -1401,7 +1401,7 @@ Expected: all public package tests pass before commit.
 - Consumes: completed Tasks 1-6 and the immutable S2-1 source run.
 - Produces: one ignored private accepted run and one checked-in verified content-free package.
 
-- [ ] **Step 1: Write RED private-path audit tests**
+- [x] **Step 1: Write RED private-path audit tests**
 
 ```python
 def test_exposure_private_runs_are_ignored_and_forbidden_public_candidates(
@@ -1424,7 +1424,7 @@ def test_exposure_private_runs_are_ignored_and_forbidden_public_candidates(
 
 Add `exposure_runs/` to the forbidden prefix list and private-runtime-reference regex. Do not broaden rules to reject the checked-in `data/v2/public/r2_s3_exposure/` package.
 
-- [ ] **Step 2: Run audit tests and confirm RED, then implement GREEN**
+- [x] **Step 2: Run audit tests and confirm RED, then implement GREEN**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q tests\test_public_repository.py -k exposure
@@ -1434,7 +1434,7 @@ Expected RED: missing ignore/audit protection.
 
 After the minimal `.gitignore` and audit changes, rerun and expect pass.
 
-- [ ] **Step 3: Execute the accepted private analysis exactly once**
+- [x] **Step 3: Execute the accepted private analysis exactly once**
 
 Preflight:
 
@@ -1479,7 +1479,7 @@ These are admission expectations derived from the approved design analysis. If a
 
 The expected decision is `NO_CURRENT_BYPASS_OBSERVED`; derive it from rows and treat any other valid decision as an observation requiring review, not an automatic failure.
 
-- [ ] **Step 4: Verify private run, export public evidence, and verify in isolation**
+- [x] **Step 4: Verify private run, export public evidence, and verify in isolation**
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure exposure_runs\r2-s3-dev-exposure-20260721-01
@@ -1497,7 +1497,7 @@ $exposureManifestSha = (Get-FileHash `
 
 Copy only the eight public files to a temporary isolated directory and run its `verify.py`. Expected: `VERIFIED` with 28 units and the exact decision. Then run the public audit; expected zero findings.
 
-- [ ] **Step 5: Commit Task 7 without private runs**
+- [x] **Step 5: Commit Task 7 without private runs**
 
 ```powershell
 git add -- .gitignore scripts/audit_public_repo.py tests/test_public_repository.py data/v2/public/r2_s3_exposure
@@ -1526,7 +1526,7 @@ Before commit, confirm no `exposure_runs/` or `security_runs/` path is staged.
 - Consumes: the verified private run, checked-in public package, test outputs, audit output, and final commit identity.
 - Produces: one truthful current-state narrative and interview-ready engineering record.
 
-- [ ] **Step 1: Write protocol and results documents**
+- [x] **Step 1: Write protocol and results documents**
 
 `00_exposure_ablation_protocol.md` must teach:
 
@@ -1540,7 +1540,7 @@ Before commit, confirm no `exposure_runs/` or `security_runs/` path is staged.
 
 `01_results.md` must record exact run IDs, hashes, all aggregate metrics, category/surface/rank strata, replay/live equality, counterfactual costs, decision, and what cannot be inferred.
 
-- [ ] **Step 2: Write the detailed engineering journal**
+- [x] **Step 2: Write the detailed engineering journal**
 
 `02_engineering_journal.md` must include:
 
@@ -1555,7 +1555,7 @@ Before commit, confirm no `exposure_runs/` or `security_runs/` path is staged.
 9. at least eight interview questions with concrete answers;
 10. the next independent holdout and owner-review boundaries.
 
-- [ ] **Step 3: Synchronize current project claims**
+- [x] **Step 3: Synchronize current project claims**
 
 Update current docs to say only what evidence supports:
 
@@ -1571,7 +1571,7 @@ semantic judge / cross-model replication: NOT RUN
 
 Do not call `NO_CURRENT_BYPASS_OBSERVED` a release pass or universal prompt-injection safety result.
 
-- [ ] **Step 4: Run fresh focused and full verification**
+- [x] **Step 4: Run fresh focused and full verification**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q `
@@ -1592,7 +1592,7 @@ git diff --check
 
 Also recompute and compare the frozen official test dataset, fixture, freeze manifest, and historical D7 manifest SHA-256 values already recorded in `CURRENT_EXECUTION_HANDOFF.md`.
 
-- [ ] **Step 5: Review diff and commit explicit documentation files**
+- [x] **Step 5: Review diff and commit explicit documentation files**
 
 ```powershell
 git add -- PROJECT_STATUS.md README.md docs/known_limitations.md docs/industrialization_backlog.md docs/roadmap/CURRENT_EXECUTION_HANDOFF.md docs/security/r2_s3/00_exposure_ablation_protocol.md docs/security/r2_s3/01_results.md docs/security/r2_s3/02_engineering_journal.md docs/superpowers/plans/2026-07-21-r2-s3-exposure-aware-ablation.md
@@ -1602,6 +1602,9 @@ git commit -m "docs: record R2-S3 exposure ablation"
 ```
 
 - [ ] **Step 6: Push and verify exact final HEAD**
+
+Intentionally deferred to the controller after the mandatory whole-branch
+review; it is outside the Task 8 implementer commit.
 
 ```powershell
 git push origin codex/rag-eval-system

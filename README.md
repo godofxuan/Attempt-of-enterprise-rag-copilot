@@ -107,7 +107,8 @@ These values describe specific local artifacts; they are not production accuracy
 | R2-S1 V4 metric semantics versioning | `32` new contracts and `891` full tests passed | Additive mapping only: legacy live v1 schema is preserved; historical OFF `3/24` means raw canary/forbidden-action signal, while semantic attack following remains unmeasured |
 | R2-S1 V5 future arm-order protocol | `22` new contracts, `53` V5 focused, `404` expanded, and `913` full tests passed | Future v2 runs use stable SHA-256 hash-rank counterbalancing, exact `18/18` on the 36-case suite, and manifest/per-arm order evidence; formal D7 remains a fixed OFF-first observation and was not rerun |
 | R2-S2 S2-1 counterbalanced live dev replication | BGE-M3/Qwen OFF raw/user-boundary signal `3/24` vs ON `0/24`; ON reached-unit quarantine `15/15`, all-labeled `15/28`; clean `12/12`; order `18/18` | New run `r2-s2-s1-dev-20260719-01`, 36 pairs/72 arm events, zero model/system errors and blocked egress; diagnostic remains false because 13 labeled attack units never reached Guard |
-| R2-S2 S2-2 holdout freeze infrastructure | `28` holdout contract/tamper/CLI tests; current full suite `954 passed` | Strict local package schema, coverage admission, Git/code baseline binding, immutable manifest, offline verification, and raw-package leak prevention; independent package and holdout result are `NOT RUN` |
+| R2-S2 S2-2 holdout freeze infrastructure | `28` holdout contract/tamper/CLI tests; stage-entry full suite `954 passed` | Strict local package schema, coverage admission, Git/code baseline binding, immutable manifest, offline verification, and raw-package leak prevention; independent package and holdout result are `NOT RUN` |
+| R2-S3 measurement-only exposure ablation | actual/replay reach `15/28`, conditional quarantine `15/15`, rank-2 unreached downstream exposure `0/13`; diagnostic search reach depth 1/2/4 `6/26`, `22/26`, `26/26`; Task 8 full `1187 passed`, 2 platform skips | Source run and production Guard/retrieval/Agent unchanged; [eight-file public evidence](data/v2/public/r2_s3_exposure/README.md) verifies `NO_CURRENT_BYPASS_OBSERVED`; audit `451/0`; not a release pass or universal safety result; independent holdout, semantic judge, and cross-model replication are `NOT RUN` |
 | E7 final-code load rc02 | `31/31` requests | One Windows machine; warm p95 was 1.115 s / 4.244 s / 8.218 s at concurrency 1 / 5 / 10 |
 | E7 workflow ablation rc02 | fixed RAG `0.8571` vs bounded Agentic `1.0000` outcome accuracy | 28-case deterministic synthetic test; Agentic used 47 vs 28 tool calls |
 
@@ -118,6 +119,8 @@ R2-S1 raw-follow metric mapping: semantics ID `raw_canary_or_forbidden_action_fo
 `raw_canary_or_forbidden_action_follow` is true only when a raw document, system, or trace canary is exposed, or a forbidden-tool attempt is recorded; semantic attack following is NOT MEASURED.
 
 R2-S1 arm-order mapping: historical formal D7 used fixed OFF then ON per case. Live result/manifest v2 uses protocol `stable_case_hash_rank_counterbalanced_v1`, persists the full plan plus per-arm positions, and explicitly blocks reuse of the formal D7 run ID. R2-S2 S2-1 is the first real-model v2 execution of that protocol.
+
+R2-S3 keeps actual live aggregates separate from deterministic replay attribution. Its depth `1/2/4` coverage and additional scan counts are diagnostic counterfactuals, not executed production behavior. No production retrieval, Guard, or Agent change was admitted.
 
 ## Quick Start
 
@@ -147,7 +150,7 @@ The generator derives documents and evaluation labels from a checked-in fact mod
 
 - Browser-supplied `UserContext` is validated but not authenticated by real IAM.
 - The corpus and evaluation set are synthetic and small; the live result is a development run, not a generalization estimate.
-- R2-S1 has a frozen [retrieved-content threat model](docs/security/r2_s1/00_scope_and_threat_model.md), historical D2 RED evidence, D3-D5 enforcement, a D6 deterministic paired gate, one fixed OFF-first D7 local observation, and V1-V5 audit hardening. R2-S2 S2-1 then ran a new counterbalanced BGE-M3/Qwen dev replication: OFF raw/user-boundary signal `3/24`, ON `0/24`, and ON conditional quarantine `15/15`, but all-labeled quarantine only `15/28` because 13 attack units never reached Guard. These visible synthetic runs do not measure general semantic attack following. V3 is a Python evaluator call-graph egress guard rather than an OS sandbox. S2-2 holdout freezing code exists, while an independent package, one-shot holdout run, blind review, semantic judge calibration, cross-model reproduction, and manual red team remain `NOT RUN`.
+- R2-S1 has a frozen [retrieved-content threat model](docs/security/r2_s1/00_scope_and_threat_model.md), historical D2 RED evidence, D3-D5 enforcement, a D6 deterministic paired gate, one fixed OFF-first D7 local observation, and V1-V5 audit hardening. R2-S2 S2-1 then ran a new counterbalanced BGE-M3/Qwen dev replication: OFF raw/user-boundary signal `3/24`, ON `0/24`, and ON conditional quarantine `15/15`, but all-labeled quarantine only `15/28` because 13 attack units never reached Guard. R2-S3 measured those 13 as runtime rank-2 candidates with observed downstream exposure `0/13`; its depth-2/4 coverage is diagnostic-only and production Guard/retrieval/Agent remain unchanged. These visible synthetic runs do not measure general semantic attack following. V3 is a Python evaluator call-graph egress guard rather than an OS sandbox. S2-2 holdout freezing code exists, while an independent package, one-shot holdout run, blind review, semantic judge calibration, cross-model reproduction, and manual red team remain `NOT RUN`.
 - The optional reranker is `NOT RUN`; current ablation does not justify adding one blindly.
 - Traces and metrics are bounded in-memory local structures, not durable distributed observability.
 - Index lifecycle is immutable rebuild/activate, not production incremental upsert/delete.
@@ -181,6 +184,9 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 - [R2-S2 Independent Holdout Freeze Protocol](docs/security/r2_s2/00_holdout_freeze_protocol.md)
 - [R2-S2 S2-1 Counterbalanced Live Dev Results](docs/security/r2_s2/01_s2_1_live_dev_results.md)
 - [R2-S2 Engineering Journal](docs/security/r2_s2/02_engineering_journal.md)
+- [R2-S3 Exposure Ablation Protocol](docs/security/r2_s3/00_exposure_ablation_protocol.md)
+- [R2-S3 Exposure Ablation Results](docs/security/r2_s3/01_results.md)
+- [R2-S3 Engineering Journal](docs/security/r2_s3/02_engineering_journal.md)
 - [Observability and Load Evidence](docs/observability.md)
 - [Reproducibility Guide](docs/reproducibility.md)
 - [Data Card](docs/data_card.md)

@@ -1,6 +1,6 @@
 # Industrialization Backlog
 
-最后更新：2026-07-19
+最后更新：2026-07-21
 
 本文不是承诺清单。每个 R2 项必须由真实失败、规模或合规需求触发，并在进入实现前定义可复现基线、验收指标、回滚和成本边界。当前 R1 状态见 [Project Status](../PROJECT_STATUS.md)。
 
@@ -20,7 +20,7 @@
 | Priority | Capability | Trigger evidence | Required gate | Why not in R1 |
 |---|---|---|---|---|
 | P0 | Trusted IAM identity | 需要多人/多 tenant 访问，浏览器自报 context 不可接受 | OIDC/JWT verification、server-derived tenant/group、deny-by-default、cross-tenant integration and revocation tests | 没有可信身份就不能公网部署；本地 ACL 只验证 policy data flow |
-| P0 | Independent indirect-injection validation | S2-1 已完成 counterbalanced real-model dev replication，但仍是可见 synthetic cohort 和单一 BGE-M3/Qwen 配置；S2-2 只有 holdout freeze/verify 代码，没有独立原始包或结果 | 独立 reviewer package、pre-run freeze、one-shot holdout、blind double review、agreement/adjudication、semantic judge calibration、跨模型矩阵和 zero unauthorized action gate | Guard 与可审计协议已经实现；现在缺的是独立分布和语义层外部有效性，不能继续靠同一可见集合调规则 |
+| P0 | Independent indirect-injection validation | S2-1 已完成 counterbalanced real-model dev replication；R2-S3 已解释 13 个 rank-2 unreached units 并观察到 downstream exposure 0/13，但两者仍是可见 synthetic cohort 和单一 BGE-M3/Qwen 配置；S2-2 没有独立原始包或结果 | 独立 reviewer package、pre-run freeze、one-shot holdout、blind double review、agreement/adjudication、semantic judge calibration、跨模型矩阵和 zero unauthorized action gate | Guard、可审计协议和 measurement-only exposure attribution 已实现；现在缺的是独立分布和语义层外部有效性，不能把 `NO_CURRENT_BYPASS_OBSERVED` 当 release pass 或继续靠同一可见集合调规则 |
 | P0 | Human semantic review | 需要对外报告 response quality 或用于业务 pilot | Frozen rubric、blind double review、adjudication、agreement、claim/citation/omission severity | 自动 required-fact 与 lexical checks 不能替代语义可用性判断 |
 | P1 | Incremental upsert/delete | 文档更新频率使全量 rebuild 超过 agreed freshness window | Idempotent event contract、version/tombstone、partial failure recovery、active snapshot consistency、rollback | R1 immutable rebuild 更易审计，当前 72-doc demo 没有增量压力 |
 | P1 | Durable OpenTelemetry | 需要跨进程追踪、历史检索、告警或多副本 | OTel semantic conventions、collector/backend、sampling、redaction、retention、access control、trace-to-eval correlation | 当前 bounded memory 足以本地调试，直接加平台会先增加运维面 |
@@ -44,11 +44,12 @@
 2. R2-S1 current-candidate review, Git delivery, and remote CI evidence.
 3. Counterbalanced real-model development replication with a new run ID. `COMPLETE WITH OBSERVATIONS`
 4. Independent indirect-injection holdout freeze/verify infrastructure. `IMPLEMENTED`; reviewer package and run `NOT RUN`
-5. Independent package authoring, one-shot holdout execution, blind human review, and semantic judge calibration.
+5. Measurement-only exposure ablation for the `13/28` observation. `COMPLETE`; no production change admitted
+6. Independent package authoring, one-shot holdout execution, blind human review, semantic judge calibration, and cross-model replication. `NOT RUN`
 
 没有完成独立验证、可信身份和部署门禁，不应把本地 demo 包装成多租户服务。
 
-S2-1 暴露的 `13/28 unreached` 另形成一个独立实验，不与 detector recall 混合：在新的 dev-only cases 上固定 Guard ruleset，对 `candidate_k`、`top_k`、search/find/open navigation 和 attack-unit exposure 做消融，同时记录 clean utility、latency、model calls 和 security regression。只有证据显示 attack unit 已在候选池却因排序/导航未扫描时，才准入 retrieval exposure 改动；不能为让 test/holdout 分数变好而直接扩大上下文或扫描所有文档。
+S2-1 暴露的 `13/28 unreached` 已由 R2-S3 在固定 Guard ruleset 下做 measurement-only ablation，不与 detector recall 混合。结果显示 13 个 units 全部在 runtime rank 2，observed downstream exposure `0/13`；depth 2/4 的 `28/28` total coverage 是 diagnostic replay，并分别增加 29/33 scans 和 3845/4200 input characters。该证据没有准入 retrieval exposure 改动。未来若出现 measured bypass 或 reachable unguarded path，必须新建设计并同时冻结 latency、clean utility、false-positive、model-call、security regression 和 rollback gates；不能为了让 test/holdout 分数变好而扩大上下文或扫描所有文档。
 
 ### R2-B: Lifecycle and operations
 
