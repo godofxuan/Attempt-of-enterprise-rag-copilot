@@ -61,11 +61,14 @@ workspace: <repo-root>
 branch: codex/rag-eval-system
 E7 start HEAD: 7aec4b950e012d3f24b8e1877d6391201e9b8f90
 upstream: origin/codex/rag-eval-system
-commit + push current feature branch: AUTHORIZED
+current R2-S3 local commit state: COMPLETE
+push current feature branch: PROHIBITED / DEFERRED until whole-branch synthesis approves the fixed exact HEAD
 merge/tag/default-branch/repository visibility: NOT AUTHORIZED
 ```
 
-E7 起始工作树包含 E0-E6 的累计修改，不得用 `reset`、`clean`、`checkout --` 丢弃。本人先批准 `执行E7最终验收`，随后明确要求“直接传到 GitHub”，因此允许在全部自动门禁完成后 commit 并 push 当前功能分支；该授权不包含 merge、tag、默认分支或仓库可见性变更。
+Historical E7 authorization only: the owner previously authorized committing and
+pushing the E7 feature branch after its gates. That historical authorization does not authorize push for the current R2-S3 exact HEAD. Current push remains
+prohibited/deferred until whole-branch synthesis approves the fixed exact HEAD.
 
 ## 4. 阶段状态
 
@@ -524,9 +527,10 @@ compileall / pip check                         CLEAN / CLEAN
 ## 20. R2-S3 measurement-only exposure ablation 当前精确断点
 
 R2-S3 已完成 Task 1-8 的本地实现、独立 review hardening、accepted
-artifact publication、文档同步和 fresh local gates。用户明确要求本轮不
-push，controller 将在 mandatory whole-branch review 后负责 push 和 remote
-CI。
+artifact publication、文档同步和 fresh local gates。当前边界为：
+push current feature branch: PROHIBITED / DEFERRED until whole-branch synthesis approves the fixed exact HEAD。
+只有 synthesis 批准该 fixed exact HEAD 后，controller 才能负责 push 和
+该 SHA 的 remote CI。
 
 ```text
 source live run                              r2-s2-s1-dev-20260719-01
@@ -559,7 +563,7 @@ public audit                                  451 CANDIDATES / 0 FINDINGS
 source / private / public verifier            VERIFIED
 isolated eight-file verifier                  VERIFIED / 28 ROWS
 frozen/source/package hash comparison         EXACT
-push / remote CI                              INTENTIONALLY DEFERRED
+push / remote CI                              PROHIBITED / DEFERRED PENDING SYNTHESIS
 ```
 
 Decision semantics: `NO_CURRENT_BYPASS_OBSERVED` is a narrow frozen-dev
@@ -579,9 +583,9 @@ formal D7 run    5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f97865e14
 
 Resume order:
 
-1. Verify the final Task 8 commit contains only the explicit documentation and
-   status files.
-2. Run the mandatory whole-branch review before push.
-3. Only the controller may then push and verify remote CI for the exact SHA.
+1. Verify the final fix-wave commit contains only its explicit files.
+2. Run whole-branch synthesis for the fixed exact HEAD; push remains prohibited
+   until that synthesis explicitly approves the exact SHA.
+3. Only the controller may then push and verify remote CI for the approved SHA.
 4. Keep independent holdout authoring and owner-only review outside automated
    implementation scope.

@@ -223,11 +223,54 @@ Verify with the trusted repository wrapper:
   data\v2\public\r2_s3_exposure
 ```
 
-After copying exactly the eight public files to an isolated directory, run:
+From the repository root, resolve the repository interpreter before entering a
+fresh isolated directory, copy the exact eight-file allowlist, and run:
 
+<!-- isolated-verifier-powershell:start -->
 ```powershell
-.\.venv\Scripts\python.exe -I verify.py
+$repo = (Get-Location).Path
+$python = (Resolve-Path -LiteralPath (Join-Path $repo '.venv\Scripts\python.exe')).Path
+$source = Join-Path $repo 'data\v2\public\r2_s3_exposure'
+$isolated = Join-Path ([System.IO.Path]::GetTempPath()) (
+  'r2_s3_exposure_verify_' + [guid]::NewGuid().ToString('N')
+)
+$packageFiles = @(
+  'README.md'
+  'checksums.sha256'
+  'manifest.redacted.json'
+  'metric_definitions.json'
+  'per_unit.redacted.jsonl'
+  'source_run.sha256'
+  'summary.json'
+  'verify.py'
+)
+New-Item -ItemType Directory -Path $isolated | Out-Null
+foreach ($name in $packageFiles) {
+  Copy-Item -LiteralPath (Join-Path $source $name) -Destination $isolated
+}
+$observedFiles = @(
+  Get-ChildItem -LiteralPath $isolated -Force |
+    Sort-Object Name |
+    ForEach-Object { $_.Name }
+)
+$difference = @(
+  Compare-Object -ReferenceObject ($packageFiles | Sort-Object) `
+    -DifferenceObject $observedFiles
+)
+if ($difference.Count -ne 0 -or $observedFiles.Count -ne 8) {
+  throw 'isolated package must contain exactly the eight approved files'
+}
+Push-Location $isolated
+try {
+  & $python -I verify.py
+  if ($LASTEXITCODE -ne 0) {
+    throw 'isolated verifier failed'
+  }
+} finally {
+  Pop-Location
+}
 ```
+<!-- isolated-verifier-powershell:end -->
 
 Package checksums bind internal bytes. An isolated package cannot establish
 trust in its own `verify.py` or prove projection from the private run; compare

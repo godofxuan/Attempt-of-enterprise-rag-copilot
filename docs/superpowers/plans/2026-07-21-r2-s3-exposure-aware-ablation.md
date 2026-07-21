@@ -1603,8 +1603,8 @@ git commit -m "docs: record R2-S3 exposure ablation"
 
 - [ ] **Step 6: Push and verify exact final HEAD**
 
-Intentionally deferred to the controller after the mandatory whole-branch
-review; it is outside the Task 8 implementer commit.
+push current feature branch: PROHIBITED / DEFERRED until whole-branch synthesis approves the fixed exact HEAD.
+This remains outside the Task 8 implementer and fix-wave commits.
 
 ```powershell
 git push origin codex/rag-eval-system

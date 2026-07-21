@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -644,3 +646,107 @@ def test_private_e6_materials_are_ignored_and_candidate_free() -> None:
     statuses = {row.rsplit("|", 2)[1].strip() for row in claim_rows}
     assert statuses <= {"approved", "narrowed", "rejected"}
     assert "pending_e7" not in "\n".join(claim_rows)
+
+
+def test_r2_s3_delivery_boundary_requires_fixed_head_synthesis() -> None:
+    handoff = (
+        ROOT / "docs" / "roadmap" / "CURRENT_EXECUTION_HANDOFF.md"
+    ).read_text(encoding="utf-8")
+    plan = (
+        ROOT
+        / "docs"
+        / "superpowers"
+        / "plans"
+        / "2026-07-21-r2-s3-exposure-aware-ablation.md"
+    ).read_text(encoding="utf-8")
+    top_boundary = handoff.split("## 3.", 1)[1].split("## 4.", 1)[0]
+    current_breakpoint = handoff.split("## 20.", 1)[1]
+    step_six = plan.split("**Step 6:", 1)[1]
+    required_boundary = (
+        "push current feature branch: PROHIBITED / DEFERRED until whole-branch "
+        "synthesis approves the fixed exact HEAD"
+    )
+
+    assert "current R2-S3 local commit state: COMPLETE" in top_boundary
+    assert required_boundary in top_boundary
+    assert "Historical E7 authorization only:" in top_boundary
+    assert (
+        "does not authorize push for the current R2-S3 exact HEAD"
+        in top_boundary
+    )
+    assert "commit + push current feature branch: AUTHORIZED" not in top_boundary
+    assert required_boundary in current_breakpoint
+    assert required_boundary in step_six
+
+
+def test_r2_s3_documented_isolated_verifier_sequence_executes(
+    tmp_path: Path,
+) -> None:
+    protocol = (
+        ROOT
+        / "docs"
+        / "security"
+        / "r2_s3"
+        / "00_exposure_ablation_protocol.md"
+    ).read_text(encoding="utf-8")
+    start_marker = "<!-- isolated-verifier-powershell:start -->"
+    end_marker = "<!-- isolated-verifier-powershell:end -->"
+    assert start_marker in protocol
+    assert end_marker in protocol
+    documented = protocol.split(start_marker, 1)[1].split(end_marker, 1)[0]
+    match = re.search(r"```powershell\s*\n(.*?)\n```", documented, re.DOTALL)
+    assert match is not None
+    command = match.group(1)
+    assert command.index("$python = (Resolve-Path") < command.index(
+        "Push-Location"
+    )
+
+    environment = os.environ.copy()
+    environment["TEMP"] = str(tmp_path)
+    environment["TMP"] = str(tmp_path)
+    completed = subprocess.run(
+        [
+            "powershell.exe",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            command,
+        ],
+        cwd=ROOT,
+        env=environment,
+        text=True,
+        encoding="utf-8",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    result = json.loads(completed.stdout.strip())
+    assert result["status"] == "VERIFIED"
+    assert result["row_count"] == 28
+    isolated_roots = list(tmp_path.glob("r2_s3_exposure_verify_*"))
+    assert len(isolated_roots) == 1
+    assert {item.name for item in isolated_roots[0].iterdir()} == {
+        "README.md",
+        "checksums.sha256",
+        "manifest.redacted.json",
+        "metric_definitions.json",
+        "per_unit.redacted.jsonl",
+        "source_run.sha256",
+        "summary.json",
+        "verify.py",
+    }
+
+
+def test_r2_s3_backlog_remote_ci_claims_are_exact_head_scoped() -> None:
+    backlog = (ROOT / "docs" / "industrialization_backlog.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert (
+        "| P1 | Remote CI evidence for the current R2-S3 exact HEAD |"
+        in backlog
+    )
+    assert "Historical `9607e55` evidence applies only to that commit." in backlog
+    assert "- current R2-S3 exact HEAD remote CI passed;" in backlog

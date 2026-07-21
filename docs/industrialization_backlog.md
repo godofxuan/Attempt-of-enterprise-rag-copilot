@@ -25,7 +25,7 @@
 | P1 | Incremental upsert/delete | 文档更新频率使全量 rebuild 超过 agreed freshness window | Idempotent event contract、version/tombstone、partial failure recovery、active snapshot consistency、rollback | R1 immutable rebuild 更易审计，当前 72-doc demo 没有增量压力 |
 | P1 | Durable OpenTelemetry | 需要跨进程追踪、历史检索、告警或多副本 | OTel semantic conventions、collector/backend、sampling、redaction、retention、access control、trace-to-eval correlation | 当前 bounded memory 足以本地调试，直接加平台会先增加运维面 |
 | P1 | Reproducible deployment | 需要 staging/pilot 或非 Windows 环境 | Minimal image、non-root user、SBOM、pinned image/model versions、health probes、resource limits、secret injection、rollback drill | 本阶段只验证本机，不冒充 production deploy |
-| P1 | Remote CI evidence | 仓库所有者批准 push/PR | Actual run URL、deterministic suite、pip/compile/public audit、artifact retention、branch protection | 本地 workflow contract 不等于 GitHub runner 已执行 |
+| P1 | Remote CI evidence for the current R2-S3 exact HEAD | fixed exact HEAD whole-branch synthesis approval and repository-owner push/PR authorization | Actual run URL for the exact SHA、deterministic suite、pip/compile/public audit、artifact retention、branch protection | Historical `9607e55` success does not establish remote-CI evidence for the current R2-S3 exact HEAD |
 | P2 | Vector service | Active corpus >=5,000 docs、multi-tenant QPS 或 update SLA 使 local FAISS lifecycle 不达标 | Same frozen retrieval/security suite、namespace isolation、backup/restore、p95/cost comparison、migration rollback | 先 profile；不能用“生产都用向量库”替代证据 |
 | P2 | Admitted reranker | Retrieval failure analysis 显示 candidate set 有 gold、排序错误占主导 | Fixed candidate model/license、frozen ablation、quality delta、p95/memory/model-call budget、fallback | Current optional row is `NOT RUN`; metadata/temporal pipeline already fixes known synthetic misses |
 | P2 | Query/result cache | Embed/generation cost或 latency profile 显示重复请求显著 | ACL/user/model/index version in key、TTL/invalidation、no cross-user reuse、hit/miss metrics | 错误 cache key 会造成比延迟更严重的数据泄漏 |
@@ -91,8 +91,10 @@ rollback
 - secure against prompt injection；
 - production SLO；
 - real enterprise data accuracy；
-- remote CI passed；
+- current R2-S3 exact HEAD remote CI passed;
 - reranker/vector database improved quality；
 - autonomous multi-Agent platform。
 
 限制的当前证据见 [Known Limitations](known_limitations.md)，实现与信任边界见 [Architecture](architecture.md)。
+
+Historical `9607e55` evidence applies only to that commit.
