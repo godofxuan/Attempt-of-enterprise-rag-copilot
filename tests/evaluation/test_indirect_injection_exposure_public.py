@@ -1006,6 +1006,77 @@ def test_export_rejects_dangling_final_component_symlink(
     assert not (output / "redirected").exists()
 
 
+def test_export_rejects_lexical_source_symlink_before_resolve(
+    private_exposure_run: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_alias = tmp_path / "source-alias"
+    output = tmp_path / "public"
+    is_symlink = Path.is_symlink
+    resolve = Path.resolve
+
+    def mark_source_as_symlink(path: Path) -> bool:
+        if path == source_alias:
+            return True
+        return is_symlink(path)
+
+    def reject_source_resolve(path: Path, *args, **kwargs) -> Path:
+        if path == source_alias:
+            raise AssertionError("source path resolved before symlink rejection")
+        return resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_symlink", mark_source_as_symlink)
+    monkeypatch.setattr(Path, "resolve", reject_source_resolve)
+
+    with pytest.raises(ValueError, match="source run cannot be a symlink"):
+        export_exposure_public_evidence(
+            source_alias,
+            output,
+            package_name="fixture",
+            expected_source_manifest_sha256=_sha256(
+                private_exposure_run / "manifest.json"
+            ),
+            expected_source_run_id=private_exposure_run.name,
+            forbidden_texts=("raw question", "raw attack"),
+        )
+
+    assert not output.exists()
+
+
+def test_export_rejects_source_run_symlink_when_supported(
+    private_exposure_run: Path,
+    tmp_path: Path,
+) -> None:
+    source_alias = tmp_path / "source-alias"
+    output = tmp_path / "public"
+    try:
+        source_alias.symlink_to(
+            private_exposure_run,
+            target_is_directory=True,
+        )
+    except OSError as exc:
+        pytest.skip(f"symlink creation is unavailable: {exc}")
+
+    with pytest.raises(ValueError, match="source run cannot be a symlink"):
+        export_exposure_public_evidence(
+            source_alias,
+            output,
+            package_name="fixture",
+            expected_source_manifest_sha256=_sha256(
+                private_exposure_run / "manifest.json"
+            ),
+            expected_source_run_id=private_exposure_run.name,
+            forbidden_texts=("raw question", "raw attack"),
+        )
+
+    assert source_alias.is_symlink()
+    assert private_exposure_run.is_dir()
+    assert not (output / "fixture").exists()
+    if output.exists():
+        assert not tuple(output.glob(".*.staging-*"))
+
+
 def test_export_empty_target_race_is_no_replace_and_cleans_stage(
     private_exposure_run: Path,
     tmp_path: Path,

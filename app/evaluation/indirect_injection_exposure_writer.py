@@ -288,10 +288,10 @@ def publish_exposure_run(
 
     output_root = Path(root).resolve()
     output_root.mkdir(parents=True, exist_ok=True)
-    target = (output_root / manifest.run_id).resolve()
-    if target.parent != output_root:
+    target = output_root / manifest.run_id
+    if target.parent.resolve() != output_root:
         raise ValueError("run ID resolves outside output root")
-    if target.exists():
+    if target.is_symlink() or target.exists():
         raise FileExistsError(f"exposure output run already exists: {target}")
     stage = Path(
         tempfile.mkdtemp(
@@ -444,7 +444,10 @@ def _atomic_publish_no_replace(stage: Path, target: Path) -> None:
 
 
 def verify_exposure_run(run_dir: Path) -> ExposureRunManifest:
-    run_dir = Path(run_dir).resolve()
+    run_dir = Path(run_dir)
+    if run_dir.is_symlink():
+        raise ValueError("exposure run directory cannot be a symlink")
+    run_dir = run_dir.resolve()
     if not run_dir.is_dir():
         raise FileNotFoundError(f"exposure run directory not found: {run_dir}")
     _validate_exact_files(run_dir)

@@ -70,7 +70,10 @@ def export_exposure_public_evidence(
         raise ValueError("expected source manifest hash must be lowercase SHA-256")
     if not forbidden_texts or any(not value for value in forbidden_texts):
         raise ValueError("a non-empty forbidden text policy is required")
-    source_run = Path(source_run).resolve()
+    source_run = Path(source_run)
+    if source_run.is_symlink():
+        raise ValueError("source run cannot be a symlink")
+    source_run = source_run.resolve()
     source_manifest = verify_exposure_run(source_run)
     if (
         source_manifest.schema_version

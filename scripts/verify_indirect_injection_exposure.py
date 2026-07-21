@@ -23,7 +23,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         manifest = verify_exposure_run(args.run_dir)
-    except (FileNotFoundError, ValueError) as exc:
+    except (OSError, ValueError) as exc:
         _write_json(
             sys.stderr,
             {
@@ -58,4 +58,3 @@ def _write_json(stream, payload: dict[str, object]) -> None:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

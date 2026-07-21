@@ -102,7 +102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             test_output=_test_output(result),
             forbidden_texts=_forbidden_fixture_texts(inputs.bundle),
         )
-    except FileExistsError as exc:
+    except OSError as exc:
         _write_json(
             sys.stderr,
             {
@@ -114,7 +114,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
     except (
         ExposureEvidenceError,
-        FileNotFoundError,
         ValidationError,
         ValueError,
     ) as exc:

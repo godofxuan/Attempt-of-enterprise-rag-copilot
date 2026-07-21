@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from app.evaluation.indirect_injection_exposure_writer import verify_exposure_run
+from scripts import eval_indirect_injection_exposure as eval_cli
+from scripts import verify_indirect_injection_exposure as verify_cli
 from scripts.eval_indirect_injection_exposure import (
     main as eval_main,
 )
@@ -185,3 +190,90 @@ def test_verify_cli_rejects_tampered_run(
     assert verify_main([str(target)]) == 1
     error = json.loads(capsys.readouterr().err)
     assert error["status"] == "VERIFICATION_FAILED"
+
+
+@pytest.mark.parametrize(
+    ("exception_type", "error_number"),
+    (
+        (OSError, errno.ENOTSUP),
+        (PermissionError, errno.EACCES),
+    ),
+    ids=("enotsup", "permission"),
+)
+def test_eval_cli_normalizes_general_oserror_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+    tmp_path: Path,
+    capsys,
+    exception_type: type[OSError],
+    error_number: int,
+) -> None:
+    source_run, security_data_root = source_material
+    output = tmp_path / "runs"
+
+    def fail_publication(*_args, **_kwargs):
+        raise exception_type(error_number, "simulated publication I/O failure")
+
+    monkeypatch.setattr(eval_cli, "publish_exposure_run", fail_publication)
+
+    assert eval_cli.main(
+        _valid_argv(source_run, security_data_root, output)
+    ) == 1
+    captured = capsys.readouterr()
+    error = json.loads(captured.err)
+    assert captured.out == ""
+    assert error["status"] == "OUTPUT_ERROR"
+    assert error["error_type"] == exception_type.__name__
+    assert "Traceback" not in captured.err
+    assert not (output / "exposure-cli-test").exists()
+
+
+@pytest.mark.parametrize(
+    ("exception_type", "error_number"),
+    (
+        (OSError, errno.ENOTSUP),
+        (PermissionError, errno.EACCES),
+    ),
+    ids=("enotsup", "permission"),
+)
+def test_verify_cli_normalizes_general_oserror_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys,
+    exception_type: type[OSError],
+    error_number: int,
+) -> None:
+    def fail_verification(_run_dir: Path):
+        raise exception_type(error_number, "simulated verification I/O failure")
+
+    monkeypatch.setattr(verify_cli, "verify_exposure_run", fail_verification)
+
+    assert verify_cli.main([str(tmp_path / "run")]) == 1
+    captured = capsys.readouterr()
+    error = json.loads(captured.err)
+    assert captured.out == ""
+    assert error["status"] == "VERIFICATION_FAILED"
+    assert error["error_type"] == exception_type.__name__
+    assert "Traceback" not in captured.err
+
+
+@pytest.mark.parametrize("cli_module", (eval_cli, verify_cli))
+def test_private_clis_do_not_catch_programmer_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+    tmp_path: Path,
+    cli_module,
+) -> None:
+    def fail(*_args, **_kwargs):
+        raise RuntimeError("programmer defect")
+
+    if cli_module is eval_cli:
+        source_run, security_data_root = source_material
+        monkeypatch.setattr(cli_module, "publish_exposure_run", fail)
+        argv = _valid_argv(source_run, security_data_root, tmp_path / "runs")
+    else:
+        monkeypatch.setattr(cli_module, "verify_exposure_run", fail)
+        argv = [str(tmp_path / "run")]
+
+    with pytest.raises(RuntimeError, match="programmer defect"):
+        cli_module.main(argv)

@@ -783,6 +783,52 @@ def test_publish_final_handoff_never_replaces_raced_target(
     assert not tuple(root.glob(".*.staging-*"))
 
 
+def test_publish_rejects_lexical_final_target_before_resolve(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "runs"
+    root.mkdir()
+    target = root / "r2-s3-writer-test"
+    is_symlink = Path.is_symlink
+
+    def mark_target_as_symlink(path: Path) -> bool:
+        if path == target:
+            return True
+        return is_symlink(path)
+
+    monkeypatch.setattr(Path, "is_symlink", mark_target_as_symlink)
+
+    with pytest.raises(FileExistsError, match="already exists"):
+        _publish(root, exposure_result)
+
+    assert not target.exists()
+    assert not tuple(root.glob(".*.staging-*"))
+
+
+def test_publish_rejects_dangling_final_run_symlink_when_supported(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    root = tmp_path / "runs"
+    root.mkdir()
+    target = root / "r2-s3-writer-test"
+    referent = root / "redirected"
+    try:
+        target.symlink_to(referent.name, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlink creation is unavailable: {exc}")
+    assert target.is_symlink() and not target.exists()
+
+    with pytest.raises(FileExistsError, match="already exists"):
+        _publish(root, exposure_result)
+
+    assert target.is_symlink()
+    assert not referent.exists()
+    assert not tuple(root.glob(".*.staging-*"))
+
+
 def test_verifier_rejects_checksum_and_noncanonical_jsonl_tampering(
     tmp_path: Path,
     exposure_result: ExposureAnalysisResult,
@@ -818,6 +864,43 @@ def test_verifier_rejects_symlinked_artifact_when_supported(
 
     with pytest.raises(ValueError, match="regular files"):
         verify_exposure_run(target)
+
+
+def test_verifier_rejects_lexical_top_level_symlink_before_resolve(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = _publish(tmp_path / "runs", exposure_result)
+    is_symlink = Path.is_symlink
+
+    def mark_target_as_symlink(path: Path) -> bool:
+        if path == target:
+            return True
+        return is_symlink(path)
+
+    monkeypatch.setattr(Path, "is_symlink", mark_target_as_symlink)
+
+    with pytest.raises(ValueError, match="run directory cannot be a symlink"):
+        verify_exposure_run(target)
+
+
+def test_verifier_rejects_top_level_run_symlink_when_supported(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    target = _publish(tmp_path / "runs", exposure_result)
+    alias = tmp_path / "run-alias"
+    try:
+        alias.symlink_to(target, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlink creation is unavailable: {exc}")
+
+    with pytest.raises(ValueError, match="run directory cannot be a symlink"):
+        verify_exposure_run(alias)
+
+    assert alias.is_symlink()
+    assert target.is_dir()
 
 
 def test_writer_rejects_coherent_row_and_summary_tampering_before_output(
