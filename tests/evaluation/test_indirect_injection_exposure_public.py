@@ -6,12 +6,14 @@ import re
 import shutil
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from app.evaluation import indirect_injection_exposure_public as public_writer
 from app.evaluation import indirect_injection_exposure_writer as private_writer
+from app.evaluation.indirect_injection_dataset import load_security_bundle
 from app.evaluation.indirect_injection_exposure import (
     EXPOSURE_LIMITATIONS,
     ExposureAnalysisResult,
@@ -29,6 +31,7 @@ from app.evaluation.indirect_injection_exposure_public_verifier import (
     ExposurePublicVerificationError,
     verify_exposure_public_package,
 )
+from scripts import export_indirect_injection_exposure_public as export_cli
 from scripts.export_indirect_injection_exposure_public import main as export_main
 from scripts.verify_indirect_injection_exposure_public import main as verify_main
 from tests.evaluation.test_indirect_injection_exposure import source_material
@@ -342,15 +345,63 @@ def test_public_v2_manifest_rejects_dependency_substitution(
         verify_exposure_public_package(target)
 
 
-def test_trusted_verifier_accepts_tracked_v2_package() -> None:
-    result = verify_exposure_public_package(
-        Path("data/v2/public/r2_s3_exposure")
-    )
+def test_trusted_verifier_rejects_stale_tracked_v2_package() -> None:
+    with pytest.raises(
+        ExposurePublicVerificationError,
+        match="packaged verifier does not match the trusted verifier bytes",
+    ):
+        verify_exposure_public_package(
+            Path("data/v2/public/r2_s3_exposure")
+        )
 
-    assert result.verified is True
-    assert result.source_run_id == "r2-s3-dev-exposure-20260721-03"
-    assert result.case_count == 36
-    assert result.row_count == 28
+
+def test_public_verifier_reads_each_package_file_once(
+    public_exposure_package: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = public_exposure_package.resolve()
+    real_read_bytes = Path.read_bytes
+    reads = {name: 0 for name in PUBLIC_EXPOSURE_FILES}
+
+    def counted_read(path: Path) -> bytes:
+        if path.parent.resolve() == package and path.name in reads:
+            reads[path.name] += 1
+        return real_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", counted_read)
+
+    assert verify_exposure_public_package(package).verified is True
+    assert reads == {name: 1 for name in PUBLIC_EXPOSURE_FILES}
+
+
+def test_public_verifier_rejects_file_mutation_during_snapshot_read(
+    public_exposure_package: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    summary_path = (public_exposure_package / "summary.json").resolve()
+    original = summary_path.read_bytes()
+    replacement = original.replace(b'  "', b' \t"', 1)
+    assert replacement != original
+    assert len(replacement) == len(original)
+    real_read_bytes = Path.read_bytes
+    real_write_bytes = Path.write_bytes
+    changed = False
+
+    def read_then_mutate(path: Path) -> bytes:
+        nonlocal changed
+        payload = real_read_bytes(path)
+        if path.resolve() == summary_path and not changed:
+            changed = True
+            real_write_bytes(path, replacement)
+        return payload
+
+    monkeypatch.setattr(Path, "read_bytes", read_then_mutate)
+
+    with pytest.raises(
+        ExposurePublicVerificationError,
+        match="public artifact changed during verification: summary.json",
+    ):
+        verify_exposure_public_package(public_exposure_package)
 
 
 def test_protocol_uses_byte_binding_and_trusted_manifest_language() -> None:
@@ -1349,3 +1400,96 @@ def test_public_cli_exports_and_verifies(
     assert verify_main([str(package)]) == 0
     verified = json.loads(capsys.readouterr().out)
     assert verified["status"] == "VERIFIED"
+
+
+def test_public_export_cli_uses_shared_complete_sensitive_value_corpus(
+    source_material: tuple[Path, Path],
+    private_exposure_run: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys,
+) -> None:
+    _, security_data_root = source_material
+    dev = load_security_bundle(security_data_root, "dev")
+    test = load_security_bundle(security_data_root, "test")
+    dev_question = dev.dataset.cases[0].question
+    test_question = test.dataset.cases[0].question
+    benign_unit_id = next(
+        unit_id
+        for bundle in (dev, test)
+        for case in bundle.dataset.cases
+        for unit_id in case.benign_unit_ids
+    )
+    fixture_index = next(
+        index
+        for index, fixture in enumerate(dev.fixture_manifest.cases)
+        if fixture.open_results
+    )
+    fixture = dev.fixture_manifest.cases[fixture_index]
+    open_section = "OPEN_RESULT_SECTION_ONLY"
+    opened = fixture.open_results[0].model_copy(
+        update={"section_path": (open_section,)}
+    )
+    updated_fixture = fixture.model_copy(
+        update={"open_results": (opened, *fixture.open_results[1:])}
+    )
+    fixture_cases = list(dev.fixture_manifest.cases)
+    fixture_cases[fixture_index] = updated_fixture
+    dev = replace(
+        dev,
+        fixture_manifest=dev.fixture_manifest.model_copy(
+            update={"cases": tuple(fixture_cases)}
+        ),
+    )
+    captured: dict[str, tuple[str, ...]] = {}
+    output = tmp_path / "public"
+
+    def capture_export(
+        _source_run: Path,
+        output_root: Path,
+        *,
+        package_name: str,
+        forbidden_texts: tuple[str, ...],
+        **_kwargs,
+    ) -> Path:
+        captured["forbidden_texts"] = forbidden_texts
+        return output_root / package_name
+
+    monkeypatch.setattr(
+        export_cli,
+        "export_exposure_public_evidence",
+        capture_export,
+    )
+    real_load_bundle = export_cli.load_security_bundle
+
+    def load_bundle(_root: Path, split: str):
+        if split == "dev":
+            return dev
+        if split == "test":
+            return test
+        return real_load_bundle(_root, split)
+
+    monkeypatch.setattr(export_cli, "load_security_bundle", load_bundle)
+    argv = [
+        "--source-run",
+        str(private_exposure_run),
+        "--output-root",
+        str(output),
+        "--package-name",
+        "fixture",
+        "--expected-source-run-id",
+        private_exposure_run.name,
+        "--expected-source-manifest-sha256",
+        _sha256(private_exposure_run / "manifest.json"),
+        "--security-data-root",
+        str(security_data_root),
+    ]
+
+    assert export_cli.main(argv) == 0
+    capsys.readouterr()
+    assert {
+        dev_question,
+        test_question,
+        benign_unit_id,
+        open_section,
+    } <= set(captured["forbidden_texts"])

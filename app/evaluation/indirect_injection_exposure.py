@@ -37,7 +37,8 @@ from app.evaluation.indirect_injection_live_runner import LiveCaseObservation
 from app.evaluation.indirect_injection_live_writer import (
     LiveSecurityRunManifest,
     LiveSecurityRunManifestV2,
-    verify_live_security_run,
+    VerifiedLiveSecurityRunSnapshot,
+    load_verified_live_security_run_snapshot,
 )
 from app.evaluation.indirect_injection_runner import SecurityCaseResult, _search_hit
 from app.retrieval.pipeline import RankedSearchCandidate, RankedSearchPool
@@ -1419,7 +1420,9 @@ def load_exposure_inputs(
 ) -> ExposureInputs:
     source_run_dir = Path(source_run_dir).resolve()
     security_data_root = Path(security_data_root).resolve()
-    manifest = _verify_source_run(source_run_dir)
+    source_snapshot = _verify_source_run(source_run_dir)
+    _assert_source_manifest_unchanged(source_snapshot)
+    manifest = source_snapshot.manifest
     if not isinstance(manifest, LiveSecurityRunManifestV2):
         raise ExposureEvidenceError("source run must use live manifest v2")
     if manifest.split != "dev":
@@ -1430,10 +1433,7 @@ def load_exposure_inputs(
         raise ExposureEvidenceError("source Git HEAD mismatch")
     if manifest.guard.ruleset_sha256 != SOURCE_GUARD_SHA256:
         raise ExposureEvidenceError("source Guard SHA-256 mismatch")
-    try:
-        manifest_sha256 = _sha256(source_run_dir / "manifest.json")
-    except OSError as exc:
-        raise ExposureEvidenceError("source manifest SHA-256 is unavailable") from exc
+    manifest_sha256 = source_snapshot.manifest_sha256
     if manifest_sha256 != expected_manifest_sha256:
         raise ExposureEvidenceError("source manifest SHA-256 mismatch")
     try:
@@ -1461,6 +1461,7 @@ def load_exposure_inputs(
         fixture_cases=bundle.fixture_manifest.cases,
     )
     source = _source_evidence(manifest, manifest_sha256)
+    _assert_source_manifest_unchanged(source_snapshot)
     return ExposureInputs(
         source_run_dir=source_run_dir,
         security_data_root=security_data_root,
@@ -1769,11 +1770,24 @@ def _source_evidence(
     )
 
 
-def _verify_source_run(source_run_dir: Path) -> LiveSecurityRunManifest:
+def _verify_source_run(
+    source_run_dir: Path,
+) -> VerifiedLiveSecurityRunSnapshot:
     try:
-        return verify_live_security_run(source_run_dir)
+        return load_verified_live_security_run_snapshot(source_run_dir)
     except (OSError, ValidationError, ValueError) as exc:
         raise ExposureEvidenceError("source live-run verification failed") from exc
+
+
+def _assert_source_manifest_unchanged(
+    snapshot: VerifiedLiveSecurityRunSnapshot,
+) -> None:
+    try:
+        snapshot.assert_manifest_unchanged()
+    except (OSError, ValueError) as exc:
+        raise ExposureEvidenceError(
+            "source manifest changed during verification"
+        ) from exc
 
 
 class _DuplicateJsonKey(ValueError):

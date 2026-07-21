@@ -124,6 +124,40 @@ def test_eval_cli_invalid_source_returns_two_without_target(
     assert not (output / run_id).exists()
 
 
+def test_eval_cli_rejects_false_executed_evaluator_hash_without_target(
+    source_material: tuple[Path, Path],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys,
+) -> None:
+    source_run, security_data_root = source_material
+    output = tmp_path / "runs"
+    evaluator_path = (
+        eval_cli.BASE_DIR / eval_cli.EXPOSURE_EVALUATOR_PATH
+    ).resolve()
+    real_sha256 = eval_cli._sha256
+
+    def false_evaluator_hash(path: Path) -> str:
+        if path.resolve() == evaluator_path:
+            return "0" * 64
+        return real_sha256(path)
+
+    monkeypatch.setattr(eval_cli, "_sha256", false_evaluator_hash)
+
+    assert eval_main(
+        _valid_argv(
+            source_run,
+            security_data_root,
+            output,
+            run_id="false-evaluator-hash",
+        )
+    ) == 2
+    error = json.loads(capsys.readouterr().err)
+    assert error["decision"] == "INVALID_EVIDENCE"
+    assert "exposure evaluator SHA-256 mismatch" in error["message"]
+    assert not (output / "false-evaluator-hash").exists()
+
+
 def test_eval_cli_existing_target_is_an_operational_error(
     source_material: tuple[Path, Path],
     tmp_path: Path,

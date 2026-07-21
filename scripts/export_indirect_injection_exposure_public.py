@@ -10,6 +10,9 @@ from app.evaluation.indirect_injection_dataset import load_security_bundle
 from app.evaluation.indirect_injection_exposure_public import (
     export_exposure_public_evidence,
 )
+from app.evaluation.indirect_injection_sensitive_values import (
+    collect_security_sensitive_values,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,7 +43,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        bundle = load_security_bundle(args.security_data_root, "dev")
+        bundles = tuple(
+            load_security_bundle(args.security_data_root, split)
+            for split in ("dev", "test")
+        )
         package = export_exposure_public_evidence(
             args.source_run,
             args.output_root,
@@ -49,7 +55,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.expected_source_manifest_sha256
             ),
             expected_source_run_id=args.expected_source_run_id,
-            forbidden_texts=_forbidden_fixture_texts(bundle),
+            forbidden_texts=_forbidden_fixture_texts(bundles),
         )
     except FileExistsError as exc:
         _write_json(
@@ -83,25 +89,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-def _forbidden_fixture_texts(bundle) -> tuple[str, ...]:
-    values: set[str] = set()
-    for case in bundle.dataset.cases:
-        values.add(case.question)
-        if case.document_canary:
-            values.add(case.document_canary)
-        values.add(case.trace_canary)
-    for fixture in bundle.fixture_manifest.cases:
-        values.update(fixture.fact_texts.values())
-        for candidate in fixture.candidates:
-            values.update((candidate.matched_text, candidate.context_text))
-            if candidate.document_title:
-                values.add(candidate.document_title)
-            values.add(candidate.source_path)
-            values.update(candidate.section_path)
-            values.add(candidate.version)
-        for item in fixture.open_results:
-            values.update((item.content, item.source_path))
-    return tuple(sorted(value for value in values if value))
+def _forbidden_fixture_texts(bundles) -> tuple[str, ...]:
+    return collect_security_sensitive_values(
+        datasets=(bundle.dataset for bundle in bundles),
+        fixture_manifests=(bundle.fixture_manifest for bundle in bundles),
+    )
 
 
 def _write_json(stream, payload: dict[str, object]) -> None:
@@ -118,4 +110,3 @@ def _write_json(stream, payload: dict[str, object]) -> None:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

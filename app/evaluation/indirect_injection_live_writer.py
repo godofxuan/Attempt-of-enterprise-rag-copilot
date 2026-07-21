@@ -4,7 +4,9 @@ import csv
 import hashlib
 import json
 import shutil
+import stat
 import tempfile
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Literal, Mapping
@@ -46,6 +48,34 @@ _ARTIFACT_NAMES = {
     "test_output.txt",
     "checksums.sha256",
 }
+_FileIdentity = tuple[int, int, int, int, int, int]
+
+
+@dataclass(frozen=True)
+class VerifiedLiveSecurityRunSnapshot:
+    run_dir: Path
+    manifest: LiveSecurityRunManifest
+    manifest_bytes: bytes
+    manifest_sha256: str
+    _manifest_identity: _FileIdentity
+
+    def assert_manifest_unchanged(self) -> None:
+        path = self.run_dir / "manifest.json"
+        try:
+            if path.is_symlink():
+                raise ValueError("live security manifest changed during verification")
+            current = path.stat()
+        except OSError as exc:
+            raise ValueError(
+                "live security manifest changed during verification"
+            ) from exc
+        if (
+            not stat.S_ISREG(current.st_mode)
+            or _file_identity(current) != self._manifest_identity
+        ):
+            raise ValueError("live security manifest changed during verification")
+
+
 _CHECKSUM_CONTENT_NAMES = tuple(sorted(_ARTIFACT_NAMES - {"checksums.sha256"}))
 
 
@@ -817,7 +847,12 @@ def _validate_v2_summary(
         raise ValueError("v2 summary contradicts per-case evidence")
 
 
-def _validate_stage(stage: Path, manifest: LiveSecurityRunManifest) -> None:
+def _validate_stage(
+    stage: Path,
+    manifest: LiveSecurityRunManifest,
+    *,
+    manifest_bytes: bytes | None = None,
+) -> None:
     expected = {*_ARTIFACT_NAMES, "manifest.json"}
     if {path.name for path in stage.iterdir()} != expected:
         raise ValueError("live security run has an unexpected artifact set")
@@ -852,18 +887,29 @@ def _validate_stage(stage: Path, manifest: LiveSecurityRunManifest) -> None:
     if checksum_rows != expected_rows:
         raise ValueError("live checksum file does not match artifacts")
     parsed = type(manifest).model_validate_json(
-        (stage / "manifest.json").read_bytes()
+        manifest_bytes
+        if manifest_bytes is not None
+        else (stage / "manifest.json").read_bytes()
     )
     if parsed != manifest:
         raise ValueError("live manifest did not round-trip")
 
 
-def verify_live_security_run(run_dir: Path) -> LiveSecurityRunManifest:
-    run_dir = Path(run_dir).resolve()
+def load_verified_live_security_run_snapshot(
+    run_dir: Path,
+) -> VerifiedLiveSecurityRunSnapshot:
+    original = Path(run_dir)
+    if original.is_symlink():
+        raise ValueError("live security run directory cannot be a symlink")
+    run_dir = original.resolve()
     if not run_dir.is_dir():
         raise FileNotFoundError(f"live security run directory not found: {run_dir}")
     manifest_path = run_dir / "manifest.json"
-    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest_bytes, manifest_identity = _read_regular_file_snapshot(
+        manifest_path,
+        "live security manifest",
+    )
+    payload = json.loads(manifest_bytes)
     if not isinstance(payload, dict):
         raise ValueError("live security manifest must be a JSON object")
     schema_version = payload.get("schema_version")
@@ -877,11 +923,60 @@ def verify_live_security_run(run_dir: Path) -> LiveSecurityRunManifest:
     }.get(schema_version)
     if manifest_type is None:
         raise ValueError("unsupported live security manifest schema version")
-    manifest = manifest_type.model_validate_json(manifest_path.read_bytes())
+    manifest = manifest_type.model_validate_json(manifest_bytes)
     if run_dir.name != manifest.run_id:
         raise ValueError("live security run directory name contradicts manifest")
-    _validate_stage(run_dir, manifest)
-    return manifest
+    _validate_stage(run_dir, manifest, manifest_bytes=manifest_bytes)
+    snapshot = VerifiedLiveSecurityRunSnapshot(
+        run_dir=run_dir,
+        manifest=manifest,
+        manifest_bytes=manifest_bytes,
+        manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
+        _manifest_identity=manifest_identity,
+    )
+    snapshot.assert_manifest_unchanged()
+    return snapshot
+
+
+def verify_live_security_run(run_dir: Path) -> LiveSecurityRunManifest:
+    return load_verified_live_security_run_snapshot(run_dir).manifest
+
+
+def _read_regular_file_snapshot(
+    path: Path,
+    label: str,
+) -> tuple[bytes, _FileIdentity]:
+    try:
+        if path.is_symlink():
+            raise ValueError(f"{label} must be a regular non-symlink file")
+        before = path.stat()
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError(f"{label} must be a regular non-symlink file")
+        payload = path.read_bytes()
+        if path.is_symlink():
+            raise ValueError(f"{label} must be a regular non-symlink file")
+        after = path.stat()
+    except OSError as exc:
+        raise ValueError(f"{label} must be a regular non-symlink file") from exc
+    identity = _file_identity(before)
+    if (
+        not stat.S_ISREG(after.st_mode)
+        or _file_identity(after) != identity
+        or len(payload) != before.st_size
+    ):
+        raise ValueError(f"{label} changed during snapshot read")
+    return payload, identity
+
+
+def _file_identity(value) -> _FileIdentity:
+    return (
+        value.st_dev,
+        value.st_ino,
+        value.st_mode,
+        value.st_size,
+        value.st_mtime_ns,
+        value.st_ctime_ns,
+    )
 
 
 def _optional_positive_int(value: object) -> int | None:
@@ -917,6 +1012,8 @@ __all__ = [
     "LiveSecurityRunManifest",
     "LiveSecurityRunManifestV2",
     "OllamaModelIdentity",
+    "VerifiedLiveSecurityRunSnapshot",
+    "load_verified_live_security_run_snapshot",
     "publish_live_security_run",
     "resolve_ollama_model_identity",
     "verify_live_security_run",

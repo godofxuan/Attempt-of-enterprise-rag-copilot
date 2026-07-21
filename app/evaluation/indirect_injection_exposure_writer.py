@@ -8,6 +8,7 @@ import io
 import json
 import os
 import shutil
+import stat
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -91,6 +92,21 @@ _CASE_FAILURE_FIELDS = (
     ("blocked_egress_attempt", "case_blocked_egress_attempt_count"),
     ("attack_success", "case_attack_success"),
 )
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+_EXPOSURE_EVALUATOR_RELATIVE_PATH = (
+    "app/evaluation/indirect_injection_exposure.py"
+)
+_EXPOSURE_EVALUATOR_PATH = (
+    _REPOSITORY_ROOT / _EXPOSURE_EVALUATOR_RELATIVE_PATH
+).resolve()
+if (
+    verify_exposure_result_against_inputs.__module__
+    != "app.evaluation.indirect_injection_exposure"
+):
+    raise RuntimeError("exposure replay implementation module is not canonical")
+_EXECUTED_EVALUATOR_SHA256 = hashlib.sha256(
+    _EXPOSURE_EVALUATOR_PATH.read_bytes()
+).hexdigest()
 
 
 class _StrictFrozenModel(BaseModel):
@@ -303,6 +319,29 @@ class VerifiedExposureRunSnapshot:
             ) from exc
 
 
+@dataclass(frozen=True)
+class _VerifiedEvaluatorSnapshot:
+    path: Path
+    identity: _FileIdentity
+
+    def assert_unchanged(self) -> None:
+        try:
+            if self.path.is_symlink():
+                raise ValueError(
+                    "exposure evaluator changed during publication"
+                )
+            current = self.path.stat()
+        except OSError as exc:
+            raise ValueError(
+                "exposure evaluator changed during publication"
+            ) from exc
+        if (
+            not stat.S_ISREG(current.st_mode)
+            or _file_identity(current) != self.identity
+        ):
+            raise ValueError("exposure evaluator changed during publication")
+
+
 def publish_exposure_run(
     root: Path,
     *,
@@ -315,7 +354,10 @@ def publish_exposure_run(
 ) -> Path:
     """Publish one verified, immutable private exposure run."""
 
+    _validate_analysis(manifest, result)
+    evaluator_snapshot = _verify_executed_evaluator(manifest)
     verify_exposure_result_against_inputs(source_inputs, result)
+    evaluator_snapshot.assert_unchanged()
     return _publish_exposure_run(
         root,
         manifest=manifest,
@@ -323,6 +365,7 @@ def publish_exposure_run(
         commands=commands,
         test_output=test_output,
         forbidden_texts=forbidden_texts,
+        executed_evaluator_snapshot=evaluator_snapshot,
     )
 
 
@@ -334,6 +377,7 @@ def _publish_exposure_run(
     commands: str,
     test_output: str,
     forbidden_texts: tuple[str, ...],
+    executed_evaluator_snapshot: _VerifiedEvaluatorSnapshot | None = None,
 ) -> Path:
     """Write an already source-bound result; used directly only by test fixtures."""
 
@@ -349,6 +393,8 @@ def _publish_exposure_run(
     _validate_analysis(manifest, result)
     canonical_commands = _canonical_text(commands, "commands")
     canonical_test_output = _canonical_text(test_output, "test output")
+    if executed_evaluator_snapshot is not None:
+        executed_evaluator_snapshot.assert_unchanged()
 
     output_root = Path(root).resolve()
     output_root.mkdir(parents=True, exist_ok=True)
@@ -431,6 +477,47 @@ def _publish_exposure_run(
         shutil.rmtree(stage, ignore_errors=True)
         raise
     return target
+
+
+def _verify_executed_evaluator(
+    manifest: ExposureRunManifest,
+) -> _VerifiedEvaluatorSnapshot:
+    if manifest.evaluator_path != _EXPOSURE_EVALUATOR_RELATIVE_PATH:
+        raise ValueError("canonical exposure evaluator path is required")
+    path = _REPOSITORY_ROOT / Path(*PurePosixPath(manifest.evaluator_path).parts)
+    if path.resolve() != _EXPOSURE_EVALUATOR_PATH:
+        raise ValueError("canonical exposure evaluator path is required")
+    try:
+        if path.is_symlink():
+            raise ValueError(
+                "exposure evaluator must be a regular non-symlink file"
+            )
+        before = path.stat()
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError(
+                "exposure evaluator must be a regular non-symlink file"
+            )
+        payload = path.read_bytes()
+        if path.is_symlink():
+            raise ValueError(
+                "exposure evaluator must be a regular non-symlink file"
+            )
+        after = path.stat()
+    except ValueError:
+        raise
+    except OSError as exc:
+        raise ValueError(
+            "exposure evaluator must be a regular non-symlink file"
+        ) from exc
+    identity = _file_identity(before)
+    if not stat.S_ISREG(after.st_mode) or _file_identity(after) != identity:
+        raise ValueError("exposure evaluator changed during publication")
+    observed_sha256 = hashlib.sha256(payload).hexdigest()
+    if observed_sha256 != manifest.evaluator_sha256:
+        raise ValueError("exposure evaluator SHA-256 mismatch")
+    if observed_sha256 != _EXECUTED_EVALUATOR_SHA256:
+        raise ValueError("executed exposure evaluator bytes changed since import")
+    return _VerifiedEvaluatorSnapshot(path=path, identity=identity)
 
 
 def _atomic_publish_no_replace(stage: Path, target: Path) -> None:

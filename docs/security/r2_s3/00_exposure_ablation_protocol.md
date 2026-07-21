@@ -236,11 +236,11 @@ Verify `.tmp_r2_s3_final_public_03\r2_s3_exposure` with both trusted and isolate
 verifiers before mechanically replacing the same exact eight tracked files.
 Never hand-edit generated JSON, JSONL, checksum, README, or verifier bytes.
 
-Verify with the trusted repository wrapper:
+Verify the staged package with the trusted repository wrapper:
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure_public `
-  data\v2\public\r2_s3_exposure
+  .tmp_r2_s3_final_public_03\r2_s3_exposure
 ```
 
 From the repository root, resolve the repository interpreter before entering a
@@ -250,7 +250,7 @@ fresh isolated directory, copy the exact eight-file allowlist, and run:
 ```powershell
 $repo = (Get-Location).Path
 $python = (Resolve-Path -LiteralPath (Join-Path $repo '.venv\Scripts\python.exe')).Path
-$source = Join-Path $repo 'data\v2\public\r2_s3_exposure'
+$source = Join-Path $repo '.tmp_r2_s3_final_public_03\r2_s3_exposure'
 $isolated = Join-Path ([System.IO.Path]::GetTempPath()) (
   'r2_s3_exposure_verify_' + [guid]::NewGuid().ToString('N')
 )
@@ -291,6 +291,14 @@ try {
 }
 ```
 <!-- isolated-verifier-powershell:end -->
+
+After mechanically replacing the exact eight tracked files from the verified
+staged package, verify the tracked destination separately:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure_public `
+  data\v2\public\r2_s3_exposure
+```
 
 Package checksums bind internal bytes. An isolated package cannot establish
 trust in its own `verify.py` or prove projection from the private run; compare

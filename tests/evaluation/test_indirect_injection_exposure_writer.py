@@ -6,6 +6,7 @@ import json
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
@@ -220,7 +221,9 @@ def _manifest(
         guard_ruleset_path="app/security/retrieved_content.py",
         guard_ruleset_sha256=result.source.guard_ruleset_sha256,
         evaluator_path="app/evaluation/indirect_injection_exposure.py",
-        evaluator_sha256="d" * 64,
+        evaluator_sha256=_sha256(
+            Path("app/evaluation/indirect_injection_exposure.py")
+        ),
         replay_dependencies=exposure.REPLAY_IMPLEMENTATION_DEPENDENCIES,
         unit_evidence_sha256=result.unit_evidence_sha256,
         verification_inputs_sha256=result.verification_inputs_sha256,
@@ -728,6 +731,116 @@ def test_publish_rejects_source_binding_mismatch_before_target_creation(
             forbidden_texts=("raw",),
         )
     assert not (root / "r2-s3-writer-test").exists()
+
+
+def test_supported_publish_requires_canonical_executed_evaluator_before_output(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    payload = _manifest(exposure_result).model_dump(mode="python")
+    payload["evaluator_path"] = "app/evaluation/substituted_exposure.py"
+    manifest = ExposureRunManifest.model_validate(payload)
+    root = tmp_path / "runs"
+
+    with pytest.raises(ValueError, match="canonical exposure evaluator path"):
+        publish_exposure_run(
+            root,
+            manifest=manifest,
+            result=exposure_result,
+            source_inputs=object(),
+            commands="command\n",
+            test_output="output\n",
+            forbidden_texts=("raw",),
+        )
+
+    assert not root.exists()
+
+
+def test_supported_publish_authenticates_executed_evaluator_bytes_before_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    evaluator_path = Path("app/evaluation/indirect_injection_exposure.py").resolve()
+    payload = _manifest(exposure_result).model_dump(mode="python")
+    payload["evaluator_sha256"] = _sha256(evaluator_path)
+    manifest = ExposureRunManifest.model_validate(payload)
+    root = tmp_path / "runs"
+    real_read_bytes = Path.read_bytes
+
+    def mutated_evaluator_bytes(path: Path) -> bytes:
+        if path.resolve() == evaluator_path:
+            return b"mutated evaluator bytes\n"
+        return real_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", mutated_evaluator_bytes)
+
+    with pytest.raises(ValueError, match="exposure evaluator SHA-256 mismatch"):
+        publish_exposure_run(
+            root,
+            manifest=manifest,
+            result=exposure_result,
+            source_inputs=object(),
+            commands="command\n",
+            test_output="output\n",
+            forbidden_texts=("raw",),
+        )
+
+    assert not root.exists()
+
+
+def test_supported_publish_rechecks_evaluator_identity_before_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    evaluator_path = Path("app/evaluation/indirect_injection_exposure.py").resolve()
+    root = tmp_path / "runs"
+    real_stat = Path.stat
+    real_validate_analysis = exposure_writer._validate_analysis
+    validation_count = 0
+    identity_changed = False
+
+    def validate_then_change_identity(*args, **kwargs) -> None:
+        nonlocal validation_count, identity_changed
+        real_validate_analysis(*args, **kwargs)
+        validation_count += 1
+        if validation_count == 2:
+            identity_changed = True
+
+    def change_identity_before_output(path: Path, *args, **kwargs):
+        observed = real_stat(path, *args, **kwargs)
+        if path != evaluator_path or not identity_changed:
+            return observed
+        return SimpleNamespace(
+            st_dev=observed.st_dev,
+            st_ino=observed.st_ino,
+            st_mode=observed.st_mode,
+            st_size=observed.st_size,
+            st_mtime_ns=observed.st_mtime_ns + 1,
+            st_ctime_ns=observed.st_ctime_ns,
+        )
+
+    monkeypatch.setattr(
+        exposure_writer,
+        "_validate_analysis",
+        validate_then_change_identity,
+    )
+    monkeypatch.setattr(Path, "stat", change_identity_before_output)
+
+    with pytest.raises(ValueError, match="changed during publication"):
+        publish_exposure_run(
+            root,
+            manifest=_manifest(exposure_result),
+            result=exposure_result,
+            source_inputs=object(),
+            commands="command\n",
+            test_output="output\n",
+            forbidden_texts=("raw",),
+        )
+
+    assert validation_count == 2
+    assert not root.exists()
 
 
 @pytest.mark.parametrize(

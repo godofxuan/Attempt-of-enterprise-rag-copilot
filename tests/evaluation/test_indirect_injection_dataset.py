@@ -151,6 +151,97 @@ def test_loader_rejects_freeze_manifest_path_substitution(tmp_path: Path) -> Non
         load_security_bundle(output, "test")
 
 
+@pytest.mark.parametrize(
+    "artifact_name",
+    ("test_dataset", "test_fixtures", "test_freeze_manifest"),
+)
+def test_loader_rejects_source_mutation_during_snapshot_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    artifact_name: str,
+) -> None:
+    output = tmp_path / "security"
+    paths = build_v1_bundle(
+        output,
+        frozen_at_utc=FROZEN_AT,
+        freeze_git_head=FREEZE_HEAD,
+    )
+    target = paths[artifact_name]
+    original = target.read_bytes()
+    mutated = original.replace(b'  "', b' \t"', 1)
+    assert mutated != original
+    assert len(mutated) == len(original)
+    real_read_bytes = Path.read_bytes
+    real_write_bytes = Path.write_bytes
+    changed = False
+
+    def read_then_mutate(path: Path) -> bytes:
+        nonlocal changed
+        payload = real_read_bytes(path)
+        if path == target and not changed:
+            changed = True
+            real_write_bytes(path, mutated)
+        return payload
+
+    monkeypatch.setattr(Path, "read_bytes", read_then_mutate)
+
+    with pytest.raises(ValueError, match="changed during snapshot read"):
+        load_security_bundle(output, "test")
+
+
+@pytest.mark.parametrize(
+    "artifact_name",
+    ("test_dataset", "test_fixtures", "test_freeze_manifest"),
+)
+def test_loader_rejects_symlinked_bundle_sources(
+    tmp_path: Path,
+    artifact_name: str,
+) -> None:
+    output = tmp_path / "security"
+    paths = build_v1_bundle(
+        output,
+        frozen_at_utc=FROZEN_AT,
+        freeze_git_head=FREEZE_HEAD,
+    )
+    source = paths[artifact_name]
+    target = tmp_path / f"{artifact_name}.target"
+    source.replace(target)
+    try:
+        source.symlink_to(target)
+    except OSError as exc:
+        pytest.skip(f"file symlinks are unavailable: {exc}")
+
+    with pytest.raises(ValueError, match="regular non-symlink file"):
+        load_security_bundle(output, "test")
+
+
+@pytest.mark.parametrize(
+    "artifact_name",
+    ("test_dataset", "test_fixtures", "test_freeze_manifest"),
+)
+def test_loader_checks_each_bundle_source_path_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    artifact_name: str,
+) -> None:
+    output = tmp_path / "security"
+    paths = build_v1_bundle(
+        output,
+        frozen_at_utc=FROZEN_AT,
+        freeze_git_head=FREEZE_HEAD,
+    )
+    target = paths[artifact_name]
+    real_is_symlink = Path.is_symlink
+
+    def report_substituted_path(path: Path) -> bool:
+        return path == target or real_is_symlink(path)
+
+    monkeypatch.setattr(Path, "is_symlink", report_substituted_path)
+
+    with pytest.raises(ValueError, match="regular non-symlink file"):
+        load_security_bundle(output, "test")
+
+
 def test_dev_and_test_have_distinct_payloads_canaries_and_source_placement(
     tmp_path: Path,
 ) -> None:

@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import shutil
+import stat
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -137,27 +138,41 @@ def load_security_bundle(
 
     if split == "test":
         freeze_path = root / _FREEZE_NAME
-        freeze = TestFreezeManifest.model_validate_json(freeze_path.read_bytes())
+        freeze_bytes = _read_regular_file_snapshot(
+            freeze_path,
+            "test freeze manifest",
+        )
+        freeze = TestFreezeManifest.model_validate_json(freeze_bytes)
         expected_dataset = "data/v2/security/indirect_injection_test_v1.json"
         expected_fixtures = "data/v2/security/fixtures_v1/test/manifest.json"
         if freeze.dataset_path != expected_dataset:
             raise ValueError("test freeze manifest dataset path mismatch")
         if freeze.fixture_manifest_path != expected_fixtures:
             raise ValueError("test freeze manifest fixture path mismatch")
-        dataset_hash = sha256_file(dataset_path)
+        dataset_bytes = _read_regular_file_snapshot(dataset_path, "test dataset")
+        fixture_bytes = _read_regular_file_snapshot(
+            fixture_path,
+            "test fixture manifest",
+        )
+        dataset_hash = hashlib.sha256(dataset_bytes).hexdigest()
         if dataset_hash != freeze.dataset_sha256:
             raise ValueError("test dataset SHA-256 mismatch")
-        if dataset_path.stat().st_size != freeze.dataset_bytes:
+        if len(dataset_bytes) != freeze.dataset_bytes:
             raise ValueError("test dataset byte count mismatch")
-        fixture_hash = sha256_file(fixture_path)
+        fixture_hash = hashlib.sha256(fixture_bytes).hexdigest()
         if fixture_hash != freeze.fixture_manifest_sha256:
             raise ValueError("test fixture manifest SHA-256 mismatch")
     else:
-        dataset_hash = sha256_file(dataset_path)
-        fixture_hash = sha256_file(fixture_path)
+        dataset_bytes = _read_regular_file_snapshot(dataset_path, "dev dataset")
+        fixture_bytes = _read_regular_file_snapshot(
+            fixture_path,
+            "dev fixture manifest",
+        )
+        dataset_hash = hashlib.sha256(dataset_bytes).hexdigest()
+        fixture_hash = hashlib.sha256(fixture_bytes).hexdigest()
 
-    dataset = IndirectInjectionDataset.model_validate_json(dataset_path.read_bytes())
-    fixtures = FixtureManifest.model_validate_json(fixture_path.read_bytes())
+    dataset = IndirectInjectionDataset.model_validate_json(dataset_bytes)
+    fixtures = FixtureManifest.model_validate_json(fixture_bytes)
     if dataset.split != split or fixtures.split != split:
         raise ValueError("loaded security bundle split mismatch")
     validate_dataset_fixture_alignment(dataset, fixtures)
@@ -181,6 +196,39 @@ def load_security_dataset_pair(
     test = load_security_bundle(root, "test")
     validate_dataset_pair(dev.dataset, test.dataset)
     return dev, test
+
+
+_FileIdentity = tuple[int, int, int, int, int, int]
+
+
+def _read_regular_file_snapshot(path: Path, label: str) -> bytes:
+    if path.is_symlink():
+        raise ValueError(f"{label} must be a regular non-symlink file")
+    before = path.stat()
+    if not stat.S_ISREG(before.st_mode):
+        raise ValueError(f"{label} must be a regular non-symlink file")
+    payload = path.read_bytes()
+    if path.is_symlink():
+        raise ValueError(f"{label} must be a regular non-symlink file")
+    after = path.stat()
+    if (
+        not stat.S_ISREG(after.st_mode)
+        or _file_identity(before) != _file_identity(after)
+        or len(payload) != before.st_size
+    ):
+        raise ValueError(f"{label} changed during snapshot read")
+    return payload
+
+
+def _file_identity(value) -> _FileIdentity:
+    return (
+        value.st_dev,
+        value.st_ino,
+        value.st_mode,
+        value.st_size,
+        value.st_mtime_ns,
+        value.st_ctime_ns,
+    )
 
 
 def _build_split(

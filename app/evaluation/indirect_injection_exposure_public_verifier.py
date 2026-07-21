@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import re
+import stat
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -247,6 +248,7 @@ _REPLAY_IMPLEMENTATION_DEPENDENCIES = (
 _LEGACY_PUBLIC_V1_VERIFIER_SHA256 = (
     "8fc67d0c82f7380dc3bf2d5f34c61c9e69e5cf13dd38f969a77f61eff77ab019"
 )
+_FileIdentity = tuple[int, int, int, int, int, int]
 _SUMMARY_DOCUMENT_KEYS = frozenset(
     {
         "schema_version",
@@ -786,44 +788,45 @@ def verify_exposure_public_package(
     package = original.resolve()
     if not package.is_dir():
         raise ExposurePublicVerificationError("public package directory not found")
-    _validate_exact_files(package)
+    artifacts, file_identities = _snapshot_public_files(package)
     manifest = _load_canonical_json(
-        package / "manifest.redacted.json", "public manifest"
+        artifacts["manifest.redacted.json"], "public manifest"
     )
     summary_document = _load_canonical_json(
-        package / "summary.json", "public summary"
+        artifacts["summary.json"], "public summary"
     )
     definitions = _load_canonical_json(
-        package / "metric_definitions.json", "metric definitions"
+        artifacts["metric_definitions.json"], "metric definitions"
     )
-    rows = _load_canonical_rows(package / "per_unit.redacted.jsonl")
-    _validate_checksums(package)
-    _validate_manifest(package, manifest)
+    rows = _load_canonical_rows(artifacts["per_unit.redacted.jsonl"])
+    _validate_checksums(artifacts)
+    _validate_manifest(manifest)
     _validate_metric_definitions(definitions)
-    if _sha256(package / "metric_definitions.json") != manifest[
+    if hashlib.sha256(artifacts["metric_definitions.json"]).hexdigest() != manifest[
         "metric_definitions_sha256"
     ]:
         raise ExposurePublicVerificationError("metric definition hash mismatch")
-    packaged_verifier = (package / "verify.py").read_bytes()
+    packaged_verifier = artifacts["verify.py"]
     packaged_verifier_sha256 = hashlib.sha256(packaged_verifier).hexdigest()
     if manifest["schema_version"].endswith("_v1"):
         if packaged_verifier_sha256 != _LEGACY_PUBLIC_V1_VERIFIER_SHA256:
             raise ExposurePublicVerificationError(
                 "legacy packaged verifier does not match trusted v1 bytes"
             )
-    elif packaged_verifier != Path(__file__).read_bytes():
+    elif packaged_verifier != _trusted_verifier_bytes(package, packaged_verifier):
         raise ExposurePublicVerificationError(
             "packaged verifier does not match the trusted verifier bytes"
         )
     if packaged_verifier_sha256 != manifest["verifier_sha256"]:
         raise ExposurePublicVerificationError("verifier source hash mismatch")
-    _validate_source_hash(package, manifest)
+    _validate_source_hash(artifacts["source_run.sha256"], manifest)
     _validate_rows(rows, manifest)
     _validate_summary(summary_document, manifest, rows)
     expected_readme = build_public_readme(manifest)
-    observed_readme = _read_canonical_text(package / "README.md", "README.md")
+    observed_readme = _read_canonical_text(artifacts["README.md"], "README.md")
     if observed_readme != expected_readme:
         raise ExposurePublicVerificationError("README identity is not exact")
+    _assert_public_snapshot_unchanged(package, file_identities)
     return ExposurePublicVerificationResult(
         verified=True,
         package_name=manifest["package_name"],
@@ -873,7 +876,7 @@ def build_public_readme(manifest: dict[str, Any]) -> str:
     )
 
 
-def _validate_manifest(package: Path, value: Any) -> None:
+def _validate_manifest(value: Any) -> None:
     _require_mapping(value, "public manifest")
     schema_version = value.get("schema_version")
     if schema_version == "indirect_injection_exposure_public_manifest_v1":
@@ -1352,32 +1355,124 @@ def _validate_limitations(value: Any) -> None:
         )
 
 
-def _validate_source_hash(package: Path, manifest: dict[str, Any]) -> None:
-    observed = _read_canonical_text(package / "source_run.sha256", "source_run.sha256")
+def _validate_source_hash(raw: bytes, manifest: dict[str, Any]) -> None:
+    observed = _read_canonical_text(raw, "source_run.sha256")
     expected = f"{manifest['source_private_manifest_sha256']}  manifest.json\n"
     if observed != expected:
         raise ExposurePublicVerificationError("private source hash binding mismatch")
 
 
-def _validate_checksums(package: Path) -> None:
-    text = _read_canonical_text(package / "checksums.sha256", "checksums.sha256")
+def _validate_checksums(artifacts: dict[str, bytes]) -> None:
+    text = _read_canonical_text(artifacts["checksums.sha256"], "checksums.sha256")
     expected = "".join(
-        f"{_sha256(package / name)}  {name}\n" for name in CHECKSUM_CONTENT_NAMES
+        f"{hashlib.sha256(artifacts[name]).hexdigest()}  {name}\n"
+        for name in CHECKSUM_CONTENT_NAMES
     )
     if text != expected:
         raise ExposurePublicVerificationError("public checksum mismatch")
 
 
-def _validate_exact_files(package: Path) -> None:
+def _snapshot_public_files(
+    package: Path,
+) -> tuple[dict[str, bytes], dict[str, _FileIdentity]]:
     items = tuple(package.iterdir())
     if {item.name for item in items} != set(PUBLIC_EXPOSURE_FILES):
         raise ExposurePublicVerificationError("unexpected public artifact set")
-    if any(item.is_symlink() or not item.is_file() for item in items):
-        raise ExposurePublicVerificationError("public artifacts must be regular files")
+    artifacts: dict[str, bytes] = {}
+    identities: dict[str, _FileIdentity] = {}
+    for item in sorted(items, key=lambda value: value.name):
+        name = item.name
+        try:
+            if item.is_symlink():
+                raise ExposurePublicVerificationError(
+                    "public artifacts must be regular files"
+                )
+            before = item.stat()
+            if not stat.S_ISREG(before.st_mode):
+                raise ExposurePublicVerificationError(
+                    "public artifacts must be regular files"
+                )
+            raw = item.read_bytes()
+            if item.is_symlink():
+                raise ExposurePublicVerificationError(
+                    "public artifacts must be regular files"
+                )
+            after = item.stat()
+        except ExposurePublicVerificationError:
+            raise
+        except OSError as exc:
+            raise ExposurePublicVerificationError(
+                f"public artifact changed during verification: {name}"
+            ) from exc
+        identity = _file_identity(before)
+        if (
+            not stat.S_ISREG(after.st_mode)
+            or _file_identity(after) != identity
+            or len(raw) != before.st_size
+        ):
+            raise ExposurePublicVerificationError(
+                f"public artifact changed during verification: {name}"
+            )
+        artifacts[name] = raw
+        identities[name] = identity
+    return artifacts, identities
 
 
-def _load_canonical_json(path: Path, label: str) -> Any:
-    raw = path.read_bytes()
+def _assert_public_snapshot_unchanged(
+    package: Path,
+    identities: dict[str, _FileIdentity],
+) -> None:
+    try:
+        items = tuple(package.iterdir())
+    except OSError as exc:
+        raise ExposurePublicVerificationError(
+            "public package changed during verification"
+        ) from exc
+    if {item.name for item in items} != set(PUBLIC_EXPOSURE_FILES):
+        raise ExposurePublicVerificationError(
+            "public package changed during verification"
+        )
+    for item in items:
+        try:
+            if item.is_symlink():
+                raise ExposurePublicVerificationError(
+                    f"public artifact changed during verification: {item.name}"
+                )
+            current = item.stat()
+        except ExposurePublicVerificationError:
+            raise
+        except OSError as exc:
+            raise ExposurePublicVerificationError(
+                f"public artifact changed during verification: {item.name}"
+            ) from exc
+        if (
+            not stat.S_ISREG(current.st_mode)
+            or _file_identity(current) != identities[item.name]
+        ):
+            raise ExposurePublicVerificationError(
+                f"public artifact changed during verification: {item.name}"
+            )
+
+
+def _trusted_verifier_bytes(package: Path, packaged_verifier: bytes) -> bytes:
+    trusted_path = Path(__file__).resolve()
+    if trusted_path == (package / "verify.py").resolve():
+        return packaged_verifier
+    return trusted_path.read_bytes()
+
+
+def _file_identity(value: Any) -> _FileIdentity:
+    return (
+        value.st_dev,
+        value.st_ino,
+        value.st_mode,
+        value.st_size,
+        value.st_mtime_ns,
+        value.st_ctime_ns,
+    )
+
+
+def _load_canonical_json(raw: bytes, label: str) -> Any:
     text = _decode_utf8(raw, label)
     payload = _loads_unique(text, label)
     if raw != _json_bytes(payload):
@@ -1385,8 +1480,8 @@ def _load_canonical_json(path: Path, label: str) -> Any:
     return payload
 
 
-def _load_canonical_rows(path: Path) -> list[dict[str, Any]]:
-    text = _decode_utf8(path.read_bytes(), "public rows")
+def _load_canonical_rows(raw: bytes) -> list[dict[str, Any]]:
+    text = _decode_utf8(raw, "public rows")
     if not text.endswith("\n") or "\r" in text:
         raise ExposurePublicVerificationError("public rows are not LF-terminated")
     lines = text.splitlines()
@@ -1404,8 +1499,8 @@ def _load_canonical_rows(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def _read_canonical_text(path: Path, label: str) -> str:
-    text = _decode_utf8(path.read_bytes(), label)
+def _read_canonical_text(raw: bytes, label: str) -> str:
+    text = _decode_utf8(raw, label)
     if not text.endswith("\n") or "\r" in text or text.endswith("\n\n"):
         raise ExposurePublicVerificationError(f"{label} is not canonical text")
     return text
@@ -1542,10 +1637,6 @@ def _json_line(value: Any) -> bytes:
     return json.dumps(
         value, ensure_ascii=False, separators=(",", ":"), sort_keys=True
     ).encode("utf-8")
-
-
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def build_parser() -> argparse.ArgumentParser:

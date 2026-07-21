@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -455,6 +456,27 @@ def test_exposure_private_runs_are_ignored_and_forbidden_public_candidates(
     }
 
 
+def test_security_private_runs_are_forbidden_even_when_force_added(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+    assert "security_runs/" in ignore
+    payload = tmp_path / "security_runs" / "private" / "per_case.jsonl"
+    payload.parent.mkdir(parents=True)
+    payload.write_text('{"case_id":"private"}\n', encoding="utf-8")
+
+    report = audit_repository(
+        tmp_path,
+        candidate_files=["security_runs/private/per_case.jsonl"],
+    )
+
+    assert ("forbidden_path", "security_runs/private/per_case.jsonl") in {
+        (item.code, item.path) for item in report.findings
+    }
+
+
 def test_audit_rejects_exposure_private_runtime_reference(
     tmp_path: Path,
 ) -> None:
@@ -520,6 +542,65 @@ def test_audit_scans_r2_s3_for_frozen_source_value(tmp_path: Path) -> None:
     payload = tmp_path / Path(relative)
     payload.parent.mkdir(parents=True)
     payload.write_text("FROZEN_R2_S3_SOURCE_VALUE\n", encoding="utf-8")
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+
+    assert ("frozen_security_content", relative) in {
+        (item.code, item.path) for item in report.findings
+    }
+
+
+@pytest.mark.parametrize(
+    "leaked_value",
+    (
+        "DEV_ONLY_QUESTION_NEVER_PUBLIC",
+        "benign-unit-private-001",
+        "OPEN_SECTION_PRIVATE_PATH",
+    ),
+)
+def test_audit_scans_shared_dev_sensitive_identifiers_and_open_sections(
+    tmp_path: Path,
+    leaked_value: str,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    security_root = tmp_path / "data" / "v2" / "security"
+    security_root.mkdir(parents=True)
+    (security_root / "indirect_injection_dev_v1.json").write_text(
+        json.dumps(
+            {
+                "cases": [
+                    {
+                        "question": "DEV_ONLY_QUESTION_NEVER_PUBLIC",
+                        "benign_unit_ids": ["benign-unit-private-001"],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    fixture = security_root / "fixtures_v1" / "dev" / "manifest.json"
+    fixture.parent.mkdir(parents=True)
+    fixture.write_text(
+        json.dumps(
+            {
+                "cases": [
+                    {
+                        "open_results": [
+                            {
+                                "section_path": ["OPEN_SECTION_PRIVATE_PATH"]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    relative = "data/v2/public/r2_s3_exposure/summary.json"
+    public_file = tmp_path / Path(relative)
+    public_file.parent.mkdir(parents=True)
+    public_file.write_text(leaked_value + "\n", encoding="utf-8")
 
     report = audit_repository(tmp_path, candidate_files=[relative])
 
@@ -694,12 +775,38 @@ def test_r2_s3_documented_isolated_verifier_sequence_executes(
     end_marker = "<!-- isolated-verifier-powershell:end -->"
     assert start_marker in protocol
     assert end_marker in protocol
+    staging_package = ".tmp_r2_s3_final_public_03\\r2_s3_exposure"
+    assert (
+        "scripts.verify_indirect_injection_exposure_public `\n"
+        f"  {staging_package}"
+    ) in protocol
+    assert f"$source = Join-Path $repo '{staging_package}'" in protocol
+    replacement_boundary = (
+        "After mechanically replacing the exact eight tracked files"
+    )
+    assert replacement_boundary in protocol
+    post_replacement = protocol.split(replacement_boundary, 1)[1]
+    assert (
+        "scripts.verify_indirect_injection_exposure_public `\n"
+        "  data\\v2\\public\\r2_s3_exposure"
+    ) in post_replacement
     documented = protocol.split(start_marker, 1)[1].split(end_marker, 1)[0]
     match = re.search(r"```powershell\s*\n(.*?)\n```", documented, re.DOTALL)
     assert match is not None
     command = match.group(1)
     assert command.index("$python = (Resolve-Path") < command.index(
         "Push-Location"
+    )
+
+    staged_package = tmp_path / "staged" / "r2_s3_exposure"
+    shutil.copytree(
+        ROOT / "data" / "v2" / "public" / "r2_s3_exposure",
+        staged_package,
+    )
+    powershell_path = str(staged_package).replace("'", "''")
+    command = command.replace(
+        f"$source = Join-Path $repo '{staging_package}'",
+        f"$source = '{powershell_path}'",
     )
 
     environment = os.environ.copy()

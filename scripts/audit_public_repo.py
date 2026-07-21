@@ -14,6 +14,9 @@ from urllib.parse import unquote
 
 from pydantic import ValidationError
 
+from app.evaluation.indirect_injection_sensitive_values import (
+    collect_security_sensitive_values,
+)
 from app.evaluation.public_snapshot import PublicDemoSnapshot
 
 
@@ -55,6 +58,7 @@ _FORBIDDEN_PREFIXES = (
     "holdout_submissions/",
     "load_runs/",
     "logs/",
+    "security_runs/",
 )
 _ALLOWED_RUNTIME_MARKERS = {
     "data/indexes/.gitkeep",
@@ -502,52 +506,31 @@ def _contains_unsafe_credential_assignment(text: str) -> bool:
 
 
 def _load_frozen_security_values(root: Path) -> tuple[str, ...]:
-    dataset = _load_json_object(
-        root / "data" / "v2" / "security" / "indirect_injection_test_v1.json"
+    security_root = root / "data" / "v2" / "security"
+    datasets = tuple(
+        value
+        for split in ("dev", "test")
+        if (
+            value := _load_json_object(
+                security_root / f"indirect_injection_{split}_v1.json"
+            )
+        )
+        is not None
     )
-    fixture = _load_json_object(
-        root
-        / "data"
-        / "v2"
-        / "security"
-        / "fixtures_v1"
-        / "test"
-        / "manifest.json"
+    fixture_manifests = tuple(
+        value
+        for split in ("dev", "test")
+        if (
+            value := _load_json_object(
+                security_root / "fixtures_v1" / split / "manifest.json"
+            )
+        )
+        is not None
     )
-    values: set[str] = set()
-    if dataset is not None:
-        for case in dataset.get("cases", []):
-            if not isinstance(case, dict):
-                continue
-            for field in ("question", "trace_canary", "document_canary"):
-                value = case.get(field)
-                if isinstance(value, str) and len(value) >= 8:
-                    values.add(value)
-    if fixture is not None:
-        for case in fixture.get("cases", []):
-            if not isinstance(case, dict):
-                continue
-            facts = case.get("fact_texts", {})
-            if isinstance(facts, dict):
-                values.update(
-                    value
-                    for value in facts.values()
-                    if isinstance(value, str) and len(value) >= 8
-                )
-            for candidate in case.get("candidates", []):
-                if not isinstance(candidate, dict):
-                    continue
-                for field in ("matched_text", "context_text"):
-                    value = candidate.get(field)
-                    if isinstance(value, str) and len(value) >= 8:
-                        values.add(value)
-            for opened in case.get("open_results", []):
-                if not isinstance(opened, dict):
-                    continue
-                value = opened.get("content")
-                if isinstance(value, str) and len(value) >= 8:
-                    values.add(value)
-    return tuple(sorted(values))
+    return collect_security_sensitive_values(
+        datasets=datasets,
+        fixture_manifests=fixture_manifests,
+    )
 
 
 def _load_json_object(path: Path) -> dict[str, object] | None:

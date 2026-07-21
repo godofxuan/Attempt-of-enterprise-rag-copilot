@@ -1036,8 +1036,8 @@ def test_load_exposure_inputs_rejects_invalid_source(
         )
     monkeypatch.setattr(
         exposure,
-        "verify_live_security_run",
-        lambda _run_dir: mutated_manifest,
+        "_verify_source_run",
+        lambda _run_dir: _snapshot_with_manifest(invalid_run, mutated_manifest),
     )
 
     expected_hash = (
@@ -1064,6 +1064,21 @@ def _copy_source_run(
     manifest = verify_live_security_run(source_run)
     assert isinstance(manifest, LiveSecurityRunManifestV2)
     return copied_run, security_data_root, manifest
+
+
+def _snapshot_with_manifest(
+    source_run: Path,
+    manifest: LiveSecurityRunManifest | LiveSecurityRunManifestV2,
+):
+    manifest_path = source_run / "manifest.json"
+    manifest_bytes = manifest_path.read_bytes()
+    return live_writer.VerifiedLiveSecurityRunSnapshot(
+        run_dir=source_run.resolve(),
+        manifest=manifest,
+        manifest_bytes=manifest_bytes,
+        manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
+        _manifest_identity=live_writer._file_identity(manifest_path.stat()),
+    )
 
 
 def _read_rows(source_run: Path) -> list[dict[str, object]]:
@@ -1541,8 +1556,8 @@ def _load_with_manifest(
     manifest = _manifest_with_current_per_case_evidence(manifest, source_run)
     monkeypatch.setattr(
         exposure,
-        "verify_live_security_run",
-        lambda _run_dir: manifest,
+        "_verify_source_run",
+        lambda _run_dir: _snapshot_with_manifest(source_run, manifest),
     )
     load_exposure_inputs(
         source_run,
@@ -1604,7 +1619,11 @@ def test_load_exposure_inputs_normalizes_verifier_failure(
     def fail_verification(_run_dir: Path) -> LiveSecurityRunManifestV2:
         raise ValueError("corrupt source evidence")
 
-    monkeypatch.setattr(exposure, "verify_live_security_run", fail_verification)
+    monkeypatch.setattr(
+        exposure,
+        "load_verified_live_security_run_snapshot",
+        fail_verification,
+    )
 
     with pytest.raises(
         ExposureEvidenceError,
@@ -1614,6 +1633,52 @@ def test_load_exposure_inputs_normalizes_verifier_failure(
             source_run,
             security_data_root=security_data_root,
             expected_manifest_sha256=_sha256(source_run / "manifest.json"),
+        )
+
+
+def test_load_exposure_inputs_rejects_manifest_replacement_during_verification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    original_run, security_data_root = source_material
+    source_run = tmp_path / SOURCE_RUN_ID
+    shutil.copytree(original_run, source_run)
+    manifest_path = source_run / "manifest.json"
+    replacement_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    replacement_payload["limitations"][0] += " Replacement snapshot."
+    replacement = (
+        json.dumps(
+            replacement_payload,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("utf-8")
+    replacement_hash = hashlib.sha256(replacement).hexdigest()
+    real_verify = live_writer.load_verified_live_security_run_snapshot
+
+    def verify_then_replace(run_dir: Path):
+        snapshot = real_verify(run_dir)
+        assert isinstance(snapshot.manifest, LiveSecurityRunManifestV2)
+        manifest_path.write_bytes(replacement)
+        return snapshot
+
+    monkeypatch.setattr(
+        exposure,
+        "load_verified_live_security_run_snapshot",
+        verify_then_replace,
+    )
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="source manifest changed during verification",
+    ):
+        load_exposure_inputs(
+            source_run,
+            security_data_root=security_data_root,
+            expected_manifest_sha256=replacement_hash,
         )
 
 
@@ -1630,7 +1695,11 @@ def test_load_exposure_inputs_normalizes_per_case_file_failures(
         mutation,
     )
     rows_path = source_run / "per_case.jsonl"
-    monkeypatch.setattr(exposure, "verify_live_security_run", lambda _run_dir: manifest)
+    monkeypatch.setattr(
+        exposure,
+        "_verify_source_run",
+        lambda _run_dir: _snapshot_with_manifest(source_run, manifest),
+    )
     if mutation == "missing_rows":
         rows_path.unlink()
     else:
@@ -1666,7 +1735,7 @@ def test_load_exposure_inputs_rejects_per_case_mutation_after_verification(
     )
     manifest_sha256 = _sha256(source_run / "manifest.json")
 
-    def verify_then_mutate(run_dir: Path) -> LiveSecurityRunManifestV2:
+    def verify_then_mutate(run_dir: Path):
         rows_path = run_dir / "per_case.jsonl"
         original = rows_path.read_bytes()
         rows = [
@@ -1697,9 +1766,9 @@ def test_load_exposure_inputs_rejects_per_case_mutation_after_verification(
         )
         assert len(mutated) == len(original)
         rows_path.write_bytes(mutated)
-        return verified_manifest
+        return _snapshot_with_manifest(run_dir, verified_manifest)
 
-    monkeypatch.setattr(exposure, "verify_live_security_run", verify_then_mutate)
+    monkeypatch.setattr(exposure, "_verify_source_run", verify_then_mutate)
 
     with pytest.raises(
         ExposureEvidenceError,
