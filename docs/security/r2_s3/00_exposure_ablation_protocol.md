@@ -218,16 +218,16 @@ Verify the immutable source run:
   security_runs\r2-s2-s1-dev-20260719-01
 ```
 
-The source-bound exposure evaluator command was executed exactly once after the
-fixed-HEAD re-review and must never be rerun:
+ARCHIVAL, NON-EXECUTABLE RECORD: the source-bound evaluator was consumed once
+after fixed-HEAD review and must never be rerun. Its identity is recorded as
+data rather than shell syntax:
 
-```powershell
-.\.venv\Scripts\python.exe -m scripts.eval_indirect_injection_exposure `
-  --source-run security_runs\r2-s2-s1-dev-20260719-01 `
-  --security-data-root data\v2\security `
-  --out-dir exposure_runs `
-  --run-id r2-s3-dev-exposure-20260721-04 `
-  --expected-source-manifest-sha256 3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e
+```text
+archival evaluator module       scripts.eval_indirect_injection_exposure
+consumed run ID                  r2-s3-dev-exposure-20260721-04
+source run ID                    r2-s2-s1-dev-20260719-01
+source manifest SHA-256          3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e
+execution status                 CONSUMED / NEVER RERUN
 ```
 
 Verify the accepted private exposure run:
@@ -237,27 +237,36 @@ Verify the accepted private exposure run:
   exposure_runs\r2-s3-dev-exposure-20260721-04
 ```
 
-Export the content-free public package from the already verified private run:
+Export the content-free public package from the already verified private run.
+The staging root is a fresh GUID path. The explicit precondition and the
+exporter's no-replace handoff make accidental staging reuse fail closed. Run
+this and the subsequent verification blocks in the same PowerShell session:
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.export_indirect_injection_exposure_public `
+$repo = (Get-Location).Path
+$python = (Resolve-Path -LiteralPath (Join-Path $repo '.venv\Scripts\python.exe')).Path
+$stagingRoot = Join-Path $repo (
+  '.tmp_r2_s3_public_' + [guid]::NewGuid().ToString('D')
+)
+if (Test-Path -LiteralPath $stagingRoot) {
+  throw 'fresh public staging root already exists'
+}
+& $python -m scripts.export_indirect_injection_exposure_public `
   --source-run exposure_runs\r2-s3-dev-exposure-20260721-04 `
-  --output-root .tmp_r2_s3_final_public_04 `
+  --output-root $stagingRoot `
   --package-name r2_s3_exposure `
   --expected-source-run-id r2-s3-dev-exposure-20260721-04 `
   --expected-source-manifest-sha256 4c8cfb6ad826fc1ca9c24afb0157129df661f3cd463aa3448ec161c0608c5f1f
+$stagedPackage = Join-Path $stagingRoot 'r2_s3_exposure'
+& $python -m scripts.verify_indirect_injection_exposure_public $stagedPackage
+if ($LASTEXITCODE -ne 0) {
+  throw 'trusted staged-package verification failed'
+}
 ```
 
-Verify `.tmp_r2_s3_final_public_04\r2_s3_exposure` with both trusted and isolated
+Verify `$stagedPackage` with both trusted and isolated
 verifiers before mechanically replacing the same exact eight tracked files.
 Never hand-edit generated JSON, JSONL, checksum, README, or verifier bytes.
-
-Verify the staged package with the trusted repository wrapper:
-
-```powershell
-.\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure_public `
-  .tmp_r2_s3_final_public_04\r2_s3_exposure
-```
 
 From the repository root, resolve the repository interpreter before entering a
 fresh isolated directory, copy the exact eight-file allowlist, and run:
@@ -266,7 +275,10 @@ fresh isolated directory, copy the exact eight-file allowlist, and run:
 ```powershell
 $repo = (Get-Location).Path
 $python = (Resolve-Path -LiteralPath (Join-Path $repo '.venv\Scripts\python.exe')).Path
-$source = Join-Path $repo '.tmp_r2_s3_final_public_04\r2_s3_exposure'
+$source = $stagedPackage
+if (-not $source -or -not (Test-Path -LiteralPath $source -PathType Container)) {
+  throw 'staged public package is unavailable in this PowerShell session'
+}
 $isolated = Join-Path ([System.IO.Path]::GetTempPath()) (
   'r2_s3_exposure_verify_' + [guid]::NewGuid().ToString('N')
 )

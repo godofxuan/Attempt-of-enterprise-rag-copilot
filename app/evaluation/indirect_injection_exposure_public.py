@@ -24,11 +24,15 @@ from app.evaluation.indirect_injection_exposure_writer import (
     VerifiedExposureRunSnapshot,
     _assert_content_free,
     _assert_structured_content_free,
-    _atomic_publish_no_replace,
     _validated_trusted_directory,
     load_verified_exposure_run_snapshot,
 )
 from app.evaluation.indirect_injection_writer import validate_security_run_id
+from app.evaluation.publication_paths import (
+    _atomic_publish_no_replace,
+    _validated_absent_publication_target,
+    _validated_publication_root,
+)
 
 
 _HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -166,13 +170,16 @@ def export_exposure_public_evidence(
         _assert_structured_content_free(value, forbidden_policy)
         _assert_text_paths_are_relative(value, "public text")
 
-    output_root = Path(output_root).resolve()
-    output_root.mkdir(parents=True, exist_ok=True)
-    target = output_root / package_name
-    if target.parent.resolve() != output_root:
-        raise ValueError("package name resolves outside output root")
-    if target.is_symlink() or target.exists():
-        raise FileExistsError(f"public exposure package already exists: {target}")
+    output_root = _validated_publication_root(
+        Path(output_root),
+        "output root",
+    )
+    target = _validated_absent_publication_target(
+        output_root,
+        package_name,
+        "public exposure package",
+        "package name resolves outside output root",
+    )
     stage_root = Path(
         tempfile.mkdtemp(prefix=f".{package_name}.staging-", dir=output_root)
     ).resolve()

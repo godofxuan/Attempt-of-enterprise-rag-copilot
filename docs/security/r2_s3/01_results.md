@@ -190,11 +190,11 @@ replication remain `NOT RUN`.
 Fresh local verification on 2026-07-21 produced:
 
 ```text
-focused R2-S3/public tests    430 passed / 8 platform skips / 3 known warnings
-full repository pytest       1349 passed / 8 platform skips / 3 known warnings
+focused R2-S3/public tests    449 passed / 10 platform skips / 3 known warnings
+full repository pytest       1387 passed / 13 platform skips / 3 known warnings
 compileall                    exit 0
 pip check                     no broken requirements
-public repository audit      453 candidates / 0 findings
+public repository audit      454 candidates / 0 findings
 source live verifier          VERIFIED
 private exposure verifier     VERIFIED / NO_CURRENT_BYPASS_OBSERVED
 trusted public verifier       VERIFIED / 28 rows / NO_CURRENT_BYPASS_OBSERVED

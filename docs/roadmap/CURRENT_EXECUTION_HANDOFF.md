@@ -178,13 +178,13 @@ E3 evaluator 的第二次发布曾在 Windows staging rename 上出现 `WinError
 
 最终门禁第一次并行检查还产生过三个诊断项：manifest 整行比较造成假 hash mismatch；进程检查把同时运行的 pytest 计为 1；旧 `.pytest_cache` protected DACL 造成 Python `WinError 5`。前两项通过正确解析和串行检查消除；缓存目录只恢复 ACL 继承后，Python 复现命令和 targeted pytest 转绿，full suite 再次为 380 passed/5 warnings。详见实施记录 `E3-I08`。
 
-## 8. 当前精确断点
+## 8. 历史断点（已被 Section 20 取代）
 
 用户已给出 `批准E3，执行E4评估与消融`，E4-C01-C07 现已实现和验证。审计 run root 是 `20260716T135632Z_7aec4b9`。9 个 run manifests 的 artifact hashes 全部匹配；active live index 是 `20260716T135632Z_7aec4b9_live_bge_m3_fixed`，`bge-m3` 1024D、64 fixed chunks。
 
 核心结果：deterministic dev accepted 24/24；frozen deterministic test 28/28；live dev 在修复 Ollama grammar schema 后 23/24。test hash 仍为 `556ffed...43338`，未用于 E4 内调参。50-row human review 的 400 个判断单元格全部为空，等待本人填写。
 
-当前必须停止在 E4 本人验收门。没有授权 commit/push/merge/tag，也没有进入 E5。只有用户精确发送 `批准E4，执行E5安全、服务与可观测性` 才能开始 E5。
+这是历史 E4 验收记录，不再具有操作授权意义；当前恢复入口仅为 Section 20。
 
 ## 9. 恢复检查清单
 
@@ -266,7 +266,7 @@ git index lock                       false
 
 冻结 test hash 仍为 `556ffed812cdde0ba7ddc7d625782b3b3bbdbcd4753670a199bd0c3c05743338`。Indirect retrieved-content injection 与 optional reranker 仍明确 `NOT RUN`，human semantic review 未完成。不要把这些边界改写成通过。
 
-该首轮门禁已被独立 review 取代，不能再作为当前验收结论。没有授权 commit、push、merge、tag、默认分支修改或进入 E7。
+该首轮门禁已被独立 review 取代，只保留为历史证据；当前恢复入口仅为 Section 20。
 
 ```text
 执行E7最终验收
@@ -287,7 +287,7 @@ API correlation + Ask/Trace state + claim rows
 
 审查前基线为 558 passed、328 public candidates/0 findings，只能用于 before/after；不是最终验收数字。C09 已按 RED/GREEN 修复完成，详细记录见 E6 implementation journal。
 
-## 15. E6 当前精确断点
+## 15. E6 历史断点（已被 Section 20 取代）
 
 独立 review 的 9 Important/2 Minor 已逐项验证并修复；没有 blind accept，也没有遗留 Critical。关键 before/after：
 
@@ -312,15 +312,15 @@ trace.png       c465ccc3787928c7ce6c95dfa0bbb7695776784ea43543ed7ba0b70b3267efe2
 evaluation.png  f01d507ac0e1072aed732d100776f3dc705b59375b0f35b121fa310dd0300048
 ```
 
-项目 FastAPI/Streamlit 已停止，8000/8501 listeners 0，项目 Python 0，Ollama 1 保留。branch 仍为 `codex/rag-eval-system`，HEAD 仍为 `7aec4b950e012d3f24b8e1877d6391201e9b8f90`，未授权 commit/push/merge/tag。
+历史 E6 收口时 FastAPI/Streamlit 已停止，8000/8501 listeners 0，项目 Python 0，Ollama 1 保留。该状态不定义当前 Git 操作边界。
 
-必须停止在 E6 本人验收门；indirect retrieved-content injection、optional reranker、human semantic review 仍分别是 NOT RUN/NOT RUN/pending。唯一下一条命令是：
+这是已被后续阶段取代的 E6 本人验收记录；indirect retrieved-content injection、optional reranker、human semantic review 在该时点分别是 NOT RUN/NOT RUN/pending。
 
 ```text
 执行E7最终验收
 ```
 
-## 16. E7 当前精确断点（执行中）
+## 16. E7 历史断点（已被 Section 20 取代）
 
 本人已发送精确命令 `执行E7最终验收`，E7 于 `2026-07-17 09:34:29 +08:00` 开始。当前 branch 为 `codex/rag-eval-system`，起始 HEAD 为 `7aec4b950e012d3f24b8e1877d6391201e9b8f90`，remote default 为 `origin/main`，staging area 为空。
 
@@ -351,7 +351,7 @@ G13           PASS, commit/push/clean-clone/remote CI evidenced
 
 E7 live/browser 已完成并清理：8000/8501 listeners 0、项目 Python 0、Ollama 保留。review findings 均已修复，本地 full 为 574、audit 331/0。第一次 GitHub clone 暴露 CRLF frozen hash 失配；第二次暴露 ignored demo corpus 依赖；第三次在 `960fa13` 得到 574 passed；第四次在代码候选 `9607e55` 再次得到 hash/compile/audit/full PASS。首次 Ubuntu CI 的 `exit 139` 已由诊断提交定位为 Streamlit AppTest 的 PyArrow-to-Pandas 反向转换，并通过收窄测试边界修复；run 29553278709 为 success。
 
-## 17. R2-S1 当前精确断点
+## 17. R2-S1 历史断点（已被 Section 20 取代）
 
 本人已依次批准 D1-D7。R2-S1 的冻结起点和当前实现断点为：
 
@@ -428,7 +428,7 @@ Detailed recovery context is in
 
 自动工程验收已收口。下一步是仓库所有者完成 50-row human review、三个代码实验和口述验收；这些仍是 `NOT RUN`。当前分支不自动 merge、tag、切换默认分支、改仓库名或修改公开状态。
 
-## 18. R2-S1 V0-V5 当前精确断点
+## 18. R2-S1 V0-V5 历史断点（已被 Section 20 取代）
 
 外部审查后的 auditability/measurement hardening 已按 V0-V5 顺序执行，并在提交前完成独立 closeout review。当前 branch 仍为 `codex/rag-eval-system`；V1-V5 及收口修复以 `1bf9b95917d7ae813ca6214c7ab83492b4c47aa3` 为基线。用户已经批准收口、提交和推送当前分支；仍不自动 merge、tag、切换默认分支或修改仓库公开状态，也不执行 `git add .`。
 
@@ -470,7 +470,7 @@ Git 交付：提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已推送到 `ori
 8. `docs/superpowers/plans/2026-07-19-r2-s1-v5-counterbalanced-arm-order.md`
 9. `docs/security/r2_s1/16_v0_v5_closeout_review_and_improvement_plan.md`
 
-## 19. R2-S2 S2-1/S2-2 当前精确断点
+## 19. R2-S2 S2-1/S2-2 历史断点（已被 Section 20 取代）
 
 S2-1 已使用新 run ID `r2-s2-s1-dev-20260719-01` 执行真实 BGE-M3 + Qwen2.5:3b 的 dev paired replication。运行入口是 clean Git HEAD `073d7356026954c26c1429fb9faddc5e9a5dcb87`，manifest SHA-256 为 `3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e`。原始运行目录在 ignored `security_runs/`，不可提交。
 
@@ -543,6 +543,7 @@ accepted exposure evaluator path             app/evaluation/indirect_injection_e
 accepted exposure evaluator SHA-256          d7fe9332953cc44ba3f517bb03d4074b293b821461240d30fc384d67256a4b88
 public manifest schema                       indirect_injection_exposure_public_manifest_v2
 public redacted manifest SHA-256             09fda4aa81d15757e8de7cadec32e057a1c01d23a5b646dbcd5c0f9ae9038033
+packaged public verifier SHA-256             dbe814605220058c0bf2453ee1cac0450253bd788b64f9979ab1eb77c2413897
 production Guard / retrieval / Agent         UNCHANGED
 live/replay Guard reach                      15/28 / 15/28
 quarantine given live reach                  15/15
@@ -556,10 +557,10 @@ decision                                      NO_CURRENT_BYPASS_OBSERVED
 production change admission                   NOT ADMITTED
 independent holdout                           NOT RUN
 semantic judge / cross-model replication      NOT RUN
-final focused pytest                          433 PASSED / 5 PLATFORM SKIPS / 3 KNOWN WARNINGS
-final full pytest                             1349 PASSED / 8 PLATFORM SKIPS / 3 KNOWN WARNINGS
+final focused pytest                          449 PASSED / 10 PLATFORM SKIPS / 3 KNOWN WARNINGS
+final full pytest                             1387 PASSED / 13 PLATFORM SKIPS / 3 KNOWN WARNINGS
 compile / pip                                 CLEAN / CLEAN
-public audit                                  453 CANDIDATES / 0 FINDINGS
+public audit                                  454 CANDIDATES / 0 FINDINGS
 source / private / public verifier            VERIFIED
 isolated eight-file verifier                  VERIFIED / 28 ROWS
 frozen/source/package hash comparison         EXACT

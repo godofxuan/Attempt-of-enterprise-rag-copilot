@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -144,6 +145,17 @@ REPLAY_DEPENDENCY_PAYLOADS = (
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _export_fixture(source: Path, output: Path) -> Path:
+    return export_exposure_public_evidence(
+        source,
+        output,
+        package_name="fixture",
+        expected_source_manifest_sha256=_sha256(source / "manifest.json"),
+        expected_source_run_id=source.name,
+        forbidden_texts=("raw question", "raw attack"),
+    )
 
 
 def _artifact_bytes(package: Path) -> dict[str, bytes]:
@@ -1284,6 +1296,156 @@ def test_dns_hostname_text_and_wire_length_boundaries(
     assert public_writer._is_valid_ipv4_or_dns_hostname(hostname) is expected
 
 
+def test_export_rejects_real_windows_output_root_junction_without_touching_referent(
+    private_exposure_run: Path,
+    tmp_path: Path,
+) -> None:
+    referent = tmp_path / "public-referent"
+    referent.mkdir()
+    marker = referent / "keep.txt"
+    marker.write_text("keep\n", encoding="utf-8")
+    alias = tmp_path / "public-junction"
+
+    with directory_redirect(
+        alias,
+        referent,
+        windows_junction_only=True,
+    ) as primitive:
+        assert primitive == "junction"
+        with pytest.raises(
+            ValueError,
+            match="output root cannot be a symlink or redirecting reparse point",
+        ):
+            _export_fixture(private_exposure_run, alias)
+        assert marker.read_text(encoding="utf-8") == "keep\n"
+
+    assert marker.read_text(encoding="utf-8") == "keep\n"
+    assert not (referent / "fixture").exists()
+
+
+def test_export_rejects_posix_symlink_output_root_without_touching_referent(
+    private_exposure_run: Path,
+    tmp_path: Path,
+) -> None:
+    if os.name == "nt":
+        pytest.skip("POSIX output-root symlink regression requires POSIX")
+    referent = tmp_path / "public-referent"
+    referent.mkdir()
+    marker = referent / "keep.txt"
+    marker.write_text("keep\n", encoding="utf-8")
+    alias = tmp_path / "public-symlink"
+
+    with directory_redirect(alias, referent) as primitive:
+        assert primitive == "symlink"
+        with pytest.raises(
+            ValueError,
+            match="output root cannot be a symlink or redirecting reparse point",
+        ):
+            _export_fixture(private_exposure_run, alias)
+
+    assert marker.read_text(encoding="utf-8") == "keep\n"
+    assert not (referent / "fixture").exists()
+
+
+def test_export_rejects_mocked_output_root_reparse_before_resolve(
+    private_exposure_run: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "public"
+    output.mkdir()
+    real_lstat = Path.lstat
+    real_resolve = Path.resolve
+
+    def mark_root(path: Path):
+        observed = real_lstat(path)
+        if path == output:
+            return with_reparse_point_attribute(observed)
+        return observed
+
+    def reject_root_resolve(path: Path, *args, **kwargs) -> Path:
+        if path == output:
+            raise AssertionError("output root resolved before redirect rejection")
+        return real_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", mark_root)
+    monkeypatch.setattr(Path, "resolve", reject_root_resolve)
+
+    with pytest.raises(
+        ValueError,
+        match="output root cannot be a symlink or redirecting reparse point",
+    ):
+        _export_fixture(private_exposure_run, output)
+
+    assert not tuple(output.iterdir())
+
+
+def test_export_rejects_dangling_output_root_symlink_when_supported(
+    private_exposure_run: Path,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "public"
+    referent = tmp_path / "missing-public-referent"
+    try:
+        output.symlink_to(referent, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlink creation is unavailable: {exc}")
+    assert output.is_symlink() and not output.exists()
+
+    with pytest.raises(
+        ValueError,
+        match="output root cannot be a symlink or redirecting reparse point",
+    ):
+        _export_fixture(private_exposure_run, output)
+
+    assert output.is_symlink()
+    assert not referent.exists()
+
+
+def test_export_allows_redirected_ancestor_above_declared_root(
+    private_exposure_run: Path,
+    tmp_path: Path,
+) -> None:
+    referent = tmp_path / "ancestor-referent"
+    referent.mkdir()
+    alias = tmp_path / "ancestor-alias"
+
+    with directory_redirect(alias, referent):
+        target = _export_fixture(private_exposure_run, alias / "public")
+        assert target == (referent / "public" / "fixture").resolve()
+        assert (target / "manifest.redacted.json").is_file()
+
+    assert (referent / "public" / "fixture" / "manifest.redacted.json").is_file()
+
+
+def test_export_rejects_mocked_redirecting_final_target_without_following_it(
+    private_exposure_run: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "public"
+    output.mkdir()
+    target = output / "fixture"
+    output_stat = output.lstat()
+    real_lstat = Path.lstat
+
+    def mark_missing_target(path: Path):
+        if path == target:
+            return with_reparse_point_attribute(output_stat)
+        return real_lstat(path)
+
+    monkeypatch.setattr(Path, "lstat", mark_missing_target)
+
+    with pytest.raises(
+        FileExistsError,
+        match="redirecting final component",
+    ):
+        _export_fixture(private_exposure_run, output)
+
+    assert not target.exists()
+    assert not tuple(output.glob(".*.staging-*"))
+
+
 def test_export_rejects_dangling_final_component_symlink(
     private_exposure_run: Path,
     tmp_path: Path,
@@ -1478,6 +1640,49 @@ def test_export_empty_target_race_is_no_replace_and_cleans_stage(
         )
     assert target.is_dir() and not tuple(target.iterdir())
     assert not tuple(output.glob(".*.staging-*"))
+
+
+def test_public_export_cli_rejects_real_windows_output_root_junction(
+    source_material: tuple[Path, Path],
+    private_exposure_run: Path,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    _, security_data_root = source_material
+    referent = tmp_path / "public-referent"
+    referent.mkdir()
+    marker = referent / "keep.txt"
+    marker.write_text("keep\n", encoding="utf-8")
+    output = tmp_path / "public-junction"
+    argv = [
+        "--source-run",
+        str(private_exposure_run),
+        "--output-root",
+        str(output),
+        "--package-name",
+        "fixture",
+        "--expected-source-run-id",
+        private_exposure_run.name,
+        "--expected-source-manifest-sha256",
+        _sha256(private_exposure_run / "manifest.json"),
+        "--security-data-root",
+        str(security_data_root),
+    ]
+
+    with directory_redirect(
+        output,
+        referent,
+        windows_junction_only=True,
+    ) as primitive:
+        assert primitive == "junction"
+        assert export_main(argv) == 2
+        error = json.loads(capsys.readouterr().err)
+        assert error["status"] == "EXPORT_FAILED"
+        assert "redirecting reparse point" in error["message"]
+        assert marker.read_text(encoding="utf-8") == "keep\n"
+
+    assert marker.read_text(encoding="utf-8") == "keep\n"
+    assert not (referent / "fixture").exists()
 
 
 def test_public_cli_exports_and_verifies(

@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 from pathlib import Path
 
@@ -19,6 +20,64 @@ PUBLIC_DOCS = [
     "docs/industrialization_backlog.md",
     "docs/assets/README.md",
 ]
+
+SECURITY_CORPUS_PATHS = (
+    "data/v2/security/indirect_injection_dev_v1.json",
+    "data/v2/security/indirect_injection_test_v1.json",
+    "data/v2/security/fixtures_v1/dev/manifest.json",
+    "data/v2/security/fixtures_v1/test/manifest.json",
+)
+R2_S3_PUBLIC_PACKAGE_PATHS = frozenset(
+    {
+        "README.md",
+        "checksums.sha256",
+        "manifest.redacted.json",
+        "metric_definitions.json",
+        "per_unit.redacted.jsonl",
+        "source_run.sha256",
+        "summary.json",
+        "verify.py",
+    }
+)
+
+
+def _write_minimal_complete_security_corpus(root: Path) -> None:
+    for relative in SECURITY_CORPUS_PATHS[:2]:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('{"cases":[{}]}\n', encoding="utf-8")
+    for relative in SECURITY_CORPUS_PATHS[2:]:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            '{"cases":[{"candidates":[],"open_results":[]}]}\n',
+            encoding="utf-8",
+        )
+
+
+def _assert_exact_public_exposure_package_tree(
+    package: Path,
+    expected_paths: frozenset[str],
+) -> None:
+    package_stat = package.lstat()
+    assert stat.S_ISDIR(package_stat.st_mode)
+    assert not stat.S_ISLNK(package_stat.st_mode)
+    assert not (
+        getattr(package_stat, "st_file_attributes", 0)
+        & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    )
+    observed_paths = {
+        path.relative_to(package).as_posix() for path in package.rglob("*")
+    }
+    assert observed_paths == expected_paths
+    for relative in expected_paths:
+        observed = (package / relative).lstat()
+        assert stat.S_ISREG(observed.st_mode), relative
+        assert not stat.S_ISLNK(observed.st_mode), relative
+        assert not (
+            getattr(observed, "st_file_attributes", 0)
+            & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+        ), relative
 
 
 def test_audit_rejects_private_paths_credentials_large_files_and_bad_links(
@@ -69,6 +128,156 @@ def test_audit_rejects_private_paths_credentials_large_files_and_bad_links(
     assert ("missing_local_link", "README.md") in findings
     assert ("file_too_large", "large.bin") in findings
     assert not any(item.path == "tests/safe.txt" for item in report.findings)
+    assert report.passed is False
+
+
+@pytest.mark.parametrize("missing_relative", SECURITY_CORPUS_PATHS)
+def test_audit_fails_closed_when_required_security_corpus_file_is_missing(
+    tmp_path: Path,
+    missing_relative: str,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    (tmp_path / missing_relative).unlink()
+
+    report = audit_repository(tmp_path, candidate_files=())
+
+    assert (
+        "invalid_security_corpus",
+        missing_relative,
+        "required security corpus file is missing",
+    ) in {
+        (item.code, item.path, item.detail) for item in report.findings
+    }
+    assert report.passed is False
+
+
+def test_audit_fails_closed_when_security_corpus_is_absent(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    report = audit_repository(tmp_path, candidate_files=())
+
+    assert {
+        item.path
+        for item in report.findings
+        if item.code == "invalid_security_corpus"
+    } == set(SECURITY_CORPUS_PATHS)
+    assert report.passed is False
+
+
+@pytest.mark.parametrize(
+    ("relative", "payload", "detail"),
+    (
+        (
+            SECURITY_CORPUS_PATHS[0],
+            b"\xff",
+            "security corpus file is not valid UTF-8",
+        ),
+        (
+            SECURITY_CORPUS_PATHS[0],
+            b"{\n",
+            "security corpus file contains malformed JSON",
+        ),
+        (
+            SECURITY_CORPUS_PATHS[0],
+            b"[]\n",
+            "security corpus top level must be an object",
+        ),
+        (
+            SECURITY_CORPUS_PATHS[0],
+            b"{}\n",
+            "security corpus requires a cases collection",
+        ),
+        (
+            SECURITY_CORPUS_PATHS[0],
+            b'{"cases":{}}\n',
+            "security corpus cases collection must be an array",
+        ),
+        (
+            SECURITY_CORPUS_PATHS[0],
+            b'{"cases":[[]]}\n',
+            "security corpus cases entries must be objects",
+        ),
+        (
+            SECURITY_CORPUS_PATHS[2],
+            b'{"cases":[{"open_results":[]}]}\n',
+            "fixture case requires a candidates collection",
+        ),
+        (
+            SECURITY_CORPUS_PATHS[2],
+            b'{"cases":[{"candidates":[]}]}\n',
+            "fixture case requires an open_results collection",
+        ),
+        (
+            SECURITY_CORPUS_PATHS[2],
+            b'{"cases":[{"candidates":{},"open_results":[]}]}\n',
+            "fixture candidates collection must be an array",
+        ),
+        (
+            SECURITY_CORPUS_PATHS[2],
+            b'{"cases":[{"candidates":[[]],"open_results":[]}]}\n',
+            "fixture candidates entries must be objects",
+        ),
+        (
+            SECURITY_CORPUS_PATHS[2],
+            b'{"cases":[{"candidates":[],"open_results":{}}]}\n',
+            "fixture open_results collection must be an array",
+        ),
+        (
+            SECURITY_CORPUS_PATHS[2],
+            b'{"cases":[{"candidates":[],"open_results":[[]]}]}\n',
+            "fixture open_results entries must be objects",
+        ),
+    ),
+)
+def test_audit_fails_closed_on_invalid_security_corpus_structure(
+    tmp_path: Path,
+    relative: str,
+    payload: bytes,
+    detail: str,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    (tmp_path / relative).write_bytes(payload)
+
+    report = audit_repository(tmp_path, candidate_files=())
+
+    assert ("invalid_security_corpus", relative, detail) in {
+        (item.code, item.path, item.detail) for item in report.findings
+    }
+    assert report.passed is False
+
+
+def test_audit_fails_closed_when_security_corpus_file_is_unreadable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    target = tmp_path / SECURITY_CORPUS_PATHS[1]
+    real_read_text = Path.read_text
+
+    def fail_target_read(path: Path, *args, **kwargs) -> str:
+        if path == target:
+            raise PermissionError("simulated unreadable corpus")
+        return real_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", fail_target_read)
+
+    report = audit_repository(tmp_path, candidate_files=())
+
+    assert (
+        "invalid_security_corpus",
+        SECURITY_CORPUS_PATHS[1],
+        "security corpus file is unreadable",
+    ) in {
+        (item.code, item.path, item.detail) for item in report.findings
+    }
     assert report.passed is False
 
 
@@ -163,8 +372,9 @@ def test_audit_scans_d7_public_evidence_for_private_runtime_and_frozen_content(
 ) -> None:
     from scripts.audit_public_repo import audit_repository
 
+    _write_minimal_complete_security_corpus(tmp_path)
     dataset = tmp_path / "data" / "v2" / "security" / "indirect_injection_test_v1.json"
-    dataset.parent.mkdir(parents=True)
+    dataset.parent.mkdir(parents=True, exist_ok=True)
     dataset.write_text(
         '{"cases":[{"question":"FROZEN_QUESTION_DO_NOT_PUBLISH",'
         '"trace_canary":"TRACE_CANARY_DO_NOT_PUBLISH",'
@@ -180,7 +390,7 @@ def test_audit_scans_d7_public_evidence_for_private_runtime_and_frozen_content(
         / "test"
         / "manifest.json"
     )
-    fixture.parent.mkdir(parents=True)
+    fixture.parent.mkdir(parents=True, exist_ok=True)
     fixture.write_text(
         '{"cases":[{"fact_texts":{"fact":"PRIVATE_FIXTURE_PAYLOAD"},'
         '"candidates":[],"open_results":[]}]}',
@@ -512,11 +722,12 @@ def test_audit_allows_d7_case_ids_but_rejects_same_id_in_r2_s3(
 ) -> None:
     from scripts.audit_public_repo import audit_repository
 
+    _write_minimal_complete_security_corpus(tmp_path)
     case_id = "r2s1-test-business-sop-action-language-1"
     dataset = (
         tmp_path / "data" / "v2" / "security" / "indirect_injection_test_v1.json"
     )
-    dataset.parent.mkdir(parents=True)
+    dataset.parent.mkdir(parents=True, exist_ok=True)
     dataset.write_text(
         json.dumps({"cases": [{"case_id": case_id}]}),
         encoding="utf-8",
@@ -565,10 +776,11 @@ def test_audit_scans_r2_s3_for_private_runtime_reference(
 def test_audit_scans_r2_s3_for_frozen_source_value(tmp_path: Path) -> None:
     from scripts.audit_public_repo import audit_repository
 
+    _write_minimal_complete_security_corpus(tmp_path)
     dataset = (
         tmp_path / "data" / "v2" / "security" / "indirect_injection_test_v1.json"
     )
-    dataset.parent.mkdir(parents=True)
+    dataset.parent.mkdir(parents=True, exist_ok=True)
     dataset.write_text(
         '{"cases":[{"question":"FROZEN_R2_S3_SOURCE_VALUE"}]}',
         encoding="utf-8",
@@ -599,8 +811,9 @@ def test_audit_scans_shared_dev_sensitive_identifiers_and_open_sections(
 ) -> None:
     from scripts.audit_public_repo import audit_repository
 
+    _write_minimal_complete_security_corpus(tmp_path)
     security_root = tmp_path / "data" / "v2" / "security"
-    security_root.mkdir(parents=True)
+    security_root.mkdir(parents=True, exist_ok=True)
     (security_root / "indirect_injection_dev_v1.json").write_text(
         json.dumps(
             {
@@ -615,12 +828,13 @@ def test_audit_scans_shared_dev_sensitive_identifiers_and_open_sections(
         encoding="utf-8",
     )
     fixture = security_root / "fixtures_v1" / "dev" / "manifest.json"
-    fixture.parent.mkdir(parents=True)
+    fixture.parent.mkdir(parents=True, exist_ok=True)
     fixture.write_text(
         json.dumps(
             {
                 "cases": [
                     {
+                        "candidates": [],
                         "open_results": [
                             {
                                 "section_path": ["OPEN_SECTION_PRIVATE_PATH"]
@@ -698,6 +912,7 @@ def test_audit_allows_public_exposure_package_path(tmp_path: Path) -> None:
     )
     payload.parent.mkdir(parents=True)
     payload.write_text('{"content_free":true}\n', encoding="utf-8")
+    _write_minimal_complete_security_corpus(tmp_path)
 
     report = audit_repository(
         tmp_path,
@@ -793,6 +1008,107 @@ def test_r2_s3_delivery_boundary_requires_fixed_head_synthesis() -> None:
     assert required_boundary in step_six
 
 
+def test_r2_s3_section_twenty_is_the_only_current_handoff_breakpoint() -> None:
+    handoff = (
+        ROOT / "docs" / "roadmap" / "CURRENT_EXECUTION_HANDOFF.md"
+    ).read_text(encoding="utf-8")
+    current_headings = tuple(
+        line
+        for line in handoff.splitlines()
+        if line.startswith("## ") and "当前精确断点" in line
+    )
+    historical = handoff.split("## 20.", 1)[0]
+
+    assert current_headings == (
+        "## 20. R2-S3 measurement-only exposure ablation 当前精确断点",
+    )
+    for section in ("## 8.", "## 15.", "## 16.", "## 17.", "## 18.", "## 19."):
+        heading = next(
+            line for line in handoff.splitlines() if line.startswith(section)
+        )
+        assert "历史" in heading or "已取代" in heading
+    for contradictory in (
+        "没有授权 commit",
+        "未授权 commit/push",
+        "必须停止在 E4",
+        "必须停止在 E6",
+    ):
+        assert contradictory not in historical
+    assert "433 PASSED / 5 PLATFORM SKIPS" not in handoff
+
+
+def test_r2_s3_current_identity_blocks_carry_complete_five_hash_chain() -> None:
+    handoff = (
+        ROOT / "docs" / "roadmap" / "CURRENT_EXECUTION_HANDOFF.md"
+    ).read_text(encoding="utf-8")
+    journal = (
+        ROOT / "docs" / "security" / "r2_s3" / "02_engineering_journal.md"
+    ).read_text(encoding="utf-8")
+    plan = (
+        ROOT
+        / "docs"
+        / "superpowers"
+        / "plans"
+        / "2026-07-21-r2-s3-exposure-aware-ablation.md"
+    ).read_text(encoding="utf-8")
+    blocks = (
+        handoff.split("## 20.", 1)[1].split("```text", 1)[1].split("```", 1)[0],
+        journal.split("The accepted evidence identity is:", 1)[1]
+        .split("```text", 1)[1]
+        .split("```", 1)[0],
+        plan.split("## Final Fix-Wave Acceptance Addendum", 1)[1]
+        .split("```text", 1)[1]
+        .split("```", 1)[0],
+    )
+    required_hashes = (
+        "3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e",
+        "4c8cfb6ad826fc1ca9c24afb0157129df661f3cd463aa3448ec161c0608c5f1f",
+        "09fda4aa81d15757e8de7cadec32e057a1c01d23a5b646dbcd5c0f9ae9038033",
+        "d7fe9332953cc44ba3f517bb03d4074b293b821461240d30fc384d67256a4b88",
+        "dbe814605220058c0bf2453ee1cac0450253bd788b64f9979ab1eb77c2413897",
+    )
+
+    for block in blocks:
+        for expected_hash in required_hashes:
+            assert expected_hash in block
+
+
+def test_r2_s3_task_seven_is_non_executable_superseded_history() -> None:
+    plan = (
+        ROOT
+        / "docs"
+        / "superpowers"
+        / "plans"
+        / "2026-07-21-r2-s3-exposure-aware-ablation.md"
+    ).read_text(encoding="utf-8")
+    task_seven = plan.split("### Task 7:", 1)[1].split("### Task 8:", 1)[0]
+    task_heading = plan.split("### Task 7:", 1)[1].splitlines()[0]
+
+    assert "SUPERSEDED" in task_heading
+    assert "NON-EXECUTABLE" in task_heading
+    assert "docs/security/r2_s3/00_exposure_ablation_protocol.md" in task_seven
+    assert "r2-s3-dev-exposure-20260721-04" in task_seven
+    assert "-m scripts.eval_indirect_injection_exposure" not in task_seven
+    assert "-m scripts.export_indirect_injection_exposure_public" not in task_seven
+
+
+def test_consumed_exposure_evaluator_commands_are_not_runnable() -> None:
+    protocol = (
+        ROOT
+        / "docs"
+        / "security"
+        / "r2_s3"
+        / "00_exposure_ablation_protocol.md"
+    ).read_text(encoding="utf-8")
+    operator_section = protocol.split("## 8. Exact Operator Commands", 1)[1]
+
+    assert "ARCHIVAL, NON-EXECUTABLE RECORD" in operator_section
+    assert "-m scripts.eval_indirect_injection_exposure" not in operator_section
+    assert "r2-s3-dev-exposure-20260721-04" in operator_section
+    assert "-m scripts.verify_indirect_injection_exposure" in operator_section
+    assert "-m scripts.export_indirect_injection_exposure_public" in operator_section
+
+
 def test_r2_s3_documented_isolated_verifier_sequence_executes(
     tmp_path: Path,
 ) -> None:
@@ -807,12 +1123,15 @@ def test_r2_s3_documented_isolated_verifier_sequence_executes(
     end_marker = "<!-- isolated-verifier-powershell:end -->"
     assert start_marker in protocol
     assert end_marker in protocol
-    staging_package = ".tmp_r2_s3_final_public_04\\r2_s3_exposure"
-    assert (
-        "scripts.verify_indirect_injection_exposure_public `\n"
-        f"  {staging_package}"
-    ) in protocol
-    assert f"$source = Join-Path $repo '{staging_package}'" in protocol
+    assert "'.tmp_r2_s3_public_' + [guid]::NewGuid().ToString('D')" in protocol
+    assert "if (Test-Path -LiteralPath $stagingRoot)" in protocol
+    assert "--output-root $stagingRoot" in protocol
+    assert "$stagedPackage = Join-Path $stagingRoot 'r2_s3_exposure'" in protocol
+    assert "scripts.verify_indirect_injection_exposure_public $stagedPackage" in protocol
+    assert "$source = $stagedPackage" in protocol
+    assert ".tmp_r2_s3_final_public_04" not in protocol
+    ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+    assert ".tmp_r2_s3_public_????????-????-????-????-????????????/" in ignore
     replacement_boundary = (
         "After mechanically replacing the exact eight tracked files"
     )
@@ -837,7 +1156,7 @@ def test_r2_s3_documented_isolated_verifier_sequence_executes(
     )
     powershell_path = str(staged_package).replace("'", "''")
     command = command.replace(
-        f"$source = Join-Path $repo '{staging_package}'",
+        "$source = $stagedPackage",
         f"$source = '{powershell_path}'",
     )
 
@@ -960,16 +1279,6 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     verification_input_witness_sha256 = (
         "e1910a458b3541abc47d515cf46a3b5ab6daa614e971e2f701097ebdce67befc"
     )
-    expected_package_files = {
-        "checksums.sha256",
-        "manifest.redacted.json",
-        "metric_definitions.json",
-        "per_unit.redacted.jsonl",
-        "README.md",
-        "source_run.sha256",
-        "summary.json",
-        "verify.py",
-    }
     current_paths = (
         "README.md",
         "PROJECT_STATUS.md",
@@ -987,7 +1296,10 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     }
     identity_paths = current_paths[4:]
 
-    assert {path.name for path in package.iterdir() if path.is_file()} == expected_package_files
+    _assert_exact_public_exposure_package_tree(
+        package,
+        R2_S3_PUBLIC_PACKAGE_PATHS,
+    )
     assert hashlib.sha256(manifest_path.read_bytes()).hexdigest() == public_manifest_sha256
     assert hashlib.sha256((package / "verify.py").read_bytes()).hexdigest() == verifier_sha256
     assert (package / "source_run.sha256").read_text(encoding="utf-8") == (
@@ -1056,9 +1368,9 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     ]
 
     status = contents["PROJECT_STATUS.md"]
-    assert "focused `430 passed / 8 platform skips / 3 known warnings`" in status
-    assert "full `1349 passed / 8 platform skips / 3 known warnings`" in status
-    assert "public audit `453 candidates / 0 findings`" in status
+    assert "focused `449 passed / 10 platform skips / 3 known warnings`" in status
+    assert "full `1387 passed / 13 platform skips / 3 known warnings`" in status
+    assert "public audit `454 candidates / 0 findings`" in status
     assert required_boundary in status
     assert "433 passed / 5 platform skips" not in status
     r2_s2_status = status.split("## 9. R2-S2 当前状态", 1)[1].split(
@@ -1067,9 +1379,9 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     r2_s3_status = status.split("## 10. R2-S3 当前状态", 1)[1]
     expected_r2_s2_lines = (
         "current full repository regression             "
-        "1349 PASSED / 8 SKIPPED / 3 KNOWN WARNINGS",
+        "1387 PASSED / 13 SKIPPED / 3 KNOWN WARNINGS",
         "current public repository audit                "
-        "453 CANDIDATES / 0 FINDINGS",
+        "454 CANDIDATES / 0 FINDINGS",
     )
     missing_r2_s2_lines = tuple(
         line for line in expected_r2_s2_lines if line not in r2_s2_status
@@ -1079,12 +1391,12 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     )
     assert (
         "final focused / full pytest                      "
-        "430 passed / 8 skipped / 3 warnings; "
-        "1349 passed / 8 skipped / 3 warnings"
+        "449 passed / 10 skipped / 3 warnings; "
+        "1387 passed / 13 skipped / 3 warnings"
     ) in r2_s3_status
     assert (
         "compile / pip / public audit                    "
-        "CLEAN / CLEAN / 453 candidates / 0 findings"
+        "CLEAN / CLEAN / 454 candidates / 0 findings"
     ) in r2_s3_status
     assert f"push / remote CI                                 {required_boundary}" in (
         r2_s3_status
@@ -1097,3 +1409,21 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
         "PROHIBITED / DEFERRED PENDING SYNTHESIS",
     ):
         assert obsolete_current_value not in status
+
+
+def test_exact_public_exposure_package_tree_rejects_nested_extra_path(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "r2_s3_exposure"
+    package.mkdir()
+    for relative in R2_S3_PUBLIC_PACKAGE_PATHS:
+        (package / relative).write_text("fixture\n", encoding="utf-8")
+    nested = package / "debug" / "raw.json"
+    nested.parent.mkdir()
+    nested.write_text('{"private":true}\n', encoding="utf-8")
+
+    with pytest.raises(AssertionError):
+        _assert_exact_public_exposure_package_tree(
+            package,
+            R2_S3_PUBLIC_PACKAGE_PATHS,
+        )

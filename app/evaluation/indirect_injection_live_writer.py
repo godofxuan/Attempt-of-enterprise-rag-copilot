@@ -27,6 +27,11 @@ from app.evaluation.indirect_injection_runner import (
     _build_behavior_gate,
     _mode_result,
 )
+from app.evaluation.publication_paths import (
+    _atomic_publish_no_replace,
+    _validated_absent_publication_target,
+    _validated_publication_root,
+)
 from app.evaluation.indirect_injection_writer import (
     ArtifactEvidence,
     EvaluatorSecurityProvenance,
@@ -344,13 +349,13 @@ def publish_live_security_run(
     if not forbidden_texts or any(not value for value in forbidden_texts):
         raise ValueError("a non-empty forbidden text policy is required")
     _validate_consistency(manifest, result)
-    output_root = Path(root).resolve()
-    output_root.mkdir(parents=True, exist_ok=True)
-    target = (output_root / manifest.run_id).resolve()
-    if target.parent != output_root:
-        raise ValueError("run ID resolves outside output root")
-    if target.exists():
-        raise FileExistsError(f"live security output run already exists: {target}")
+    output_root = _validated_publication_root(Path(root), "output root")
+    target = _validated_absent_publication_target(
+        output_root,
+        manifest.run_id,
+        "live security output run",
+        "run ID resolves outside output root",
+    )
 
     stage = Path(
         tempfile.mkdtemp(prefix=f".{manifest.run_id}.staging-", dir=output_root)
@@ -389,7 +394,7 @@ def publish_live_security_run(
         _assert_content_free(manifest_bytes, forbidden_texts)
         (stage / "manifest.json").write_bytes(manifest_bytes)
         _validate_stage(stage, final_manifest)
-        stage.rename(target)
+        _atomic_publish_no_replace(stage, target)
     except Exception:
         shutil.rmtree(stage, ignore_errors=True)
         raise

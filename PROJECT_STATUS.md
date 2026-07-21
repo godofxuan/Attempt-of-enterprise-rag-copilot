@@ -2,7 +2,7 @@
 
 更新时间：2026-07-19（R2-S3 同步补充：2026-07-21）
 
-状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。R2-S1 已完成 D1-D7 与审计加固 V0-V5，其中 V0 是审计验证，V1-V5 是实现加固。R2-S2 S2-1 使用新 run ID 执行真实 BGE-M3 + Qwen2.5:3b 的 18/18 反平衡 dev replication：OFF raw/user-boundary signal `3/24`，ON `0/24`；真正到达 Guard 的 attack units 在 ON 下 `15/15` 隔离，但 all-labeled 口径为 `15/28`。R2-S3 accepted v2 run `r2-s3-dev-exposure-20260721-04` 在不修改 source live run、production Guard、retrieval 或 Agent 的前提下完成 measurement-only exposure ablation：13 个 unreached units 全部位于 persisted runtime rank 2，相关 case 的 observed downstream exposure 为 `0/13`；depth `1/2/4` coverage 是 diagnostic counterfactual，不是 production execution，结论 `NO_CURRENT_BYPASS_OBSERVED` 不是 release pass 或 universal safety result。Final local gates 为 focused `430 passed / 8 platform skips / 3 known warnings`、full `1349 passed / 8 platform skips / 3 known warnings`、public audit `453 candidates / 0 findings`，source/private/public/isolated verifiers 与 frozen hashes 全部通过。S2-2 holdout freeze/verify 基础设施已实现，但 independent holdout、semantic judge、cross-model replication、50 行人工语义评分与 owner 代码/口述验收仍为 `NOT RUN`。Push is allowed only after fixed-HEAD reviews and local gates pass; actual delivery and CI state are established by Git and GitHub Actions. 本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
+状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。R2-S1 已完成 D1-D7 与审计加固 V0-V5，其中 V0 是审计验证，V1-V5 是实现加固。R2-S2 S2-1 使用新 run ID 执行真实 BGE-M3 + Qwen2.5:3b 的 18/18 反平衡 dev replication：OFF raw/user-boundary signal `3/24`，ON `0/24`；真正到达 Guard 的 attack units 在 ON 下 `15/15` 隔离，但 all-labeled 口径为 `15/28`。R2-S3 accepted v2 run `r2-s3-dev-exposure-20260721-04` 在不修改 source live run、production Guard、retrieval 或 Agent 的前提下完成 measurement-only exposure ablation：13 个 unreached units 全部位于 persisted runtime rank 2，相关 case 的 observed downstream exposure 为 `0/13`；depth `1/2/4` coverage 是 diagnostic counterfactual，不是 production execution，结论 `NO_CURRENT_BYPASS_OBSERVED` 不是 release pass 或 universal safety result。Final local gates 为 focused `449 passed / 10 platform skips / 3 known warnings`、full `1387 passed / 13 platform skips / 3 known warnings`、public audit `454 candidates / 0 findings`，source/private/public/isolated verifiers 与 frozen hashes 全部通过。S2-2 holdout freeze/verify 基础设施已实现，但 independent holdout、semantic judge、cross-model replication、50 行人工语义评分与 owner 代码/口述验收仍为 `NOT RUN`。Push is allowed only after fixed-HEAD reviews and local gates pass; actual delivery and CI state are established by Git and GitHub Actions. 本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
 
 ## 1. 当前定位
 
@@ -390,8 +390,8 @@ independent reviewer package                   NOT CREATED
 independent holdout model run                  NOT RUN
 blind double review / agreement                NOT RUN
 semantic judge / cross-model replication       NOT RUN
-current full repository regression             1349 PASSED / 8 SKIPPED / 3 KNOWN WARNINGS
-current public repository audit                453 CANDIDATES / 0 FINDINGS
+current full repository regression             1387 PASSED / 13 SKIPPED / 3 KNOWN WARNINGS
+current public repository audit                454 CANDIDATES / 0 FINDINGS
 compileall / pip check                         CLEAN / CLEAN
 ```
 
@@ -411,8 +411,8 @@ counterfactual total reach d1/d2/d4             15/28 / 28/28 / 28/28
 counterfactual production execution             NOT RUN / DIAGNOSTIC ONLY
 independent holdout                              NOT RUN
 semantic judge / cross-model replication        NOT RUN
-final focused / full pytest                      430 passed / 8 skipped / 3 warnings; 1349 passed / 8 skipped / 3 warnings
-compile / pip / public audit                    CLEAN / CLEAN / 453 candidates / 0 findings
+final focused / full pytest                      449 passed / 10 skipped / 3 warnings; 1387 passed / 13 skipped / 3 warnings
+compile / pip / public audit                    CLEAN / CLEAN / 454 candidates / 0 findings
 source / private / public / isolated verifier   VERIFIED
 frozen hash comparisons                         EXACT
 push / remote CI                                 Push is allowed only after fixed-HEAD reviews and local gates pass; actual delivery and CI state are established by Git and GitHub Actions.

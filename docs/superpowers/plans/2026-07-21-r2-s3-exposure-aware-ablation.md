@@ -63,11 +63,13 @@ one new immutable identity from the unchanged S2-1 source:
 
 ```text
 accepted private run          r2-s3-dev-exposure-20260721-04
+source manifest SHA-256       3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e
 private manifest schema       indirect_injection_exposure_run_manifest_v2
 private manifest SHA-256      4c8cfb6ad826fc1ca9c24afb0157129df661f3cd463aa3448ec161c0608c5f1f
 accepted evaluator SHA-256    d7fe9332953cc44ba3f517bb03d4074b293b821461240d30fc384d67256a4b88
 public manifest schema        indirect_injection_exposure_public_manifest_v2
 public manifest SHA-256       09fda4aa81d15757e8de7cadec32e057a1c01d23a5b646dbcd5c0f9ae9038033
+packaged verifier SHA-256     dbe814605220058c0bf2453ee1cac0450253bd788b64f9979ab1eb77c2413897
 ```
 
 Both v2 manifests bind the replay implementation dependencies exactly:
@@ -90,9 +92,9 @@ unchanged.
 The accepted `-04` run preserves every frozen admission metric and decision.
 Runs `r2-s3-dev-exposure-20260721-01`, `-02`, and superseded `-03` are
 superseded local history, not the source of the tracked public package. Final local gates
-are focused `430 passed / 8 platform skips / 3 known warnings`, full
-`1349 passed / 8 platform skips / 3 known warnings`, compile/pip clean, and
-public audit `453/0`. Push is allowed only after fixed-HEAD reviews and local
+are focused `449 passed / 10 platform skips / 3 known warnings`, full
+`1387 passed / 13 platform skips / 3 known warnings`, compile/pip clean, and
+public audit `454/0`. Push is allowed only after fixed-HEAD reviews and local
 gates pass; actual delivery and CI state are established by Git and GitHub
 Actions.
 
@@ -1433,7 +1435,12 @@ Expected: all public package tests pass before commit.
 
 ---
 
-### Task 7: Private-Artifact Leak Prevention and Accepted R2-S3 Run
+### Task 7: [SUPERSEDED, NON-EXECUTABLE HISTORY] Private-Artifact Leak Prevention and R2-S3 Run
+
+This entire task records the consumed `-01` workflow and is not an operator
+runbook. Do not execute its historical evaluator or exporter. Current operators
+must use the immutable `r2-s3-dev-exposure-20260721-04` verification/export
+protocol in `docs/security/r2_s3/00_exposure_ablation_protocol.md`.
 
 **Files:**
 - Modify: `.gitignore`
@@ -1478,7 +1485,7 @@ Expected RED: missing ignore/audit protection.
 
 After the minimal `.gitignore` and audit changes, rerun and expect pass.
 
-- [x] **Step 3: Execute the accepted private analysis exactly once**
+- [x] **Step 3: SUPERSEDED ARCHIVAL RECORD - DO NOT EXECUTE**
 
 Preflight:
 
@@ -1490,15 +1497,14 @@ Get-FileHash security_runs\r2-s2-s1-dev-20260719-01\manifest.json -Algorithm SHA
 
 Require clean tracked worktree except the intentional Task 7 audit changes, exact source hash, `verified=true`, protocol complete, pair consistent, and zero errors/egress.
 
-Run:
+Historical identity only, intentionally not expressed as a runnable command:
 
-```powershell
-.\.venv\Scripts\python.exe -m scripts.eval_indirect_injection_exposure `
-  --source-run security_runs\r2-s2-s1-dev-20260719-01 `
-  --security-data-root data\v2\security `
-  --out-dir exposure_runs `
-  --run-id r2-s3-dev-exposure-20260721-01 `
-  --expected-source-manifest-sha256 3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e
+```text
+archival evaluator module       scripts.eval_indirect_injection_exposure
+consumed historical run ID      r2-s3-dev-exposure-20260721-01
+source run ID                    r2-s2-s1-dev-20260719-01
+source manifest SHA-256          3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e
+execution status                 CONSUMED / SUPERSEDED / NEVER RERUN
 ```
 
 Expected valid baseline identities:
@@ -1523,21 +1529,12 @@ These are admission expectations derived from the approved design analysis. If a
 
 The expected decision is `NO_CURRENT_BYPASS_OBSERVED`; derive it from rows and treat any other valid decision as an observation requiring review, not an automatic failure.
 
-- [x] **Step 4: Verify private run, export public evidence, and verify in isolation**
+- [x] **Step 4: SUPERSEDED ARCHIVAL EXPORT RECORD - DO NOT EXECUTE**
 
-```powershell
-.\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure exposure_runs\r2-s3-dev-exposure-20260721-01
-$exposureManifestSha = (Get-FileHash `
-  exposure_runs\r2-s3-dev-exposure-20260721-01\manifest.json `
-  -Algorithm SHA256).Hash.ToLowerInvariant()
-.\.venv\Scripts\python.exe -m scripts.export_indirect_injection_exposure_public `
-  --source-run exposure_runs\r2-s3-dev-exposure-20260721-01 `
-  --output-root data\v2\public `
-  --package-name r2_s3_exposure `
-  --expected-source-run-id r2-s3-dev-exposure-20260721-01 `
-  --expected-source-manifest-sha256 $exposureManifestSha
-.\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure_public data\v2\public\r2_s3_exposure
-```
+The consumed `-01` private verification/export sequence is intentionally not
+reproduced as shell syntax. Its output was superseded. Verify immutable `-04`
+and export it only to a fresh GUID staging root by following
+`docs/security/r2_s3/00_exposure_ablation_protocol.md`.
 
 Copy only the eight public files to a temporary isolated directory and run its `verify.py`. Expected: `VERIFIED` with 28 units and the exact decision. Then run the public audit; expected zero findings.
 

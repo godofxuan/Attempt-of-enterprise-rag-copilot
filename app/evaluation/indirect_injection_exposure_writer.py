@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 import csv
-import ctypes
-import errno
 import hashlib
 import io
 import json
 import os
 import shutil
 import stat
-import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -50,6 +47,11 @@ from app.evaluation.indirect_injection_exposure import (
 from app.evaluation.indirect_injection_writer import (
     ArtifactEvidence,
     validate_security_run_id,
+)
+from app.evaluation.publication_paths import (
+    _atomic_publish_no_replace,
+    _validated_absent_publication_target,
+    _validated_publication_root,
 )
 
 
@@ -402,13 +404,13 @@ def _publish_exposure_run(
     if evaluator_source_snapshot is not None:
         evaluator_source_snapshot.assert_unchanged()
 
-    output_root = Path(root).resolve()
-    output_root.mkdir(parents=True, exist_ok=True)
-    target = output_root / manifest.run_id
-    if target.parent.resolve() != output_root:
-        raise ValueError("run ID resolves outside output root")
-    if target.is_symlink() or target.exists():
-        raise FileExistsError(f"exposure output run already exists: {target}")
+    output_root = _validated_publication_root(Path(root), "output root")
+    target = _validated_absent_publication_target(
+        output_root,
+        manifest.run_id,
+        "exposure output run",
+        "run ID resolves outside output root",
+    )
     stage = Path(
         tempfile.mkdtemp(
             prefix=f".{manifest.run_id}.staging-",
@@ -526,80 +528,6 @@ def _verify_canonical_evaluator_source(
             "canonical exposure evaluator source bytes changed since module import"
         )
     return _VerifiedEvaluatorSourceSnapshot(path=path, identity=identity)
-
-
-def _atomic_publish_no_replace(stage: Path, target: Path) -> None:
-    if os.name == "nt":
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        move_file = kernel32.MoveFileExW
-        move_file.argtypes = (
-            ctypes.c_wchar_p,
-            ctypes.c_wchar_p,
-            ctypes.c_ulong,
-        )
-        move_file.restype = ctypes.c_int
-        if move_file(str(stage), str(target), 0):
-            return
-        error_code = ctypes.get_last_error()
-        if error_code in {5, 80, 183} and target.exists():
-            raise FileExistsError(
-                errno.EEXIST,
-                os.strerror(errno.EEXIST),
-                str(target),
-            )
-        raise ctypes.WinError(error_code)
-
-    if sys.platform == "linux":
-        libc = ctypes.CDLL(None, use_errno=True)
-        renameat2 = getattr(libc, "renameat2", None)
-        if renameat2 is None:
-            raise OSError(
-                errno.ENOTSUP,
-                os.strerror(errno.ENOTSUP),
-                str(target),
-            )
-        renameat2.argtypes = (
-            ctypes.c_int,
-            ctypes.c_char_p,
-            ctypes.c_int,
-            ctypes.c_char_p,
-            ctypes.c_uint,
-        )
-        renameat2.restype = ctypes.c_int
-        if renameat2(
-            -100,
-            os.fsencode(stage),
-            -100,
-            os.fsencode(target),
-            1,
-        ) == 0:
-            return
-        error_code = ctypes.get_errno()
-        if error_code in {errno.EEXIST, errno.ENOTEMPTY}:
-            raise FileExistsError(
-                errno.EEXIST,
-                os.strerror(errno.EEXIST),
-                str(target),
-            )
-        unsupported_errors = {
-            errno.EINVAL,
-            errno.ENOSYS,
-            errno.ENOTSUP,
-            getattr(errno, "EOPNOTSUPP", errno.ENOTSUP),
-        }
-        if error_code in unsupported_errors:
-            raise OSError(
-                errno.ENOTSUP,
-                os.strerror(errno.ENOTSUP),
-                str(target),
-            )
-        raise OSError(error_code, os.strerror(error_code), str(target))
-
-    raise OSError(
-        errno.ENOTSUP,
-        os.strerror(errno.ENOTSUP),
-        str(target),
-    )
 
 
 def load_verified_exposure_run_snapshot(

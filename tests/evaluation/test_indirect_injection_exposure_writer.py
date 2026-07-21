@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -911,6 +912,157 @@ def test_publish_final_handoff_never_replaces_raced_target(
     assert not tuple(root.glob(".*.staging-*"))
 
 
+def test_publish_rejects_real_windows_output_root_junction_without_touching_referent(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    referent = tmp_path / "root-referent"
+    referent.mkdir()
+    marker = referent / "keep.txt"
+    marker.write_text("keep\n", encoding="utf-8")
+    alias = tmp_path / "runs-junction"
+
+    with directory_redirect(
+        alias,
+        referent,
+        windows_junction_only=True,
+    ) as primitive:
+        assert primitive == "junction"
+        with pytest.raises(
+            ValueError,
+            match="output root cannot be a symlink or redirecting reparse point",
+        ):
+            _publish(alias, exposure_result)
+        assert marker.read_text(encoding="utf-8") == "keep\n"
+
+    assert marker.read_text(encoding="utf-8") == "keep\n"
+    assert not (referent / "r2-s3-writer-test").exists()
+
+
+def test_publish_rejects_posix_symlink_output_root_without_touching_referent(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    if os.name == "nt":
+        pytest.skip("POSIX output-root symlink regression requires POSIX")
+    referent = tmp_path / "root-referent"
+    referent.mkdir()
+    marker = referent / "keep.txt"
+    marker.write_text("keep\n", encoding="utf-8")
+    alias = tmp_path / "runs-symlink"
+
+    with directory_redirect(alias, referent) as primitive:
+        assert primitive == "symlink"
+        with pytest.raises(
+            ValueError,
+            match="output root cannot be a symlink or redirecting reparse point",
+        ):
+            _publish(alias, exposure_result)
+        assert marker.read_text(encoding="utf-8") == "keep\n"
+
+    assert marker.read_text(encoding="utf-8") == "keep\n"
+    assert not (referent / "r2-s3-writer-test").exists()
+
+
+def test_publish_rejects_mocked_output_root_reparse_before_resolve(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "runs"
+    root.mkdir()
+    real_lstat = Path.lstat
+    real_resolve = Path.resolve
+
+    def mark_root(path: Path):
+        observed = real_lstat(path)
+        if path == root:
+            return with_reparse_point_attribute(observed)
+        return observed
+
+    def reject_root_resolve(path: Path, *args, **kwargs) -> Path:
+        if path == root:
+            raise AssertionError("output root resolved before redirect rejection")
+        return real_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", mark_root)
+    monkeypatch.setattr(Path, "resolve", reject_root_resolve)
+
+    with pytest.raises(
+        ValueError,
+        match="output root cannot be a symlink or redirecting reparse point",
+    ):
+        _publish(root, exposure_result)
+
+    assert not tuple(root.iterdir())
+
+
+def test_publish_rejects_dangling_output_root_symlink_when_supported(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    root = tmp_path / "runs"
+    referent = tmp_path / "missing-root-referent"
+    try:
+        root.symlink_to(referent, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlink creation is unavailable: {exc}")
+    assert root.is_symlink() and not root.exists()
+
+    with pytest.raises(
+        ValueError,
+        match="output root cannot be a symlink or redirecting reparse point",
+    ):
+        _publish(root, exposure_result)
+
+    assert root.is_symlink()
+    assert not referent.exists()
+
+
+def test_publish_allows_redirected_ancestor_above_declared_root(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+) -> None:
+    referent = tmp_path / "ancestor-referent"
+    referent.mkdir()
+    alias = tmp_path / "ancestor-alias"
+
+    with directory_redirect(alias, referent):
+        target = _publish(alias / "runs", exposure_result)
+        assert target == (referent / "runs" / "r2-s3-writer-test").resolve()
+        assert (target / "manifest.json").is_file()
+
+    assert (referent / "runs" / "r2-s3-writer-test" / "manifest.json").is_file()
+
+
+def test_publish_rejects_mocked_redirecting_final_target_without_following_it(
+    tmp_path: Path,
+    exposure_result: ExposureAnalysisResult,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "runs"
+    root.mkdir()
+    target = root / "r2-s3-writer-test"
+    root_stat = root.lstat()
+    real_lstat = Path.lstat
+
+    def mark_missing_target(path: Path):
+        if path == target:
+            return with_reparse_point_attribute(root_stat)
+        return real_lstat(path)
+
+    monkeypatch.setattr(Path, "lstat", mark_missing_target)
+
+    with pytest.raises(
+        FileExistsError,
+        match="redirecting final component",
+    ):
+        _publish(root, exposure_result)
+
+    assert not target.exists()
+    assert not tuple(root.glob(".*.staging-*"))
+
+
 def test_publish_rejects_lexical_final_target_before_resolve(
     tmp_path: Path,
     exposure_result: ExposureAnalysisResult,
@@ -919,16 +1071,24 @@ def test_publish_rejects_lexical_final_target_before_resolve(
     root = tmp_path / "runs"
     root.mkdir()
     target = root / "r2-s3-writer-test"
-    is_symlink = Path.is_symlink
+    root_stat = root.lstat()
+    real_lstat = Path.lstat
+    real_resolve = Path.resolve
 
-    def mark_target_as_symlink(path: Path) -> bool:
+    def mark_target_as_redirect(path: Path):
         if path == target:
-            return True
-        return is_symlink(path)
+            return with_reparse_point_attribute(root_stat)
+        return real_lstat(path)
 
-    monkeypatch.setattr(Path, "is_symlink", mark_target_as_symlink)
+    def reject_target_resolve(path: Path, *args, **kwargs) -> Path:
+        if path == target:
+            raise AssertionError("final target resolved before redirect rejection")
+        return real_resolve(path, *args, **kwargs)
 
-    with pytest.raises(FileExistsError, match="already exists"):
+    monkeypatch.setattr(Path, "lstat", mark_target_as_redirect)
+    monkeypatch.setattr(Path, "resolve", reject_target_resolve)
+
+    with pytest.raises(FileExistsError, match="redirecting final component"):
         _publish(root, exposure_result)
 
     assert not target.exists()

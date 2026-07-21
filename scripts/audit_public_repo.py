@@ -23,6 +23,12 @@ from app.evaluation.public_snapshot import PublicDemoSnapshot
 
 MAX_PUBLIC_FILE_BYTES = 2 * 1024 * 1024
 _PUBLIC_SNAPSHOT_PATH = "data/v2/public/demo_snapshot.json"
+_REQUIRED_SECURITY_CORPUS_SOURCES = (
+    ("data/v2/security/indirect_injection_dev_v1.json", False),
+    ("data/v2/security/indirect_injection_test_v1.json", False),
+    ("data/v2/security/fixtures_v1/dev/manifest.json", True),
+    ("data/v2/security/fixtures_v1/test/manifest.json", True),
+)
 _SENSITIVE_PUBLIC_EVIDENCE_PREFIXES = (
     "data/v2/public/r2_s1_d7/",
     "data/v2/public/r2_s3_exposure/",
@@ -154,7 +160,8 @@ def audit_repository(
     )
     normalized: list[str] = []
     findings: list[AuditFinding] = []
-    frozen_security_values = _load_frozen_security_values(root)
+    frozen_security_values, corpus_findings = _load_frozen_security_values(root)
+    findings.extend(corpus_findings)
     local_identity_values = _local_identity_values()
     for candidate in candidates:
         try:
@@ -512,42 +519,127 @@ def _contains_unsafe_credential_assignment(text: str) -> bool:
     return False
 
 
-def _load_frozen_security_values(root: Path) -> SecuritySensitiveValueCorpus:
-    security_root = root / "data" / "v2" / "security"
-    datasets = tuple(
-        value
-        for split in ("dev", "test")
-        if (
-            value := _load_json_object(
-                security_root / f"indirect_injection_{split}_v1.json"
-            )
+def _load_frozen_security_values(
+    root: Path,
+) -> tuple[SecuritySensitiveValueCorpus, tuple[AuditFinding, ...]]:
+    datasets: list[dict[str, object]] = []
+    fixture_manifests: list[dict[str, object]] = []
+    findings: list[AuditFinding] = []
+    for relative, is_fixture_manifest in _REQUIRED_SECURITY_CORPUS_SOURCES:
+        value, finding = _load_required_security_corpus_source(
+            root,
+            relative,
+            is_fixture_manifest=is_fixture_manifest,
         )
-        is not None
-    )
-    fixture_manifests = tuple(
-        value
-        for split in ("dev", "test")
-        if (
-            value := _load_json_object(
-                security_root / "fixtures_v1" / split / "manifest.json"
-            )
-        )
-        is not None
-    )
-    return collect_security_sensitive_values(
-        datasets=datasets,
-        fixture_manifests=fixture_manifests,
+        if finding is not None:
+            findings.append(finding)
+        elif value is not None:
+            target = fixture_manifests if is_fixture_manifest else datasets
+            target.append(value)
+    if findings:
+        return SecuritySensitiveValueCorpus((), ()), tuple(findings)
+    return (
+        collect_security_sensitive_values(
+            datasets=datasets,
+            fixture_manifests=fixture_manifests,
+        ),
+        (),
     )
 
 
-def _load_json_object(path: Path) -> dict[str, object] | None:
+def _load_required_security_corpus_source(
+    root: Path,
+    relative: str,
+    *,
+    is_fixture_manifest: bool,
+) -> tuple[dict[str, object] | None, AuditFinding | None]:
+    path = root / relative
     if not path.is_file():
-        return None
+        return None, _security_corpus_finding(
+            relative,
+            "required security corpus file is missing",
+        )
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        return None
-    return value if isinstance(value, dict) else None
+        text = path.read_text(encoding="utf-8")
+    except UnicodeError:
+        return None, _security_corpus_finding(
+            relative,
+            "security corpus file is not valid UTF-8",
+        )
+    except OSError:
+        return None, _security_corpus_finding(
+            relative,
+            "security corpus file is unreadable",
+        )
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError:
+        return None, _security_corpus_finding(
+            relative,
+            "security corpus file contains malformed JSON",
+        )
+    if not isinstance(value, dict):
+        return None, _security_corpus_finding(
+            relative,
+            "security corpus top level must be an object",
+        )
+    if "cases" not in value:
+        return None, _security_corpus_finding(
+            relative,
+            "security corpus requires a cases collection",
+        )
+    cases = value["cases"]
+    if not isinstance(cases, list):
+        return None, _security_corpus_finding(
+            relative,
+            "security corpus cases collection must be an array",
+        )
+    if any(not isinstance(case, dict) for case in cases):
+        return None, _security_corpus_finding(
+            relative,
+            "security corpus cases entries must be objects",
+        )
+    if is_fixture_manifest:
+        finding = _validate_fixture_case_collections(relative, cases)
+        if finding is not None:
+            return None, finding
+    return value, None
+
+
+def _validate_fixture_case_collections(
+    relative: str,
+    cases: list[object],
+) -> AuditFinding | None:
+    for case in cases:
+        if not isinstance(case, dict):
+            raise AssertionError("fixture cases were not prevalidated")
+        for collection in ("candidates", "open_results"):
+            if collection not in case:
+                article = "an" if collection == "open_results" else "a"
+                return _security_corpus_finding(
+                    relative,
+                    f"fixture case requires {article} {collection} collection",
+                )
+            entries = case[collection]
+            if not isinstance(entries, list):
+                return _security_corpus_finding(
+                    relative,
+                    f"fixture {collection} collection must be an array",
+                )
+            if any(not isinstance(item, dict) for item in entries):
+                return _security_corpus_finding(
+                    relative,
+                    f"fixture {collection} entries must be objects",
+                )
+    return None
+
+
+def _security_corpus_finding(relative: str, detail: str) -> AuditFinding:
+    return AuditFinding(
+        code="invalid_security_corpus",
+        path=relative,
+        detail=detail,
+    )
 
 
 def _local_identity_values() -> tuple[str, ...]:

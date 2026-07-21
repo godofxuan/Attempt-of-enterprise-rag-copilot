@@ -17,6 +17,7 @@ from scripts.verify_indirect_injection_exposure import (
     main as verify_main,
 )
 from tests.evaluation.test_indirect_injection_exposure import source_material
+from tests.evaluation.path_redirect_helpers import directory_redirect
 
 
 def _sha256(path: Path) -> str:
@@ -172,6 +173,34 @@ def test_eval_cli_existing_target_is_an_operational_error(
     assert eval_main(argv) == 1
     error = json.loads(capsys.readouterr().err)
     assert error["status"] == "OUTPUT_ERROR"
+
+
+def test_eval_cli_rejects_real_windows_output_root_junction(
+    source_material: tuple[Path, Path],
+    tmp_path: Path,
+    capsys,
+) -> None:
+    source_run, security_data_root = source_material
+    referent = tmp_path / "runs-referent"
+    referent.mkdir()
+    marker = referent / "keep.txt"
+    marker.write_text("keep\n", encoding="utf-8")
+    output = tmp_path / "runs-junction"
+
+    with directory_redirect(
+        output,
+        referent,
+        windows_junction_only=True,
+    ) as primitive:
+        assert primitive == "junction"
+        assert eval_main(_valid_argv(source_run, security_data_root, output)) == 2
+        error = json.loads(capsys.readouterr().err)
+        assert error["decision"] == "INVALID_EVIDENCE"
+        assert "redirecting reparse point" in error["message"]
+        assert marker.read_text(encoding="utf-8") == "keep\n"
+
+    assert marker.read_text(encoding="utf-8") == "keep\n"
+    assert not (referent / "exposure-cli-test").exists()
 
 
 def test_eval_cli_rejects_non_utc_created_at_without_artifact(

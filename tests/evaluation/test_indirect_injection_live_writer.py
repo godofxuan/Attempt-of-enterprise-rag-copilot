@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from app.evaluation import indirect_injection_exposure_writer as exposure_writer
 from app.evaluation import indirect_injection_live_writer as live_writer
 from app.evaluation.indirect_injection_arm_order import (
     build_counterbalanced_arm_order_plan,
@@ -31,7 +32,10 @@ from app.evaluation.indirect_injection_live_writer import (
 from app.evaluation.indirect_injection_writer import (
     R1_FROZEN_EXPECTED_HASHES,
 )
-from tests.evaluation.path_redirect_helpers import directory_redirect
+from tests.evaluation.path_redirect_helpers import (
+    directory_redirect,
+    with_reparse_point_attribute,
+)
 from tests.evaluation.test_indirect_injection_live_runner import (
     BUILD_TIME,
     FIXTURE_SHA256,
@@ -332,6 +336,215 @@ def test_publish_live_run_is_immutable_complete_and_content_free(
             test_output="same",
             forbidden_texts=_forbidden_texts(bundle),
         )
+
+
+def test_publish_live_rejects_real_windows_output_root_junction_without_touching_referent(
+    tmp_path: Path,
+    writer_v2_inputs,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+    referent = tmp_path / "live-referent"
+    referent.mkdir()
+    marker = referent / "keep.txt"
+    marker.write_text("keep\n", encoding="utf-8")
+    alias = tmp_path / "live-junction"
+
+    with directory_redirect(
+        alias,
+        referent,
+        windows_junction_only=True,
+    ) as primitive:
+        assert primitive == "junction"
+        with pytest.raises(
+            ValueError,
+            match="output root cannot be a symlink or redirecting reparse point",
+        ):
+            publish_live_security_run(
+                alias,
+                manifest,
+                result,
+                paired_evidence="safe",
+                commands="safe",
+                test_output="safe",
+                forbidden_texts=_forbidden_texts(bundle),
+            )
+        assert marker.read_text(encoding="utf-8") == "keep\n"
+
+    assert marker.read_text(encoding="utf-8") == "keep\n"
+    assert not (referent / manifest.run_id).exists()
+
+
+def test_publish_live_rejects_mocked_output_root_reparse_before_resolve(
+    tmp_path: Path,
+    writer_v2_inputs,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+    root = tmp_path / "runs"
+    root.mkdir()
+    real_lstat = Path.lstat
+    real_resolve = Path.resolve
+
+    def mark_root(path: Path):
+        observed = real_lstat(path)
+        if path == root:
+            return with_reparse_point_attribute(observed)
+        return observed
+
+    def reject_root_resolve(path: Path, *args, **kwargs) -> Path:
+        if path == root:
+            raise AssertionError("output root resolved before redirect rejection")
+        return real_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", mark_root)
+    monkeypatch.setattr(Path, "resolve", reject_root_resolve)
+
+    with pytest.raises(
+        ValueError,
+        match="output root cannot be a symlink or redirecting reparse point",
+    ):
+        publish_live_security_run(
+            root,
+            manifest,
+            result,
+            paired_evidence="safe",
+            commands="safe",
+            test_output="safe",
+            forbidden_texts=_forbidden_texts(bundle),
+        )
+
+    assert not tuple(root.iterdir())
+
+
+def test_publish_live_rejects_dangling_final_target_symlink_when_supported(
+    tmp_path: Path,
+    writer_v2_inputs,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+    root = tmp_path / "runs"
+    root.mkdir()
+    target = root / manifest.run_id
+    referent = root / "missing-live-target"
+    try:
+        target.symlink_to(referent.name, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlink creation is unavailable: {exc}")
+    assert target.is_symlink() and not target.exists()
+
+    with pytest.raises(FileExistsError, match="redirecting final component"):
+        publish_live_security_run(
+            root,
+            manifest,
+            result,
+            paired_evidence="safe",
+            commands="safe",
+            test_output="safe",
+            forbidden_texts=_forbidden_texts(bundle),
+        )
+
+    assert target.is_symlink()
+    assert not referent.exists()
+
+
+def test_publish_live_rejects_mocked_redirecting_final_target_without_following_it(
+    tmp_path: Path,
+    writer_v2_inputs,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+    root = tmp_path / "runs"
+    root.mkdir()
+    target = root / manifest.run_id
+    root_stat = root.lstat()
+    real_lstat = Path.lstat
+
+    def mark_missing_target(path: Path):
+        if path == target:
+            return with_reparse_point_attribute(root_stat)
+        return real_lstat(path)
+
+    monkeypatch.setattr(Path, "lstat", mark_missing_target)
+
+    with pytest.raises(FileExistsError, match="redirecting final component"):
+        publish_live_security_run(
+            root,
+            manifest,
+            result,
+            paired_evidence="safe",
+            commands="safe",
+            test_output="safe",
+            forbidden_texts=_forbidden_texts(bundle),
+        )
+
+    assert not target.exists()
+    assert not tuple(root.glob(".*.staging-*"))
+
+
+def test_publish_live_allows_redirected_ancestor_above_declared_root(
+    tmp_path: Path,
+    writer_v2_inputs,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+    referent = tmp_path / "ancestor-referent"
+    referent.mkdir()
+    alias = tmp_path / "ancestor-alias"
+
+    with directory_redirect(alias, referent):
+        target = publish_live_security_run(
+            alias / "runs",
+            manifest,
+            result,
+            paired_evidence="safe",
+            commands="safe",
+            test_output="safe",
+            forbidden_texts=_forbidden_texts(bundle),
+        )
+        assert target == (referent / "runs" / manifest.run_id).resolve()
+        assert (target / "manifest.json").is_file()
+
+    assert (referent / "runs" / manifest.run_id / "manifest.json").is_file()
+
+
+def test_publish_live_final_handoff_never_replaces_raced_target(
+    tmp_path: Path,
+    writer_v2_inputs,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+    root = tmp_path / "runs"
+    target = root / manifest.run_id
+    real_handoff = exposure_writer._atomic_publish_no_replace
+
+    def race(stage: Path, destination: Path) -> None:
+        destination.mkdir()
+        real_handoff(stage, destination)
+
+    monkeypatch.setattr(
+        live_writer,
+        "_atomic_publish_no_replace",
+        race,
+        raising=False,
+    )
+
+    with pytest.raises(FileExistsError):
+        publish_live_security_run(
+            root,
+            manifest,
+            result,
+            paired_evidence="safe",
+            commands="safe",
+            test_output="safe",
+            forbidden_texts=_forbidden_texts(bundle),
+        )
+
+    assert target.is_dir() and not tuple(target.iterdir())
+    assert not tuple(root.glob(".*.staging-*"))
 
 
 def test_writer_rejects_raw_model_output_or_secret_like_text(

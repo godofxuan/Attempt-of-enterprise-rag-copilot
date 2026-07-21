@@ -338,11 +338,13 @@ source before this migration. The accepted evidence identity is:
 
 ```text
 accepted private run          r2-s3-dev-exposure-20260721-04
+source manifest SHA-256       3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e
 private manifest schema       indirect_injection_exposure_run_manifest_v2
 private manifest SHA-256      4c8cfb6ad826fc1ca9c24afb0157129df661f3cd463aa3448ec161c0608c5f1f
 accepted evaluator SHA-256    d7fe9332953cc44ba3f517bb03d4074b293b821461240d30fc384d67256a4b88
 public manifest schema        indirect_injection_exposure_public_manifest_v2
 public manifest SHA-256       09fda4aa81d15757e8de7cadec32e057a1c01d23a5b646dbcd5c0f9ae9038033
+packaged verifier SHA-256     dbe814605220058c0bf2453ee1cac0450253bd788b64f9979ab1eb77c2413897
 ```
 
 The `r2-s3-dev-exposure-20260721-01` v1 artifact, first v2
@@ -398,9 +400,9 @@ recomputed the unchanged metrics: candidate presence `26/28`, live/replay reach
 search reach `6/26 -> 22/26 -> 26/26`, total reach
 `15/28 -> 28/28 -> 28/28`, and additional scan units/characters
 `0/0 -> 29/3845 -> 33/4200`. Final local gates were focused
-`430 passed / 8 platform skips / 3 known warnings`, full
-`1349 passed / 8 platform skips / 3 known warnings`, compile/pip clean, and
-public audit `453/0`. Push is allowed only after fixed-HEAD reviews and local
+`449 passed / 10 platform skips / 3 known warnings`, full
+`1387 passed / 13 platform skips / 3 known warnings`, compile/pip clean, and
+public audit `454/0`. Push is allowed only after fixed-HEAD reviews and local
 gates pass; actual delivery and CI state are established by Git and GitHub
 Actions.
 
