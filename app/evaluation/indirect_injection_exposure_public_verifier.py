@@ -830,7 +830,7 @@ def verify_exposure_public_package(
         source_run_id=manifest["source_private_run_id"],
         source_manifest_sha256=manifest["source_private_manifest_sha256"],
         decision=manifest["decision"],
-        case_count=manifest["attack_case_count"],
+        case_count=manifest["case_count"],
         row_count=manifest["row_count"],
     )
 

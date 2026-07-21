@@ -349,6 +349,8 @@ def test_trusted_verifier_accepts_tracked_v1_package() -> None:
 
     assert result.verified is True
     assert result.source_run_id == "r2-s3-dev-exposure-20260721-01"
+    assert result.case_count == 36
+    assert result.row_count == 28
 
 
 def test_protocol_uses_byte_binding_and_trusted_manifest_language() -> None:
@@ -639,7 +641,30 @@ def test_copied_verifier_runs_without_project_imports(
         text=True,
     )
     assert completed.returncode == 0, completed.stderr
-    assert "VERIFIED" in completed.stdout
+    output = json.loads(completed.stdout)
+    assert output["status"] == "VERIFIED"
+    assert output["row_count"] == 28
+    result_probe = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-c",
+            (
+                "import json,runpy;from pathlib import Path;"
+                "ns=runpy.run_path('verify.py');"
+                "result=ns['verify_exposure_public_package'](Path('.'));"
+                "print(json.dumps({'case_count':result.case_count,"
+                "'row_count':result.row_count},sort_keys=True))"
+            ),
+        ],
+        cwd=isolated,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result_probe.returncode == 0, result_probe.stderr
+    result_output = json.loads(result_probe.stdout)
+    assert result_output == {"case_count": 36, "row_count": 28}
     readme = (isolated / "README.md").read_text(encoding="utf-8")
     assert "does not prove that derivation" in readme
     assert "Compare `verify.py` bytes with an independently trusted copy" in readme

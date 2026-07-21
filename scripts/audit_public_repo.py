@@ -19,7 +19,10 @@ from app.evaluation.public_snapshot import PublicDemoSnapshot
 
 MAX_PUBLIC_FILE_BYTES = 2 * 1024 * 1024
 _PUBLIC_SNAPSHOT_PATH = "data/v2/public/demo_snapshot.json"
-_PUBLIC_D7_EVIDENCE_PREFIX = "data/v2/public/r2_s1_d7/"
+_SENSITIVE_PUBLIC_EVIDENCE_PREFIXES = (
+    "data/v2/public/r2_s1_d7/",
+    "data/v2/public/r2_s3_exposure/",
+)
 _PUBLIC_PNG_DIMENSIONS = {
     "docs/assets/ask.png": (1440, 1000),
     "docs/assets/trace.png": (1440, 1000),
@@ -349,7 +352,9 @@ def _audit_one(
                 )
             )
 
-    is_public_d7_evidence = relative.startswith(_PUBLIC_D7_EVIDENCE_PREFIX)
+    is_sensitive_public_evidence = relative.startswith(
+        _SENSITIVE_PUBLIC_EVIDENCE_PREFIXES
+    )
     is_seeded_test_fixture = relative.startswith("tests/")
     requires_portable_paths = not is_seeded_test_fixture
     if requires_portable_paths and text is not None:
@@ -364,7 +369,7 @@ def _audit_one(
                 )
             )
     generic_credential_surface = (
-        not is_public_d7_evidence
+        not is_sensitive_public_evidence
         and not is_seeded_test_fixture
         and not relative.startswith(("docs/", ".superpowers/"))
     ) or relative in _PUBLIC_TEXT_SURFACES
@@ -380,9 +385,9 @@ def _audit_one(
                 detail="literal credential-like assignment detected",
             )
         )
-    if is_public_d7_evidence and text is not None:
+    if is_sensitive_public_evidence and text is not None:
         findings.extend(
-            _public_d7_sensitive_findings(
+            _public_sensitive_evidence_findings(
                 relative,
                 text,
                 frozen_security_values=frozen_security_values,
@@ -571,7 +576,7 @@ def _local_identity_values() -> tuple[str, ...]:
     return tuple(sorted(values))
 
 
-def _public_d7_sensitive_findings(
+def _public_sensitive_evidence_findings(
     relative: str,
     text: str,
     *,
@@ -584,17 +589,18 @@ def _public_d7_sensitive_findings(
         (
             "credential_assignment",
             _CREDENTIAL_ASSIGNMENT_PATTERN.search(text) is not None,
-            "credential-like assignment detected in public D7 evidence",
+            "credential-like assignment detected in sensitive public evidence",
         ),
         (
             "environment_reference",
             _ENVIRONMENT_REFERENCE_PATTERN.search(text) is not None,
-            "machine environment or proxy variable detected in public D7 evidence",
+            "machine environment or proxy variable detected in sensitive "
+            "public evidence",
         ),
         (
             "private_runtime_reference",
             _PRIVATE_RUNTIME_REFERENCE_PATTERN.search(text) is not None,
-            "private runtime path detected in public D7 evidence",
+            "private runtime path detected in sensitive public evidence",
         ),
         (
             "system_prompt_fragment",
@@ -602,7 +608,7 @@ def _public_d7_sensitive_findings(
                 unicodedata.normalize("NFKC", value).casefold() in normalized
                 for value in _SYSTEM_PROMPT_FRAGMENTS
             ),
-            "system-prompt fragment detected in public D7 evidence",
+            "system-prompt fragment detected in sensitive public evidence",
         ),
         (
             "frozen_security_content",
@@ -610,7 +616,8 @@ def _public_d7_sensitive_findings(
                 unicodedata.normalize("NFKC", value).casefold() in normalized
                 for value in frozen_security_values
             ),
-            "frozen question, canary, or fixture content detected in public D7 evidence",
+            "frozen question, canary, or fixture content detected in sensitive "
+            "public evidence",
         ),
         (
             "local_identity",
@@ -622,7 +629,7 @@ def _public_d7_sensitive_findings(
                 is not None
                 for value in local_identity_values
             ),
-            "local user identity detected in public D7 evidence",
+            "local user identity detected in sensitive public evidence",
         ),
     )
     for code, matched, detail in checks:

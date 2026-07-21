@@ -482,6 +482,90 @@ def test_audit_rejects_exposure_private_runtime_reference(
     ) in {(item.code, item.path) for item in report.findings}
 
 
+def test_audit_scans_r2_s3_for_private_runtime_reference(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    relative = "data/v2/public/r2_s3_exposure/summary.json"
+    payload = tmp_path / Path(relative)
+    payload.parent.mkdir(parents=True)
+    payload.write_text(
+        "source: exposure_runs/private/manifest.json\n",
+        encoding="utf-8",
+    )
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+
+    assert ("private_runtime_reference", relative) in {
+        (item.code, item.path) for item in report.findings
+    }
+
+
+def test_audit_scans_r2_s3_for_frozen_source_value(tmp_path: Path) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    dataset = (
+        tmp_path / "data" / "v2" / "security" / "indirect_injection_test_v1.json"
+    )
+    dataset.parent.mkdir(parents=True)
+    dataset.write_text(
+        '{"cases":[{"question":"FROZEN_R2_S3_SOURCE_VALUE"}]}',
+        encoding="utf-8",
+    )
+    relative = "data/v2/public/r2_s3_exposure/summary.json"
+    payload = tmp_path / Path(relative)
+    payload.parent.mkdir(parents=True)
+    payload.write_text("FROZEN_R2_S3_SOURCE_VALUE\n", encoding="utf-8")
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+
+    assert ("frozen_security_content", relative) in {
+        (item.code, item.path) for item in report.findings
+    }
+
+
+def test_audit_scans_r2_s3_for_system_prompt_fragment(tmp_path: Path) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    relative = "data/v2/public/r2_s3_exposure/README.md"
+    payload = tmp_path / Path(relative)
+    payload.parent.mkdir(parents=True)
+    payload.write_text(
+        "You are a grounded enterprise knowledge-base answer generator operating "
+        "under public evidence.\n",
+        encoding="utf-8",
+    )
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+
+    assert ("system_prompt_fragment", relative) in {
+        (item.code, item.path) for item in report.findings
+    }
+
+
+def test_audit_scans_r2_s3_for_environment_and_local_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    relative = "data/v2/public/r2_s3_exposure/README.md"
+    payload = tmp_path / Path(relative)
+    payload.parent.mkdir(parents=True)
+    payload.write_text(
+        "HTTP_PROXY=http://proxy.invalid\nlocal owner slice4b-owner\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("USERNAME", "slice4b-owner")
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+    findings = {(item.code, item.path) for item in report.findings}
+
+    assert ("environment_reference", relative) in findings
+    assert ("local_identity", relative) in findings
+
+
 def test_audit_allows_public_exposure_package_path(tmp_path: Path) -> None:
     from scripts.audit_public_repo import audit_repository
 
@@ -501,7 +585,7 @@ def test_audit_allows_public_exposure_package_path(tmp_path: Path) -> None:
         candidate_files=["data/v2/public/r2_s3_exposure/summary.json"],
     )
 
-    assert not any(item.code == "forbidden_path" for item in report.findings)
+    assert report.passed is True
 
 
 def test_private_e6_materials_are_ignored_and_candidate_free() -> None:
