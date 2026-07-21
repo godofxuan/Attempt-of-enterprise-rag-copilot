@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.evaluation import indirect_injection_live_writer as live_writer
+from app.evaluation.indirect_injection_cross_model import load_cross_model_plan
 from app.evaluation.indirect_injection_dataset import build_v1_bundle
 from app.evaluation.indirect_injection_live_writer import (
     LiveIndexReference,
@@ -24,6 +25,16 @@ from tests.evaluation.test_indirect_injection_live_runner import (
     _StructuredFixtureChat,
     _embedding,
 )
+
+
+PLAN_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "data"
+    / "v2"
+    / "evaluation"
+    / "r2_s4_cross_model_matrix_v1.json"
+)
+PLAN, PLAN_SHA256 = load_cross_model_plan(PLAN_PATH)
 
 
 def _bundle_root(tmp_path: Path) -> Path:
@@ -49,6 +60,44 @@ def _identity(name: str, digest: str, capability: str) -> OllamaModelIdentity:
         context_length=8_192 if capability == "embedding" else 32_768,
         embedding_length=1_024 if capability == "embedding" else 2_048,
         capabilities=(capability,),
+    )
+
+
+def _cross_model_binding(
+    *,
+    role: str = "replication",
+    plan_sha256: str = PLAN_SHA256,
+) -> live_writer.CrossModelExperimentBinding:
+    return live_writer.CrossModelExperimentBinding(
+        plan_id="r2-s4-cross-model-dev-v1",
+        plan_sha256=plan_sha256,
+        model_role=role,
+        only_changed_variable="chat_model_identity",
+    )
+
+
+def _planned_runtime() -> eval_indirect_injection_live.OllamaRuntimeSnapshot:
+    model = PLAN.model_for_role("replication")
+    embedding = _identity(
+        PLAN.embedding.requested_name,
+        PLAN.embedding.digest,
+        "embedding",
+    ).model_copy(update={"resolved_name": PLAN.embedding.resolved_name})
+    chat = _identity(
+        model.requested_name,
+        model.digest,
+        "completion",
+    ).model_copy(
+        update={
+            "resolved_name": model.resolved_name,
+            "family": model.family,
+            "parameter_size": model.parameter_size,
+        }
+    )
+    return eval_indirect_injection_live.OllamaRuntimeSnapshot(
+        version="0.32.1",
+        embedding=embedding,
+        chat=chat,
     )
 
 
@@ -118,9 +167,25 @@ def test_cross_model_request_rejects_test_before_settings_or_external_work(
     assert called == []
 
 
-def test_cross_model_digest_mismatch_aborts_before_smoke_index_or_evaluation(
+@pytest.mark.parametrize(
+    ("identity_name", "field", "value"),
+    (
+        ("chat", "requested_name", "qwen3-alternate:8b"),
+        ("chat", "resolved_name", "qwen3:8b-alternate"),
+        ("chat", "digest", "c" * 64),
+        ("chat", "family", "qwen2"),
+        ("chat", "parameter_size", "8.1B"),
+        ("embedding", "requested_name", "bge-m3-alternate"),
+        ("embedding", "resolved_name", "bge-m3:alternate"),
+        ("embedding", "digest", "d" * 64),
+    ),
+)
+def test_cross_model_runtime_identity_mismatch_aborts_before_index_or_model_work(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    identity_name: str,
+    field: str,
+    value: str,
 ) -> None:
     data_root = _bundle_root(tmp_path)
     args = eval_indirect_injection_live.build_parser().parse_args(
@@ -177,27 +242,31 @@ def test_cross_model_digest_mismatch_aborts_before_smoke_index_or_evaluation(
     monkeypatch.setattr(
         eval_indirect_injection_live,
         "production_active_index_reference",
-        lambda _root: LiveIndexReference(
-            role="production_active_reference",
-            run_id="production-index",
-            active_pointer_sha256="1" * 64,
-            manifest_sha256="2" * 64,
-            corpus_sha256="3" * 64,
-            embedding_model="bge-m3",
-            embedding_dimension=1_024,
-            indexed_chunk_count=100,
+        lambda _root: called.append("production-index"),
+    )
+    runtime = _planned_runtime()
+    runtime = eval_indirect_injection_live.OllamaRuntimeSnapshot(
+        version=runtime.version,
+        embedding=(
+            runtime.embedding.model_copy(update={field: value})
+            if identity_name == "embedding"
+            else runtime.embedding
+        ),
+        chat=(
+            runtime.chat.model_copy(update={field: value})
+            if identity_name == "chat"
+            else runtime.chat
         ),
     )
+
+    def fetch_runtime(*_args, **_kwargs):
+        called.append("runtime")
+        return runtime
+
     monkeypatch.setattr(
         eval_indirect_injection_live,
         "fetch_ollama_runtime",
-        lambda _config, _embedding_model: (
-            eval_indirect_injection_live.OllamaRuntimeSnapshot(
-                version="0.32.1",
-                embedding=_identity("bge-m3", "7" * 64, "embedding"),
-                chat=_identity("qwen3:8b", "8" * 64, "completion"),
-            )
-        ),
+        fetch_runtime,
     )
     for name in (
         "run_model_smoke",
@@ -207,21 +276,85 @@ def test_cross_model_digest_mismatch_aborts_before_smoke_index_or_evaluation(
         monkeypatch.setattr(
             eval_indirect_injection_live,
             name,
-            lambda *args, _name=name, **kwargs: called.append(_name),
+            lambda *args, _name=name, **kwargs: (_ for _ in ()).throw(
+                AssertionError(f"{_name} ran before identity admission")
+            ),
         )
+    model = PLAN.model_for_role("replication")
     request = eval_indirect_injection_live.LiveExecutionRequest(
         args=args,
-        chat_model="qwen3:8b",
-        expected_chat_digest="9" * 64,
-        experiment=live_writer.CrossModelExperimentBinding(
-            plan_id="r2-s4-cross-model-dev-v1",
-            plan_sha256="a" * 64,
-            model_role="replication",
-            only_changed_variable="chat_model_identity",
-        ),
+        chat_model=model.requested_name,
+        expected_chat_digest=model.digest,
+        experiment=_cross_model_binding(),
     )
 
-    with pytest.raises(ValueError, match="chat model digest"):
+    with pytest.raises(ValueError, match="checked-in cross-model plan"):
+        eval_indirect_injection_live.execute_live_security_run(request)
+
+    assert called == ["runtime"]
+
+
+@pytest.mark.parametrize(
+    ("chat_model", "expected_digest", "binding"),
+    (
+        (
+            PLAN.model_for_role("replication").requested_name,
+            PLAN.model_for_role("replication").digest,
+            _cross_model_binding(plan_sha256="b" * 64),
+        ),
+        (
+            PLAN.model_for_role("replication").requested_name,
+            PLAN.model_for_role("replication").digest,
+            _cross_model_binding(role="baseline"),
+        ),
+        (
+            PLAN.model_for_role("replication").requested_name,
+            "c" * 64,
+            _cross_model_binding(),
+        ),
+        (
+            PLAN.model_for_role("baseline").requested_name,
+            PLAN.model_for_role("replication").digest,
+            _cross_model_binding(),
+        ),
+    ),
+)
+def test_cross_model_request_rejects_valid_plan_contradictions_before_settings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    chat_model: str,
+    expected_digest: str,
+    binding: live_writer.CrossModelExperimentBinding,
+) -> None:
+    data_root = _bundle_root(tmp_path)
+    args = eval_indirect_injection_live.build_parser().parse_args(
+        [
+            "--split",
+            "dev",
+            "--run-id",
+            "r2-s4-cross-model-request-contradiction",
+            "--data-root",
+            str(data_root),
+            "--out-dir",
+            str(tmp_path / "runs"),
+            "--index-root",
+            str(tmp_path / "indexes"),
+        ]
+    )
+    called: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "get_settings",
+        lambda: called.append("settings"),
+    )
+    request = eval_indirect_injection_live.LiveExecutionRequest(
+        args=args,
+        chat_model=chat_model,
+        expected_chat_digest=expected_digest,
+        experiment=binding,
+    )
+
+    with pytest.raises(ValueError, match="checked-in cross-model plan"):
         eval_indirect_injection_live.execute_live_security_run(request)
 
     assert called == []

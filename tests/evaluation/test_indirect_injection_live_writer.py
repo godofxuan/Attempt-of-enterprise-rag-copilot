@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.evaluation import indirect_injection_exposure_writer as exposure_writer
 from app.evaluation import indirect_injection_live_writer as live_writer
+from app.evaluation.indirect_injection_cross_model import load_cross_model_plan
 from app.evaluation.indirect_injection_arm_order import (
     build_counterbalanced_arm_order_plan,
 )
@@ -47,6 +48,14 @@ from tests.evaluation.test_indirect_injection_live_runner import (
 
 
 COMPLETED_TIME = datetime(2026, 7, 18, 1, 3, 4, tzinfo=timezone.utc)
+PLAN_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "data"
+    / "v2"
+    / "evaluation"
+    / "r2_s4_cross_model_matrix_v1.json"
+)
+PLAN, PLAN_SHA256 = load_cross_model_plan(PLAN_PATH)
 
 
 @pytest.fixture(scope="module")
@@ -313,7 +322,7 @@ def _manifest_v3(bundle, built, result):
             "arm_order": result.arm_order,
             "experiment": {
                 "plan_id": "r2-s4-cross-model-dev-v1",
-                "plan_sha256": "a" * 64,
+                "plan_sha256": PLAN_SHA256,
                 "model_role": "replication",
                 "only_changed_variable": "chat_model_identity",
             },
@@ -341,6 +350,17 @@ def _manifest_v3(bundle, built, result):
         "qwen3:8b",
         "replication-chat",
         "completion",
+    ).model_copy(
+        update={
+            "digest": PLAN.model_for_role("replication").digest,
+            "family": PLAN.model_for_role("replication").family,
+            "parameter_size": PLAN.model_for_role("replication").parameter_size,
+        }
+    )
+    payload["models"]["embedding"].update(
+        {
+            "digest": PLAN.embedding.digest,
+        }
     )
     return live_writer.LiveSecurityRunManifestV3.model_validate(payload)
 
@@ -441,6 +461,50 @@ def test_v3_verifier_rejects_invalid_manifest_identity_fields(
     (target / "manifest.json").write_bytes(live_writer._json_bytes(payload))
 
     with pytest.raises(ValidationError):
+        live_writer.verify_live_security_run(target)
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    (
+        (("experiment", "plan_sha256"), "b" * 64),
+        (("experiment", "model_role"), "baseline"),
+        (("models", "chat", "requested_name"), "qwen2.5:3b"),
+        (("models", "chat", "resolved_name"), "qwen3:8b-alternate"),
+        (("models", "chat", "digest"), "c" * 64),
+        (("models", "chat", "family"), "qwen2"),
+        (("models", "chat", "parameter_size"), "8.1B"),
+        (("models", "embedding", "requested_name"), "bge-m3-alternate"),
+        (("models", "embedding", "resolved_name"), "bge-m3:alternate"),
+        (("models", "embedding", "digest"), "d" * 64),
+    ),
+)
+def test_v3_verifier_rejects_valid_identity_contradictions(
+    tmp_path: Path,
+    writer_v3_inputs,
+    path: tuple[str, ...],
+    value: str,
+) -> None:
+    bundle, built, result = writer_v3_inputs
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        _manifest_v3(bundle, built, result),
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+    payload = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
+    cursor = payload
+    for key in path[:-1]:
+        cursor = cursor[key]
+    cursor[path[-1]] = value
+    if path == ("models", "embedding", "requested_name"):
+        payload["retrieval"]["security_fixture_index"]["embedding_model"] = value
+    (target / "manifest.json").write_bytes(live_writer._json_bytes(payload))
+
+    with pytest.raises(ValueError, match="checked-in cross-model plan"):
         live_writer.verify_live_security_run(target)
 
 

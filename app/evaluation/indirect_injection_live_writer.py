@@ -311,6 +311,81 @@ class LiveSecurityRunManifestV3(LiveSecurityRunManifestV2):
     experiment: CrossModelExperimentBinding
 
 
+def validate_v3_cross_model_plan_binding(
+    experiment: CrossModelExperimentBinding,
+    *,
+    requested_chat_model: str | None = None,
+    expected_chat_digest: str | None = None,
+    embedding: OllamaModelIdentity | None = None,
+    chat: OllamaModelIdentity | None = None,
+) -> None:
+    from app.evaluation.indirect_injection_cross_model import (
+        load_cross_model_plan,
+    )
+
+    plan_path = (
+        Path(__file__).resolve().parents[2]
+        / "data"
+        / "v2"
+        / "evaluation"
+        / "r2_s4_cross_model_matrix_v1.json"
+    )
+    plan, plan_sha256 = load_cross_model_plan(plan_path)
+    if (
+        experiment.plan_id != plan.experiment_id
+        or experiment.plan_sha256 != plan_sha256
+        or experiment.only_changed_variable != plan.only_changed_variable
+    ):
+        raise ValueError("V3 binding contradicts the checked-in cross-model plan")
+    planned_chat = plan.model_for_role(experiment.model_role)
+    if (
+        requested_chat_model is not None
+        and requested_chat_model != planned_chat.requested_name
+    ):
+        raise ValueError(
+            "V3 chat request contradicts the checked-in cross-model plan"
+        )
+    if (
+        expected_chat_digest is not None
+        and expected_chat_digest != planned_chat.digest
+    ):
+        raise ValueError(
+            "V3 chat digest contradicts the checked-in cross-model plan"
+        )
+    if (embedding is None) != (chat is None):
+        raise ValueError("V3 model identities must be validated together")
+    if embedding is None or chat is None:
+        return
+    observed_chat = (
+        chat.requested_name,
+        chat.resolved_name,
+        chat.digest,
+        chat.family,
+        chat.parameter_size,
+    )
+    expected_chat = (
+        planned_chat.requested_name,
+        planned_chat.resolved_name,
+        planned_chat.digest,
+        planned_chat.family,
+        planned_chat.parameter_size,
+    )
+    observed_embedding = (
+        embedding.requested_name,
+        embedding.resolved_name,
+        embedding.digest,
+    )
+    expected_embedding = (
+        plan.embedding.requested_name,
+        plan.embedding.resolved_name,
+        plan.embedding.digest,
+    )
+    if observed_chat != expected_chat or observed_embedding != expected_embedding:
+        raise ValueError(
+            "V3 model identities contradict the checked-in cross-model plan"
+        )
+
+
 def resolve_ollama_model_identity(
     tags_payload: Mapping[str, object],
     requested_name: str,
@@ -900,6 +975,11 @@ def _validate_stage(
     if summary_bytes != _json_bytes(summary):
         raise ValueError("live summary is not canonical JSON")
     if isinstance(manifest, LiveSecurityRunManifestV3):
+        validate_v3_cross_model_plan_binding(
+            manifest.experiment,
+            embedding=manifest.models.embedding,
+            chat=manifest.models.chat,
+        )
         parsed_rows = _validate_v2_per_case_rows(
             stage / "per_case.jsonl",
             manifest,
@@ -1102,5 +1182,6 @@ __all__ = [
     "load_verified_live_security_run_snapshot",
     "publish_live_security_run",
     "resolve_ollama_model_identity",
+    "validate_v3_cross_model_plan_binding",
     "verify_live_security_run",
 ]

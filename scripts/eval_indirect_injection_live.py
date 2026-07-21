@@ -51,6 +51,7 @@ from app.evaluation.indirect_injection_live_writer import (
     OllamaModelIdentity,
     publish_live_security_run,
     resolve_ollama_model_identity,
+    validate_v3_cross_model_plan_binding,
     verify_live_security_run,
 )
 from app.evaluation.indirect_injection_writer import R1HashPair, validate_security_run_id
@@ -316,13 +317,26 @@ def execute_live_security_run(
     started_at = datetime.now(timezone.utc)
     git_provenance = _git_provenance(BASE_DIR)
     installed_dependencies = _installed_dependency_snapshot()
-    production_index = production_active_index_reference(settings.v2_indexes_dir)
-    runtime = fetch_ollama_runtime(config, settings.embedding_model)
-    if runtime.chat.digest != request.expected_chat_digest:
-        raise ValueError(
-            "resolved Ollama chat model digest does not match expected "
-            "chat model digest"
+    if request.experiment is not None:
+        runtime = fetch_ollama_runtime(config, settings.embedding_model)
+        validate_v3_cross_model_plan_binding(
+            request.experiment,
+            embedding=runtime.embedding,
+            chat=runtime.chat,
         )
+        production_index = production_active_index_reference(
+            settings.v2_indexes_dir
+        )
+    else:
+        production_index = production_active_index_reference(
+            settings.v2_indexes_dir
+        )
+        runtime = fetch_ollama_runtime(config, settings.embedding_model)
+        if runtime.chat.digest != request.expected_chat_digest:
+            raise ValueError(
+                "resolved Ollama chat model digest does not match expected "
+                "chat model digest"
+            )
     smoke = run_model_smoke(config, settings.embedding_model, runtime)
 
     security_index_root = (args.index_root.resolve() / args.run_id).resolve()
@@ -420,6 +434,11 @@ def _validate_execution_request(request: LiveExecutionRequest) -> None:
         raise ValueError("canonical argv cannot be empty")
     if request.experiment is not None:
         _repository_file(request.evaluator_path, "evaluator path")
+        validate_v3_cross_model_plan_binding(
+            request.experiment,
+            requested_chat_model=request.chat_model,
+            expected_chat_digest=request.expected_chat_digest,
+        )
 
 
 def _build_manifest(
