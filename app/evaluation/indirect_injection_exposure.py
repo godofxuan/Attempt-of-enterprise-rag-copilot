@@ -1349,7 +1349,12 @@ def load_exposure_inputs(
         raise ExposureEvidenceError("source manifest SHA-256 is unavailable") from exc
     if manifest_sha256 != expected_manifest_sha256:
         raise ExposureEvidenceError("source manifest SHA-256 mismatch")
-    bundle = load_security_bundle(security_data_root, "dev")
+    try:
+        bundle = load_security_bundle(security_data_root, "dev")
+    except (OSError, ValidationError, ValueError) as exc:
+        raise ExposureEvidenceError(
+            "source security bundle loading failed"
+        ) from exc
     if bundle.dataset_sha256 != manifest.data.dataset_sha256:
         raise ExposureEvidenceError("source dataset SHA-256 mismatch")
     if bundle.fixture_manifest_sha256 != manifest.data.fixture_manifest_sha256:
@@ -1358,7 +1363,8 @@ def load_exposure_inputs(
     guard_off_rows, guard_on_rows = _validate_source_arm_rows(
         rows,
         manifest=manifest,
-        dataset_case_ids=tuple(case.case_id for case in bundle.dataset.cases),
+        dataset_cases=bundle.dataset.cases,
+        fixture_cases=bundle.fixture_manifest.cases,
     )
     source = _source_evidence(manifest, manifest_sha256)
     return ExposureInputs(
@@ -1413,8 +1419,10 @@ def _validate_source_arm_rows(
     rows: Sequence[Mapping[str, object]],
     *,
     manifest: LiveSecurityRunManifestV2,
-    dataset_case_ids: tuple[str, ...],
+    dataset_cases: Sequence[IndirectInjectionCase],
+    fixture_cases: Sequence[FixtureCase],
 ) -> tuple[tuple[Mapping[str, object], ...], tuple[Mapping[str, object], ...]]:
+    dataset_case_ids = tuple(case.case_id for case in dataset_cases)
     if (
         len(dataset_case_ids) != 36
         or len(set(dataset_case_ids)) != 36
@@ -1452,6 +1460,11 @@ def _validate_source_arm_rows(
     if off_case_ids != expected_case_ids or on_case_ids != expected_case_ids:
         raise ExposureEvidenceError("source case/arm set is incomplete")
 
+    _validate_source_semantic_join(
+        row_by_identity,
+        dataset_cases=dataset_cases,
+        fixture_cases=fixture_cases,
+    )
     _validate_arm_order(typed_rows, manifest)
     _validate_pair_evidence(row_by_identity, dataset_case_ids)
     _validate_protocol_evidence(row_by_identity.values(), manifest)
@@ -1460,6 +1473,73 @@ def _validate_source_arm_rows(
         tuple(row_by_identity[(case_id, "off")].raw for case_id in dataset_case_ids),
         tuple(row_by_identity[(case_id, "on")].raw for case_id in dataset_case_ids),
     )
+
+
+def _validate_source_semantic_join(
+    rows: Mapping[tuple[str, str], _SourceArmRow],
+    *,
+    dataset_cases: Sequence[IndirectInjectionCase],
+    fixture_cases: Sequence[FixtureCase],
+) -> None:
+    dataset_by_case = {item.case_id: item for item in dataset_cases}
+    fixture_by_case = {item.case_id: item for item in fixture_cases}
+    if (
+        len(dataset_by_case) != 36
+        or len(fixture_by_case) != 36
+        or set(dataset_by_case) != set(fixture_by_case)
+    ):
+        raise ExposureEvidenceError(
+            "source semantic join failed: dataset/fixture case maps are not exact"
+        )
+
+    for case_id, case in dataset_by_case.items():
+        fixture = fixture_by_case[case_id]
+        expected_candidate_ids = {
+            item.chunk_id for item in fixture.candidates
+        }
+        for guard_mode in ("off", "on"):
+            security = rows[(case_id, guard_mode)].security
+            if (
+                security.label != case.label
+                or security.category != case.category
+                or security.variant_id != case.variant_id
+                or security.scenario_tags != case.scenario_tags
+                or security.attack_unit_ids != case.attack_unit_ids
+                or security.benign_unit_ids != case.benign_unit_ids
+            ):
+                raise ExposureEvidenceError(
+                    "source semantic join failed: "
+                    f"Guard {guard_mode.upper()} row contradicts dataset case"
+                )
+            candidate_ids = security.candidate_order
+            if len(candidate_ids) != len(set(candidate_ids)):
+                raise ExposureEvidenceError(
+                    "source semantic join failed: runtime candidate IDs "
+                    "must be duplicate-free"
+                )
+            if (
+                len(candidate_ids) != len(expected_candidate_ids)
+                or set(candidate_ids) != expected_candidate_ids
+            ):
+                raise ExposureEvidenceError(
+                    "source semantic join failed: runtime candidate IDs "
+                    "must exactly match fixture candidates"
+                )
+
+        off = rows[(case_id, "off")].security
+        on = rows[(case_id, "on")].security
+        if (
+            off.label != on.label
+            or off.category != on.category
+            or off.variant_id != on.variant_id
+            or off.scenario_tags != on.scenario_tags
+            or off.attack_unit_ids != on.attack_unit_ids
+            or off.benign_unit_ids != on.benign_unit_ids
+            or off.candidate_order != on.candidate_order
+        ):
+            raise ExposureEvidenceError(
+                "source semantic join failed: paired arm semantics disagree"
+            )
 
 
 def _parse_source_arm_row(row: Mapping[str, object]) -> _SourceArmRow:

@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from app.evaluation import indirect_injection_exposure as exposure
+from app.evaluation import indirect_injection_live_writer as live_writer
 from app.evaluation.indirect_injection_arm_order import (
     build_counterbalanced_arm_order_plan,
 )
@@ -1019,6 +1020,446 @@ def _write_rows(source_run: Path, rows: list[dict[str, object]]) -> None:
             + "\n"
         ).encode("utf-8")
     )
+
+
+def _refresh_self_consistent_v2_source_run(source_run: Path) -> str:
+    manifest_path = source_run / "manifest.json"
+    manifest = LiveSecurityRunManifestV2.model_validate_json(
+        manifest_path.read_bytes()
+    )
+    parsed_rows = live_writer._validate_v2_per_case_rows(
+        source_run / "per_case.jsonl",
+        manifest,
+    )
+    off_security, on_security, off_live, on_live = parsed_rows
+    off_security_summary = live_writer._mode_result(
+        "off", off_security
+    ).summary
+    on_security_summary = live_writer._mode_result("on", on_security).summary
+    gate = live_writer._build_behavior_gate(
+        manifest.split,
+        off_security_summary,
+        on_security_summary,
+    )
+    pair_input_consistent = all(
+        off.input_fingerprint == on.input_fingerprint
+        and off.nonce_fingerprint == on.nonce_fingerprint
+        and off.candidate_order == on.candidate_order
+        and off_observation.pair_input_fingerprint
+        == on_observation.pair_input_fingerprint
+        for off, on, off_observation, on_observation in zip(
+            off_security,
+            on_security,
+            off_live,
+            on_live,
+        )
+    )
+    protocol_complete = bool(
+        pair_input_consistent
+        and all(item.retrieval_completed for item in off_live)
+        and all(item.retrieval_completed for item in on_live)
+        and all(not item.model_error_codes for item in off_live)
+        and all(not item.model_error_codes for item in on_live)
+    )
+    status = (
+        "COMPLETED WITH OBSERVATIONS" if protocol_complete else "FAILED"
+    )
+    observation = manifest.observation.model_copy(
+        update={
+            "status": status,
+            "protocol_complete": protocol_complete,
+            "pair_input_consistent": pair_input_consistent,
+            "deterministic_threshold_diagnostic_passed": gate.passed,
+        }
+    )
+    evaluator = manifest.evaluator.model_copy(
+        update={"exit_code": 0 if protocol_complete else 1}
+    )
+    manifest = LiveSecurityRunManifestV2.model_validate(
+        {
+            **manifest.model_dump(mode="python"),
+            "status": status,
+            "observation": observation,
+            "evaluator": evaluator,
+        }
+    )
+    summary = {
+        "schema_version": "indirect_injection_live_paired_result_v2",
+        "producer": manifest.producer,
+        "run_id": manifest.run_id,
+        "split": manifest.split,
+        "mode": manifest.mode,
+        "status": status,
+        "protocol_complete": protocol_complete,
+        "pair_input_consistent": pair_input_consistent,
+        "embedding": {
+            "request_count": manifest.retrieval.embedding_request_count,
+            "delegate_call_count": (
+                manifest.retrieval.embedding_delegate_call_count
+            ),
+            "cache_hit_count": manifest.retrieval.embedding_cache_hit_count,
+        },
+        "guard_off_security": off_security_summary.model_dump(mode="json"),
+        "guard_on_security": on_security_summary.model_dump(mode="json"),
+        "guard_off_live": live_writer._summarize_live_mode(
+            "off",
+            off_live,
+            off_security,
+        ).model_dump(mode="json"),
+        "guard_on_live": live_writer._summarize_live_mode(
+            "on",
+            on_live,
+            on_security,
+        ).model_dump(mode="json"),
+        "deterministic_threshold_diagnostic": gate.model_dump(mode="json"),
+        "arm_order": {
+            "schema_version": manifest.arm_order.schema_version,
+            "protocol_id": manifest.arm_order.protocol_id,
+            "hash_algorithm": manifest.arm_order.hash_algorithm,
+            "allocation_method": manifest.arm_order.allocation_method,
+            "case_count": manifest.arm_order.case_count,
+            "off_then_on_count": manifest.arm_order.off_then_on_count,
+            "on_then_off_count": manifest.arm_order.on_then_off_count,
+        },
+    }
+    (source_run / "summary.json").write_bytes(live_writer._json_bytes(summary))
+    (source_run / "checksums.sha256").write_bytes(
+        "".join(
+            f"{live_writer._sha256(source_run / name)}  {name}\n"
+            for name in live_writer._CHECKSUM_CONTENT_NAMES
+        ).encode("utf-8")
+    )
+    payload = manifest.model_dump(mode="python")
+    payload["artifacts"] = {
+        name: {
+            "path": name,
+            "bytes": (source_run / name).stat().st_size,
+            "sha256": live_writer._sha256(source_run / name),
+        }
+        for name in sorted(live_writer._ARTIFACT_NAMES)
+    }
+    final_manifest = LiveSecurityRunManifestV2.model_validate(payload)
+    manifest_path.write_bytes(
+        live_writer._json_bytes(final_manifest.model_dump(mode="json"))
+    )
+    assert verify_live_security_run(source_run) == final_manifest
+    return _sha256(manifest_path)
+
+
+def _copy_writer_generated_source_run(
+    tmp_path: Path,
+    source_material: tuple[Path, Path],
+) -> tuple[Path, Path]:
+    source_run, security_data_root = source_material
+    copied_run = tmp_path / SOURCE_RUN_ID
+    shutil.copytree(source_run, copied_run)
+    return copied_run, security_data_root
+
+
+def _case_id_for_semantic_mutation(
+    security_data_root: Path,
+    *,
+    label: str,
+    multiple_candidates: bool = False,
+) -> str:
+    bundle = load_security_bundle(security_data_root, "dev")
+    fixtures = {
+        item.case_id: item for item in bundle.fixture_manifest.cases
+    }
+    return next(
+        case.case_id
+        for case in bundle.dataset.cases
+        if case.label == label
+        and (
+            not multiple_candidates
+            or len(fixtures[case.case_id].candidates) > 1
+        )
+    )
+
+
+def _replace_unit_id(
+    security: dict[str, object],
+    field: str,
+) -> None:
+    unit_ids = list(security[field])
+    original = unit_ids[0]
+    replacement = f"{original}-tampered"
+    unit_ids[0] = replacement
+    outcomes = dict(security["unit_outcomes"])
+    outcomes[replacement] = outcomes.pop(original)
+    security[field] = unit_ids
+    security["unit_outcomes"] = outcomes
+
+
+def _mutate_semantic_field(
+    row: dict[str, object],
+    mutation: str,
+) -> None:
+    security = row["security"]
+    if mutation == "label":
+        security["label"] = (
+            "benign" if security["label"] == "attack" else "attack"
+        )
+    elif mutation == "category":
+        security["category"] = f"{security['category']}_tampered"
+    elif mutation == "variant_id":
+        security["variant_id"] = (security["variant_id"] % 3) + 1
+    elif mutation == "scenario_tags":
+        security["scenario_tags"] = [
+            *security["scenario_tags"],
+            "tampered_scenario",
+        ]
+    elif mutation == "attack_unit_ids":
+        _replace_unit_id(security, "attack_unit_ids")
+    elif mutation == "benign_unit_ids":
+        _replace_unit_id(security, "benign_unit_ids")
+    else:
+        raise AssertionError(f"unknown semantic mutation: {mutation}")
+
+
+@pytest.mark.parametrize("guard_mode", ("off", "on"))
+@pytest.mark.parametrize(
+    ("mutation", "label"),
+    (
+        ("label", "benign"),
+        ("label", "attack"),
+        ("category", "benign"),
+        ("category", "attack"),
+        ("variant_id", "attack"),
+        ("scenario_tags", "attack"),
+        ("attack_unit_ids", "attack"),
+        ("benign_unit_ids", "benign"),
+    ),
+)
+def test_load_exposure_inputs_rejects_each_arm_semantic_tampering(
+    tmp_path: Path,
+    source_material: tuple[Path, Path],
+    guard_mode: str,
+    mutation: str,
+    label: str,
+) -> None:
+    source_run, security_data_root = _copy_writer_generated_source_run(
+        tmp_path,
+        source_material,
+    )
+    case_id = _case_id_for_semantic_mutation(
+        security_data_root,
+        label=label,
+    )
+    rows = _read_rows(source_run)
+    row = next(
+        item
+        for item in rows
+        if item["security"]["case_id"] == case_id
+        and item["security"]["guard_mode"] == guard_mode
+    )
+    _mutate_semantic_field(row, mutation)
+    _write_rows(source_run, rows)
+    expected_hash = _refresh_self_consistent_v2_source_run(source_run)
+
+    with pytest.raises(ExposureEvidenceError, match="source semantic join failed"):
+        load_exposure_inputs(
+            source_run,
+            security_data_root=security_data_root,
+            expected_manifest_sha256=expected_hash,
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("missing", "extra", "duplicate", "unknown"),
+)
+def test_load_exposure_inputs_rejects_coherent_candidate_id_tampering(
+    tmp_path: Path,
+    source_material: tuple[Path, Path],
+    mutation: str,
+) -> None:
+    source_run, security_data_root = _copy_writer_generated_source_run(
+        tmp_path,
+        source_material,
+    )
+    case_id = _case_id_for_semantic_mutation(
+        security_data_root,
+        label="attack",
+        multiple_candidates=True,
+    )
+    rows = _read_rows(source_run)
+    for row in rows:
+        security = row["security"]
+        if security["case_id"] != case_id:
+            continue
+        candidate_order = list(security["candidate_order"])
+        if mutation == "missing":
+            candidate_order.pop()
+        elif mutation == "extra":
+            candidate_order.append(f"{case_id}-extra-candidate")
+        elif mutation == "duplicate":
+            candidate_order[1] = candidate_order[0]
+        else:
+            candidate_order[0] = f"{case_id}-unknown-candidate"
+        security["candidate_order"] = candidate_order
+        row["live"]["retrieval_candidate_count"] = len(candidate_order)
+    _write_rows(source_run, rows)
+    expected_hash = _refresh_self_consistent_v2_source_run(source_run)
+
+    with pytest.raises(ExposureEvidenceError, match="source semantic join failed"):
+        load_exposure_inputs(
+            source_run,
+            security_data_root=security_data_root,
+            expected_manifest_sha256=expected_hash,
+        )
+
+
+def test_load_exposure_inputs_rejects_semantic_arm_disagreement(
+    tmp_path: Path,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root = _copy_writer_generated_source_run(
+        tmp_path,
+        source_material,
+    )
+    rows = _read_rows(source_run)
+    on_row = next(
+        row for row in rows if row["security"]["guard_mode"] == "on"
+    )
+    on_row["security"]["category"] = "arm_disagreement"
+    _write_rows(source_run, rows)
+    expected_hash = _refresh_self_consistent_v2_source_run(source_run)
+
+    with pytest.raises(ExposureEvidenceError, match="source semantic join failed"):
+        load_exposure_inputs(
+            source_run,
+            security_data_root=security_data_root,
+            expected_manifest_sha256=expected_hash,
+        )
+
+
+def test_load_exposure_inputs_joins_all_cases_and_both_arms(
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root = source_material
+    loaded = load_exposure_inputs(
+        source_run,
+        security_data_root=security_data_root,
+        expected_manifest_sha256=_sha256(source_run / "manifest.json"),
+    )
+    dataset = {item.case_id: item for item in loaded.bundle.dataset.cases}
+    fixtures = {
+        item.case_id: item
+        for item in loaded.bundle.fixture_manifest.cases
+    }
+    joined = 0
+    for raw in (*loaded.guard_off_rows, *loaded.guard_on_rows):
+        security = raw["security"]
+        case = dataset[security["case_id"]]
+        fixture = fixtures[case.case_id]
+        assert security["label"] == case.label
+        assert security["category"] == case.category
+        assert security["variant_id"] == case.variant_id
+        assert tuple(security["scenario_tags"]) == case.scenario_tags
+        assert tuple(security["attack_unit_ids"]) == case.attack_unit_ids
+        assert tuple(security["benign_unit_ids"]) == case.benign_unit_ids
+        assert len(security["candidate_order"]) == len(
+            set(security["candidate_order"])
+        )
+        assert set(security["candidate_order"]) == {
+            item.chunk_id for item in fixture.candidates
+        }
+        joined += 1
+    assert joined == 72
+
+
+@pytest.mark.parametrize("mutation", ("missing", "malformed", "misaligned"))
+def test_load_exposure_inputs_normalizes_security_bundle_failures(
+    tmp_path: Path,
+    source_material: tuple[Path, Path],
+    mutation: str,
+) -> None:
+    source_run, security_data_root = source_material
+    bundle_root = tmp_path / "security-data"
+    if mutation != "missing":
+        shutil.copytree(security_data_root, bundle_root)
+    if mutation == "malformed":
+        (bundle_root / "indirect_injection_dev_v1.json").write_bytes(
+            b"not-json\n"
+        )
+    elif mutation == "misaligned":
+        fixture_path = bundle_root / "fixtures_v1" / "dev" / "manifest.json"
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        candidate = fixture["cases"][0]["candidates"][0]
+        field = next(
+            name
+            for name in _CANDIDATE_UNIT_FIELDS
+            if candidate.get(name) is not None
+        )
+        candidate[field] = f"{candidate[field]}-misaligned"
+        fixture_path.write_text(
+            json.dumps(fixture, ensure_ascii=False, indent=2, sort_keys=True)
+            + "\n",
+            encoding="utf-8",
+            newline="",
+        )
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="source security bundle loading failed",
+    ) as caught:
+        load_exposure_inputs(
+            source_run,
+            security_data_root=bundle_root,
+            expected_manifest_sha256=_sha256(source_run / "manifest.json"),
+        )
+    assert isinstance(caught.value.__cause__, (OSError, ValueError))
+
+
+def test_load_exposure_inputs_normalizes_unreadable_security_bundle(
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+) -> None:
+    source_run, security_data_root = source_material
+    dataset_path = (
+        security_data_root / "indirect_injection_dev_v1.json"
+    ).resolve()
+    read_bytes = Path.read_bytes
+
+    def deny_dataset_read(path: Path) -> bytes:
+        if path.resolve() == dataset_path:
+            raise PermissionError("denied")
+        return read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", deny_dataset_read)
+
+    with pytest.raises(
+        ExposureEvidenceError,
+        match="source security bundle loading failed",
+    ) as caught:
+        load_exposure_inputs(
+            source_run,
+            security_data_root=security_data_root,
+            expected_manifest_sha256=_sha256(source_run / "manifest.json"),
+        )
+    assert isinstance(caught.value.__cause__, PermissionError)
+
+
+@pytest.mark.parametrize("exception_type", (RuntimeError, TypeError))
+def test_load_exposure_inputs_does_not_normalize_programmer_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    source_material: tuple[Path, Path],
+    exception_type: type[Exception],
+) -> None:
+    source_run, security_data_root = source_material
+
+    def fail_bundle_load(_root: Path, _split: str) -> None:
+        raise exception_type("programmer defect")
+
+    monkeypatch.setattr(exposure, "load_security_bundle", fail_bundle_load)
+
+    with pytest.raises(exception_type, match="programmer defect"):
+        load_exposure_inputs(
+            source_run,
+            security_data_root=security_data_root,
+            expected_manifest_sha256=_sha256(source_run / "manifest.json"),
+        )
 
 
 def _load_with_manifest(
