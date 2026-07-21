@@ -59,10 +59,26 @@ keeps two evidence types separate:
 
 Replay is not allowed to replace live evidence. The evaluator reconstructs the
 persisted candidate order, uses the production `RetrievedContentAdmission` and
-`RetrievedContentGuard`, binds exact Guard/evaluator hashes, and rejects the
-analysis unless replay reached/quarantined totals equal the live totals for
-every case and globally. Downstream fields retain a `case_` prefix because the
-source cannot support per-unit downstream attribution.
+`RetrievedContentGuard`, binds the exact Guard and source live evaluator hashes,
+and rejects the analysis unless replay reached/quarantined totals equal the live
+totals for every case and globally. Downstream fields retain a `case_` prefix
+because the source cannot support per-unit downstream attribution.
+
+The two evaluator identities are separate provenance boundaries:
+
+```text
+source live evaluator
+  path    app/evaluation/indirect_injection_live_runner.py
+  SHA-256 a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958
+
+accepted exposure evaluator
+  path    app/evaluation/indirect_injection_exposure.py
+  SHA-256 e043f198c669708d1da2acd5afeb1503bd04f2849d0488ea845d120ee1842bfb
+```
+
+The first authenticates the frozen source behavior replayed by R2-S3. The
+second authenticates the evaluator that produced the accepted R2-S3 exposure
+run.
 
 ## 4. Search Depths `1`, `2`, and `4`
 
@@ -146,7 +162,7 @@ Verify the immutable source run:
   security_runs\r2-s2-s1-dev-20260719-01
 ```
 
-The accepted evaluator command was executed exactly once during Task 7 and
+The accepted exposure evaluator command was executed exactly once during Task 7 and
 must not be rerun to recreate the accepted artifact:
 
 ```powershell

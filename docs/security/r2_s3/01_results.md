@@ -18,7 +18,10 @@ adding a broader runtime prefilter.
 | Source dev dataset SHA-256 | `18d042c21e7cbc46f90859c59cbc440566de636009080de763253a8ab7598064` |
 | Source dev fixture SHA-256 | `d53a48b08d823adf3ac0823e5c27506297a4ad0cc727d6f1accc3df6e9009ad4` |
 | Guard ruleset SHA-256 | `78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2` |
-| Exposure evaluator SHA-256 | `a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958` |
+| Source live evaluator path | `app/evaluation/indirect_injection_live_runner.py` |
+| Source live evaluator SHA-256 | `a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958` |
+| Accepted exposure evaluator path | `app/evaluation/indirect_injection_exposure.py` |
+| Accepted exposure evaluator SHA-256 | `e043f198c669708d1da2acd5afeb1503bd04f2849d0488ea845d120ee1842bfb` |
 | Private exposure run | `r2-s3-dev-exposure-20260721-01` |
 | Private exposure manifest SHA-256 | `f7e519beb0c9e054b5de452348d214b2a39a4bec3979302063fdd2475cd6b0d6` |
 | Public package | `data/v2/public/r2_s3_exposure` |

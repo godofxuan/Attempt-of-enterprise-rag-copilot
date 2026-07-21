@@ -1003,7 +1003,7 @@ created_at_utc
 source run ID and manifest SHA-256
 dataset and fixture SHA-256
 Guard ruleset path and SHA-256
-exposure evaluator path and SHA-256
+accepted exposure evaluator path and SHA-256
 counterfactual depths = [1, 2, 4]
 decision
 case/unit counts

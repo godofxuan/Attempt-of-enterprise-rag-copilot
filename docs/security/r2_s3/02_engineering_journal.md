@@ -71,7 +71,9 @@ provenance are valid.
 ### Scan source text with a new static detector
 
 Rejected. R2-S3 had to replay the production admission path and bind the exact
-Guard/evaluator hashes. A parallel scanner would measure different behavior.
+Guard and source live evaluator hashes. The accepted private run separately
+binds the exposure evaluator that produced it. A parallel scanner would measure
+different behavior.
 
 ### Measurement-only deterministic replay
 
@@ -95,6 +97,13 @@ The design therefore created a strict separation:
 - downstream fields remain `case_*` because they cannot identify which unit
   caused a case-level signal.
 
+The provenance identities are also separate: the frozen source live evaluator
+is `app/evaluation/indirect_injection_live_runner.py` at SHA-256
+`a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958`;
+the accepted exposure evaluator is
+`app/evaluation/indirect_injection_exposure.py` at SHA-256
+`e043f198c669708d1da2acd5afeb1503bd04f2849d0488ea845d120ee1842bfb`.
+
 This distinction later prevented a second attribution error in the private
 writer: `failures.csv` originally repeated a case-level exposure once per unit.
 Review changed it to one case-scoped row with no unit attribution.
@@ -113,7 +122,7 @@ wave.
 | Task 2 location mapping | `12 failed`: mapping API was absent. | Added exact fixture-to-runtime location mapping across search metadata and open: `12 passed`. |
 | Task 2 contradictory location state | `16 failed`: invalid operation/surface/rank combinations validated. | Added strict cross-field location invariants: focused `28 passed`, module `55 passed`. |
 | Task 3 deterministic replay | `6 failed`: replay contracts/API were absent. | Reconstructed persisted candidate order and production admission; final replay selection `6 passed`. An intermediate `3 failed, 3 passed` exposed test selectors tied to a private ordering, so tests were changed to assert persisted properties rather than hidden ordering. |
-| Task 3 review hardening | `12 failed, 7 passed`: sanitized-parent selection, state invariants, evaluator binding, open ambiguity, scan accounting, invalid provenance, and duplicate quarantine summaries were not all rejected. | Bound selected evidence to sanitized production outputs, exact evaluator/Guard bytes, scan counts/chars, and one-to-one provenance: `20 passed`. A stronger parent-provenance test separately failed once before the final fixture-binding repair. |
+| Task 3 review hardening | `12 failed, 7 passed`: sanitized-parent selection, state invariants, source live evaluator binding, open ambiguity, scan accounting, invalid provenance, and duplicate quarantine summaries were not all rejected. | Bound selected evidence to sanitized production outputs, exact source live evaluator/Guard bytes, scan counts/chars, and one-to-one provenance: `20 passed`. A stronger parent-provenance test separately failed once before the final fixture-binding repair. |
 | Task 3 open metadata repair | Source replay initially added 17 characters by reconstructing a document open with a section path production does not emit. | Matched `DocumentNavigator` document-open metadata exactly; source audit became `36` cases, `90` scans, `8768` chars, `15` reached, `15` quarantined, `0` selected. |
 | Task 4 benign denominator | `1 failed`: benign quarantine incorrectly used 12 benign cases rather than all 32 benign units. | Derived benign units from admitted source rows: `1 passed`, final metric `0/32`. |
 | Task 4 decision binding | `5 failed`: contradictory decision/summary/finding combinations validated. | Recomputed exact decision precedence at the strict result boundary: `5 passed`. |

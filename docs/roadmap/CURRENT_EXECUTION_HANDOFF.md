@@ -1,6 +1,6 @@
 # Enterprise Agentic RAG v2 - Current Execution Handoff
 
-最后更新：2026-07-19
+最后更新：2026-07-21
 
 用途：当 Codex 上下文压缩、任务中断或更换协作者时，从本文恢复精确状态。本文保存当前断点、验证证据和禁止越过的边界；实现细节以各阶段实施记录为准。
 
@@ -532,8 +532,12 @@ CI。
 source live run                              r2-s2-s1-dev-20260719-01
 source live run state                        UNCHANGED
 source manifest SHA-256                      3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e
+source live evaluator path                   app/evaluation/indirect_injection_live_runner.py
+source live evaluator SHA-256                a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958
 accepted exposure run                        r2-s3-dev-exposure-20260721-01
 private exposure manifest SHA-256            f7e519beb0c9e054b5de452348d214b2a39a4bec3979302063fdd2475cd6b0d6
+accepted exposure evaluator path             app/evaluation/indirect_injection_exposure.py
+accepted exposure evaluator SHA-256          e043f198c669708d1da2acd5afeb1503bd04f2849d0488ea845d120ee1842bfb
 public redacted manifest SHA-256             673966ec1be4ec18d7e9a04e9e37df00b31ed5d9397d6ff40eb3c4c36627a60d
 production Guard / retrieval / Agent         UNCHANGED
 live/replay Guard reach                      15/28 / 15/28
