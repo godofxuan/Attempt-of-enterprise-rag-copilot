@@ -44,7 +44,7 @@
 2. R2-S1 current-candidate review, Git delivery, and remote CI evidence.
 3. Counterbalanced real-model development replication with a new run ID. `COMPLETE WITH OBSERVATIONS`
 4. Independent indirect-injection holdout freeze/verify infrastructure. `IMPLEMENTED`; reviewer package and run `NOT RUN`
-5. Measurement-only exposure ablation for the `13/28` observation. `COMPLETE`; accepted v2 run `r2-s3-dev-exposure-20260721-03`, no production change admitted
+5. Measurement-only exposure ablation for the `13/28` observation. `COMPLETE`; accepted v2 run `r2-s3-dev-exposure-20260721-04`, no production change admitted
 6. Independent package authoring, one-shot holdout execution, blind human review, semantic judge calibration, and cross-model replication. `NOT RUN`
 
 没有完成独立验证、可信身份和部署门禁，不应把本地 demo 包装成多租户服务。

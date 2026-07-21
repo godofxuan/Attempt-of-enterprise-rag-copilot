@@ -106,8 +106,9 @@ The original `-01` exposure evaluator was
 the first final-review fix wave produced the superseded `-02` evaluator at
 `86d87d018948f1276a8c9ce3f7105fb7cd90f7ce78bc98aeae1e79bba6699b33`.
 The fixed-HEAD re-review then added source-bound publication and exact source-row
-snapshot checks. The current accepted `-03` evaluator SHA-256 is
-`24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce`.
+snapshot checks. The current accepted `-04` evaluator SHA-256 is
+`d7fe9332953cc44ba3f517bb03d4074b293b821461240d30fc384d67256a4b88`;
+the preceding `-03` evaluator is superseded immutable history.
 
 This distinction later prevented a second attribution error in the private
 writer: `failures.csv` originally repeated a case-level exposure once per unit.
@@ -332,21 +333,23 @@ delivery authority, and operator documentation. Each behavior repair was driven
 by a recorded RED test before production edits. Private/public verifiers retain
 v1 compatibility, while new producers emit explicit v2 manifests.
 
-The fixed evaluator was then executed exactly once against the unchanged source.
-The accepted evidence identity is:
+The current accepted evaluator was executed exactly once against the unchanged
+source before this migration. The accepted evidence identity is:
 
 ```text
-accepted private run          r2-s3-dev-exposure-20260721-03
+accepted private run          r2-s3-dev-exposure-20260721-04
 private manifest schema       indirect_injection_exposure_run_manifest_v2
-private manifest SHA-256      7156b24ee27c929397effb64715e20e473e091533f1123502811f3edabe2b69e
-accepted evaluator SHA-256    24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce
+private manifest SHA-256      4c8cfb6ad826fc1ca9c24afb0157129df661f3cd463aa3448ec161c0608c5f1f
+accepted evaluator SHA-256    d7fe9332953cc44ba3f517bb03d4074b293b821461240d30fc384d67256a4b88
 public manifest schema        indirect_injection_exposure_public_manifest_v2
-public manifest SHA-256       cfa626388a2ec37f0b8b68c6a922c2769e41a5fb9f728e9a780f317a3a2eab53
+public manifest SHA-256       09fda4aa81d15757e8de7cadec32e057a1c01d23a5b646dbcd5c0f9ae9038033
 ```
 
-The `r2-s3-dev-exposure-20260721-01` v1 artifact and first v2
-`r2-s3-dev-exposure-20260721-02` artifact are superseded local history. Neither
-was changed or rerun, and both remain independently verifiable.
+The `r2-s3-dev-exposure-20260721-01` v1 artifact, first v2
+`r2-s3-dev-exposure-20260721-02` artifact, and superseded `-03` artifact are
+superseded local history. None was changed or rerun, and all remain independently
+verifiable. The `-03` and `-04` private `summary.json` and `per_unit.jsonl`
+files are byte-identical.
 
 ### Fixed-HEAD source-binding follow-up
 
@@ -372,7 +375,7 @@ private, absent from `__all__`, and referenced only by synthetic test fixtures.
 The change was committed as `33104e1f99fbb67d3a63dabf1c5808611b4d1cdb`.
 At that exact commit, before the one-time evaluator invocation, gates were
 `1316 passed / 5 skipped`, compile clean, `pip check` clean, and public audit
-`451/0`. The `-03` evaluator was then invoked
+`451/0`. The now-superseded `-03` evaluator was then invoked
 exactly once. Private verification passed, and its `summary.json` and
 `per_unit.jsonl` hashes remained exactly
 `115d9f1e973c1341e4059d4c4bd28615e31a76104922e10ab877dbfbf5d2e50c` and
@@ -395,9 +398,11 @@ recomputed the unchanged metrics: candidate presence `26/28`, live/replay reach
 search reach `6/26 -> 22/26 -> 26/26`, total reach
 `15/28 -> 28/28 -> 28/28`, and additional scan units/characters
 `0/0 -> 29/3845 -> 33/4200`. Final local gates were focused
-`376 passed / 5 skipped`, full `1316 passed / 5 skipped`, compile/pip clean,
-and public audit `451/0`. Push remains prohibited/deferred until whole-branch
-synthesis approves the fixed exact HEAD; that re-review is controller-owned.
+`433 passed / 5 platform skips / 3 known warnings`, full
+`1349 passed / 8 platform skips / 3 known warnings`, compile/pip clean, and
+public audit `453/0`. Push is allowed only after fixed-HEAD reviews and local
+gates pass; actual delivery and CI state are established by Git and GitHub
+Actions.
 
 ## Static Path Re-review Trust Boundary
 

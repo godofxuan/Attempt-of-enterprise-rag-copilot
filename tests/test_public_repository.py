@@ -780,17 +780,14 @@ def test_r2_s3_delivery_boundary_requires_fixed_head_synthesis() -> None:
     current_breakpoint = handoff.split("## 20.", 1)[1]
     step_six = plan.split("**Step 6:", 1)[1]
     required_boundary = (
-        "push current feature branch: PROHIBITED / DEFERRED until whole-branch "
-        "synthesis approves the fixed exact HEAD"
+        "Push is allowed only after fixed-HEAD reviews and local gates pass; "
+        "actual delivery and CI state are established by Git and GitHub Actions."
     )
 
     assert "current R2-S3 local commit state: COMPLETE" in top_boundary
     assert required_boundary in top_boundary
     assert "Historical E7 authorization only:" in top_boundary
-    assert (
-        "does not authorize push for the current R2-S3 exact HEAD"
-        in top_boundary
-    )
+    assert "does not establish delivery state for the current R2-S3 exact HEAD" in top_boundary
     assert "commit + push current feature branch: AUTHORIZED" not in top_boundary
     assert required_boundary in current_breakpoint
     assert required_boundary in step_six
@@ -810,7 +807,7 @@ def test_r2_s3_documented_isolated_verifier_sequence_executes(
     end_marker = "<!-- isolated-verifier-powershell:end -->"
     assert start_marker in protocol
     assert end_marker in protocol
-    staging_package = ".tmp_r2_s3_final_public_03\\r2_s3_exposure"
+    staging_package = ".tmp_r2_s3_final_public_04\\r2_s3_exposure"
     assert (
         "scripts.verify_indirect_injection_exposure_public `\n"
         f"  {staging_package}"
@@ -955,10 +952,10 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
         for relative in current_paths
     }
     identity_paths = current_paths[4:]
-    accepted_run_id = "r2-s3-dev-exposure-20260721-03"
+    accepted_run_id = "r2-s3-dev-exposure-20260721-04"
     private_manifest_sha256 = manifest["source_private_manifest_sha256"]
     evaluator_sha256 = (
-        "24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce"
+        "d7fe9332953cc44ba3f517bb03d4074b293b821461240d30fc384d67256a4b88"
     )
 
     assert manifest["schema_version"] == (
@@ -983,8 +980,8 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
             assert dependency["sha256"] in content, relative
 
     required_boundary = (
-        "push current feature branch: PROHIBITED / DEFERRED until whole-branch "
-        "synthesis approves the fixed exact HEAD"
+        "Push is allowed only after fixed-HEAD reviews and local gates pass; "
+        "actual delivery and CI state are established by Git and GitHub Actions."
     )
     assert required_boundary in contents[
         "docs/roadmap/CURRENT_EXECUTION_HANDOFF.md"

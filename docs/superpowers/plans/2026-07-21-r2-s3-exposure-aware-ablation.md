@@ -45,7 +45,7 @@
 
 ### Generated and documentation files
 
-- `exposure_runs/r2-s3-dev-exposure-20260721-03/`: ignored private accepted v2 run.
+- `exposure_runs/r2-s3-dev-exposure-20260721-04/`: ignored private accepted v2 run.
 - `exposure_runs/r2-s3-dev-exposure-20260721-01/` and
   `exposure_runs/r2-s3-dev-exposure-20260721-02/`: superseded local history;
   preserved unchanged and still verifiable.
@@ -62,12 +62,12 @@ must not be rerun. Final-review fixes changed replay-critical bytes and required
 one new immutable identity from the unchanged S2-1 source:
 
 ```text
-accepted private run          r2-s3-dev-exposure-20260721-03
+accepted private run          r2-s3-dev-exposure-20260721-04
 private manifest schema       indirect_injection_exposure_run_manifest_v2
-private manifest SHA-256      7156b24ee27c929397effb64715e20e473e091533f1123502811f3edabe2b69e
-accepted evaluator SHA-256    24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce
+private manifest SHA-256      4c8cfb6ad826fc1ca9c24afb0157129df661f3cd463aa3448ec161c0608c5f1f
+accepted evaluator SHA-256    d7fe9332953cc44ba3f517bb03d4074b293b821461240d30fc384d67256a4b88
 public manifest schema        indirect_injection_exposure_public_manifest_v2
-public manifest SHA-256       cfa626388a2ec37f0b8b68c6a922c2769e41a5fb9f728e9a780f317a3a2eab53
+public manifest SHA-256       09fda4aa81d15757e8de7cadec32e057a1c01d23a5b646dbcd5c0f9ae9038033
 ```
 
 Both v2 manifests bind the replay implementation dependencies exactly:
@@ -83,16 +83,18 @@ The fixed-HEAD re-review added a second publication authority layer after the
 first v2 run: the supported writer reloads the manifest-pinned source, reruns
 the deterministic analysis, and compares the complete typed result before
 writing. It also verifies the exact bytes consumed from `per_case.jsonl`
-against source artifact byte/hash evidence. These evaluator-byte changes made
-`-02` historical and required the one-time `-03` identity above; frozen summary
-and private per-unit hashes remained unchanged.
+against source artifact byte/hash evidence. The later `-04` identity supersedes
+the immutable `-03` history; their private summary and per-unit bytes remain
+unchanged.
 
-The accepted `-03` run preserves every frozen admission metric and decision.
-Runs `r2-s3-dev-exposure-20260721-01` and `-02` are superseded local history,
-not the source of the tracked public package. Final local gates are focused
-`376 passed / 5 skipped`, full `1316 passed / 5 skipped`, compile/pip clean,
-and public audit `451/0`. Step 6 remains open: push is prohibited pending a new
-whole-branch synthesis of that exact HEAD.
+The accepted `-04` run preserves every frozen admission metric and decision.
+Runs `r2-s3-dev-exposure-20260721-01`, `-02`, and superseded `-03` are
+superseded local history, not the source of the tracked public package. Final local gates
+are focused `433 passed / 5 platform skips / 3 known warnings`, full
+`1349 passed / 8 platform skips / 3 known warnings`, compile/pip clean, and
+public audit `453/0`. Push is allowed only after fixed-HEAD reviews and local
+gates pass; actual delivery and CI state are established by Git and GitHub
+Actions.
 
 ---
 
@@ -1627,7 +1629,7 @@ Do not call `NO_CURRENT_BYPASS_OBSERVED` a release pass or universal prompt-inje
 .\.venv\Scripts\python.exe -m pip check
 .\.venv\Scripts\python.exe -m scripts.audit_public_repo
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_live_run security_runs\r2-s2-s1-dev-20260719-01
-.\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure exposure_runs\r2-s3-dev-exposure-20260721-03
+.\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure exposure_runs\r2-s3-dev-exposure-20260721-04
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_exposure_public data\v2\public\r2_s3_exposure
 git diff --check
 ```
@@ -1643,9 +1645,9 @@ git diff --cached --name-status
 git commit -m "docs: record R2-S3 exposure ablation"
 ```
 
-- [ ] **Step 6: Push and verify exact final HEAD**
+- [ ] **Step 6: Deliver and verify exact final HEAD**
 
-push current feature branch: PROHIBITED / DEFERRED until whole-branch synthesis approves the fixed exact HEAD.
+Push is allowed only after fixed-HEAD reviews and local gates pass; actual delivery and CI state are established by Git and GitHub Actions.
 This remains outside the Task 8 implementer and fix-wave commits.
 
 ```powershell

@@ -37,6 +37,7 @@ load_runs/
 security_runs/
 exposure_runs/
 holdout_submissions/
+.tmp_r2_s3_final_public_04/
 
 # Logs and OS/editor files
 *.log

@@ -21,22 +21,22 @@ adding a broader runtime prefilter.
 | Source live evaluator path | `app/evaluation/indirect_injection_live_runner.py` |
 | Source live evaluator SHA-256 | `a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958` |
 | Accepted exposure evaluator path | `app/evaluation/indirect_injection_exposure.py` |
-| Accepted exposure evaluator SHA-256 | `24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce` |
-| Private exposure run | `r2-s3-dev-exposure-20260721-03` |
+| Accepted exposure evaluator SHA-256 | `d7fe9332953cc44ba3f517bb03d4074b293b821461240d30fc384d67256a4b88` |
+| Private exposure run | `r2-s3-dev-exposure-20260721-04` |
 | Private manifest schema | `indirect_injection_exposure_run_manifest_v2` |
 | Private summary schema | `indirect_injection_exposure_summary_v2` |
-| Private exposure manifest SHA-256 | `7156b24ee27c929397effb64715e20e473e091533f1123502811f3edabe2b69e` |
+| Private exposure manifest SHA-256 | `4c8cfb6ad826fc1ca9c24afb0157129df661f3cd463aa3448ec161c0608c5f1f` |
 | Private summary SHA-256 | `115d9f1e973c1341e4059d4c4bd28615e31a76104922e10ab877dbfbf5d2e50c` |
 | Unit evidence SHA-256 | `d747d895c26450dd53c9a61623f3ba9572eaf25d0e292775b2f5ea3eedd0bb98` |
 | Verification-input witness SHA-256 | `e1910a458b3541abc47d515cf46a3b5ab6daa614e971e2f701097ebdce67befc` |
 | Public package | `data/v2/public/r2_s3_exposure` |
 | Public manifest schema | `indirect_injection_exposure_public_manifest_v2` |
-| Public redacted manifest SHA-256 | `cfa626388a2ec37f0b8b68c6a922c2769e41a5fb9f728e9a780f317a3a2eab53` |
-| Public checksums file SHA-256 | `0a58f958efc267353dd8509cc14a599e46c02573f50ce9b276bd0e59976b2832` |
-| Public verifier SHA-256 | `f2fce72a6f18d0a66c194cb7819298721a62ad6a3f34c523e7ab3142ec747732` |
+| Public redacted manifest SHA-256 | `09fda4aa81d15757e8de7cadec32e057a1c01d23a5b646dbcd5c0f9ae9038033` |
+| Public checksums file SHA-256 | `e082a61d0de31752b06ac46260671b151d1f639e11f7dfdb7c40426f5169a8e0` |
+| Public verifier SHA-256 | `dbe814605220058c0bf2453ee1cac0450253bd788b64f9979ab1eb77c2413897` |
 | Metric definitions SHA-256 | `c5e79e23bbbfca0542bbadfa1e4a371fbb61d7f89e2e67e056b571acee63ecf3` |
 | Public summary SHA-256 | `91a8403d71acec82eecbe0fc2b8f2316d6a658b972e7da2a57235a863eeb8ea2` |
-| Public per-unit JSONL SHA-256 | `93d62a64c53e4b93054ebbac2f9d82d7094d766577572575c3df9c3c24ab6ea1` |
+| Public per-unit JSONL SHA-256 | `09597aa0bf6f5d96726ec2310fb6eada3bccf0bdcb0b91dae2553882a22b4fd3` |
 
 The source run has 36 cases and 72 arm events, allocated OFF-to-ON `18` and
 ON-to-OFF `18`. The public package has exactly eight files and 28 content-free
@@ -51,9 +51,10 @@ The v2 manifests carry the complete replay dependency byte bindings:
 | Search-surface constructor | `app/evaluation/indirect_injection_runner.py` | `c2c5c5e1815d8a77beebb5027384ea58dd3e73b8536533c8d7898d40668ed36c` |
 | Source live evaluator | `app/evaluation/indirect_injection_live_runner.py` | `a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958` |
 
-The original `r2-s3-dev-exposure-20260721-01` v1 run is superseded local history.
-It remains ignored and independently verifiable; it is not the source
-of the accepted tracked package.
+The original `r2-s3-dev-exposure-20260721-01` v1 run, `-02`, and `-03` are
+superseded local history. They remain ignored and independently verifiable;
+none is the source of the accepted tracked package. The `-03` and `-04` private
+`summary.json` and `per_unit.jsonl` files are byte-identical.
 
 ## 2. Aggregate Results
 
@@ -189,11 +190,11 @@ replication remain `NOT RUN`.
 Fresh local verification on 2026-07-21 produced:
 
 ```text
-focused R2-S3/public tests    376 passed / 5 platform skips / 3 known warnings
-full repository pytest       1316 passed / 5 platform skips / 3 known warnings
+focused R2-S3/public tests    433 passed / 5 platform skips / 3 known warnings
+full repository pytest       1349 passed / 8 platform skips / 3 known warnings
 compileall                    exit 0
 pip check                     no broken requirements
-public repository audit      451 candidates / 0 findings
+public repository audit      453 candidates / 0 findings
 source live verifier          VERIFIED
 private exposure verifier     VERIFIED / NO_CURRENT_BYPASS_OBSERVED
 trusted public verifier       VERIFIED / 28 rows / NO_CURRENT_BYPASS_OBSERVED
@@ -202,7 +203,7 @@ frozen/source/package hashes  exact
 git diff --check              clean
 ```
 
-The warnings are the existing SWIG deprecations. The five skips require Windows
-symlink privileges unavailable in this environment. Push and remote CI were not
-run: push remains prohibited/deferred until whole-branch synthesis approves the
-fixed exact HEAD.
+The warnings are the existing SWIG deprecations. The eight skips require Windows
+symlink privileges unavailable in this environment. Push is allowed only after
+fixed-HEAD reviews and local gates pass; actual delivery and CI state are
+established by Git and GitHub Actions.

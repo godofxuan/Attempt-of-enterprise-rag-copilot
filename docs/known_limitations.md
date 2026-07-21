@@ -61,7 +61,7 @@ D1 froze the design; D3 built the model-free detector; D4 connected it to the de
 
 R2-S3 deterministically replayed the unchanged S2-1 source admission path and
 published content-free evidence from accepted v2 run
-`r2-s3-dev-exposure-20260721-03`. The private and public manifests use explicit
+`r2-s3-dev-exposure-20260721-04`. The private and public manifests use explicit
 v2 schemas and bind the replay implementation dependencies. Actual and replay
 Guard reach agree at `15/28`;
 conditional quarantine is `15/15`; all 13 unreached units are runtime rank 2;

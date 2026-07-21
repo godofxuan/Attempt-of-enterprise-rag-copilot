@@ -349,14 +349,10 @@ def test_public_v2_manifest_rejects_dependency_substitution(
         verify_exposure_public_package(target)
 
 
-def test_trusted_verifier_rejects_stale_tracked_v2_package() -> None:
-    with pytest.raises(
-        ExposurePublicVerificationError,
-        match="packaged verifier does not match the trusted verifier bytes",
-    ):
-        verify_exposure_public_package(
-            Path("data/v2/public/r2_s3_exposure")
-        )
+def test_trusted_verifier_accepts_current_tracked_v2_package() -> None:
+    assert verify_exposure_public_package(
+        Path("data/v2/public/r2_s3_exposure")
+    ).verified is True
 
 
 def test_public_verifier_reads_each_package_file_once(

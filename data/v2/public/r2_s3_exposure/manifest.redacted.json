@@ -54,8 +54,8 @@
     "run_id": "r2-s2-s1-dev-20260719-01",
     "source_git_head": "073d7356026954c26c1429fb9faddc5e9a5dcb87"
   },
-  "source_private_manifest_sha256": "7156b24ee27c929397effb64715e20e473e091533f1123502811f3edabe2b69e",
-  "source_private_run_id": "r2-s3-dev-exposure-20260721-03",
+  "source_private_manifest_sha256": "4c8cfb6ad826fc1ca9c24afb0157129df661f3cd463aa3448ec161c0608c5f1f",
+  "source_private_run_id": "r2-s3-dev-exposure-20260721-04",
   "unguarded_path_findings": [],
-  "verifier_sha256": "f2fce72a6f18d0a66c194cb7819298721a62ad6a3f34c523e7ab3142ec747732"
+  "verifier_sha256": "dbe814605220058c0bf2453ee1cac0450253bd788b64f9979ab1eb77c2413897"
 }

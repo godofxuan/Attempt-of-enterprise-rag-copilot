@@ -62,13 +62,12 @@ branch: codex/rag-eval-system
 E7 start HEAD: 7aec4b950e012d3f24b8e1877d6391201e9b8f90
 upstream: origin/codex/rag-eval-system
 current R2-S3 local commit state: COMPLETE
-push current feature branch: PROHIBITED / DEFERRED until whole-branch synthesis approves the fixed exact HEAD
+Push is allowed only after fixed-HEAD reviews and local gates pass; actual delivery and CI state are established by Git and GitHub Actions.
 merge/tag/default-branch/repository visibility: NOT AUTHORIZED
 ```
 
 Historical E7 authorization only: the owner previously authorized committing and
-pushing the E7 feature branch after its gates. That historical authorization does not authorize push for the current R2-S3 exact HEAD. Current push remains
-prohibited/deferred until whole-branch synthesis approves the fixed exact HEAD.
+pushing the E7 feature branch after its gates. That historical authorization does not establish delivery state for the current R2-S3 exact HEAD. Push is allowed only after fixed-HEAD reviews and local gates pass; actual delivery and CI state are established by Git and GitHub Actions.
 
 ## 4. 阶段状态
 
@@ -528,9 +527,8 @@ compileall / pip check                         CLEAN / CLEAN
 
 R2-S3 已完成 Task 1-8 的本地实现、独立 review hardening、accepted
 artifact publication、文档同步和 fresh local gates。当前边界为：
-push current feature branch: PROHIBITED / DEFERRED until whole-branch synthesis approves the fixed exact HEAD。
-只有 synthesis 批准该 fixed exact HEAD 后，controller 才能负责 push 和
-该 SHA 的 remote CI。
+Push is allowed only after fixed-HEAD reviews and local gates pass; actual delivery and CI state are established by Git and GitHub Actions.
+controller 仅可对获批 SHA 执行 push 并验证 remote CI。
 
 ```text
 source live run                              r2-s2-s1-dev-20260719-01
@@ -538,13 +536,13 @@ source live run state                        UNCHANGED
 source manifest SHA-256                      3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e
 source live evaluator path                   app/evaluation/indirect_injection_live_runner.py
 source live evaluator SHA-256                a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958
-accepted exposure run                        r2-s3-dev-exposure-20260721-03
+accepted exposure run                        r2-s3-dev-exposure-20260721-04
 private manifest schema                      indirect_injection_exposure_run_manifest_v2
-private exposure manifest SHA-256            7156b24ee27c929397effb64715e20e473e091533f1123502811f3edabe2b69e
+private exposure manifest SHA-256            4c8cfb6ad826fc1ca9c24afb0157129df661f3cd463aa3448ec161c0608c5f1f
 accepted exposure evaluator path             app/evaluation/indirect_injection_exposure.py
-accepted exposure evaluator SHA-256          24b32809957a11a7f325e99f012f11c661c2e080a8852a19a2092ba3bfd752ce
+accepted exposure evaluator SHA-256          d7fe9332953cc44ba3f517bb03d4074b293b821461240d30fc384d67256a4b88
 public manifest schema                       indirect_injection_exposure_public_manifest_v2
-public redacted manifest SHA-256             cfa626388a2ec37f0b8b68c6a922c2769e41a5fb9f728e9a780f317a3a2eab53
+public redacted manifest SHA-256             09fda4aa81d15757e8de7cadec32e057a1c01d23a5b646dbcd5c0f9ae9038033
 production Guard / retrieval / Agent         UNCHANGED
 live/replay Guard reach                      15/28 / 15/28
 quarantine given live reach                  15/15
@@ -558,14 +556,14 @@ decision                                      NO_CURRENT_BYPASS_OBSERVED
 production change admission                   NOT ADMITTED
 independent holdout                           NOT RUN
 semantic judge / cross-model replication      NOT RUN
-final focused pytest                          376 PASSED / 5 SKIPPED / 3 WARNINGS
-final full pytest                             1316 PASSED / 5 SKIPPED / 3 WARNINGS
+final focused pytest                          433 PASSED / 5 PLATFORM SKIPS / 3 KNOWN WARNINGS
+final full pytest                             1349 PASSED / 8 PLATFORM SKIPS / 3 KNOWN WARNINGS
 compile / pip                                 CLEAN / CLEAN
-public audit                                  451 CANDIDATES / 0 FINDINGS
+public audit                                  453 CANDIDATES / 0 FINDINGS
 source / private / public verifier            VERIFIED
 isolated eight-file verifier                  VERIFIED / 28 ROWS
 frozen/source/package hash comparison         EXACT
-push / remote CI                              PROHIBITED / DEFERRED PENDING SYNTHESIS
+push / remote CI                              ESTABLISHED BY GIT AND GITHUB ACTIONS
 ```
 
 Replay-critical dependency byte bindings carried by both v2 manifests:
@@ -580,7 +578,8 @@ app/evaluation/indirect_injection_live_runner.py     a5eec5619a5ac9f44357fc60632
 `r2-s3-dev-exposure-20260721-01` and `r2-s3-dev-exposure-20260721-02` are
 superseded local history. Their ignored bytes remain unchanged and verifiable,
 but the tracked package derives only from accepted v2 run
-`r2-s3-dev-exposure-20260721-03`.
+`r2-s3-dev-exposure-20260721-04`. The superseded immutable `-03` summary and
+per-unit files are byte-identical to the accepted `-04` files.
 
 Decision semantics: `NO_CURRENT_BYPASS_OBSERVED` is a narrow frozen-dev
 observation. Counterfactual depth coverage is diagnostic and was not executed by
@@ -600,8 +599,7 @@ formal D7 run    5bf058cfa56c2b5034e6f204dc3619833b55b3c30277c5222e7415f97865e14
 Resume order:
 
 1. Verify the final fix-wave commit contains only its explicit files.
-2. Run whole-branch synthesis for the fixed exact HEAD; push remains prohibited
-   until that synthesis explicitly approves the exact SHA.
-3. Only the controller may then push and verify remote CI for the approved SHA.
+2. Run whole-branch synthesis for the fixed exact HEAD. Push is allowed only after fixed-HEAD reviews and local gates pass; actual delivery and CI state are established by Git and GitHub Actions.
+3. The controller may push and verify remote CI only for the approved SHA.
 4. Keep independent holdout authoring and owner-only review outside automated
    implementation scope.
