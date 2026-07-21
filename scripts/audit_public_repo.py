@@ -15,6 +15,7 @@ from urllib.parse import unquote
 from pydantic import ValidationError
 
 from app.evaluation.indirect_injection_sensitive_values import (
+    SecuritySensitiveValueCorpus,
     collect_security_sensitive_values,
 )
 from app.evaluation.public_snapshot import PublicDemoSnapshot
@@ -26,6 +27,7 @@ _SENSITIVE_PUBLIC_EVIDENCE_PREFIXES = (
     "data/v2/public/r2_s1_d7/",
     "data/v2/public/r2_s3_exposure/",
 )
+_PUBLIC_CASE_ID_ALLOWED_PREFIXES = ("data/v2/public/r2_s1_d7/",)
 _PUBLIC_PNG_DIMENSIONS = {
     "docs/assets/ask.png": (1440, 1000),
     "docs/assets/trace.png": (1440, 1000),
@@ -220,7 +222,7 @@ def _audit_one(
     root: Path,
     relative: str,
     *,
-    frozen_security_values: tuple[str, ...],
+    frozen_security_values: SecuritySensitiveValueCorpus,
     local_identity_values: tuple[str, ...],
 ) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
@@ -390,11 +392,16 @@ def _audit_one(
             )
         )
     if is_sensitive_public_evidence and text is not None:
+        include_case_ids = not relative.startswith(
+            _PUBLIC_CASE_ID_ALLOWED_PREFIXES
+        )
         findings.extend(
             _public_sensitive_evidence_findings(
                 relative,
                 text,
-                frozen_security_values=frozen_security_values,
+                frozen_security_values=frozen_security_values.values(
+                    include_case_ids=include_case_ids
+                ),
                 local_identity_values=local_identity_values,
             )
         )
@@ -505,7 +512,7 @@ def _contains_unsafe_credential_assignment(text: str) -> bool:
     return False
 
 
-def _load_frozen_security_values(root: Path) -> tuple[str, ...]:
+def _load_frozen_security_values(root: Path) -> SecuritySensitiveValueCorpus:
     security_root = root / "data" / "v2" / "security"
     datasets = tuple(
         value

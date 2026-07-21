@@ -1412,6 +1412,8 @@ def test_public_export_cli_uses_shared_complete_sensitive_value_corpus(
     _, security_data_root = source_material
     dev = load_security_bundle(security_data_root, "dev")
     test = load_security_bundle(security_data_root, "test")
+    dev_case_id = dev.dataset.cases[0].case_id
+    test_case_id = test.dataset.cases[0].case_id
     dev_question = dev.dataset.cases[0].question
     test_question = test.dataset.cases[0].question
     benign_unit_id = next(
@@ -1488,6 +1490,8 @@ def test_public_export_cli_uses_shared_complete_sensitive_value_corpus(
     assert export_cli.main(argv) == 0
     capsys.readouterr()
     assert {
+        dev_case_id,
+        test_case_id,
         dev_question,
         test_question,
         benign_unit_id,

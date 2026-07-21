@@ -507,6 +507,41 @@ def test_audit_rejects_exposure_private_runtime_reference(
     ) in {(item.code, item.path) for item in report.findings}
 
 
+def test_audit_allows_d7_case_ids_but_rejects_same_id_in_r2_s3(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    case_id = "r2s1-test-business-sop-action-language-1"
+    dataset = (
+        tmp_path / "data" / "v2" / "security" / "indirect_injection_test_v1.json"
+    )
+    dataset.parent.mkdir(parents=True)
+    dataset.write_text(
+        json.dumps({"cases": [{"case_id": case_id}]}),
+        encoding="utf-8",
+    )
+    d7_relative = "data/v2/public/r2_s1_d7/per_case.redacted.jsonl"
+    r2_s3_relative = "data/v2/public/r2_s3_exposure/per_unit.redacted.jsonl"
+    for relative in (d7_relative, r2_s3_relative):
+        public_file = tmp_path / Path(relative)
+        public_file.parent.mkdir(parents=True, exist_ok=True)
+        public_file.write_text(case_id + "\n", encoding="utf-8")
+
+    report = audit_repository(
+        tmp_path,
+        candidate_files=[d7_relative, r2_s3_relative],
+    )
+    frozen_paths = {
+        item.path
+        for item in report.findings
+        if item.code == "frozen_security_content"
+    }
+
+    assert d7_relative not in frozen_paths
+    assert r2_s3_relative in frozen_paths
+
+
 def test_audit_scans_r2_s3_for_private_runtime_reference(
     tmp_path: Path,
 ) -> None:

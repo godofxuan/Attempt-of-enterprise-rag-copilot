@@ -1,18 +1,31 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 
 MIN_SENSITIVE_VALUE_LENGTH = 8
 
 
+@dataclass(frozen=True)
+class SecuritySensitiveValueCorpus:
+    protected_values: tuple[str, ...]
+    case_ids: tuple[str, ...]
+
+    def values(self, *, include_case_ids: bool) -> tuple[str, ...]:
+        if not include_case_ids:
+            return self.protected_values
+        return tuple(sorted({*self.protected_values, *self.case_ids}))
+
+
 def collect_security_sensitive_values(
     *,
     datasets: Iterable[object] = (),
     fixture_manifests: Iterable[object] = (),
-) -> tuple[str, ...]:
+) -> SecuritySensitiveValueCorpus:
     values: set[str] = set()
+    case_ids: set[str] = set()
     for dataset_value in datasets:
         dataset = _as_mapping(dataset_value)
         _add_fields(
@@ -21,11 +34,11 @@ def collect_security_sensitive_values(
             ("schema_version", "dataset_id", "taxonomy_version"),
         )
         for case_value in _mappings(dataset.get("cases")):
+            _add_fields(case_ids, case_value, ("case_id",))
             _add_fields(
                 values,
                 case_value,
                 (
-                    "case_id",
                     "question",
                     "user_context_fixture",
                     "document_canary",
@@ -55,7 +68,7 @@ def collect_security_sensitive_values(
             ("schema_version", "fixture_id"),
         )
         for case_value in _mappings(fixture_manifest.get("cases")):
-            _add_fields(values, case_value, ("case_id",))
+            _add_fields(case_ids, case_value, ("case_id",))
             facts = case_value.get("fact_texts")
             if isinstance(facts, Mapping):
                 _add_values(values, facts.keys())
@@ -102,7 +115,10 @@ def collect_security_sensitive_values(
                     ("parent_chunk_id", "document_id"),
                 )
                 _add_sequences(values, parent, ("child_chunk_ids",))
-    return tuple(sorted(values))
+    return SecuritySensitiveValueCorpus(
+        protected_values=tuple(sorted(values)),
+        case_ids=tuple(sorted(case_ids)),
+    )
 
 
 def _as_mapping(value: object) -> Mapping[str, Any]:
@@ -152,5 +168,6 @@ def _add_values(values: set[str], candidates: Iterable[object]) -> None:
 
 __all__ = [
     "MIN_SENSITIVE_VALUE_LENGTH",
+    "SecuritySensitiveValueCorpus",
     "collect_security_sensitive_values",
 ]

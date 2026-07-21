@@ -90,10 +90,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _forbidden_fixture_texts(bundles) -> tuple[str, ...]:
-    return collect_security_sensitive_values(
+    corpus = collect_security_sensitive_values(
         datasets=(bundle.dataset for bundle in bundles),
         fixture_manifests=(bundle.fixture_manifest for bundle in bundles),
     )
+    return corpus.values(include_case_ids=True)
 
 
 def _write_json(stream, payload: dict[str, object]) -> None:
