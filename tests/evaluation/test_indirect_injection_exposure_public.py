@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from app.evaluation import indirect_injection_exposure_public as public_writer
+from app.evaluation import indirect_injection_exposure_writer as private_writer
 from app.evaluation.indirect_injection_exposure import (
     EXPOSURE_LIMITATIONS,
     ExposureAnalysisResult,
@@ -168,6 +169,54 @@ def _write_json(path: Path, value: object) -> None:
         encoding="utf-8",
         newline="",
     )
+
+
+def _with_two_scenario_tags(
+    result: ExposureAnalysisResult,
+) -> ExposureAnalysisResult:
+    units = list(result.units)
+    first_tag = units[0].scenario_tags[0]
+    second_tag = next(tag for tag in FORMAL_SCENARIO_TAGS if tag != first_tag)
+    units[0] = units[0].model_copy(
+        update={"scenario_tags": (first_tag, second_tag)}
+    )
+    updated_units = tuple(units)
+    return result.model_copy(
+        update={
+            "units": updated_units,
+            "unit_evidence_sha256": compute_exposure_unit_evidence_sha256(
+                updated_units
+            ),
+            "strata": _build_exposure_strata(updated_units),
+        }
+    )
+
+
+def _reorder_summary_bytes(source_run: Path) -> None:
+    path = source_run / "summary.json"
+    payload = json.loads(path.read_bytes())
+    reordered = {key: payload[key] for key in reversed(tuple(payload))}
+    path.write_text(
+        json.dumps(reordered, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+        newline="",
+    )
+
+
+def _reorder_first_scenario_tags(source_run: Path) -> None:
+    path = source_run / "per_unit.jsonl"
+    lines = path.read_bytes().splitlines()
+    payload = json.loads(lines[0])
+    original_tags = tuple(payload["scenario_tags"])
+    assert len(original_tags) == 2
+    payload["scenario_tags"] = list(reversed(original_tags))
+    lines[0] = json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    path.write_bytes(b"\n".join(lines) + b"\n")
 
 
 @pytest.fixture
@@ -345,6 +394,106 @@ def test_public_export_is_exact_content_free_and_deterministic(
     assert b"raw question" not in public_bytes
     assert b"raw attack" not in public_bytes
     assert verify_exposure_public_package(first).verified is True
+
+
+def test_export_reads_each_private_artifact_once_from_verified_bytes(
+    private_exposure_run: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected_manifest_sha256 = _sha256(
+        private_exposure_run / "manifest.json"
+    )
+    source_reads = {
+        name: 0 for name in private_writer.PRIVATE_EXPOSURE_ARTIFACT_FILES
+    }
+    read_bytes = Path.read_bytes
+    read_text = Path.read_text
+
+    def count_source_bytes(path: Path) -> bytes:
+        if path.parent == private_exposure_run and path.name in source_reads:
+            source_reads[path.name] += 1
+        return read_bytes(path)
+
+    def reject_source_text(path: Path, *args, **kwargs) -> str:
+        if path.parent == private_exposure_run and path.name in source_reads:
+            raise AssertionError(f"source artifact reread as text: {path.name}")
+        return read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_bytes", count_source_bytes)
+    monkeypatch.setattr(Path, "read_text", reject_source_text)
+
+    target = export_exposure_public_evidence(
+        private_exposure_run,
+        tmp_path / "public",
+        package_name="fixture",
+        expected_source_manifest_sha256=expected_manifest_sha256,
+        expected_source_run_id=private_exposure_run.name,
+        forbidden_texts=("raw question", "raw attack"),
+    )
+
+    assert target.is_dir()
+    assert source_reads == {
+        name: 1 for name in private_writer.PRIVATE_EXPOSURE_ARTIFACT_FILES
+    }
+
+
+@pytest.mark.parametrize(
+    ("mutation", "mutate_source"),
+    (
+        ("summary-byte-order", _reorder_summary_bytes),
+        ("scenario-tag-order", _reorder_first_scenario_tags),
+    ),
+)
+def test_export_rejects_mutation_after_verified_source_snapshot(
+    mutation: str,
+    mutate_source,
+    formal_exposure_result: ExposureAnalysisResult,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = (
+        _with_two_scenario_tags(formal_exposure_result)
+        if mutation == "scenario-tag-order"
+        else formal_exposure_result
+    )
+    source_run = _publish(tmp_path / "private", result)
+    output = tmp_path / "public"
+    expected_manifest_sha256 = _sha256(source_run / "manifest.json")
+    mutation_observed = False
+    assert_unchanged = getattr(
+        public_writer,
+        "_assert_snapshot_unchanged",
+        lambda _snapshot: None,
+    )
+
+    def mutate_then_assert(snapshot) -> None:
+        nonlocal mutation_observed
+        mutate_source(source_run)
+        mutation_observed = True
+        assert_unchanged(snapshot)
+
+    monkeypatch.setattr(
+        public_writer,
+        "_assert_snapshot_unchanged",
+        mutate_then_assert,
+        raising=False,
+    )
+
+    with pytest.raises(ValueError, match="changed after verified snapshot"):
+        export_exposure_public_evidence(
+            source_run,
+            output,
+            package_name="fixture",
+            expected_source_manifest_sha256=expected_manifest_sha256,
+            expected_source_run_id=source_run.name,
+            forbidden_texts=("raw question", "raw attack"),
+        )
+
+    assert mutation_observed is True
+    assert not (output / "fixture").exists()
+    if output.exists():
+        assert not tuple(output.glob(".*.staging-*"))
 
 
 @pytest.mark.parametrize(
@@ -929,6 +1078,42 @@ def test_final_byte_scanner_rejects_colon_adjacent_posix_absolute_path(
         )
 
 
+@pytest.mark.parametrize("scan_boundary", ("structured", "final-bytes"))
+@pytest.mark.parametrize(
+    "network_url",
+    (
+        r"https://example.com/?local=C:\Users\alice\secret",
+        "ssh://example.com/repo?local=C%3A%5CUsers%5Calice%5Csecret",
+        "ssh://example.com/repo#local=/etc/passwd",
+        "https://example.com/#local=%2Fetc%2Fpasswd",
+        r"https://example.com/?local=\\server\share\secret",
+        "ssh://example.com/repo?local=%5C%5Cserver%5Cshare%5Csecret",
+        "ssh://example.com/repo?local=file:///etc/passwd",
+        "https://example.com/?local=file%3A%2F%2F%2Fetc%2Fpasswd",
+        "ssh://user:C%3A%5CUsers%5Calice@example.com/repo",
+        "https://user:%2Fetc%2Fpasswd@example.com/evidence",
+    ),
+)
+def test_export_rejects_local_paths_in_decoded_network_uri_components(
+    scan_boundary: str,
+    network_url: str,
+) -> None:
+    with pytest.raises(ValueError, match="absolute local path"):
+        if scan_boundary == "structured":
+            public_writer._assert_structured_paths_are_relative(
+                {"value": network_url},
+                "public structured data",
+            )
+        else:
+            public_writer._assert_no_absolute_paths(
+                json.dumps(
+                    {"value": network_url},
+                    ensure_ascii=False,
+                ).encode("utf-8"),
+                "summary.json",
+            )
+
+
 @pytest.mark.parametrize(
     "network_url",
     (
@@ -944,6 +1129,9 @@ def test_final_byte_scanner_rejects_colon_adjacent_posix_absolute_path(
         "https://192.0.2.1./evidence",
         "https://bücher.example./evidence",
         "https://xn--bcher-kva.example./evidence",
+        "ssh://git@example.com/org/repo.git",
+        "ssh://user:token@example.com:22/repo",
+        "https://example.com/search?q=public-evidence#section",
     ),
 )
 def test_export_allows_recognized_https_url(

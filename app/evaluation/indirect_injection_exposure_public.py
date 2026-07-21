@@ -8,7 +8,7 @@ import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
-from urllib.parse import SplitResult, urlsplit
+from urllib.parse import SplitResult, unquote, urlsplit
 
 from app.evaluation import indirect_injection_exposure_public_verifier as verifier
 from app.evaluation.indirect_injection_exposure import ExposureUnitObservation
@@ -21,10 +21,11 @@ from app.evaluation.indirect_injection_exposure_public_verifier import (
     verify_exposure_public_package,
 )
 from app.evaluation.indirect_injection_exposure_writer import (
+    VerifiedExposureRunSnapshot,
     _assert_content_free,
     _assert_structured_content_free,
     _atomic_publish_no_replace,
-    verify_exposure_run,
+    load_verified_exposure_run_snapshot,
 )
 from app.evaluation.indirect_injection_writer import validate_security_run_id
 
@@ -74,28 +75,22 @@ def export_exposure_public_evidence(
     if source_run.is_symlink():
         raise ValueError("source run cannot be a symlink")
     source_run = source_run.resolve()
-    source_manifest = verify_exposure_run(source_run)
+    source_snapshot = load_verified_exposure_run_snapshot(
+        source_run,
+        expected_manifest_sha256=expected_source_manifest_sha256,
+        expected_run_id=expected_source_run_id,
+    )
+    _assert_snapshot_unchanged(source_snapshot)
+    source_manifest = source_snapshot.manifest
     if (
         source_manifest.schema_version
         != "indirect_injection_exposure_run_manifest_v2"
         or source_manifest.replay_dependencies is None
     ):
         raise ValueError("public export requires private manifest v2")
-    observed_source_hash = _sha256(source_run / "manifest.json")
-    if observed_source_hash != expected_source_manifest_sha256:
-        raise ValueError("source private manifest hash mismatch")
-    if source_manifest.run_id != expected_source_run_id:
-        raise ValueError("source private run ID mismatch")
-
-    private_summary = json.loads(
-        (source_run / "summary.json").read_text(encoding="utf-8")
-    )
-    private_units = tuple(
-        ExposureUnitObservation.model_validate_json(line)
-        for line in (source_run / "per_unit.jsonl")
-        .read_text(encoding="utf-8")
-        .splitlines()
-    )
+    observed_source_hash = source_snapshot.manifest_sha256
+    private_summary = source_snapshot.summary.model_dump(mode="json")
+    private_units = source_snapshot.units
     public_rows = tuple(
         sorted(
             (
@@ -216,6 +211,12 @@ def export_exposure_public_evidence(
     return target
 
 
+def _assert_snapshot_unchanged(
+    snapshot: VerifiedExposureRunSnapshot,
+) -> None:
+    snapshot.assert_unchanged()
+
+
 def _project_unit(
     source_run_id: str,
     item: ExposureUnitObservation,
@@ -264,18 +265,17 @@ def _assert_structured_paths_are_relative(value: Any, label: str) -> None:
 
 
 def _assert_text_paths_are_relative(text: str, label: str) -> None:
-    scanned_text = _elide_recognized_network_uris(text)
-    if scanned_text.startswith(("/", "\\\\")) or any(
-        pattern.search(scanned_text)
-        for pattern in _NON_POSIX_ABSOLUTE_PATH_PATTERNS
-    ) or _POSIX_ABSOLUTE_PATH_PATTERN.search(scanned_text):
+    scanned_text = _elide_recognized_network_uris(text, label)
+    if _contains_absolute_local_path(scanned_text, include_posix=True):
         raise ValueError(f"{label} contains an absolute local path")
 
 
-def _elide_recognized_network_uris(text: str) -> str:
+def _elide_recognized_network_uris(text: str, label: str) -> str:
     def replace(match: re.Match[str]) -> str:
         candidate = match.group(0)
-        if _is_valid_network_uri(candidate):
+        parsed = _parse_valid_network_uri(candidate)
+        if parsed is not None:
+            _assert_network_uri_components_are_path_free(parsed, label)
             return " " * len(candidate)
         return candidate
 
@@ -283,13 +283,70 @@ def _elide_recognized_network_uris(text: str) -> str:
 
 
 def _is_valid_network_uri(candidate: str) -> bool:
+    return _parse_valid_network_uri(candidate) is not None
+
+
+def _parse_valid_network_uri(candidate: str) -> SplitResult | None:
     try:
         parsed = urlsplit(candidate)
     except ValueError:
-        return False
-    return (
+        return None
+    if (
         parsed.scheme.lower() in _NETWORK_URI_SCHEMES
         and _is_valid_network_authority(parsed)
+    ):
+        return parsed
+    return None
+
+
+def _assert_network_uri_components_are_path_free(
+    parsed: SplitResult,
+    label: str,
+) -> None:
+    userinfo, separator, _host_port = parsed.netloc.rpartition("@")
+    components = (
+        userinfo if separator else "",
+        parsed.query,
+        parsed.fragment,
+    )
+    if any(
+        _contains_absolute_local_path(
+            _decode_percent_escapes(component),
+            include_posix=True,
+        )
+        for component in components
+        if component
+    ):
+        raise ValueError(f"{label} contains an absolute local path")
+    if _contains_absolute_local_path(
+        _decode_percent_escapes(parsed.path),
+        include_posix=False,
+    ):
+        raise ValueError(f"{label} contains an absolute local path")
+
+
+def _decode_percent_escapes(value: str) -> str:
+    decoded = value
+    for _ in range(3):
+        updated = unquote(decoded)
+        if updated == decoded:
+            break
+        decoded = updated
+    return decoded
+
+
+def _contains_absolute_local_path(
+    text: str,
+    *,
+    include_posix: bool,
+) -> bool:
+    if text.startswith("\\\\") or any(
+        pattern.search(text) for pattern in _NON_POSIX_ABSOLUTE_PATH_PATTERNS
+    ):
+        return True
+    return include_posix and (
+        text.startswith("/")
+        or _POSIX_ABSOLUTE_PATH_PATTERN.search(text) is not None
     )
 
 

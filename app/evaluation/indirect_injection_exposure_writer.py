@@ -10,8 +10,10 @@ import os
 import shutil
 import sys
 import tempfile
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path, PurePosixPath, PureWindowsPath
+from types import MappingProxyType
 from typing import Any, Literal, Mapping, Sequence
 
 from pydantic import (
@@ -262,6 +264,43 @@ class ExposureSummaryDocument(_StrictFrozenModel):
         return self
 
 
+_FileIdentity = tuple[int, int, int, int, int, int]
+
+
+@dataclass(frozen=True)
+class VerifiedExposureRunSnapshot:
+    run_dir: Path
+    manifest: ExposureRunManifest
+    summary: ExposureSummaryDocument
+    units: tuple[ExposureUnitObservation, ...]
+    manifest_sha256: str
+    artifacts: Mapping[str, bytes]
+    _file_identities: Mapping[str, _FileIdentity]
+
+    def assert_unchanged(self) -> None:
+        try:
+            names = {item.name for item in self.run_dir.iterdir()}
+            if names != set(PRIVATE_EXPOSURE_ARTIFACT_FILES):
+                raise ValueError(
+                    "private exposure source changed after verified snapshot"
+                )
+            for name, expected in self._file_identities.items():
+                path = self.run_dir / name
+                if (
+                    path.is_symlink()
+                    or not path.is_file()
+                    or _file_identity(path.stat()) != expected
+                ):
+                    raise ValueError(
+                        "private exposure artifact changed after verified "
+                        f"snapshot: {name}"
+                    )
+        except OSError as exc:
+            raise ValueError(
+                "private exposure source changed after verified snapshot"
+            ) from exc
+
+
 def publish_exposure_run(
     root: Path,
     *,
@@ -443,25 +482,79 @@ def _atomic_publish_no_replace(stage: Path, target: Path) -> None:
     )
 
 
-def verify_exposure_run(run_dir: Path) -> ExposureRunManifest:
+def load_verified_exposure_run_snapshot(
+    run_dir: Path,
+    *,
+    expected_manifest_sha256: str | None = None,
+    expected_run_id: str | None = None,
+) -> VerifiedExposureRunSnapshot:
     run_dir = Path(run_dir)
     if run_dir.is_symlink():
         raise ValueError("exposure run directory cannot be a symlink")
     run_dir = run_dir.resolve()
     if not run_dir.is_dir():
         raise FileNotFoundError(f"exposure run directory not found: {run_dir}")
+    snapshot = _load_verified_exposure_snapshot(
+        run_dir,
+        require_run_dir_identity=True,
+        expected_manifest_sha256=expected_manifest_sha256,
+        expected_run_id=expected_run_id,
+    )
+    snapshot.assert_unchanged()
+    return snapshot
+
+
+def verify_exposure_run(run_dir: Path) -> ExposureRunManifest:
+    return load_verified_exposure_run_snapshot(run_dir).manifest
+
+
+def _load_verified_exposure_snapshot(
+    run_dir: Path,
+    *,
+    require_run_dir_identity: bool,
+    expected_manifest_sha256: str | None = None,
+    expected_run_id: str | None = None,
+    expected_manifest: ExposureRunManifest | None = None,
+) -> VerifiedExposureRunSnapshot:
     _validate_exact_files(run_dir)
-    manifest = _load_canonical_model(
-        run_dir / "manifest.json",
+    artifact_bytes, file_identities = _read_snapshot_artifacts(run_dir)
+    manifest = _parse_canonical_model(
+        artifact_bytes["manifest.json"],
         ExposureRunManifest,
         label="exposure manifest",
     )
-    if run_dir.name != manifest.run_id:
+    manifest_sha256 = hashlib.sha256(
+        artifact_bytes["manifest.json"]
+    ).hexdigest()
+    if require_run_dir_identity and run_dir.name != manifest.run_id:
         raise ValueError("exposure run directory name contradicts manifest")
+    if expected_run_id is not None and manifest.run_id != expected_run_id:
+        raise ValueError("source private run ID mismatch")
+    if (
+        expected_manifest_sha256 is not None
+        and manifest_sha256 != expected_manifest_sha256
+    ):
+        raise ValueError("source private manifest hash mismatch")
+    if expected_manifest is not None and manifest != expected_manifest:
+        raise ValueError("exposure manifest did not round-trip")
     if not manifest.artifacts:
         raise ValueError("published exposure manifest has no artifact evidence")
-    _validate_stage(run_dir, manifest)
-    return manifest
+    summary = _parse_canonical_model(
+        artifact_bytes["summary.json"],
+        ExposureSummaryDocument,
+        label="exposure summary",
+    )
+    units = _parse_unit_rows(artifact_bytes["per_unit.jsonl"])
+    _validate_snapshot_payloads(manifest, summary, units, artifact_bytes)
+    return VerifiedExposureRunSnapshot(
+        run_dir=run_dir,
+        manifest=manifest,
+        summary=summary,
+        units=units,
+        manifest_sha256=manifest_sha256,
+        artifacts=MappingProxyType(dict(artifact_bytes)),
+        _file_identities=MappingProxyType(dict(file_identities)),
+    )
 
 
 def _validate_analysis(
@@ -499,24 +592,24 @@ def _validate_analysis(
 
 
 def _validate_stage(stage: Path, manifest: ExposureRunManifest) -> None:
-    _validate_exact_files(stage)
-    parsed_manifest = _load_canonical_model(
-        stage / "manifest.json",
-        ExposureRunManifest,
-        label="exposure manifest",
+    snapshot = _load_verified_exposure_snapshot(
+        stage,
+        require_run_dir_identity=False,
+        expected_manifest=manifest,
     )
-    if parsed_manifest != manifest:
-        raise ValueError("exposure manifest did not round-trip")
+    snapshot.assert_unchanged()
+
+
+def _validate_snapshot_payloads(
+    manifest: ExposureRunManifest,
+    document: ExposureSummaryDocument,
+    units: tuple[ExposureUnitObservation, ...],
+    artifact_bytes: Mapping[str, bytes],
+) -> None:
     if manifest.schema_version.endswith("_v2"):
         if manifest.replay_dependencies is None:
             raise ValueError("v2 manifest requires replay dependencies")
         verify_replay_dependency_bytes(manifest.replay_dependencies)
-    document = _load_canonical_model(
-        stage / "summary.json",
-        ExposureSummaryDocument,
-        label="exposure summary",
-    )
-    units = _load_unit_rows(stage / "per_unit.jsonl")
     if len(units) != manifest.attack_unit_count:
         raise ValueError("per-unit row count contradicts manifest")
     if len({item.case_id for item in units}) != manifest.attack_case_count:
@@ -570,7 +663,7 @@ def _validate_stage(stage: Path, manifest: ExposureRunManifest) -> None:
     )
     if document.decision != manifest.decision:
         raise ValueError("decision does not recompute from exposure evidence")
-    observed_failures = (stage / "failures.csv").read_bytes()
+    observed_failures = artifact_bytes["failures.csv"]
     expected_failures = _failure_bytes(
         units,
         document.unguarded_path_findings,
@@ -578,18 +671,20 @@ def _validate_stage(stage: Path, manifest: ExposureRunManifest) -> None:
     if observed_failures != expected_failures:
         raise ValueError("failures CSV does not recompute from exposure evidence")
     for name in ("commands.txt", "test_output.txt"):
-        raw = (stage / name).read_bytes()
+        raw = artifact_bytes[name]
         text = _decode_utf8(raw, name)
         if text != _canonical_text(text, name):
             raise ValueError(f"{name} is not canonical LF-terminated text")
     for name, evidence in manifest.artifacts.items():
-        artifact = stage / name
+        raw = artifact_bytes[name]
         if (
-            artifact.stat().st_size != evidence.bytes
-            or _sha256(artifact) != evidence.sha256
+            len(raw) != evidence.bytes
+            or hashlib.sha256(raw).hexdigest() != evidence.sha256
         ):
             raise ValueError(f"exposure artifact evidence mismatch: {name}")
-    if (stage / "checksums.sha256").read_bytes() != _checksum_bytes(stage):
+    if artifact_bytes["checksums.sha256"] != _checksum_bytes_from_artifacts(
+        artifact_bytes
+    ):
         raise ValueError("exposure checksum file does not match artifacts")
 
 
@@ -604,8 +699,39 @@ def _validate_exact_files(run_dir: Path) -> None:
         raise ValueError("exposure artifacts must be regular files")
 
 
-def _load_unit_rows(path: Path) -> tuple[ExposureUnitObservation, ...]:
-    raw = path.read_bytes()
+def _read_snapshot_artifacts(
+    run_dir: Path,
+) -> tuple[dict[str, bytes], dict[str, _FileIdentity]]:
+    artifacts: dict[str, bytes] = {}
+    identities: dict[str, _FileIdentity] = {}
+    for name in sorted(PRIVATE_EXPOSURE_ARTIFACT_FILES):
+        path = run_dir / name
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("exposure artifacts must be regular files")
+        before = _file_identity(path.stat())
+        raw = path.read_bytes()
+        after = _file_identity(path.stat())
+        if before != after or len(raw) != before[3] or path.is_symlink():
+            raise ValueError(
+                f"private exposure artifact changed while snapshotting: {name}"
+            )
+        artifacts[name] = raw
+        identities[name] = after
+    return artifacts, identities
+
+
+def _file_identity(value: os.stat_result) -> _FileIdentity:
+    return (
+        value.st_dev,
+        value.st_ino,
+        value.st_mode,
+        value.st_size,
+        value.st_mtime_ns,
+        value.st_ctime_ns,
+    )
+
+
+def _parse_unit_rows(raw: bytes) -> tuple[ExposureUnitObservation, ...]:
     text = _decode_utf8(raw, "per_unit.jsonl")
     if not text.endswith("\n") or "\r" in text:
         raise ValueError("per-unit JSONL is not canonical LF-terminated text")
@@ -698,6 +824,13 @@ def _checksum_bytes(stage: Path) -> bytes:
     ).encode("utf-8")
 
 
+def _checksum_bytes_from_artifacts(artifacts: Mapping[str, bytes]) -> bytes:
+    return "".join(
+        f"{hashlib.sha256(artifacts[name]).hexdigest()}  {name}\n"
+        for name in _CONTENT_ARTIFACT_NAMES
+    ).encode("utf-8")
+
+
 def _canonical_text(value: str, label: str) -> str:
     if "\x00" in value:
         raise ValueError(f"{label} contains a NUL byte")
@@ -742,13 +875,12 @@ def _assert_csv_content_free(
     _assert_structured_content_free(rows, forbidden_texts)
 
 
-def _load_canonical_model(
-    path: Path,
+def _parse_canonical_model(
+    raw: bytes,
     model_type: type[_StrictFrozenModel],
     *,
     label: str,
 ) -> Any:
-    raw = path.read_bytes()
     text = _decode_utf8(raw, label)
     payload = _loads_unique(text, label)
     if raw != _json_bytes(payload):
@@ -809,6 +941,8 @@ __all__ = [
     "ExposureRunManifest",
     "ExposureSummaryDocument",
     "ExposureVerificationInputs",
+    "VerifiedExposureRunSnapshot",
+    "load_verified_exposure_run_snapshot",
     "publish_exposure_run",
     "recompute_exposure_summary",
     "verify_exposure_run",
