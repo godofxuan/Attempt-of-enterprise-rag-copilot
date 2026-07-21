@@ -18,8 +18,30 @@
   "metric_definitions_sha256": "c5e79e23bbbfca0542bbadfa1e4a371fbb61d7f89e2e67e056b571acee63ecf3",
   "package_name": "r2_s3_exposure",
   "producer": "enterprise_agentic_rag_v2",
+  "replay_dependencies": [
+    {
+      "dependency_id": "guard_ruleset",
+      "path": "app/security/retrieved_content.py",
+      "sha256": "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2"
+    },
+    {
+      "dependency_id": "retrieved_admission",
+      "path": "app/security/retrieved_admission.py",
+      "sha256": "1f835ba3aa79b1450e8ae906946bba019c21b531fce114cd375b094411c88afb"
+    },
+    {
+      "dependency_id": "search_surface_constructor",
+      "path": "app/evaluation/indirect_injection_runner.py",
+      "sha256": "c2c5c5e1815d8a77beebb5027384ea58dd3e73b8536533c8d7898d40668ed36c"
+    },
+    {
+      "dependency_id": "source_live_evaluator",
+      "path": "app/evaluation/indirect_injection_live_runner.py",
+      "sha256": "a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958"
+    }
+  ],
   "row_count": 28,
-  "schema_version": "indirect_injection_exposure_public_manifest_v1",
+  "schema_version": "indirect_injection_exposure_public_manifest_v2",
   "source": {
     "arm_event_count": 72,
     "case_count": 36,
@@ -32,8 +54,8 @@
     "run_id": "r2-s2-s1-dev-20260719-01",
     "source_git_head": "073d7356026954c26c1429fb9faddc5e9a5dcb87"
   },
-  "source_private_manifest_sha256": "f7e519beb0c9e054b5de452348d214b2a39a4bec3979302063fdd2475cd6b0d6",
-  "source_private_run_id": "r2-s3-dev-exposure-20260721-01",
+  "source_private_manifest_sha256": "0c2e074d5b8ba2c4396691a58f1d81cc802d5feb1c200f2eccf661f11d5f0585",
+  "source_private_run_id": "r2-s3-dev-exposure-20260721-02",
   "unguarded_path_findings": [],
-  "verifier_sha256": "8fc67d0c82f7380dc3bf2d5f34c61c9e69e5cf13dd38f969a77f61eff77ab019"
+  "verifier_sha256": "f2fce72a6f18d0a66c194cb7819298721a62ad6a3f34c523e7ab3142ec747732"
 }

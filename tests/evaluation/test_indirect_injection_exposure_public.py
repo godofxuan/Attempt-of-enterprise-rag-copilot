@@ -342,13 +342,13 @@ def test_public_v2_manifest_rejects_dependency_substitution(
         verify_exposure_public_package(target)
 
 
-def test_trusted_verifier_accepts_tracked_v1_package() -> None:
+def test_trusted_verifier_accepts_tracked_v2_package() -> None:
     result = verify_exposure_public_package(
         Path("data/v2/public/r2_s3_exposure")
     )
 
     assert result.verified is True
-    assert result.source_run_id == "r2-s3-dev-exposure-20260721-01"
+    assert result.source_run_id == "r2-s3-dev-exposure-20260721-02"
     assert result.case_count == 36
     assert result.row_count == 28
 

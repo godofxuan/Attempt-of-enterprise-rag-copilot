@@ -81,6 +81,12 @@ _PUBLIC_UNIT_ROW_DEFINED_FIELDS = (
     - _PUBLIC_UNIT_ROW_METADATA_FIELDS
 )
 COUNTERFACTUAL_DEPTHS = (1, 2, 4)
+EXPOSURE_LIMITATIONS = (
+    "This dev-only deterministic replay does not establish universal runtime safety.",
+    "Counterfactual cost covers additional Guard calls and scanned input characters, "
+    "not wall-clock latency.",
+    "Counterfactual coverage alone does not admit a production retrieval change.",
+)
 _HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _SAFE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 _ATTACK_CATEGORIES = frozenset(
@@ -182,7 +188,7 @@ _SOURCE_KEYS = frozenset(
         "on_then_off_count",
     }
 )
-_MANIFEST_KEYS = frozenset(
+_MANIFEST_V1_KEYS = frozenset(
     {
         "schema_version",
         "producer",
@@ -203,6 +209,43 @@ _MANIFEST_KEYS = frozenset(
         "metric_definitions_sha256",
         "verifier_sha256",
     }
+)
+_MANIFEST_V2_KEYS = _MANIFEST_V1_KEYS | {"replay_dependencies"}
+_REPLAY_DEPENDENCY_KEYS = frozenset(
+    {"dependency_id", "path", "sha256"}
+)
+_REPLAY_IMPLEMENTATION_DEPENDENCIES = (
+    {
+        "dependency_id": "guard_ruleset",
+        "path": "app/security/retrieved_content.py",
+        "sha256": (
+            "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2"
+        ),
+    },
+    {
+        "dependency_id": "retrieved_admission",
+        "path": "app/security/retrieved_admission.py",
+        "sha256": (
+            "1f835ba3aa79b1450e8ae906946bba019c21b531fce114cd375b094411c88afb"
+        ),
+    },
+    {
+        "dependency_id": "search_surface_constructor",
+        "path": "app/evaluation/indirect_injection_runner.py",
+        "sha256": (
+            "c2c5c5e1815d8a77beebb5027384ea58dd3e73b8536533c8d7898d40668ed36c"
+        ),
+    },
+    {
+        "dependency_id": "source_live_evaluator",
+        "path": "app/evaluation/indirect_injection_live_runner.py",
+        "sha256": (
+            "a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958"
+        ),
+    },
+)
+_LEGACY_PUBLIC_V1_VERIFIER_SHA256 = (
+    "8fc67d0c82f7380dc3bf2d5f34c61c9e69e5cf13dd38f969a77f61eff77ab019"
 )
 _SUMMARY_DOCUMENT_KEYS = frozenset(
     {
@@ -762,11 +805,17 @@ def verify_exposure_public_package(
     ]:
         raise ExposurePublicVerificationError("metric definition hash mismatch")
     packaged_verifier = (package / "verify.py").read_bytes()
-    if packaged_verifier != Path(__file__).read_bytes():
+    packaged_verifier_sha256 = hashlib.sha256(packaged_verifier).hexdigest()
+    if manifest["schema_version"].endswith("_v1"):
+        if packaged_verifier_sha256 != _LEGACY_PUBLIC_V1_VERIFIER_SHA256:
+            raise ExposurePublicVerificationError(
+                "legacy packaged verifier does not match trusted v1 bytes"
+            )
+    elif packaged_verifier != Path(__file__).read_bytes():
         raise ExposurePublicVerificationError(
             "packaged verifier does not match the trusted verifier bytes"
         )
-    if hashlib.sha256(packaged_verifier).hexdigest() != manifest["verifier_sha256"]:
+    if packaged_verifier_sha256 != manifest["verifier_sha256"]:
         raise ExposurePublicVerificationError("verifier source hash mismatch")
     _validate_source_hash(package, manifest)
     _validate_rows(rows, manifest)
@@ -781,12 +830,32 @@ def verify_exposure_public_package(
         source_run_id=manifest["source_private_run_id"],
         source_manifest_sha256=manifest["source_private_manifest_sha256"],
         decision=manifest["decision"],
-        case_count=manifest["attack_case_count"],
+        case_count=manifest["case_count"],
         row_count=manifest["row_count"],
     )
 
 
 def build_public_readme(manifest: dict[str, Any]) -> str:
+    if manifest["schema_version"].endswith("_v1"):
+        trust_boundary = (
+            "The checksums detect corruption. Compare the declared private manifest "
+            "SHA-256 with an externally trusted value, then re-export from that "
+            "trusted private run to verify projection provenance; this isolated "
+            "package alone does not prove that derivation.\n\n"
+            "Authenticate `verify.py` against a trusted copy before relying on "
+            "isolated verification; package-internal hashes cannot authenticate "
+            "verifier bytes.\n\n"
+        )
+    else:
+        trust_boundary = (
+            "The checksums bind package bytes. Compare the declared private manifest "
+            "SHA-256 with an externally trusted manifest record, then re-export from "
+            "that trusted private run to verify projection provenance; this isolated "
+            "package alone does not prove that derivation.\n\n"
+            "Compare `verify.py` bytes with an independently trusted copy before "
+            "relying on isolated verification; package-internal hashes cannot "
+            "establish trust in verifier bytes.\n\n"
+        )
     return (
         "# R2-S3 Exposure-Aware Ablation Evidence\n\n"
         f"Package: `{manifest['package_name']}`\n\n"
@@ -797,12 +866,7 @@ def build_public_readme(manifest: dict[str, Any]) -> str:
         "This content-free package contains fingerprinted attack-unit rows and "
         "bounded aggregate witnesses. Run `python verify.py` to validate every "
         "artifact, recompute metrics and strata, and reapply decision precedence.\n\n"
-        "The checksums detect corruption. Compare the declared private manifest "
-        "SHA-256 with an externally trusted value, then re-export from that trusted "
-        "private run to verify projection provenance; this isolated package alone "
-        "does not prove that derivation.\n\n"
-        "Authenticate `verify.py` against a trusted copy before relying on isolated "
-        "verification; package-internal hashes cannot authenticate verifier bytes.\n\n"
+        f"{trust_boundary}"
         "This dev-only deterministic replay does not establish universal runtime "
         "safety. Counterfactual coverage is diagnostic, does not measure "
         "wall-clock latency, and does not admit a production retrieval change.\n"
@@ -811,8 +875,13 @@ def build_public_readme(manifest: dict[str, Any]) -> str:
 
 def _validate_manifest(package: Path, value: Any) -> None:
     _require_mapping(value, "public manifest")
-    _require_keys(value, _MANIFEST_KEYS, "public manifest")
-    if value["schema_version"] != "indirect_injection_exposure_public_manifest_v1":
+    schema_version = value.get("schema_version")
+    if schema_version == "indirect_injection_exposure_public_manifest_v1":
+        _require_keys(value, _MANIFEST_V1_KEYS, "public manifest")
+    elif schema_version == "indirect_injection_exposure_public_manifest_v2":
+        _require_keys(value, _MANIFEST_V2_KEYS, "public manifest")
+        _validate_replay_dependencies(value["replay_dependencies"])
+    else:
         raise ExposurePublicVerificationError("unsupported public manifest schema")
     if value["producer"] != "enterprise_agentic_rag_v2":
         raise ExposurePublicVerificationError("unexpected public producer")
@@ -848,6 +917,32 @@ def _validate_manifest(package: Path, value: Any) -> None:
     _validate_source(value["source"])
     _validate_findings(value["unguarded_path_findings"])
     _validate_limitations(value["limitations"])
+
+
+def _validate_replay_dependencies(value: Any) -> None:
+    if not isinstance(value, list) or len(value) != len(
+        _REPLAY_IMPLEMENTATION_DEPENDENCIES
+    ):
+        raise ExposurePublicVerificationError(
+            "public replay dependencies are not exact"
+        )
+    for observed, expected in zip(
+        value,
+        _REPLAY_IMPLEMENTATION_DEPENDENCIES,
+    ):
+        if not isinstance(observed, dict):
+            raise ExposurePublicVerificationError(
+                "public replay dependencies are not exact"
+            )
+        _require_keys(
+            observed,
+            _REPLAY_DEPENDENCY_KEYS,
+            "public replay dependency",
+        )
+        if observed != expected:
+            raise ExposurePublicVerificationError(
+                "public replay dependencies are not exact"
+            )
 
 
 def _validate_source(value: Any) -> None:
@@ -1251,13 +1346,10 @@ def _validate_findings(value: Any) -> None:
 
 
 def _validate_limitations(value: Any) -> None:
-    if (
-        not isinstance(value, list)
-        or not value
-        or any(not isinstance(item, str) or not item for item in value)
-        or len(value) != len(set(value))
-    ):
-        raise ExposurePublicVerificationError("invalid public limitations")
+    if value != list(EXPOSURE_LIMITATIONS):
+        raise ExposurePublicVerificationError(
+            "public limitations must be exact and ordered"
+        )
 
 
 def _validate_source_hash(package: Path, manifest: dict[str, Any]) -> None:
