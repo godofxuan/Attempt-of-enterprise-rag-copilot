@@ -35,6 +35,7 @@ data/v2/generated/
 eval_runs/
 load_runs/
 security_runs/
+exposure_runs/
 holdout_submissions/
 
 # Logs and OS/editor files

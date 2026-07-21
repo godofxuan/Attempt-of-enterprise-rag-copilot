@@ -1,0 +1,39 @@
+{
+  "attack_case_count": 24,
+  "attack_unit_count": 28,
+  "benign_case_count": 12,
+  "benign_unit_count": 32,
+  "case_count": 36,
+  "counterfactual_depths": [
+    1,
+    2,
+    4
+  ],
+  "decision": "NO_CURRENT_BYPASS_OBSERVED",
+  "limitations": [
+    "This dev-only deterministic replay does not establish universal runtime safety.",
+    "Counterfactual cost covers additional Guard calls and scanned input characters, not wall-clock latency.",
+    "Counterfactual coverage alone does not admit a production retrieval change."
+  ],
+  "metric_definitions_sha256": "c5e79e23bbbfca0542bbadfa1e4a371fbb61d7f89e2e67e056b571acee63ecf3",
+  "package_name": "r2_s3_exposure",
+  "producer": "enterprise_agentic_rag_v2",
+  "row_count": 28,
+  "schema_version": "indirect_injection_exposure_public_manifest_v1",
+  "source": {
+    "arm_event_count": 72,
+    "case_count": 36,
+    "dataset_sha256": "18d042c21e7cbc46f90859c59cbc440566de636009080de763253a8ab7598064",
+    "fixture_manifest_sha256": "d53a48b08d823adf3ac0823e5c27506297a4ad0cc727d6f1accc3df6e9009ad4",
+    "guard_ruleset_sha256": "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2",
+    "manifest_sha256": "3fe51ea7e404d7d1c09711b14f422b92b2474df7148e4f15df1e949081f5586e",
+    "off_then_on_count": 18,
+    "on_then_off_count": 18,
+    "run_id": "r2-s2-s1-dev-20260719-01",
+    "source_git_head": "073d7356026954c26c1429fb9faddc5e9a5dcb87"
+  },
+  "source_private_manifest_sha256": "f7e519beb0c9e054b5de452348d214b2a39a4bec3979302063fdd2475cd6b0d6",
+  "source_private_run_id": "r2-s3-dev-exposure-20260721-01",
+  "unguarded_path_findings": [],
+  "verifier_sha256": "8fc67d0c82f7380dc3bf2d5f34c61c9e69e5cf13dd38f969a77f61eff77ab019"
+}

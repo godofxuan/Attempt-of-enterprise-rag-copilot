@@ -431,6 +431,79 @@ def test_public_audit_rejects_raw_holdout_submission_candidate(
     ) in {(item.code, item.path) for item in report.findings}
 
 
+def test_exposure_private_runs_are_ignored_and_forbidden_public_candidates(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+    assert "exposure_runs/" in ignore
+    payload = tmp_path / "exposure_runs" / "private" / "per_unit.jsonl"
+    payload.parent.mkdir(parents=True)
+    payload.write_text('{"unit_id":"private"}\n', encoding="utf-8")
+
+    report = audit_repository(
+        tmp_path,
+        candidate_files=["exposure_runs/private/per_unit.jsonl"],
+    )
+
+    assert ("forbidden_path", "exposure_runs/private/per_unit.jsonl") in {
+        (item.code, item.path) for item in report.findings
+    }
+
+
+def test_audit_rejects_exposure_private_runtime_reference(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    payload = (
+        tmp_path
+        / "data"
+        / "v2"
+        / "public"
+        / "r2_s1_d7"
+        / "per_case.redacted.jsonl"
+    )
+    payload.parent.mkdir(parents=True)
+    payload.write_text(
+        "source: exposure_runs/private/manifest.json\n",
+        encoding="utf-8",
+    )
+
+    report = audit_repository(
+        tmp_path,
+        candidate_files=["data/v2/public/r2_s1_d7/per_case.redacted.jsonl"],
+    )
+
+    assert (
+        "private_runtime_reference",
+        "data/v2/public/r2_s1_d7/per_case.redacted.jsonl",
+    ) in {(item.code, item.path) for item in report.findings}
+
+
+def test_audit_allows_public_exposure_package_path(tmp_path: Path) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    payload = (
+        tmp_path
+        / "data"
+        / "v2"
+        / "public"
+        / "r2_s3_exposure"
+        / "summary.json"
+    )
+    payload.parent.mkdir(parents=True)
+    payload.write_text('{"content_free":true}\n', encoding="utf-8")
+
+    report = audit_repository(
+        tmp_path,
+        candidate_files=["data/v2/public/r2_s3_exposure/summary.json"],
+    )
+
+    assert not any(item.code == "forbidden_path" for item in report.findings)
+
+
 def test_private_e6_materials_are_ignored_and_candidate_free() -> None:
     private_root = ROOT / ".private" / "e6"
     names = [
