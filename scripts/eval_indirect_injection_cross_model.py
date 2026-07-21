@@ -7,6 +7,7 @@ except ModuleNotFoundError:
 
 import argparse
 import json
+import platform
 import stat
 from dataclasses import dataclass
 from pathlib import Path
@@ -93,6 +94,8 @@ class ExecutionInvariantSnapshot:
     ollama_origin: str
     structured_generation_max_attempts: int
     ollama_version: str
+    python_version: str
+    platform: str
     dependency_snapshot_path: str
     dependency_snapshot_sha256: str
     installed_snapshot_sha256: str
@@ -104,7 +107,9 @@ class ExecutionInvariantSnapshot:
     max_open_calls: int
     max_steps: int
     max_context_chars: int
-    deadline_ms: int
+    evaluator_path: str
+    evaluator_sha256: str
+    canonical_argv: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -304,7 +309,7 @@ def main(argv: list[str] | None = None) -> int:
     context = _load_component_context(plan)
     runtime = fetch_ollama_identities(plan)
     _validate_runtime_identities(plan, runtime)
-    execution = _capture_execution_invariants(plan, runtime)
+    execution = _capture_execution_invariants(plan, runtime, args)
 
     components: list[ComponentRun] = []
     for component in plan.chat_models:
@@ -360,6 +365,7 @@ def _load_component_context(plan: CrossModelPlanV1) -> ComponentContext:
 def _capture_execution_invariants(
     plan: CrossModelPlanV1,
     runtime: OllamaIdentitySnapshot,
+    args: argparse.Namespace,
 ) -> ExecutionInvariantSnapshot:
     settings = get_settings()
     baseline = plan.model_for_role("baseline")
@@ -378,6 +384,8 @@ def _capture_execution_invariants(
         ollama_origin=config.ollama_origin,
         structured_generation_max_attempts=config.structured_generation_max_attempts,
         ollama_version=runtime.version,
+        python_version=platform.python_version(),
+        platform=platform.platform(),
         dependency_snapshot_path="requirements.txt",
         dependency_snapshot_sha256=_sha256(requirements),
         installed_snapshot_sha256=str(installed["installed_snapshot_sha256"]),
@@ -391,7 +399,11 @@ def _capture_execution_invariants(
         max_open_calls=config.max_open_calls,
         max_steps=config.max_steps,
         max_context_chars=config.max_context_chars,
-        deadline_ms=config.deadline_ms,
+        evaluator_path="scripts/eval_indirect_injection_cross_model.py",
+        evaluator_sha256=_sha256(
+            BASE_DIR / "scripts" / "eval_indirect_injection_cross_model.py"
+        ),
+        canonical_argv=_canonical_argv(args),
     )
 
 
@@ -504,9 +516,10 @@ def _validate_execution_invariants(
     retrieval = manifest.retrieval
     if (
         execution.llm_endpoint != f"{execution.ollama_origin}/v1"
-        or execution.deadline_ms != 10_000
         or environment.ollama_endpoint != execution.ollama_origin
         or environment.ollama_version != execution.ollama_version
+        or environment.python_version != execution.python_version
+        or environment.platform != execution.platform
         or environment.dependency_snapshot_path
         != execution.dependency_snapshot_path
         or environment.dependency_snapshot_sha256
@@ -527,6 +540,9 @@ def _validate_execution_invariants(
         or retrieval.max_open_calls != execution.max_open_calls
         or retrieval.max_steps != execution.max_steps
         or retrieval.max_context_chars != execution.max_context_chars
+        or manifest.evaluator.path != execution.evaluator_path
+        or manifest.evaluator.sha256 != execution.evaluator_sha256
+        or manifest.evaluator.argv != execution.canonical_argv
     ):
         raise ValueError("existing component has contradictory execution invariant")
 

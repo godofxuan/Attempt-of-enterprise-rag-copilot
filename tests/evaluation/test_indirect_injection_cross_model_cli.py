@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import argparse
 from dataclasses import replace
 from pathlib import Path
@@ -171,6 +172,8 @@ def _real_admission_inputs(tmp_path: Path, writer_v3_inputs):
         ollama_origin=manifest.environment.ollama_endpoint,
         structured_generation_max_attempts=manifest.models.max_attempts,
         ollama_version=manifest.environment.ollama_version,
+        python_version=manifest.environment.python_version,
+        platform=manifest.environment.platform,
         dependency_snapshot_path=manifest.environment.dependency_snapshot_path,
         dependency_snapshot_sha256=manifest.environment.dependency_snapshot_sha256,
         installed_snapshot_sha256=manifest.environment.installed_snapshot_sha256,
@@ -182,7 +185,9 @@ def _real_admission_inputs(tmp_path: Path, writer_v3_inputs):
         max_open_calls=retrieval.max_open_calls,
         max_steps=retrieval.max_steps,
         max_context_chars=retrieval.max_context_chars,
-        deadline_ms=10_000,
+        evaluator_path=manifest.evaluator.path,
+        evaluator_sha256=manifest.evaluator.sha256,
+        canonical_argv=manifest.evaluator.argv,
     )
     return target, plan, plan_sha256, component, context, runtime, execution
 
@@ -219,7 +224,7 @@ def _patch_main_preflight(monkeypatch: pytest.MonkeyPatch, plan):
     monkeypatch.setattr(
         eval_indirect_injection_cross_model,
         "_capture_execution_invariants",
-        lambda _plan, _runtime: _execution(),
+        lambda _plan, _runtime, _args: _execution(),
     )
 
 
@@ -812,7 +817,6 @@ def test_admission_rejects_real_v3_artifact_tampering_without_execution(
         ("max_attempts", 1),
         ("ollama_version", "0.0.0"),
         ("installed_snapshot_sha256", "0" * 64),
-        ("deadline_ms", 1),
     ],
 )
 def test_admission_rejects_real_v3_execution_invariant_mismatch(
@@ -828,8 +832,6 @@ def test_admission_rejects_real_v3_execution_invariant_mismatch(
         execution = replace(execution, structured_generation_max_attempts=value)
     elif field == "ollama_version":
         execution = replace(execution, ollama_version=value)
-    elif field == "deadline_ms":
-        execution = replace(execution, deadline_ms=value)
     else:
         execution = replace(execution, installed_snapshot_sha256=value)
 
@@ -887,6 +889,48 @@ def test_admission_rejects_real_v3_binding_mismatch(
             execution=execution,
         )
 
+
+@pytest.mark.parametrize(
+    ("section", "field", "value"),
+    [
+        ("environment", "python_version", "0.0.0"),
+        ("environment", "platform", "Other-platform"),
+        ("evaluator", "path", "scripts/eval_indirect_injection_live.py"),
+        ("evaluator", "sha256", "0" * 64),
+        (
+            "evaluator",
+            "argv",
+            ["python", "-m", "scripts.eval_indirect_injection_live"],
+        ),
+    ],
+)
+def test_admission_rejects_real_v3_environment_or_evaluator_mismatch(
+    tmp_path: Path,
+    writer_v3_inputs,
+    section: str,
+    field: str,
+    value: object,
+) -> None:
+    target, plan, plan_sha256, component, context, runtime, execution = (
+        _real_admission_inputs(tmp_path, writer_v3_inputs)
+    )
+    payload = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
+    payload[section][field] = value
+    (target / "manifest.json").write_bytes(
+        live_writer_tests.live_writer._json_bytes(payload)
+    )
+
+    with pytest.raises(ValueError, match="execution invariant"):
+        eval_indirect_injection_cross_model.admit_existing_component(
+            target,
+            plan=plan,
+            plan_sha256=plan_sha256,
+            component=component,
+            git_provenance=_clean_git(),
+            context=context,
+            runtime=runtime,
+            execution=execution,
+        )
 
 @pytest.mark.parametrize("schema", ["v1", "v2"])
 def test_admission_rejects_real_verified_legacy_packages(
