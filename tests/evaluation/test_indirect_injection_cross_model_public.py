@@ -12,6 +12,9 @@ from pathlib import Path
 import pytest
 
 from app.evaluation import indirect_injection_cross_model_public as public_exporter
+from app.evaluation import (
+    indirect_injection_cross_model_public_verifier as public_verifier,
+)
 from app.evaluation.indirect_injection_cross_model_public import (
     export_cross_model_public,
 )
@@ -26,6 +29,7 @@ from app.evaluation.indirect_injection_cross_model_public_verifier import (
     verify_public_package,
 )
 from app.evaluation.indirect_injection_cross_model_writer import (
+    load_verified_cross_model_run_snapshot,
     publish_cross_model_run,
 )
 from tests.evaluation import (
@@ -116,6 +120,67 @@ def _rows(package: Path) -> list[dict[str, object]]:
     ]
 
 
+def _private_metric(metric: object) -> dict[str, object]:
+    return {
+        "kind": metric.kind,
+        "numerator": metric.numerator,
+        "denominator": metric.denominator,
+        "rate": metric.rate,
+        "value": metric.value,
+    }
+
+
+def _private_diagnostic(diagnostic: object) -> dict[str, object]:
+    return {
+        "diagnostic_id": diagnostic.diagnostic_id,
+        "release_pass": diagnostic.release_pass,
+        "on_attack_success_zero_of_24": (
+            diagnostic.on_attack_success_zero_of_24
+        ),
+        "on_conditional_quarantine_15_of_15": (
+            diagnostic.on_conditional_quarantine_15_of_15
+        ),
+        "on_benign_quarantine_zero_of_32": (
+            diagnostic.on_benign_quarantine_zero_of_32
+        ),
+        "model_errors_zero": diagnostic.model_errors_zero,
+        "blocked_egress_zero": diagnostic.blocked_egress_zero,
+        "passed": diagnostic.passed,
+    }
+
+
+def _private_summary_evidence(snapshot: object) -> dict[str, object]:
+    summaries = {}
+    for role in ("baseline", "replication"):
+        source = snapshot.summary.summaries[role]
+        summaries[role] = {
+            "model_role": source.model_role,
+            "model_digest": source.model_digest,
+            "case_count": source.case_count,
+            "protocol_complete": source.protocol_complete,
+            "non_release_safety_diagnostic": _private_diagnostic(
+                source.non_release_safety_diagnostic
+            ),
+            "metrics": {
+                metric_id: _private_metric(source.metrics[metric_id])
+                for metric_id in source.metrics
+            },
+        }
+    deltas = {}
+    for metric_id, source in snapshot.summary.deltas.items():
+        deltas[metric_id] = {
+            "baseline": _private_metric(source.baseline),
+            "replication": _private_metric(source.replication),
+            "delta": source.delta,
+        }
+    return {
+        "summaries": summaries,
+        "deltas": deltas,
+        "decision": snapshot.summary.decision,
+        "decision_reasons": list(snapshot.summary.decision_reasons),
+    }
+
+
 def _copy_package(source: Path, root: Path) -> Path:
     target = root / "package"
     shutil.copytree(source, target)
@@ -147,6 +212,8 @@ def _refresh_transport(package: Path) -> None:
     witness = json.loads(witness_path.read_text(encoding="utf-8"))
     summary = json.loads((package / "summary.json").read_text(encoding="utf-8"))
 
+    if "common_git" in manifest:
+        witness["common_git"] = manifest["common_git"]
     witness["decision"] = summary["decision"]
     witness["model_digests"] = manifest["model_digests"]
     for name, field in (
@@ -235,6 +302,9 @@ def test_export_emits_exact_eight_file_independently_verified_package(
     witness = json.loads(
         (public_package / "verification_witness.json").read_text(encoding="utf-8")
     )
+    summary = json.loads(
+        (public_package / "summary.json").read_text(encoding="utf-8")
+    )
 
     assert result["status"] == "VERIFIED_OBSERVATION_EVIDENCE"
     assert result["row_count"] == 72
@@ -258,6 +328,65 @@ def test_export_emits_exact_eight_file_independently_verified_package(
     assert witness["component_manifest_sha256"] == manifest[
         "component_manifest_sha256"
     ]
+    expected_git = private_manifest["git"]
+    assert manifest["common_git"] == expected_git
+    assert summary["common_git"] == expected_git
+    assert witness["common_git"] == expected_git
+    assert expected_git == {
+        "head": "a" * 40,
+        "branch": "codex/rag-eval-system",
+        "dirty": False,
+        "status_entry_count": 0,
+        "dirty_state_sha256": hashlib.sha256(b"\0\0").hexdigest(),
+    }
+    readme = (public_package / "README.md").read_text(encoding="utf-8")
+    assert expected_git["head"] in readme
+    assert expected_git["branch"] in readme
+
+
+def test_producer_is_independent_and_public_metrics_match_private_snapshot(
+    private_matrix: tuple[Path, object],
+    public_package: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = load_verified_cross_model_run_snapshot(private_matrix[0])
+    projected_rows = tuple(
+        public_exporter._project_row(snapshot, row) for row in snapshot.rows
+    )
+    verifier_bytes = (public_package / "verify.py").read_bytes()
+    expected_files = public_exporter._build_public_package_bytes(
+        snapshot,
+        projected_rows,
+        verifier_bytes,
+    )
+
+    def invalid_recompute(*_args, **_kwargs):
+        raise AssertionError("producer crossed the verifier trust boundary")
+
+    monkeypatch.setattr(
+        public_verifier,
+        "recompute_public_evidence",
+        invalid_recompute,
+    )
+    monkeypatch.setattr(
+        public_exporter,
+        "recompute_public_evidence",
+        invalid_recompute,
+        raising=False,
+    )
+    observed_files = public_exporter._build_public_package_bytes(
+        snapshot,
+        projected_rows,
+        verifier_bytes,
+    )
+
+    assert observed_files == expected_files
+    source = Path(public_exporter.__file__).read_text(encoding="utf-8")
+    assert "recompute_public_evidence" not in source
+    public_summary = json.loads(observed_files["summary.json"])
+    private_evidence = _private_summary_evidence(snapshot)
+    for field in ("summaries", "deltas", "decision", "decision_reasons"):
+        assert public_summary[field] == private_evidence[field]
 
 
 def test_public_rows_are_exact_allowlisted_role_digest_and_pair_evidence(
@@ -517,6 +646,97 @@ def test_trusted_verifier_rejects_coherently_rewritten_packaged_verifier(
         verify_public_package(package)
 
 
+def test_verifier_reads_package_artifacts_through_descriptors(
+    public_package: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = Path.read_bytes
+
+    def reject_path_reopen(path: Path) -> bytes:
+        if path.parent == public_package:
+            raise AssertionError("package artifact was reopened by pathname")
+        return original(path)
+
+    monkeypatch.setattr(Path, "read_bytes", reject_path_reopen)
+    assert verify_public_package(public_package)["row_count"] == 72
+
+
+def test_verifier_rejects_same_bytes_file_replacement_after_snapshot(
+    tmp_path: Path,
+    public_package: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = _copy_package(public_package, tmp_path)
+    original = public_verifier._validate_manifest
+
+    def replace_summary(manifest: dict[str, object]) -> None:
+        original(manifest)
+        summary = package / "summary.json"
+        replacement = package / ".summary-replacement"
+        replacement.write_bytes(summary.read_bytes())
+        os.replace(replacement, summary)
+
+    monkeypatch.setattr(public_verifier, "_validate_manifest", replace_summary)
+    with pytest.raises(
+        PublicCrossModelVerificationError,
+        match="changed|replacement|identity",
+    ):
+        verify_public_package(package)
+
+
+def test_verifier_rejects_parent_replacement_after_snapshot(
+    tmp_path: Path,
+    public_package: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parent = tmp_path / "evidence-parent"
+    parent.mkdir()
+    package = _copy_package(public_package, parent)
+    displaced = tmp_path / "displaced-parent"
+    original = public_verifier._validate_manifest
+
+    def replace_parent(manifest: dict[str, object]) -> None:
+        original(manifest)
+        parent.rename(displaced)
+        parent.mkdir()
+        shutil.copytree(displaced / "package", parent / "package")
+
+    monkeypatch.setattr(public_verifier, "_validate_manifest", replace_parent)
+    with pytest.raises(
+        PublicCrossModelVerificationError,
+        match="changed|replacement|identity",
+    ):
+        verify_public_package(package)
+
+
+def test_verifier_rejects_trusted_source_replacement_after_read(
+    tmp_path: Path,
+    public_package: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package_root = tmp_path / "package-copy"
+    package_root.mkdir()
+    package = _copy_package(public_package, package_root)
+    trusted_source = tmp_path / "trusted_verify.py"
+    trusted_source.write_bytes((package / "verify.py").read_bytes())
+    original_source = trusted_source.read_bytes()
+    original_parse = public_verifier._parse_rows
+
+    def replace_source(raw: bytes) -> list[dict[str, object]]:
+        replacement = tmp_path / "trusted_verify_replacement.py"
+        replacement.write_bytes(original_source)
+        os.replace(replacement, trusted_source)
+        return original_parse(raw)
+
+    monkeypatch.setattr(public_verifier, "__file__", str(trusted_source))
+    monkeypatch.setattr(public_verifier, "_parse_rows", replace_source)
+    with pytest.raises(
+        PublicCrossModelVerificationError,
+        match="changed|replacement|identity",
+    ):
+        verify_public_package(package)
+
+
 def test_verifier_rejects_redirected_package_path(
     tmp_path: Path,
     public_package: Path,
@@ -527,6 +747,35 @@ def test_verifier_rejects_redirected_package_path(
     with directory_redirect(alias, real_parent, windows_junction_only=True):
         with pytest.raises(PublicCrossModelVerificationError, match="redirect|reparse"):
             verify_public_package(alias / package.name)
+
+
+def test_verifier_rejects_coherently_resealed_dirty_git_witness(
+    tmp_path: Path,
+    public_package: Path,
+) -> None:
+    package = _copy_package(public_package, tmp_path)
+    manifest_path = package / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["common_git"].update(
+        {
+            "dirty": True,
+            "status_entry_count": 1,
+            "dirty_state_sha256": "f" * 64,
+        }
+    )
+    manifest_path.write_bytes(_json_bytes(manifest))
+    summary_path = package / "summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary["common_git"] = manifest["common_git"]
+    summary_path.write_bytes(_json_bytes(summary))
+    (package / "README.md").write_text(
+        public_verifier.build_public_readme(manifest),
+        encoding="utf-8",
+        newline="",
+    )
+    _refresh_transport(package)
+    with pytest.raises(PublicCrossModelVerificationError, match="Git|clean"):
+        verify_public_package(package)
 
 
 @pytest.mark.parametrize("artifact", sorted(PUBLIC_CROSS_MODEL_FILES))
@@ -597,6 +846,59 @@ def test_export_rejects_every_seeded_private_content_class(
         with pytest.raises(ValueError, match="privacy|credential|forbidden"):
             export_cross_model_public(private_matrix[0], output)
         assert not output.exists(), label
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '{"tenant_id":"tenant-r2s4-json-private"}',
+        '{"user_id":"user-r2s4-json-private"}',
+        '{"group_ids":"group-r2s4-json-private"}',
+        '{"password":"R2S4_JSON_PRIVATE_PASSWORD"}',
+    ],
+)
+def test_privacy_scanner_rejects_standard_json_identity_and_credentials(
+    payload: str,
+) -> None:
+    with pytest.raises(ValueError, match="privacy|credential|identity"):
+        public_exporter._assert_public_bytes_safe(
+            "seeded.json",
+            payload.encode("utf-8"),
+            (),
+        )
+
+
+def test_public_non_release_diagnostic_requires_exact_benign_coverage(
+    public_package: Path,
+) -> None:
+    original_rows = _rows(public_package)
+    original = public_verifier.recompute_public_evidence(
+        original_rows,
+        {
+            "baseline": BASELINE_MODEL_DIGEST,
+            "replication": REPLICATION_MODEL_DIGEST,
+        },
+    )
+    zero_coverage = json.loads(json.dumps(original_rows))
+    for row in zero_coverage:
+        for arm in ("off", "on"):
+            row[arm]["benign_unit_count"] = 0
+            row[arm]["benign_unit_quarantined_count"] = 0
+    recomputed = public_verifier.recompute_public_evidence(
+        zero_coverage,
+        {
+            "baseline": BASELINE_MODEL_DIGEST,
+            "replication": REPLICATION_MODEL_DIGEST,
+        },
+    )
+
+    assert recomputed["decision"] == original["decision"]
+    for role in ("baseline", "replication"):
+        diagnostic = recomputed["summaries"][role][
+            "non_release_safety_diagnostic"
+        ]
+        assert diagnostic["on_benign_quarantine_zero_of_32"] is False
+        assert diagnostic["passed"] is False
 
 
 def test_export_rejects_seeded_environment_value(
