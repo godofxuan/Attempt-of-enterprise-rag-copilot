@@ -11,6 +11,11 @@ import pytest
 from pydantic import ValidationError
 
 from app.evaluation.indirect_injection_cross_model import load_cross_model_plan
+from app.evaluation import indirect_injection_cross_model_writer as matrix_writer
+from app.evaluation.indirect_injection_cross_model_writer import (
+    publish_cross_model_run,
+    verify_cross_model_run,
+)
 from app.evaluation.indirect_injection_live_writer import (
     OllamaModelIdentity,
     publish_live_security_run,
@@ -20,6 +25,7 @@ from tests.evaluation.path_redirect_helpers import (
     with_reparse_point_attribute,
 )
 from tests.evaluation import test_indirect_injection_live_writer as live_writer_tests
+from tests.evaluation import test_indirect_injection_cross_model_writer as matrix_fixtures
 from scripts import eval_indirect_injection_cross_model
 
 
@@ -235,6 +241,129 @@ def _patch_main_preflight(monkeypatch: pytest.MonkeyPatch, plan):
         "_capture_execution_invariants",
         lambda _plan, _runtime, _args: _execution(),
     )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_capture_current_effective_static_binding",
+        lambda _plan, _args: {},
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_effective_static_binding_from_execution",
+        lambda _plan, _execution: {},
+    )
+
+
+def _real_matrix_for_main(tmp_path: Path, writer_v3_inputs):
+    bundle, built, result = writer_v3_inputs
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    runtime = _runtime(plan)
+    component_root = tmp_path / "components"
+    matrix_root = tmp_path / "matrix"
+    args = eval_indirect_injection_cross_model.build_parser().parse_args(
+        [
+            "--out-dir",
+            str(component_root),
+            "--index-root",
+            str(tmp_path / "indexes"),
+            "--matrix-out-dir",
+            str(matrix_root),
+        ]
+    )
+    execution = eval_indirect_injection_cross_model._capture_execution_invariants(
+        plan,
+        runtime,
+        args,
+    )
+    current_git = matrix_fixtures._component_manifest(
+        bundle,
+        built,
+        result,
+        "baseline",
+    ).git.model_dump(mode="python")
+    forbidden = live_writer_tests._forbidden_texts(bundle)
+    component_root.mkdir()
+    components = {}
+    for role in ("baseline", "replication"):
+        payload = matrix_fixtures._component_manifest(
+            bundle,
+            built,
+            result,
+            role,
+        ).model_dump(mode="python")
+        payload["git"] = dict(current_git)
+        payload["environment"].update(
+            {
+                "python_version": execution.python_version,
+                "platform": execution.platform,
+                "dependency_snapshot_path": execution.dependency_snapshot_path,
+                "dependency_snapshot_sha256": execution.dependency_snapshot_sha256,
+                "installed_snapshot_sha256": execution.installed_snapshot_sha256,
+                "installed_package_count": execution.installed_package_count,
+                "ollama_version": execution.ollama_version,
+                "ollama_endpoint": execution.ollama_origin,
+            }
+        )
+        payload["models"].update(
+            {
+                "embedding": runtime.embedding,
+                "chat": runtime.chats[role],
+                "max_attempts": execution.structured_generation_max_attempts,
+            }
+        )
+        payload["transport"] = {
+            "model_request_timeout_seconds": execution.model_request_timeout_seconds,
+            "model_max_attempts": execution.model_max_attempts,
+            "model_retry_backoff_ms": execution.model_retry_backoff_ms,
+        }
+        payload["retrieval"].update(
+            {
+                "production_active_index": execution.production_active_index,
+                "top_k": execution.top_k,
+                "candidate_k": execution.candidate_k,
+                "max_search_calls": execution.max_search_calls,
+                "max_open_calls": execution.max_open_calls,
+                "max_steps": execution.max_steps,
+                "max_context_chars": execution.max_context_chars,
+            }
+        )
+        payload["evaluator"] = {
+            "path": execution.evaluator_path,
+            "sha256": execution.evaluator_sha256,
+            "argv": execution.canonical_argv,
+            "exit_code": 0,
+        }
+        manifest = eval_indirect_injection_cross_model.LiveSecurityRunManifestV3.model_validate(
+            payload
+        )
+        components[role] = publish_live_security_run(
+            component_root,
+            manifest,
+            result,
+            paired_evidence="offline fixture\n",
+            commands="offline fixture\n",
+            test_output="offline fixture\n",
+            forbidden_texts=forbidden,
+        )
+    comparison = matrix_fixtures._compare(bundle, components)
+    matrix_root.mkdir()
+    package = publish_cross_model_run(
+        matrix_root,
+        comparison,
+        plan_path=PLAN_PATH,
+        component_runs=components,
+        commands="offline fixture\n",
+        forbidden_texts=forbidden,
+        code_root=ROOT,
+        current_git=current_git,
+        current_effective_static=(
+            eval_indirect_injection_cross_model._effective_static_binding_from_execution(
+                plan,
+                execution,
+            )
+        ),
+    )
+    manifest = verify_cross_model_run(package)
+    return bundle, components, matrix_root, manifest
 
 
 def test_help_has_no_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -435,6 +564,250 @@ def test_exact_existing_matrix_is_reused_without_identity_or_component_work(
     payload = json.loads(capsys.readouterr().out)
     assert payload["matrix_run_id"] == plan.matrix_run_id
     assert payload["reused"] is True
+
+
+def test_real_existing_matrix_is_readmitted_by_main_without_model_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    writer_v3_inputs,
+) -> None:
+    _, components, matrix_root, manifest = _real_matrix_for_main(
+        tmp_path,
+        writer_v3_inputs,
+    )
+    current_git = manifest.git.model_dump(mode="python")
+    called: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: dict(current_git),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        lambda _request: called.append("execution"),
+    )
+
+    assert eval_indirect_injection_cross_model.main(
+        [
+            "--out-dir",
+            str(components["baseline"].parent),
+            "--index-root",
+            str(tmp_path / "indexes"),
+            "--matrix-out-dir",
+            str(matrix_root),
+        ]
+    ) == 0
+
+    assert called == []
+    assert json.loads(capsys.readouterr().out)["reused"] is True
+
+
+@pytest.mark.parametrize("mutation", ["git", "data", "guard", "dependency"])
+def test_real_existing_matrix_rejects_current_binding_mismatch_before_model(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    writer_v3_inputs,
+    mutation: str,
+) -> None:
+    bundle, components, matrix_root, manifest = _real_matrix_for_main(
+        tmp_path,
+        writer_v3_inputs,
+    )
+    current_git = manifest.git.model_dump(mode="python")
+    if mutation == "git":
+        current_git["head"] = "b" * 40
+    elif mutation == "data":
+        current_bundle = matrix_writer.load_security_bundle(
+            ROOT / "data" / "v2" / "security",
+            "dev",
+        )
+        stale = replace(current_bundle, dataset_sha256="0" * 64)
+        monkeypatch.setattr(matrix_writer, "load_security_bundle", lambda *_: stale)
+    else:
+        if mutation == "guard":
+            monkeypatch.setattr(matrix_writer, "DETECTOR_VERSION", "changed-guard")
+        else:
+            installed = eval_indirect_injection_cross_model._installed_dependency_snapshot()
+            installed["installed_snapshot_sha256"] = "f" * 64
+            monkeypatch.setattr(
+                eval_indirect_injection_cross_model,
+                "_installed_dependency_snapshot",
+                lambda: installed,
+            )
+    called: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: dict(current_git),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        lambda _request: called.append("execution"),
+    )
+
+    with pytest.raises(ValueError, match="Git|dataset|Guard|static"):
+        eval_indirect_injection_cross_model.main(
+            [
+                "--out-dir",
+                str(components["baseline"].parent),
+                "--index-root",
+                str(tmp_path / "indexes"),
+                "--matrix-out-dir",
+                str(matrix_root),
+            ]
+        )
+
+    assert called == []
+
+
+def test_real_new_flow_compares_publishes_and_readmits_matrix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    writer_v3_inputs,
+) -> None:
+    bundle, built, result = writer_v3_inputs
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    runtime = _runtime(plan)
+    current_git = matrix_fixtures._component_manifest(
+        bundle,
+        built,
+        result,
+        "baseline",
+    ).git.model_dump(mode="python")
+    args = eval_indirect_injection_cross_model.build_parser().parse_args(
+        [
+            "--out-dir",
+            str(tmp_path / "components"),
+            "--index-root",
+            str(tmp_path / "indexes"),
+            "--matrix-out-dir",
+            str(tmp_path / "matrix"),
+        ]
+    )
+    execution = eval_indirect_injection_cross_model._capture_execution_invariants(
+        plan,
+        runtime,
+        args,
+    )
+    roles: list[str] = []
+
+    def execute(request):
+        role = request.experiment.model_role
+        roles.append(role)
+        payload = matrix_fixtures._component_manifest(
+            bundle,
+            built,
+            result,
+            role,
+        ).model_dump(mode="python")
+        payload["run_id"] = request.args.run_id
+        payload["git"] = dict(current_git)
+        payload["environment"].update(
+            {
+                "python_version": execution.python_version,
+                "platform": execution.platform,
+                "dependency_snapshot_path": execution.dependency_snapshot_path,
+                "dependency_snapshot_sha256": execution.dependency_snapshot_sha256,
+                "installed_snapshot_sha256": execution.installed_snapshot_sha256,
+                "installed_package_count": execution.installed_package_count,
+                "ollama_version": execution.ollama_version,
+                "ollama_endpoint": execution.ollama_origin,
+            }
+        )
+        payload["models"].update(
+            {
+                "embedding": runtime.embedding,
+                "chat": runtime.chats[role],
+                "evidence_model": "NOT_USED_D7_LIVE_PAIRED",
+                "temperature": 0.0,
+                "structured_output_variant": "generation-v2-json-schema",
+                "think": False,
+                "max_attempts": execution.structured_generation_max_attempts,
+            }
+        )
+        payload["transport"] = {
+            "model_request_timeout_seconds": execution.model_request_timeout_seconds,
+            "model_max_attempts": execution.model_max_attempts,
+            "model_retry_backoff_ms": execution.model_retry_backoff_ms,
+        }
+        payload["retrieval"].update(
+            {
+                "production_active_index": execution.production_active_index,
+                "top_k": execution.top_k,
+                "candidate_k": execution.candidate_k,
+                "max_search_calls": execution.max_search_calls,
+                "max_open_calls": execution.max_open_calls,
+                "max_steps": execution.max_steps,
+                "max_context_chars": execution.max_context_chars,
+            }
+        )
+        payload["evaluator"] = {
+            "path": execution.evaluator_path,
+            "sha256": execution.evaluator_sha256,
+            "argv": execution.canonical_argv,
+            "exit_code": 0,
+        }
+        payload["experiment"] = request.experiment
+        manifest = eval_indirect_injection_cross_model.LiveSecurityRunManifestV3.model_validate(
+            payload
+        )
+        target = publish_live_security_run(
+            request.args.out_dir,
+            manifest,
+            result,
+            paired_evidence="offline model-boundary fixture\n",
+            commands="offline model-boundary fixture\n",
+            test_output="offline model-boundary fixture\n",
+            forbidden_texts=live_writer_tests._forbidden_texts(bundle),
+        )
+        return eval_indirect_injection_cross_model.LiveExecutionOutcome(
+            output_dir=target,
+            manifest=manifest,
+        )
+
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: dict(current_git),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: runtime,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        execute,
+    )
+
+    assert eval_indirect_injection_cross_model.main(
+        [
+            "--out-dir",
+            str(tmp_path / "components"),
+            "--index-root",
+            str(tmp_path / "indexes"),
+            "--matrix-out-dir",
+            str(tmp_path / "matrix"),
+        ]
+    ) == 0
+
+    assert roles == ["baseline", "replication"]
+    matrix = tmp_path / "matrix" / plan.matrix_run_id
+    assert verify_cross_model_run(matrix).decision == "CONSISTENT_OBSERVATION"
 
 
 def test_runs_absent_components_baseline_then_replication(

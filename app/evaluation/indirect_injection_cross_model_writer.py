@@ -12,7 +12,14 @@ from typing import Literal, Mapping
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.domain.retrieved_security import (
+    DETECTOR_VERSION,
+    MAX_DECODED_VIEWS,
+    MAX_NORMALIZED_CHARS,
+    MAX_SCAN_CHARS,
+)
 from app.evaluation.indirect_injection_cross_model import (
+    CLEAN_GIT_STATE_SHA256,
     COMPARISON_METRIC_IDS,
     CrossModelCaseRow,
     CrossModelComparisonResult,
@@ -25,12 +32,16 @@ from app.evaluation.indirect_injection_cross_model import (
     compare_verified_runs,
     load_cross_model_plan,
 )
-from app.evaluation.indirect_injection_dataset import load_security_bundle
+from app.evaluation.indirect_injection_dataset import (
+    LoadedSecurityBundle,
+    load_security_bundle,
+)
 from app.evaluation.indirect_injection_live_writer import (
     LiveSecurityRunManifestV3,
     load_verified_live_security_run_snapshot,
 )
 from app.evaluation.indirect_injection_writer import (
+    GitSecurityProvenance,
     _assert_content_free,
     validate_security_run_id,
 )
@@ -56,28 +67,40 @@ _CHECKSUM_CONTENT_NAMES = tuple(
         - {"manifest.json", "checksums.sha256"}
     )
 )
-_CODE_BINDING_PATHS = (
+_CODE_BINDING_PATHS = tuple(sorted((
+    "app/config.py",
     "app/agent/generation_v2.py",
     "app/agent/runner_v2.py",
     "app/agent/tools_v2.py",
     "app/evaluation/indirect_injection_arm_order.py",
+    "app/evaluation/indirect_injection_contracts.py",
     "app/evaluation/indirect_injection_cross_model.py",
     "app/evaluation/indirect_injection_cross_model_writer.py",
+    "app/evaluation/indirect_injection_dataset.py",
+    "app/evaluation/indirect_injection_live_index.py",
     "app/evaluation/indirect_injection_live_runner.py",
     "app/evaluation/indirect_injection_live_writer.py",
     "app/evaluation/indirect_injection_metric_semantics.py",
     "app/evaluation/indirect_injection_runner.py",
+    "app/domain/retrieved_security.py",
+    "app/indexing/store.py",
+    "app/ollama_chat.py",
+    "app/retriever.py",
     "app/retrieval/navigation.py",
     "app/retrieval/pipeline.py",
     "app/retrieval/snapshot.py",
     "app/security/retrieved_content.py",
+    "app/runtime/model_transport.py",
+    "scripts/eval_indirect_injection.py",
     "scripts/eval_indirect_injection_cross_model.py",
+    "scripts/eval_indirect_injection_live.py",
     "scripts/verify_indirect_injection_cross_model.py",
-)
+)))
 _LIMITATIONS = (
     "This matrix is one local two-model observation, not a release PASS.",
     "The visible dev set is regression evidence, not unseen production traffic.",
     "Only chat-model identity is intentionally varied; latency is host-specific.",
+    "Exact clean Git provenance is the causal code binding; listed file hashes are selected audit witnesses, not a full repository closure.",
 )
 _REPARSE_POINT_ATTRIBUTE = getattr(
     stat,
@@ -170,6 +193,7 @@ class CrossModelVerificationWitness(_StrictFrozenModel):
     ]
     matrix_run_id: Literal["r2-s4-cross-model-dev-20260722-01"]
     plan_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    git: GitSecurityProvenance
     component_manifest_sha256: dict[str, str]
     component_per_case_sha256: dict[str, str]
     code_sha256: dict[str, str]
@@ -191,6 +215,7 @@ class CrossModelRunManifest(_StrictFrozenModel):
     plan_path: str
     plan_bytes: int = Field(ge=1)
     plan_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    git: GitSecurityProvenance
     components: dict[str, CrossModelComponentEvidence]
     code_sha256: dict[str, str]
     row_count: Literal[72]
@@ -211,6 +236,12 @@ class CrossModelRunManifest(_StrictFrozenModel):
 
     @model_validator(mode="after")
     def validate_manifest(self) -> CrossModelRunManifest:
+        if (
+            self.git.dirty
+            or self.git.status_entry_count != 0
+            or self.git.dirty_state_sha256 != CLEAN_GIT_STATE_SHA256
+        ):
+            raise ValueError("matrix manifest requires exact clean Git provenance")
         if set(self.components) != {"baseline", "replication"}:
             raise ValueError("matrix component roles are incomplete")
         for role, component in self.components.items():
@@ -273,6 +304,8 @@ def publish_cross_model_run(
     commands: str,
     forbidden_texts: tuple[str, ...],
     code_root: Path | None = None,
+    current_git: Mapping[str, object] | GitSecurityProvenance | None = None,
+    current_effective_static: Mapping[str, object] | None = None,
 ) -> Path:
     """Publish or exactly reuse one immutable private cross-model matrix."""
 
@@ -301,6 +334,25 @@ def publish_cross_model_run(
         raise ValueError("provided comparison does not recompute from components")
 
     components = _component_evidence(component_runs, comparison)
+    component_git = _component_git_from_paths(component_runs)
+    controller_git = (
+        component_git
+        if current_git is None
+        else _coerce_git(current_git)
+    )
+    _require_clean_git(controller_git, "controller")
+    if controller_git != component_git:
+        raise ValueError("component Git binding contradicts current Git")
+    _validate_components_against_current_data_guard(
+        component_runs,
+        repository=repository,
+        bundle=bundle,
+    )
+    if current_effective_static is not None:
+        _validate_current_effective_static(
+            component_runs,
+            current_effective_static,
+        )
     code_sha256 = _code_bindings(repository)
     plan_relative = plan_file.relative_to(repository).as_posix()
     expected_files, expected_manifest = _build_package_bytes(
@@ -308,13 +360,17 @@ def publish_cross_model_run(
         plan_path=plan_relative,
         plan_bytes=len(plan_payload),
         components=components,
+        git=controller_git,
         code_sha256=code_sha256,
         commands=_canonical_text(commands, "matrix commands"),
     )
     for name, payload in expected_files.items():
         _assert_content_free(payload, forbidden_texts)
 
-    output_root = _validated_publication_root(Path(root), "matrix output root")
+    output_root = _validated_cross_model_publication_root(
+        Path(root),
+        "matrix output root",
+    )
     target = output_root / plan.matrix_run_id
     if target.parent != output_root:
         raise ValueError("matrix run ID resolves outside output root")
@@ -369,6 +425,8 @@ def validate_current_cross_model_bindings(
     plan_path: Path,
     component_runs: Mapping[str, Path],
     code_root: Path | None = None,
+    current_git: Mapping[str, object] | GitSecurityProvenance,
+    current_effective_static: Mapping[str, object] | None = None,
 ) -> CrossModelRunManifest:
     """Admit an existing matrix only against current plan/components/code."""
 
@@ -377,6 +435,10 @@ def validate_current_cross_model_bindings(
     )
     snapshot = load_verified_cross_model_run_snapshot(run_dir)
     manifest = snapshot.manifest
+    controller_git = _coerce_git(current_git)
+    _require_clean_git(controller_git, "current")
+    if manifest.git != controller_git:
+        raise ValueError("existing matrix contradicts current Git binding")
     plan_file = _validated_repository_file(repository, Path(plan_path), "matrix plan")
     plan_payload, _ = _read_regular_file_snapshot(plan_file, "matrix plan")
     plan, plan_sha256 = load_cross_model_plan(plan_file)
@@ -393,6 +455,8 @@ def validate_current_cross_model_bindings(
     expected_components = _component_evidence_from_paths(component_runs)
     if manifest.components != expected_components:
         raise ValueError("existing matrix contradicts current component packages")
+    if _component_git_from_paths(component_runs) != controller_git:
+        raise ValueError("existing components contradict current Git binding")
     for role in ("baseline", "replication"):
         if expected_components[role].run_id != plan.model_for_role(role).run_id:
             raise ValueError("existing matrix component run ID contradicts plan")
@@ -400,6 +464,16 @@ def validate_current_cross_model_bindings(
         repository / "data" / "v2" / "security",
         plan.split,
     )
+    _validate_components_against_current_data_guard(
+        component_runs,
+        repository=repository,
+        bundle=bundle,
+    )
+    if current_effective_static is not None:
+        _validate_current_effective_static(
+            component_runs,
+            current_effective_static,
+        )
     recomputed = compare_verified_runs(
         Path(component_runs["baseline"]),
         Path(component_runs["replication"]),
@@ -460,12 +534,192 @@ def _component_evidence_from_paths(
     return result
 
 
+def _component_git_from_paths(
+    component_runs: Mapping[str, Path],
+) -> GitSecurityProvenance:
+    if set(component_runs) != {"baseline", "replication"}:
+        raise ValueError("matrix component paths are incomplete")
+    observed: dict[str, GitSecurityProvenance] = {}
+    for role in ("baseline", "replication"):
+        snapshot = load_verified_live_security_run_snapshot(Path(component_runs[role]))
+        if not isinstance(snapshot.manifest, LiveSecurityRunManifestV3):
+            raise ValueError("matrix component is not a verified V3 run")
+        observed[role] = snapshot.manifest.git
+        _require_clean_git(observed[role], role)
+        snapshot.assert_manifest_unchanged()
+    if observed["baseline"] != observed["replication"]:
+        raise ValueError("matrix components do not share exact Git provenance")
+    return observed["baseline"]
+
+
+def _validate_components_against_current_data_guard(
+    component_runs: Mapping[str, Path],
+    *,
+    repository: Path,
+    bundle: LoadedSecurityBundle,
+) -> None:
+    dataset_path = bundle.dataset_path.resolve().relative_to(repository).as_posix()
+    fixture_path = (
+        bundle.fixture_manifest_path.resolve().relative_to(repository).as_posix()
+    )
+    guard_relative = "app/security/retrieved_content.py"
+    guard_path = _validated_fixed_regular_path(
+        repository,
+        Path(*PurePosixPath(guard_relative).parts),
+        "current Guard ruleset",
+    )
+    guard_payload, _ = _read_regular_file_snapshot(guard_path, "current Guard ruleset")
+    guard_sha256 = _sha256_bytes(guard_payload)
+    for role in ("baseline", "replication"):
+        snapshot = load_verified_live_security_run_snapshot(Path(component_runs[role]))
+        manifest = snapshot.manifest
+        if not isinstance(manifest, LiveSecurityRunManifestV3):
+            raise ValueError("matrix component is not a verified V3 run")
+        data = manifest.data
+        if (
+            data.dataset_path != dataset_path
+            or data.dataset_sha256 != bundle.dataset_sha256
+            or data.fixture_manifest_path != fixture_path
+            or data.fixture_manifest_sha256 != bundle.fixture_manifest_sha256
+            or data.dataset_case_count != bundle.dataset.case_count
+            or data.attack_case_count != bundle.dataset.attack_case_count
+            or data.benign_case_count != bundle.dataset.benign_case_count
+        ):
+            raise ValueError(f"{role} component contradicts current dataset/fixture")
+        for relative, pair in data.r1_frozen_hashes.items():
+            frozen_path = _validated_fixed_regular_path(
+                repository,
+                Path(*PurePosixPath(relative).parts),
+                f"current R1 binding {relative}",
+            )
+            payload, _ = _read_regular_file_snapshot(
+                frozen_path,
+                f"current R1 binding {relative}",
+            )
+            if pair.actual != _sha256_bytes(payload) or pair.expected != pair.actual:
+                raise ValueError(f"{role} component contradicts current R1 data")
+        guard = manifest.guard
+        if (
+            guard.detector_version != DETECTOR_VERSION
+            or guard.ruleset_path != guard_relative
+            or guard.ruleset_sha256 != guard_sha256
+            or guard.max_scan_chars != MAX_SCAN_CHARS
+            or guard.max_normalized_chars != MAX_NORMALIZED_CHARS
+            or guard.max_decoded_views != MAX_DECODED_VIEWS
+        ):
+            raise ValueError(f"{role} component contradicts current Guard binding")
+        snapshot.assert_manifest_unchanged()
+
+
+def _validate_current_effective_static(
+    component_runs: Mapping[str, Path],
+    current: Mapping[str, object],
+) -> None:
+    expected = _normalize_json_value(dict(current))
+    for role in ("baseline", "replication"):
+        snapshot = load_verified_live_security_run_snapshot(Path(component_runs[role]))
+        manifest = snapshot.manifest
+        if not isinstance(manifest, LiveSecurityRunManifestV3):
+            raise ValueError("matrix component is not a verified V3 run")
+        if _manifest_effective_static(manifest) != expected:
+            raise ValueError(
+                f"{role} component contradicts current effective static binding"
+            )
+        snapshot.assert_manifest_unchanged()
+
+
+def _manifest_effective_static(manifest: LiveSecurityRunManifestV3) -> object:
+    return _normalize_json_value(
+        {
+            "environment": {
+                "ollama_endpoint": manifest.environment.ollama_endpoint,
+                "python_version": manifest.environment.python_version,
+                "platform": manifest.environment.platform,
+                "dependency_snapshot_path": (
+                    manifest.environment.dependency_snapshot_path
+                ),
+                "dependency_snapshot_sha256": (
+                    manifest.environment.dependency_snapshot_sha256
+                ),
+                "installed_snapshot_sha256": (
+                    manifest.environment.installed_snapshot_sha256
+                ),
+                "installed_package_count": (
+                    manifest.environment.installed_package_count
+                ),
+            },
+            "embedding": {
+                "requested_name": manifest.models.embedding.requested_name,
+                "resolved_name": manifest.models.embedding.resolved_name,
+                "digest": manifest.models.embedding.digest,
+            },
+            "model_protocol": {
+                "evidence_model": manifest.models.evidence_model,
+                "temperature": manifest.models.temperature,
+                "structured_output_variant": (
+                    manifest.models.structured_output_variant
+                ),
+                "think": manifest.models.think,
+                "max_attempts": manifest.models.max_attempts,
+            },
+            "transport": manifest.transport.model_dump(mode="json"),
+            "retrieval": {
+                "production_active_index": (
+                    manifest.retrieval.production_active_index.model_dump(mode="json")
+                ),
+                "chunking": manifest.retrieval.chunking,
+                "top_k": manifest.retrieval.top_k,
+                "candidate_k": manifest.retrieval.candidate_k,
+                "max_search_calls": manifest.retrieval.max_search_calls,
+                "max_open_calls": manifest.retrieval.max_open_calls,
+                "max_steps": manifest.retrieval.max_steps,
+                "max_context_chars": manifest.retrieval.max_context_chars,
+            },
+            "evaluator": {
+                "path": manifest.evaluator.path,
+                "sha256": manifest.evaluator.sha256,
+                "argv": manifest.evaluator.argv,
+            },
+        }
+    )
+
+
+def _normalize_json_value(value: object) -> object:
+    return json.loads(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+    )
+
+
+def _require_clean_git(git: GitSecurityProvenance, label: str) -> None:
+    if (
+        git.dirty
+        or git.status_entry_count != 0
+        or git.dirty_state_sha256 != CLEAN_GIT_STATE_SHA256
+    ):
+        raise ValueError(f"{label} requires exact clean Git provenance")
+
+
+def _coerce_git(
+    value: Mapping[str, object] | GitSecurityProvenance,
+) -> GitSecurityProvenance:
+    if isinstance(value, GitSecurityProvenance):
+        return value
+    return GitSecurityProvenance.model_validate(dict(value))
+
+
 def _build_package_bytes(
     comparison: CrossModelComparisonResult,
     *,
     plan_path: str,
     plan_bytes: int,
     components: Mapping[str, CrossModelComponentEvidence],
+    git: GitSecurityProvenance,
     code_sha256: Mapping[str, str],
     commands: str,
 ) -> tuple[dict[str, bytes], CrossModelRunManifest]:
@@ -480,6 +734,7 @@ def _build_package_bytes(
         schema_version="indirect_injection_cross_model_verification_witness_v1",
         matrix_run_id=comparison.matrix_run_id,
         plan_sha256=comparison.plan_sha256,
+        git=git,
         component_manifest_sha256={
             role: components[role].manifest_sha256
             for role in ("baseline", "replication")
@@ -528,6 +783,7 @@ def _build_package_bytes(
         plan_path=plan_path,
         plan_bytes=plan_bytes,
         plan_sha256=comparison.plan_sha256,
+        git=git,
         components=dict(components),
         code_sha256=dict(code_sha256),
         row_count=72,
@@ -631,6 +887,7 @@ def _validate_package(
         schema_version="indirect_injection_cross_model_verification_witness_v1",
         matrix_run_id=manifest.matrix_run_id,
         plan_sha256=manifest.plan_sha256,
+        git=manifest.git,
         component_manifest_sha256={
             role: manifest.components[role].manifest_sha256
             for role in ("baseline", "replication")
@@ -678,6 +935,7 @@ def _validate_recomputation(
         or summary.invariant_mismatches != manifest.invariant_mismatches
     ):
         raise ValueError("matrix summary contradicts manifest bindings")
+    _validate_rows_against_manifest(manifest, rows)
     expected_summaries = {
         role: _summarize_model(
             role,
@@ -707,6 +965,53 @@ def _validate_recomputation(
         or manifest.decision != expected_decision
     ):
         raise ValueError("matrix summary/decision does not recompute from rows")
+
+
+def _validate_rows_against_manifest(
+    manifest: CrossModelRunManifest,
+    rows: tuple[CrossModelCaseRow, ...],
+) -> None:
+    for role, offset in (("baseline", 0), ("replication", 36)):
+        digest = manifest.components[role].model_digest
+        role_rows = rows[offset : offset + 36]
+        if any(
+            row.model_role != role or row.model_digest != digest
+            for row in role_rows
+        ):
+            raise ValueError(f"{role} row digest/role binding contradicts component")
+    for index in range(36):
+        baseline = rows[index]
+        replication = rows[index + 36]
+        if _non_chat_row_binding(baseline) != _non_chat_row_binding(replication):
+            raise ValueError(
+                f"cross-model row binding differs at case ordinal {index + 1}"
+            )
+
+
+def _non_chat_row_binding(row: CrossModelCaseRow) -> object:
+    def arm(value: object) -> tuple[object, ...]:
+        return (
+            value.guard_mode,
+            value.retrieval_completed,
+            value.candidate_count,
+            value.attack_unit_count,
+            value.attack_unit_reached_guard_count,
+            value.attack_unit_quarantined_count,
+            value.benign_unit_count,
+            value.benign_unit_quarantined_count,
+        )
+
+    return (
+        row.case_ordinal,
+        row.case_class,
+        row.arm_order,
+        row.input_fingerprint,
+        row.nonce_fingerprint,
+        row.pair_input_fingerprint,
+        row.candidate_order_sha256,
+        arm(row.off),
+        arm(row.on),
+    )
 
 
 def _validate_artifact_evidence(
@@ -744,6 +1049,9 @@ def _parse_rows(raw: bytes) -> tuple[CrossModelCaseRow, ...]:
     expected_case_ordinals = tuple(range(1, 37)) * 2
     if tuple(row.case_ordinal for row in rows) != expected_case_ordinals:
         raise ValueError("cross-model case ordinals are not exact")
+    expected_roles = ("baseline",) * 36 + ("replication",) * 36
+    if tuple(row.model_role for row in rows) != expected_roles:
+        raise ValueError("cross-model rows are not in exact 36 baseline/36 replication role order")
     return tuple(rows)
 
 
@@ -764,6 +1072,27 @@ def _validated_code_root(path: Path) -> Path:
     return _validated_trusted_directory(path, "repository root")
 
 
+def _validated_cross_model_publication_root(path: Path, label: str) -> Path:
+    lexical = Path(os.path.abspath(path))
+    current = Path(lexical.anchor)
+    for part in lexical.parts[1:]:
+        current = current / part
+        try:
+            observed = current.lstat()
+        except FileNotFoundError:
+            break
+        except OSError as exc:
+            raise ValueError(f"{label} cannot be inspected") from exc
+        if _is_redirecting_path(observed):
+            raise ValueError(
+                f"{label} has a redirecting symlink/junction/reparse component"
+            )
+        if not stat.S_ISDIR(observed.st_mode):
+            raise ValueError(f"{label} has a non-directory path component")
+    _validated_publication_root(lexical, label)
+    return _validated_trusted_directory(lexical, label)
+
+
 def _validated_repository_file(repository: Path, path: Path, label: str) -> Path:
     candidate = path if path.is_absolute() else repository / path
     absolute = candidate.absolute()
@@ -775,15 +1104,21 @@ def _validated_repository_file(repository: Path, path: Path, label: str) -> Path
 
 
 def _validated_trusted_directory(path: Path, label: str) -> Path:
+    lexical = Path(os.path.abspath(path))
+    current = Path(lexical.anchor)
     try:
-        observed = path.lstat()
+        for part in lexical.parts[1:]:
+            current = current / part
+            observed = current.lstat()
+            if _is_redirecting_path(observed):
+                raise ValueError(
+                    f"{label} has a redirecting symlink/junction/reparse component"
+                )
+            if not stat.S_ISDIR(observed.st_mode):
+                raise FileNotFoundError(f"{label} not found: {path}")
     except OSError as exc:
         raise FileNotFoundError(f"{label} not found: {path}") from exc
-    if _is_redirecting_path(observed):
-        raise ValueError(f"{label} cannot be a symlink or redirecting reparse point")
-    if not stat.S_ISDIR(observed.st_mode):
-        raise FileNotFoundError(f"{label} not found: {path}")
-    return path.resolve()
+    return lexical.resolve()
 
 
 def _validated_fixed_regular_path(root: Path, relative: Path, label: str) -> Path:

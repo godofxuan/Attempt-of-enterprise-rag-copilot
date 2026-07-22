@@ -323,11 +323,14 @@ def main(argv: list[str] | None = None) -> int:
     }
     matrix_target = Path(args.matrix_out_dir) / plan.matrix_run_id
     if _lexical_exists(matrix_target):
+        current_static = _capture_current_effective_static_binding(plan, args)
         manifest = validate_current_cross_model_bindings(
             matrix_target,
             plan_path=Path(args.plan),
             component_runs=component_paths,
             code_root=BASE_DIR,
+            current_git=git_provenance,
+            current_effective_static=current_static,
         )
         _assert_git_provenance_stable(git_provenance, _git_provenance(BASE_DIR))
         print(
@@ -347,6 +350,7 @@ def main(argv: list[str] | None = None) -> int:
     runtime = fetch_ollama_identities(plan)
     _validate_runtime_identities(plan, runtime)
     execution = _capture_execution_invariants(plan, runtime, args)
+    current_static = _effective_static_binding_from_execution(plan, execution)
 
     components: list[ComponentRun] = []
     for component in plan.chat_models:
@@ -383,12 +387,16 @@ def main(argv: list[str] | None = None) -> int:
         commands=subprocess.list2cmdline(list(_canonical_argv(args))) + "\n",
         forbidden_texts=_forbidden_fixture_texts(context.data),
         code_root=BASE_DIR,
+        current_git=git_provenance,
+        current_effective_static=current_static,
     )
     matrix_manifest = validate_current_cross_model_bindings(
         matrix_path,
         plan_path=Path(args.plan),
         component_runs=component_paths,
         code_root=BASE_DIR,
+        current_git=git_provenance,
+        current_effective_static=current_static,
     )
     _assert_git_provenance_stable(git_provenance, _git_provenance(BASE_DIR))
     for component in components:
@@ -482,6 +490,72 @@ def _capture_execution_invariants(
         ),
         canonical_argv=_canonical_argv(args),
     )
+
+
+def _capture_current_effective_static_binding(
+    plan: CrossModelPlanV1,
+    args: argparse.Namespace,
+) -> dict[str, object]:
+    no_identity_lookup = OllamaIdentitySnapshot(
+        version="NOT_QUERIED_STATIC_ADMISSION",
+        embedding=None,  # type: ignore[arg-type]
+        chats={},
+    )
+    execution = _capture_execution_invariants(plan, no_identity_lookup, args)
+    return _effective_static_binding_from_execution(plan, execution)
+
+
+def _effective_static_binding_from_execution(
+    plan: CrossModelPlanV1,
+    execution: ExecutionInvariantSnapshot,
+) -> dict[str, object]:
+    return {
+        "environment": {
+            "ollama_endpoint": execution.ollama_origin,
+            "python_version": execution.python_version,
+            "platform": execution.platform,
+            "dependency_snapshot_path": execution.dependency_snapshot_path,
+            "dependency_snapshot_sha256": execution.dependency_snapshot_sha256,
+            "installed_snapshot_sha256": execution.installed_snapshot_sha256,
+            "installed_package_count": execution.installed_package_count,
+        },
+        "embedding": {
+            "requested_name": plan.embedding.requested_name,
+            "resolved_name": plan.embedding.resolved_name,
+            "digest": plan.embedding.digest,
+        },
+        "model_protocol": {
+            "evidence_model": "NOT_USED_D7_LIVE_PAIRED",
+            "temperature": 0.0,
+            "structured_output_variant": "generation-v2-json-schema",
+            "think": False,
+            "max_attempts": execution.structured_generation_max_attempts,
+        },
+        "transport": {
+            "model_request_timeout_seconds": (
+                execution.model_request_timeout_seconds
+            ),
+            "model_max_attempts": execution.model_max_attempts,
+            "model_retry_backoff_ms": execution.model_retry_backoff_ms,
+        },
+        "retrieval": {
+            "production_active_index": execution.production_active_index.model_dump(
+                mode="json"
+            ),
+            "chunking": "post-parser-security-fixture-projection-v1",
+            "top_k": execution.top_k,
+            "candidate_k": execution.candidate_k,
+            "max_search_calls": execution.max_search_calls,
+            "max_open_calls": execution.max_open_calls,
+            "max_steps": execution.max_steps,
+            "max_context_chars": execution.max_context_chars,
+        },
+        "evaluator": {
+            "path": execution.evaluator_path,
+            "sha256": execution.evaluator_sha256,
+            "argv": execution.canonical_argv,
+        },
+    }
 
 
 def _validate_plan_execution_targets(plan: CrossModelPlanV1) -> None:
