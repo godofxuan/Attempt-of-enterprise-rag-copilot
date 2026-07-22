@@ -526,10 +526,13 @@ def _sensitive_values(snapshot: VerifiedCrossModelRunSnapshot) -> tuple[str, ...
         snapshot.manifest.components[role].run_id
         for role in ("baseline", "replication")
     )
+    public_provenance_keys = _public_provenance_keys(snapshot)
     values.update(
-        value
+        value.strip()
         for value in os.environ.values()
-        if value and len(value.strip()) >= 8
+        if value
+        and len(value.strip()) >= 8
+        and _privacy_key(value.strip()) not in public_provenance_keys
     )
     for key in ("USERNAME", "USER"):
         value = os.environ.get(key)
@@ -537,6 +540,29 @@ def _sensitive_values(snapshot: VerifiedCrossModelRunSnapshot) -> tuple[str, ...
             values.add(value)
     values.add(str(Path.home()))
     return tuple(sorted(value for value in values if value))
+
+
+def _public_provenance_keys(
+    snapshot: VerifiedCrossModelRunSnapshot,
+) -> frozenset[str]:
+    manifest = snapshot.manifest
+    values = {
+        manifest.git.head,
+        manifest.git.dirty_state_sha256,
+        manifest.plan_sha256,
+        snapshot.manifest_sha256,
+    }
+    if manifest.git.branch is not None:
+        values.add(manifest.git.branch)
+    for role in ("baseline", "replication"):
+        component = manifest.components[role]
+        values.add(component.manifest_sha256)
+        values.add(component.model_digest)
+    return frozenset(_privacy_key(value) for value in values)
+
+
+def _privacy_key(value: str) -> str:
+    return unicodedata.normalize("NFKC", value).casefold()
 
 
 def _assert_public_bytes_safe(
@@ -548,9 +574,9 @@ def _assert_public_bytes_safe(
         text = payload.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise ValueError(f"public privacy scan requires UTF-8: {name}") from exc
-    normalized = unicodedata.normalize("NFKC", text).casefold()
+    normalized = _privacy_key(text)
     for value in forbidden_values:
-        candidate = unicodedata.normalize("NFKC", value).casefold()
+        candidate = _privacy_key(value)
         if candidate and candidate in normalized:
             raise ValueError(f"public privacy policy found forbidden content in {name}")
     if (

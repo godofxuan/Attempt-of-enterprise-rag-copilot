@@ -1122,6 +1122,22 @@ def test_export_rejects_seeded_environment_value(
         export_cross_model_public(private_matrix[0], tmp_path / "public")
 
 
+def test_export_allows_ci_environment_values_that_are_public_provenance(
+    tmp_path: Path,
+    private_matrix: tuple[Path, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = load_verified_cross_model_run_snapshot(private_matrix[0])
+    monkeypatch.setenv("GITHUB_REF_NAME", snapshot.manifest.git.branch)
+    monkeypatch.setenv("GITHUB_SHA", snapshot.manifest.git.head)
+
+    package = export_cross_model_public(private_matrix[0], tmp_path / "public")
+
+    assert verify_public_package(package)["status"] == (
+        "VERIFIED_OBSERVATION_EVIDENCE"
+    )
+
+
 def test_hashes_and_closed_security_enums_are_not_false_positive_privacy(
     public_package: Path,
 ) -> None:

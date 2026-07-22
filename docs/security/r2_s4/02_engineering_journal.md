@@ -634,6 +634,40 @@ deferred work，不再被误解为已准入阶段。
 命令只作为 historical provenance 保留并标记 `DO NOT RUN`；component、
 matrix 和 public-package verifier 仍是可重复执行的只读验证路径。
 
+### GitHub Actions environment false-positive correction
+
+首次推送时 GitHub HTTPS 连接曾返回一次 TLS `unexpected eof while
+reading`。只读 `git ls-remote` 随后成功，确认 remote/auth 正常，普通
+push 重试后成功；没有更改 Git 配置，也没有 force push。
+
+GitHub Actions run `29907157287` 随后在 commit `12d6885` 失败。本地
+`1651 passed`，但 Linux CI 中 cross-model public exporter 的 module fixture
+报：
+
+```text
+public privacy policy found forbidden content in README.md
+```
+
+根因不是公开包真正泄漏，而是 exporter 原来把所有长度至少 8
+的环境变量值都当成秘密。Actions 自动注入
+`GITHUB_REF_NAME=codex/rag-eval-system` 和 `GITHUB_SHA`，而 branch/HEAD 又是
+public schema 明确允许的 provenance，因此同一公开值被误报。
+
+先在本地注入 `GITHUB_REF_NAME` 复现了同一失败，再新增
+`test_export_allows_ci_environment_values_that_are_public_provenance`。修复在
+`_public_provenance_keys` 中明确枚举 public manifest 本来就会公开的精确值，
+只将这些值从 environment-derived forbidden set 排除。原有 arbitrary secret environment value remains rejected 回归测试仍通过。
+
+在同时注入 `GITHUB_REF_NAME` 和 `GITHUB_SHA` 的模拟 Actions 环境下，
+整个 cross-model public 测试文件结果为：
+
+```text
+56 passed / 3 known warnings
+```
+
+该修复只改 exporter 的 false-positive privacy classification，不修改已冻结
+component/matrix/public artifacts，不重跑或覆盖正式 `-01` 证据。
+
 ### Diagnostic-semantics correction
 
 最终 artifact 验证时，两个 component verifier 都返回

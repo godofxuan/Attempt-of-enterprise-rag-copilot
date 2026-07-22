@@ -850,6 +850,23 @@ def test_r2_s4_engineering_journal_task8_results_follow_final_review_record() ->
     assert headings.index(final_review) < headings.index(task8_results)
 
 
+def test_r2_s4_engineering_journal_records_ci_environment_false_positive() -> None:
+    journal = (
+        ROOT / "docs" / "security" / "r2_s4" / "02_engineering_journal.md"
+    ).read_text(encoding="utf-8")
+
+    for fragment in (
+        "GitHub Actions run `29907157287`",
+        "public privacy policy found forbidden content in README.md",
+        "GITHUB_REF_NAME=codex/rag-eval-system",
+        "GITHUB_SHA",
+        "_public_provenance_keys",
+        "56 passed / 3 known warnings",
+        "arbitrary secret environment value remains rejected",
+    ):
+        assert fragment in journal
+
+
 def test_r2_s4_task8_status_backlog_and_limitations_are_current_not_prerun() -> None:
     status = (ROOT / "PROJECT_STATUS.md").read_text(encoding="utf-8")
     backlog = (ROOT / "docs" / "industrialization_backlog.md").read_text(
