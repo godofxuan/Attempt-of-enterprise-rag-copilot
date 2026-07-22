@@ -20,6 +20,7 @@ from app.evaluation.indirect_injection_cross_model_writer import (
     verify_cross_model_run,
 )
 from app.evaluation.indirect_injection_live_writer import (
+    LiveIndexReference,
     OllamaModelIdentity,
     publish_live_security_run,
 )
@@ -81,6 +82,39 @@ def _clean_git() -> dict[str, object]:
         "status_entry_count": 0,
         "dirty_state_sha256": CLEAN_GIT_STATE_SHA256,
     }
+
+
+def _production_index_reference() -> LiveIndexReference:
+    return LiveIndexReference(
+        role="production_active_reference",
+        run_id="production-index-fixture",
+        active_pointer_sha256="1" * 64,
+        manifest_sha256="2" * 64,
+        corpus_sha256="3" * 64,
+        embedding_model="bge-m3",
+        embedding_dimension=1_024,
+        indexed_chunk_count=100,
+    )
+
+
+def _patch_production_index_reference(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configured_root = Path(
+        eval_indirect_injection_cross_model.get_settings().v2_indexes_dir
+    ).resolve()
+
+    def reference_for_configured_root(root: Path) -> LiveIndexReference:
+        assert Path(root).resolve() == configured_root, (
+            "expected the configured production index root"
+        )
+        return _production_index_reference()
+
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "production_active_index_reference",
+        reference_for_configured_root,
+    )
 
 
 def _component_context(plan):
@@ -269,10 +303,15 @@ def _isolated_controller_args(tmp_path: Path) -> list[str]:
     ]
 
 
-def _real_matrix_for_main(tmp_path: Path, writer_v3_inputs):
+def _real_matrix_for_main(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    writer_v3_inputs,
+):
     bundle, built, result = writer_v3_inputs
     plan, _ = load_cross_model_plan(PLAN_PATH)
     runtime = _runtime(plan)
+    _patch_production_index_reference(monkeypatch)
     component_root = tmp_path / "components"
     matrix_root = tmp_path / "matrix"
     args = eval_indirect_injection_cross_model.build_parser().parse_args(
@@ -380,6 +419,30 @@ def _real_matrix_for_main(tmp_path: Path, writer_v3_inputs):
     )
     manifest = verify_cross_model_run(package)
     return bundle, components, matrix_root, manifest
+
+
+def test_real_production_index_reference_requires_active_pointer(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(
+        FileNotFoundError,
+        match="requires a production active v2 index reference",
+    ):
+        eval_indirect_injection_cross_model.production_active_index_reference(
+            tmp_path / "missing-production-index"
+        )
+
+
+def test_production_index_test_double_rejects_nonconfigured_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_production_index_reference(monkeypatch)
+
+    with pytest.raises(AssertionError, match="configured production index root"):
+        eval_indirect_injection_cross_model.production_active_index_reference(
+            tmp_path / "security-fixture-index"
+        )
 
 
 def test_help_has_no_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -868,6 +931,7 @@ def test_exact_existing_matrix_is_reused_without_identity_or_component_work(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     plan, _ = load_cross_model_plan(PLAN_PATH)
+    _patch_production_index_reference(monkeypatch)
     monkeypatch.setattr(
         eval_indirect_injection_cross_model,
         "_git_provenance",
@@ -931,6 +995,7 @@ def test_existing_matrix_main_exit_uses_verified_decision(
     expected_exit: int,
 ) -> None:
     plan, _ = load_cross_model_plan(PLAN_PATH)
+    _patch_production_index_reference(monkeypatch)
     monkeypatch.setattr(
         eval_indirect_injection_cross_model,
         "_git_provenance",
@@ -972,6 +1037,7 @@ def test_real_existing_matrix_is_readmitted_by_main_without_model_boundary(
 ) -> None:
     _, components, matrix_root, manifest = _real_matrix_for_main(
         tmp_path,
+        monkeypatch,
         writer_v3_inputs,
     )
     current_git = manifest.git.model_dump(mode="python")
@@ -1016,6 +1082,7 @@ def test_real_existing_matrix_rejects_current_binding_mismatch_before_model(
 ) -> None:
     bundle, components, matrix_root, manifest = _real_matrix_for_main(
         tmp_path,
+        monkeypatch,
         writer_v3_inputs,
     )
     current_git = manifest.git.model_dump(mode="python")
@@ -1084,6 +1151,7 @@ def test_real_new_flow_compares_publishes_and_readmits_matrix(
     )
     plan, _ = load_cross_model_plan(PLAN_PATH)
     runtime = _runtime(plan)
+    _patch_production_index_reference(monkeypatch)
     current_git = matrix_fixtures._component_manifest(
         bundle,
         built_by_role["baseline"],

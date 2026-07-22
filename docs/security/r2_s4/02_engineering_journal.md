@@ -686,3 +686,99 @@ component/matrix/public artifacts，不重跑或覆盖正式 `-01` 证据。
 “跨模型比较在 12 个决策指标上一致；条件安全诊断满足；但端到端
 all-labeled quarantine 仍是 `15/28`，所以 component gate 仍为 false，不是
 release pass。”
+
+## 19. GitHub Actions clean-runner index-fixture correction
+
+### Symptom and independent failure classification
+
+GitHub Actions run `29908155811` tested commit `c851f62`. The prior public
+privacy-export failure was gone, so the allowlist correction in Section 18 did
+work. The run instead reported 9 failures and `1646 passed / 14 skipped`.
+Every failure was in `test_indirect_injection_cross_model_cli.py` and stopped
+at the same exception:
+
+```text
+FileNotFoundError: D7 requires a production active v2 index reference
+```
+
+This was a second, independent clean-runner defect rather than another symptom
+of the privacy exporter or a forgotten model switch.
+
+### Root cause: two index roots with different responsibilities
+
+The controller's `--index-root` argument owns disposable security-fixture
+indexes created for an evaluation component. It does not replace the
+application's production index setting. Cross-model provenance separately
+calls `production_active_index_reference(settings.v2_indexes_dir)` and binds
+the current production `active.json`, index manifest, corpus hash, embedding
+identity, dimension, and indexed chunk count into each component and matrix.
+
+The 9 tests correctly passed isolated component, matrix, and security index
+directories, but some of them still executed the real static-binding capture
+without providing a production-index test double. The developer workstation
+had an ignored `data/indexes_v2/active.json`, so the hidden dependency passed
+locally. A clean Ubuntu checkout has no production index artifact, so CI failed
+before reaching the behavior each test intended to assert.
+
+### Decision and implementation
+
+The production fail-closed behavior was retained. Removing the production
+index binding, silently substituting `--index-root`, or permitting a missing
+`active.json` would weaken provenance and make a matrix reusable against an
+unknown retrieval corpus.
+
+The test module now builds a typed `LiveIndexReference` fixture through
+`_production_index_reference()` and injects it through
+`_patch_production_index_reference()`. Only tests that intentionally execute
+the real invariant-capture path use this fixture. Existing tests for matrix
+reuse, decision exit codes, current-binding mismatch, model-call avoidance,
+and new matrix publication keep all of their original assertions.
+
+### RED, GREEN, and full-suite evidence
+
+Before the test-fixture correction, a fresh Python process with
+`V2_INDEXES_DIR` pointed at a nonexistent directory reproduced the CI failure:
+
+```text
+test_exact_existing_matrix_is_reused_without_identity_or_component_work
+1 failed: FileNotFoundError at production_active_index_reference
+```
+
+After the correction, the same forced-missing-index probe passed, and the
+entire cross-model CLI file under that condition reported:
+
+```text
+96 passed / 2 skipped / 3 known SWIG deprecation warnings
+```
+
+A pre-review whole-repository diagnostic under the forced environment override
+reported
+`1652 passed / 16 skipped` plus one expected non-target failure:
+`test_v2_config_is_separate_from_legacy_defaults` deliberately asserts the
+default `v2_indexes_dir`, while the diagnostic process explicitly overrode
+that setting. No product change was made for this harness-induced mismatch.
+The normal full repository suite then passed:
+
+```text
+1655 passed / 16 skipped / 3 known SWIG deprecation warnings
+```
+
+### Independent review correction
+
+The first independent diff review returned `0 Critical / 1 Important / 0
+Minor`. The reviewer correctly observed that the initial production-index test
+double ignored its `root` argument. That version isolated CI from local state,
+but it would also have passed if production code later substituted the
+disposable `--index-root` for `settings.v2_indexes_dir`.
+
+A new regression test first reproduced that weakness as `DID NOT RAISE`. The
+test double now asserts that its input resolves exactly to the configured
+production index root before returning the typed reference. A second test calls
+the real `production_active_index_reference()` against a directory without
+`active.json` and requires the original `FileNotFoundError`. Together these
+tests preserve both halves of the contract: orchestration uses the configured
+production root, and the real loader fails closed when that root has no active
+index.
+
+GitHub Actions on the resulting exact commit remains the final clean-clone
+acceptance gate; local evidence alone is not used to declare CI success.
