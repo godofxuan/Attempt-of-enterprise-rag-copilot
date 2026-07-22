@@ -258,6 +258,17 @@ def _patch_main_preflight(monkeypatch: pytest.MonkeyPatch, plan):
     )
 
 
+def _isolated_controller_args(tmp_path: Path) -> list[str]:
+    return [
+        "--out-dir",
+        str(tmp_path / "runs"),
+        "--index-root",
+        str(tmp_path / "indexes"),
+        "--matrix-out-dir",
+        str(tmp_path / "matrices"),
+    ]
+
+
 def _real_matrix_for_main(tmp_path: Path, writer_v3_inputs):
     bundle, built, result = writer_v3_inputs
     plan, _ = load_cross_model_plan(PLAN_PATH)
@@ -776,6 +787,7 @@ def test_evaluation_lock_rechecks_identity_after_acquire_before_yield(
 
 @pytest.mark.parametrize("mutation", ["missing", "wrong_embedding", "wrong_digest"])
 def test_missing_or_wrong_ollama_identity_fails_before_execution(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     mutation: str,
 ) -> None:
@@ -817,7 +829,9 @@ def test_missing_or_wrong_ollama_identity_fails_before_execution(
     )
 
     with pytest.raises(ValueError, match="Ollama identities"):
-        eval_indirect_injection_cross_model.main([])
+        eval_indirect_injection_cross_model.main(
+            _isolated_controller_args(tmp_path)
+        )
 
     assert executed == []
 
@@ -1401,7 +1415,9 @@ def test_git_transition_after_component_fails_closed(
     )
 
     with pytest.raises(RuntimeError, match="Git state changed"):
-        eval_indirect_injection_cross_model.main([])
+        eval_indirect_injection_cross_model.main(
+            _isolated_controller_args(tmp_path)
+        )
 
 
 def test_frozen_d7_target_is_rejected_before_git_or_identity(
@@ -1696,7 +1712,9 @@ def test_git_transition_between_components_stops_before_replication(
     )
 
     with pytest.raises(RuntimeError, match="Git state changed"):
-        eval_indirect_injection_cross_model.main([])
+        eval_indirect_injection_cross_model.main(
+            _isolated_controller_args(tmp_path)
+        )
 
     assert executed == ["baseline"]
 

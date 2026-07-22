@@ -1,0 +1,2 @@
+python verify.py .
+python -m scripts.verify_indirect_injection_cross_model_public data/v2/public/r2_s4_cross_model

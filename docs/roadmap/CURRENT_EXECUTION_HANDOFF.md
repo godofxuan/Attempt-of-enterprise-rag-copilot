@@ -605,3 +605,85 @@ Resume order:
 3. The controller may push and verify remote CI only for the approved SHA.
 4. Keep independent holdout authoring and owner-only review outside automated
    implementation scope.
+
+## 21. R2-S4 Task 8 current handoff
+
+This section is the current handoff and supersedes the R2-S4 pre-run snapshot.
+Section 20 remains historical R2-S3 measurement-only exposure context.
+
+```text
+run code HEAD                                109e8b52d8d31ae3562420351451a69915652be3
+run tree                                     6b54e1f3c94b031a9438d21fd6e88a8c6d78faa8
+plan SHA-256                                 85175b88742d28b09431e1b1df35a27db5cd65fbd96fc33db0bcfd899efd4152
+controller wall time                         270.2s
+baseline model digest                        357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b
+baseline component manifest                  9271ec53e0b69d827e7a624e3666e6e53a5a9e7738450542a89e5903de768f44
+replication model digest                     500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41
+replication component manifest               0495450e5134acadc564fe1ddd805f096ad939c27f2568c80caa49b366e7ed01
+matrix manifest                              ec7b2fb6b8802b32d50933fc34b574d55c370dd88dbee4a88239d37ac51ff0b5
+public manifest                              0978131eaf1c0059a598648f3f67ea07b5144a110467728ada852bdbbfe61813
+packaged verify.py                           9fe95165252e73355b54e2b802596e5cb00e71cf8190e4afe865011e83c7ed9b
+decision                                     CONSISTENT_OBSERVATION
+reason                                       complete_equal_security_and_utility_observations
+component deterministic threshold diagnostic false (15/28, expected 28/28)
+cross-model non-release diagnostic            passed=true / release_pass=false
+```
+
+Metrics on the same visible synthetic dev cohort:
+
+```text
+OFF attack 3/24; ON attack 0/24
+OFF context exposure 7/24; ON context exposure 0/24
+ON conditional quarantine 15/15; all-labeled quarantine 15/28
+13 labeled attack units did not reach Guard
+ON benign quarantine 0/32
+clean 12/12; mixed 20/20; poison-only 4/4
+model calls 68 each
+model errors / blocked egress 0 / 0
+baseline p50/p95 1208.1238/1379.7665ms
+replication p50/p95 1838.3202/2025.2085ms
+latency delta +630.1964/+645.442ms
+```
+
+Verifier evidence:
+
+```text
+component verifiers                           VERIFIED
+private matrix verifier                      VERIFIED
+repository public verifier                   VERIFIED
+out-of-repository python -I packaged verifier VERIFIED
+public package files                          8
+focused gate                                  367 passed / 4 skipped
+full gate                                     1644 passed / 16 skipped
+known warnings                                3 SWIG warnings
+compile / pip                                 CLEAN / CLEAN
+exact-run pre-gate audit                     473 candidates / 0 findings
+Task8 docs wave audit                        483/0; final delivery evidence is established by exact-HEAD gates, Git, and GitHub Actions
+historical verifiers                          PASSED
+pre-run exact-HEAD review                    0 Critical / 0 Important / 0 Minor
+```
+
+exact-run pre-gate audit 473 candidates / 0 findings.
+Task8 docs wave audit 483/0. Final delivery evidence is established by
+exact-HEAD gates, Git, and GitHub Actions rather than by rerunning or
+overwriting the immutable model evidence.
+
+`CONSISTENT_OBSERVATION` is not a release pass and not cross-model generalization.
+It only says the two frozen model identities produced 12 decision safety/utility observations matched on the same visible synthetic dev cohort;
+3 operational counts matched; 2 latency metrics differed and do not affect the
+decision.
+
+Still `NOT RUN`:
+
+```text
+independent holdout         NOT RUN
+semantic judge calibration NOT RUN
+human double review        NOT RUN
+production traffic         NOT RUN
+real IdP                   NOT RUN
+deployment                 NOT RUN
+```
+
+Only admitted next implementation: R2-S5 Trusted Identity Boundary. Rank 2:
+reproducible minimal Linux deploy/rollback. Rank 3: durable privacy-bounded
+telemetry. These are queued in order and are not parallel approvals.

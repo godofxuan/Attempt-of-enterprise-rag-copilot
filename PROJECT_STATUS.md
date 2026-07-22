@@ -1,8 +1,20 @@
 # Enterprise Agentic RAG - Current Status
 
-更新时间：2026-07-22（R2-S4 真实运行前加固）
+更新时间：2026-07-22（R2-S4 Task 8 results published）
 
-状态：R2-S4 已实现 canonical digest-bound plan、V3 component evidence、重启控制器、六文件 private matrix、R2-S4 public package exporter/verifier contract 与独立标准库 verifier；actual tracked R2-S4 public package NOT CREATED。真实 Qwen2.5/Qwen3 `-01` 跨模型运行仍为 `NOT RUN`，三个正式目标均未创建。运行前独立审查发现 orphan index、canonical plan 信任边界、运行中模型 identity drift、system error 计数、`FAILED V3` failure evidence 与 descriptor-pinned reads 等问题；当前正在按 TDD 修复并重新执行 exact-HEAD gates/复审。最新 compatibility 修复保留 frozen R2-S3 replay dependency `app/evaluation/indirect_injection_live_runner.py` SHA-256 `a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958`，并把 `answer_mode=system` 的 R2-S4 V3 failure normalization 放在 `scripts/eval_indirect_injection_live.py` cross-model adapter。历史基础包括 E7 交付、R2-S1 D1-D7 与审计加固 V0-V5，其中 V0 是审计验证、V1-V5 是实现加固。旧 R2-S3 focused `457 passed / 10 skipped / 3 known warnings`、full `1395 passed / 13 skipped / 3 known warnings`、public audit `454 candidates / 0 findings` 只属于历史候选；platform-dependent symlink/junction variants unavailable on this host；这些数字不是当前 R2-S4 HEAD 的验收结果。R2-S4 在全部 Critical/Important 清零前不会调用真实模型。S2-2 independent holdout、semantic judge calibration、human double review 与 production traffic 仍为 `NOT RUN`。R2-S4 收口后唯一已准入的 serving-path 下一阶段是 R2-S5 Trusted Identity Boundary；可复现 Linux 部署/回滚和持久化脱敏观测依次排后，不因技术流行度提前叠加框架。Push is allowed only after fixed-HEAD reviews and local gates pass; actual delivery and CI state are established by Git and GitHub Actions. 本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
+R2-S4 public package VERIFIED: `data/v2/public/r2_s4_cross_model` contains the exact eight-file evidence package.
+
+状态：R2-S4 Task 8 results published。真实 Qwen2.5/Qwen3 `-01` 跨模型运行已完成，并发布八文件 public package。
+
+运行身份：code HEAD `109e8b52d8d31ae3562420351451a69915652be3`，tree `6b54e1f3c94b031a9438d21fd6e88a8c6d78faa8`，plan SHA-256 `85175b88742d28b09431e1b1df35a27db5cd65fbd96fc33db0bcfd899efd4152`，controller wall `270.2s`，matrix manifest `ec7b2fb6b8802b32d50933fc34b574d55c370dd88dbee4a88239d37ac51ff0b5`，public manifest `0978131eaf1c0059a598648f3f67ea07b5144a110467728ada852bdbbfe61813`，packaged verifier `9fe95165252e73355b54e2b802596e5cb00e71cf8190e4afe865011e83c7ed9b`。
+
+观察结果：`CONSISTENT_OBSERVATION` on the same visible synthetic dev cohort。OFF attack `3/24`，ON attack `0/24`；OFF context exposure `7/24`，ON context exposure `0/24`；ON conditional quarantine `15/15`，all-labeled quarantine `15/28`；clean/mixed/poison-only `12/12`/`20/20`/`4/4`；model calls `68` each，errors/blocked egress `0/0`；latency p50/p95 delta `+630.1964/+645.442ms`。The 12 decision safety/utility observations matched, while component deterministic threshold diagnostic=false because all-labeled recall is `15/28`；cross-model non-release diagnostic passed=true / release_pass=false。This is not a release pass and not cross-model generalization。
+
+运行前门禁：focused `367 passed / 4 skipped`，full `1644 passed / 16 skipped`，`3` known SWIG warnings，compile/pip clean，exact-run pre-gate audit 473/0，historical verifiers passed，pre-run exact-HEAD review `0 Critical / 0 Important / 0 Minor`。Task8 docs wave audit 483/0; final delivery evidence is established by exact-HEAD gates, Git, and GitHub Actions。
+
+边界与路线：S2-2 independent holdout、semantic judge calibration、human double review、production traffic、real IdP、deployment remain `NOT RUN`。R2-S5 Trusted Identity Boundary is the only admitted next implementation；Rank 2 is reproducible minimal Linux deploy/rollback，Rank 3 is durable privacy-bounded telemetry，not parallel approvals。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
+
+Historical compatibility markers: R2-S1 V0-V5 and V1-V5 remain preserved. Historical R2-S3 closeout evidence remains focused `457 passed / 10 skipped / 3 known warnings`, full `1395 passed / 13 skipped / 3 known warnings`, and public audit `454 candidates / 0 findings`; these are historical closeout facts, not current R2-S4 HEAD gates.
 
 ## 1. 当前定位
 
@@ -293,8 +305,8 @@ R2-S1 V1-V5 与收口修复提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已
 
 ## 6. 明确 NOT RUN 或不能外推
 
-- Retrieved-content indirect prompt injection：D1-D7、V1-V5、R2-S2 S2-1 和 R2-S3 measurement-only exposure ablation 已完成批准范围。R2-S3 观察到 13 个 rank-2 unreached cases 的 downstream exposure `0/13`，但 counterfactual coverage 没有在 production path 执行。现有证据仍只覆盖可见、固定、合成文本攻击；独立 holdout、多模态、人工红队、未知绕过、跨模型复现和生产流量仍为 `NOT RUN`。
-- R2-S2 independent validation：counterbalanced real-model dev replication 已运行；holdout freeze/verify 基础设施已实现。独立 reviewer 原始 package、冻结 manifest、一次性 holdout 模型运行、双人盲评、agreement、semantic judge calibration 与 cross-model matrix 均为 `NOT RUN`。
+- Retrieved-content indirect prompt injection：D1-D7、V1-V5、R2-S2 S2-1、R2-S3 measurement-only exposure ablation 和 R2-S4 cross-model dev observation 已完成批准范围。R2-S4 只证明两种冻结模型在同一 visible synthetic dev cohort 中 12 decision safety/utility observations matched，decision 为 `CONSISTENT_OBSERVATION` 且 `release_pass=false`；model calls/errors/egress 也相同，latency 不同且不参与 decision。现有证据仍只覆盖可见、固定、合成文本攻击；独立 holdout、多模态、人工红队、未知绕过、production traffic 和 cross-model generalization 仍未证明。
+- R2-S2 independent validation：counterbalanced real-model dev replication 已运行；holdout freeze/verify 基础设施已实现。独立 reviewer 原始 package、冻结 manifest、一次性 holdout 模型运行、双人盲评、agreement、semantic judge calibration 与 human double review 均为 `NOT RUN`。
 - Optional reranker：`NOT RUN`，没有 admitted reranker。
 - Human semantic review：`NOT RUN`；50 行表仍为空，等待本人判断。
 - Owner code experiments and oral defense：`NOT RUN`；Codex 不能代替本人完成。
@@ -389,7 +401,7 @@ S2-2 raw-package leak prevention               IMPLEMENTED
 independent reviewer package                   NOT CREATED
 independent holdout model run                  NOT RUN
 blind double review / agreement                NOT RUN
-semantic judge / cross-model replication       NOT RUN
+semantic judge / cross-model replication       NOT RUN AT R2-S2 CLOSEOUT
 historical R2-S2/R2-S3 full regression only    1395 PASSED / 13 SKIPPED / 3 KNOWN WARNINGS; not a current R2-S4 HEAD gate
 historical R2-S2/R2-S3 public audit only       454 CANDIDATES / 0 FINDINGS; not a current R2-S4 HEAD gate
 historical compileall / pip check only         CLEAN / CLEAN; not a current R2-S4 HEAD gate
@@ -410,7 +422,7 @@ counterfactual search reach d1/d2/d4             6/26 / 22/26 / 26/26
 counterfactual total reach d1/d2/d4             15/28 / 28/28 / 28/28
 counterfactual production execution             NOT RUN / DIAGNOSTIC ONLY
 independent holdout                              NOT RUN
-semantic judge / cross-model replication        NOT RUN
+semantic judge / cross-model replication        NOT RUN AT R2-S3 CLOSEOUT
 historical R2-S3 focused / full pytest           457 passed / 10 skipped / 3 warnings; 1395 passed / 13 skipped / 3 warnings; not a current R2-S4 HEAD gate
 skip qualification                               platform-dependent symlink/junction variants unavailable on this host
 historical R2-S3 compile / pip / public audit   CLEAN / CLEAN / 454 candidates / 0 findings; not a current R2-S4 HEAD gate
@@ -424,16 +436,33 @@ push / remote CI                                 Push is allowed only after fixe
 ## 11. R2-S4 当前状态
 
 ```text
-cross-model plan / V3 components / matrix      IMPLEMENTED
-pre-run independent review                     FIXES IN PROGRESS
-formal qwen2.5 component -01                   NOT RUN / TARGET ABSENT
-formal qwen3 component -01                     NOT RUN / TARGET ABSENT
-formal private matrix -01                      NOT RUN / TARGET ABSENT
-public R2-S4 package                           NOT CREATED
+cross-model plan / V3 components / matrix      COMPLETE WITH OBSERVATIONS
+run code HEAD                                  109e8b52d8d31ae3562420351451a69915652be3
+run tree                                       6b54e1f3c94b031a9438d21fd6e88a8c6d78faa8
+plan SHA-256                                   85175b88742d28b09431e1b1df35a27db5cd65fbd96fc33db0bcfd899efd4152
+controller wall time                           270.2s
+matrix decision                                CONSISTENT_OBSERVATION
+matrix reason                                  complete_equal_security_and_utility_observations
+baseline component manifest                    9271ec53e0b69d827e7a624e3666e6e53a5a9e7738450542a89e5903de768f44
+replication component manifest                 0495450e5134acadc564fe1ddd805f096ad939c27f2568c80caa49b366e7ed01
+matrix manifest                                ec7b2fb6b8802b32d50933fc34b574d55c370dd88dbee4a88239d37ac51ff0b5
+public R2-S4 package                           VERIFIED / 8 FILES
+public manifest SHA-256                        0978131eaf1c0059a598648f3f67ea07b5144a110467728ada852bdbbfe61813
+packaged verify.py SHA-256                     9fe95165252e73355b54e2b802596e5cb00e71cf8190e4afe865011e83c7ed9b
+non-release diagnostic                         passed=true / release_pass=false
+visible synthetic dev cohort                   ONLY; not cross-model generalization
+focused / full exact-run gates                 367 passed / 4 skipped; 1644 passed / 16 skipped
+compile / pip / exact-run pre-gate audit       CLEAN / CLEAN / 473 candidates / 0 findings
+Task8 docs wave audit                          483/0; final delivery evidence is established by exact-HEAD gates, Git, and GitHub Actions
+pre-run exact-HEAD review                     0 Critical / 0 Important / 0 Minor
 independent holdout                            NOT RUN
 semantic judge calibration                     NOT RUN
 human double review                            NOT RUN
 production traffic                             NOT RUN
+real IdP                                       NOT RUN
+deployment                                     NOT RUN
 ```
 
-本轮先修复证据系统而不是先跑模型，因为一旦 `-01` immutable target 被不完整代码占用，就不能删除目录后假装是同一次实验。当前候选只有在聚焦/全量测试、compile、dependency check、public audit、历史证据只读验证和新一轮 whole-branch review 全部通过后，才允许执行一次真实跨模型命令。
+exact-run pre-gate audit 473 candidates / 0 findings.
+
+本轮先修复证据系统而不是先跑模型，因为一旦 `-01` immutable target 被不完整代码占用，就不能删除目录后假装是同一次实验。门禁通过后，one planned R2-S4 cross-model run has already executed under the frozen plan; no rerun or overwrite of the immutable R2-S4 run IDs is allowed. Task9 final gates, push, and CI are external delivery evidence rather than another model run or overwrite of immutable model evidence。

@@ -39,6 +39,18 @@ R2_S3_PUBLIC_PACKAGE_PATHS = frozenset(
         "verify.py",
     }
 )
+R2_S4_PUBLIC_PACKAGE_PATHS = frozenset(
+    {
+        "README.md",
+        "checksums.sha256",
+        "commands.txt",
+        "manifest.json",
+        "per_case_redacted.jsonl",
+        "summary.json",
+        "verification_witness.json",
+        "verify.py",
+    }
+)
 
 
 def _write_minimal_complete_security_corpus(root: Path) -> None:
@@ -633,11 +645,352 @@ def test_root_status_is_the_only_current_status_entrypoint() -> None:
     assert "526 passed" in status
     assert "574 passed" in status
     assert "109 passed" not in status
-    assert "R2-S4 public package exporter/verifier contract" in status
-    assert "actual tracked R2-S4 public package NOT CREATED" in status
+    assert "R2-S4 Task 8 results published" in status
+    assert "R2-S4 public package VERIFIED" in status
+    assert "CONSISTENT_OBSERVATION" in status
+    assert "release_pass=false" in status
+    assert "actual tracked R2-S4 public package NOT CREATED" not in status
     assert "八文件 public package 与独立标准库 verifier" not in status
     assert "历史快照" in historical[:300]
     assert "../PROJECT_STATUS.md" in historical[:300]
+
+
+def test_r2_s4_task8_public_package_and_current_docs_contract() -> None:
+    package = ROOT / "data" / "v2" / "public" / "r2_s4_cross_model"
+    manifest_path = package / "manifest.json"
+    summary_path = package / "summary.json"
+    commands_path = package / "commands.txt"
+
+    assert {path.name for path in package.iterdir()} == R2_S4_PUBLIC_PACKAGE_PATHS
+    assert hashlib.sha256(manifest_path.read_bytes()).hexdigest() == (
+        "0978131eaf1c0059a598648f3f67ea07b5144a110467728ada852bdbbfe61813"
+    )
+    assert hashlib.sha256((package / "verify.py").read_bytes()).hexdigest() == (
+        "9fe95165252e73355b54e2b802596e5cb00e71cf8190e4afe865011e83c7ed9b"
+    )
+
+    commands = commands_path.read_text(encoding="utf-8").splitlines()
+    assert commands == [
+        "python verify.py .",
+        (
+            "python -m scripts.verify_indirect_injection_cross_model_public "
+            "data/v2/public/r2_s4_cross_model"
+        ),
+    ]
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert manifest["common_git"]["head"] == "109e8b52d8d31ae3562420351451a69915652be3"
+    assert manifest["plan_sha256"] == (
+        "85175b88742d28b09431e1b1df35a27db5cd65fbd96fc33db0bcfd899efd4152"
+    )
+    assert manifest["private_matrix_manifest_sha256"] == (
+        "ec7b2fb6b8802b32d50933fc34b574d55c370dd88dbee4a88239d37ac51ff0b5"
+    )
+    assert manifest["component_manifest_sha256"] == {
+        "baseline": "9271ec53e0b69d827e7a624e3666e6e53a5a9e7738450542a89e5903de768f44",
+        "replication": "0495450e5134acadc564fe1ddd805f096ad939c27f2568c80caa49b366e7ed01",
+    }
+    assert manifest["row_count"] == 72
+    assert summary["decision"] == "CONSISTENT_OBSERVATION"
+    assert summary["decision_reasons"] == [
+        "complete_equal_security_and_utility_observations"
+    ]
+    for role in ("baseline", "replication"):
+        metrics = summary["summaries"][role]["metrics"]
+        assert metrics["off_user_boundary_attack_success"]["numerator"] == 3
+        assert metrics["off_user_boundary_attack_success"]["denominator"] == 24
+        assert metrics["on_user_boundary_attack_success"]["numerator"] == 0
+        assert metrics["on_user_boundary_attack_success"]["denominator"] == 24
+        assert metrics["off_model_context_exposure"]["numerator"] == 7
+        assert metrics["on_model_context_exposure"]["numerator"] == 0
+        assert metrics["on_conditional_quarantine"]["numerator"] == 15
+        assert metrics["on_conditional_quarantine"]["denominator"] == 15
+        assert metrics["on_all_labeled_quarantine"]["numerator"] == 15
+        assert metrics["on_all_labeled_quarantine"]["denominator"] == 28
+        assert metrics["on_benign_quarantine"]["numerator"] == 0
+        assert metrics["on_benign_quarantine"]["denominator"] == 32
+        assert metrics["clean_utility"]["numerator"] == 12
+        assert metrics["clean_utility"]["denominator"] == 12
+        assert metrics["mixed_utility"]["numerator"] == 20
+        assert metrics["mixed_utility"]["denominator"] == 20
+        assert metrics["poison_only_utility"]["numerator"] == 4
+        assert metrics["poison_only_utility"]["denominator"] == 4
+        assert metrics["model_call_count"]["value"] == 68.0
+        assert metrics["model_error_count"]["value"] == 0.0
+        assert metrics["blocked_egress"]["value"] == 0.0
+        diagnostic = summary["summaries"][role]["non_release_safety_diagnostic"]
+        assert diagnostic["passed"] is True
+        assert diagnostic["release_pass"] is False
+    assert summary["deltas"]["model_latency_p50_ms"]["delta"] == 630.1964
+    assert summary["deltas"]["model_latency_p95_ms"]["delta"] == 645.442
+
+
+def test_r2_s4_task8_docs_publish_results_without_release_pass_claims() -> None:
+    docs = {
+        "results": (ROOT / "docs" / "security" / "r2_s4" / "01_results.md"),
+        "status": ROOT / "PROJECT_STATUS.md",
+        "readme": ROOT / "README.md",
+        "limitations": ROOT / "docs" / "known_limitations.md",
+        "journal": ROOT / "docs" / "security" / "r2_s4" / "02_engineering_journal.md",
+        "handoff": ROOT / "docs" / "roadmap" / "CURRENT_EXECUTION_HANDOFF.md",
+    }
+    content = {name: path.read_text(encoding="utf-8") for name, path in docs.items()}
+
+    for name, text in content.items():
+        assert "CONSISTENT_OBSERVATION" in text, name
+        assert "109e8b52d8d31ae3562420351451a69915652be3" in text, name
+        assert "visible synthetic dev cohort" in text, name
+        assert "release_pass=false" in text, name
+        assert "cross-model generalization" in text, name
+        assert "independent holdout" in text and "NOT RUN" in text, name
+        assert "semantic judge calibration" in text and "NOT RUN" in text, name
+        assert "human double review" in text and "NOT RUN" in text, name
+        assert "production traffic" in text and "NOT RUN" in text, name
+        assert "release PASS" not in text, name
+
+    results = content["results"]
+    for required in [
+        "controller wall time: 270.2s",
+        "matrix manifest SHA-256: ec7b2fb6b8802b32d50933fc34b574d55c370dd88dbee4a88239d37ac51ff0b5",
+        "public manifest SHA-256: 0978131eaf1c0059a598648f3f67ea07b5144a110467728ada852bdbbfe61813",
+        "packaged verify.py SHA-256: 9fe95165252e73355b54e2b802596e5cb00e71cf8190e4afe865011e83c7ed9b",
+        "OFF attack 3/24; ON attack 0/24",
+        "OFF context exposure 7/24; ON context exposure 0/24",
+        "ON conditional quarantine 15/15; all-labeled quarantine 15/28",
+        "13 labeled attack units did not reach Guard",
+        "clean 12/12; mixed 20/20; poison-only 4/4",
+        "baseline p50/p95 1208.1238/1379.7665ms",
+        "replication p50/p95 1838.3202/2025.2085ms",
+        "latency delta +630.1964/+645.442ms",
+        "python -I verify.py .",
+    ]:
+        assert required in results
+
+    assert "[R2-S4 Results](docs/security/r2_s4/01_results.md)" in content["readme"]
+    assert "[R2-S4 public evidence](data/v2/public/r2_s4_cross_model/README.md)" in (
+        content["readme"]
+    )
+    for name in ("results", "status", "readme"):
+        assert "12 decision safety/utility observations matched" in content[name], name
+        assert "component deterministic threshold diagnostic=false" in content[name], name
+        assert (
+            "cross-model non-release diagnostic passed=true / release_pass=false"
+            in content[name]
+        ), name
+    for name in ("limitations", "journal", "handoff"):
+        assert "12 decision safety/utility observations matched" in content[name], name
+        assert "3 operational counts matched" in content[name], name
+        assert "2 latency metrics differed" in content[name], name
+    assert "17 safety/utility metrics were equal" not in content["readme"]
+    assert "selected 17" not in content["results"]
+    forbidden_metric_phrases = (
+        "equal selected metrics",
+        "selected metrics matched",
+        "matched the selected safety/utility metrics",
+        "selected safety/utility metrics on this visible synthetic dev cohort",
+        "equal selected safety and utility metrics",
+    )
+    for name, text in content.items():
+        for phrase in forbidden_metric_phrases:
+            assert phrase not in text, name
+    assert (
+        "all-labeled quarantine 15/28 does not meet its 28/28 recall requirement"
+        in results
+    )
+    assert "## 21. R2-S4 Task 8 current handoff" in content["handoff"]
+    assert "## 20. R2-S3 measurement-only exposure ablation" in content["handoff"]
+
+
+def test_r2_industrialization_execution_plan_has_only_one_admitted_next_stage() -> None:
+    roadmap = (
+        ROOT / "docs" / "roadmap" / "r2_industrialization_execution_plan.md"
+    ).read_text(encoding="utf-8")
+    backlog = (ROOT / "docs" / "industrialization_backlog.md").read_text(
+        encoding="utf-8"
+    )
+    for text in (roadmap, backlog):
+        assert "Only admitted next implementation: R2-S5 Trusted Identity Boundary" in text
+        assert "Rank 2: reproducible minimal Linux deploy/rollback" in text
+        assert "Rank 3: durable privacy-bounded telemetry" in text
+        assert "not parallel approvals" in text
+        for section in (
+            "Trigger",
+            "User value",
+            "Minimal architecture",
+            "Contracts",
+            "Local gates",
+            "Security",
+            "Rollback",
+            "Deferred tech-stacking",
+        ):
+            assert section in text
+        assert "LangGraph" in text
+        assert "vector DB" in text
+        assert "Kubernetes" in text
+        assert "multi-Agent" in text
+
+    assert "### R2-B: Ordered lifecycle and operations" in backlog
+    assert "1. Incremental index events and tombstones." not in backlog
+    assert "Unranked deferred triggers" in backlog
+
+
+def test_r2_s4_engineering_journal_task8_results_follow_final_review_record() -> None:
+    journal = (
+        ROOT / "docs" / "security" / "r2_s4" / "02_engineering_journal.md"
+    ).read_text(encoding="utf-8")
+    headings = re.findall(r"^## \d+\. .+$", journal, flags=re.MULTILINE)
+
+    final_review = "## 15. 最终修复复跑与独立复审记录"
+    task8_results = "## 16. Task 8 results publication and route decision"
+    assert final_review in headings
+    assert task8_results in headings
+    assert sum(heading.startswith("## 15.") for heading in headings) == 1
+    assert sum(heading.startswith("## 16.") for heading in headings) == 1
+    assert headings.index(final_review) < headings.index(task8_results)
+
+
+def test_r2_s4_task8_status_backlog_and_limitations_are_current_not_prerun() -> None:
+    status = (ROOT / "PROJECT_STATUS.md").read_text(encoding="utf-8")
+    backlog = (ROOT / "docs" / "industrialization_backlog.md").read_text(
+        encoding="utf-8"
+    )
+    limitations = (ROOT / "docs" / "known_limitations.md").read_text(
+        encoding="utf-8"
+    )
+    protocol = (
+        ROOT / "docs" / "security" / "r2_s4" / "00_cross_model_protocol.md"
+    ).read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "one planned R2-S4 cross-model run has already executed" in status
+    assert "no rerun or overwrite of the immutable R2-S4 run IDs is allowed" in status
+    assert (
+        "Task9 final gates, push, and CI are external delivery evidence"
+        in status
+    )
+    assert "才允许执行一次真实跨模型命令" not in status
+    assert "cross-model replication       NOT RUN AT R2-S2 CLOSEOUT" in status
+    assert "cross-model replication        NOT RUN AT R2-S3 CLOSEOUT" in status
+
+    assert "Qwen2.5/Qwen3 formal matrix NOT RUN" not in backlog
+    assert "R2-S4 cross-model replication                  COMPLETE WITH OBSERVATIONS" in backlog
+    assert "R2-S4 dev matrix COMPLETE / CONSISTENT_OBSERVATION" in backlog
+    assert (
+        "independent package / holdout / blind review / calibration  NOT RUN"
+        in backlog
+    )
+
+    assert "## 6. historical R2-S3 boundary at R2-S3 cutoff" in limitations
+    normalized_limitations = " ".join(limitations.split())
+    assert (
+        "current R2-S4 Task 8 below supersedes only the old "
+        "cross-model-replication NOT RUN line"
+    ) in normalized_limitations
+    assert normalized_limitations.count(
+        "current R2-S4 Task 8 below supersedes only the old "
+        "cross-model-replication NOT RUN line"
+    ) == 1
+    assert (
+        "R2-S4 cross-model dev observation is COMPLETE WITH OBSERVATIONS"
+        in limitations
+    )
+    assert "cross-model replication remain `NOT RUN`" not in limitations
+    assert "cross-model replication are `NOT RUN`" not in limitations
+    assert (
+        "manual no-other-Ollama-client check remains required before any future run"
+        in limitations
+    )
+    assert "Operators must not delete, rotate, replace, redirect, or clean" in limitations
+    assert "R2_S4_EVALUATION_LOCK_DIR" in limitations
+    assert "Non-cooperating post-yield lock pathname replacement remains outside" in limitations
+
+    assert "actual tracked R2-S4 public package is `NOT CREATED`" not in protocol
+    assert "pre-Task8 export gate" in protocol
+    assert "[R2-S4 Results](01_results.md)" in protocol
+    assert "## 11. 已消耗的一次性执行记录与只读验证命令" in protocol
+    assert "DO NOT RUN the consumed model command again" in protocol
+    assert "DO NOT RUN the consumed export command again" in protocol
+    assert "Only the verifier commands below remain runnable" in protocol
+
+    assert "cross-model replication is NOT RUN at R2-S3 cutoff" in readme
+    assert "[R2-S4 public evidence](data/v2/public/r2_s4_cross_model/README.md)" in readme
+    assert "pre-run exact-HEAD review" in status
+
+
+def test_r2_s5_execution_plan_has_deep_identity_contract_and_quantified_gates() -> None:
+    roadmap = (
+        ROOT / "docs" / "roadmap" / "r2_industrialization_execution_plan.md"
+    ).read_text(encoding="utf-8")
+    backlog = (ROOT / "docs" / "industrialization_backlog.md").read_text(
+        encoding="utf-8"
+    )
+
+    required_fragments = (
+        "Bearer -> pinned JWT verifier -> Principal -> deterministic UserContext -> existing AccessPolicy",
+        "chat, trace, metrics, and feedback",
+        "liveness remains public",
+        "readiness remains low-sensitivity",
+        "invalid signature",
+        "alg=none",
+        "algorithm confusion",
+        "expired token",
+        "nbf in future",
+        "unknown kid",
+        "wrong issuer",
+        "wrong audience",
+        "missing tenant claim",
+        "missing subject claim",
+        "oversized token",
+        "JWKS outage",
+        "key cache and rotation fail closed",
+        "removes and rejects body-supplied `user_context`",
+        "Trace and metrics access require",
+        "feedback uses the authenticated user principal",
+        "100% negative tokens return 401/403 before retrieval/model",
+        "retrieval/model counters stay zero",
+        "0/N unauthorized docs, citations, and traces",
+        "0 token/claim leaks",
+        "1000 warm verifications p95 <= 10ms",
+        "reported hardware",
+        "full historical/security/public audit exact-SHA Linux CI",
+        "Rollback must not restore public body-supplied identity",
+        "real IdP integration remains outside the local contract",
+    )
+    for text in (roadmap, backlog):
+        normalized = " ".join(text.split())
+        for fragment in required_fragments:
+            assert fragment in normalized
+
+
+def test_r2_s4_audit_counts_are_labeled_by_gate_phase() -> None:
+    documents = {
+        "results": ROOT / "docs" / "security" / "r2_s4" / "01_results.md",
+        "status": ROOT / "PROJECT_STATUS.md",
+        "readme": ROOT / "README.md",
+        "backlog": ROOT / "docs" / "industrialization_backlog.md",
+        "handoff": ROOT / "docs" / "roadmap" / "CURRENT_EXECUTION_HANDOFF.md",
+    }
+    contents = {
+        name: path.read_text(encoding="utf-8")
+        for name, path in documents.items()
+    }
+
+    for name, text in contents.items():
+        if "473/0" in text:
+            assert "exact-run pre-gate audit 473/0" in text, name
+        if "473 candidates / 0 findings" in text:
+            assert (
+                "exact-run pre-gate audit 473 candidates / 0 findings" in text
+            ), name
+
+    assert "Task8 docs wave audit 483/0" in contents["results"]
+    assert (
+        "Task8 docs wave audit 483/0; final delivery evidence is established "
+        "by exact-HEAD gates, Git, and GitHub Actions"
+    ) in contents["status"]
+    assert "Task8 docs wave audit 483/0" in contents["handoff"]
+    assert "final Task9 gate will recompute" not in "\n".join(contents.values())
 
 
 def test_r2_s1_current_docs_use_canonical_metric_and_stage_names() -> None:

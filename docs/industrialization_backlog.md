@@ -20,7 +20,7 @@
 | Priority | Capability | Trigger evidence | Required gate | Why not in R1 |
 |---|---|---|---|---|
 | P0 | R2-S5 Trusted Identity Boundary | `/agent/v2/chat` 仍接受 request body 中调用方自报的 `UserContext`；ACL 只能验证 policy data flow，不能证明 tenant/group 来自可信 issuer | pinned issuer/audience/algorithm JWT verification、server-derived Principal/UserContext、deny-before-retrieval/model、cross-tenant/key-rotation/zero-token-leak tests | 没有可信身份就不能把本地 ACL demo 暴露为企业多租户服务；这是 R2-S4 收口后的唯一 admitted next stage |
-| P0 | Independent indirect-injection validation | S2-1 已有 counterbalanced real-model dev evidence，R2-S3 仍是同一可见 synthetic cohort；R2-S4 Task 1-5 已完成跨模型评测基础设施，但 Qwen2.5/Qwen3 正式 `-01` matrix、独立 holdout、semantic calibration 和双人盲评仍为 `NOT RUN` | exact-HEAD one-shot cross-model run、独立 reviewer package、one-shot holdout、blind double review、agreement/adjudication、semantic judge calibration 和 zero unauthorized action gate | Guard、可审计协议、exposure attribution 与跨模型运行 machinery 已实现；缺的是尚未执行的外部有效性证据，不能把 infrastructure 或 `CONSISTENT_OBSERVATION` 当 release pass |
+| P0 | Independent indirect-injection validation | S2-1 counterbalanced real-model evidence is historical; R2-S4 dev matrix COMPLETE / CONSISTENT_OBSERVATION on the same visible synthetic dev cohort; external holdout/calibration/double review still NOT RUN | independent reviewer package、one-shot holdout、blind double review、agreement/adjudication、semantic judge calibration 和 zero unauthorized action gate | Guard、可审计协议、exposure attribution 与跨模型运行 machinery 已实现；缺的是尚未执行的外部有效性证据，不能把 infrastructure 或 `CONSISTENT_OBSERVATION` 当 release pass |
 | P0 | Human semantic review | 需要对外报告 response quality 或用于业务 pilot | Frozen rubric、blind double review、adjudication、agreement、claim/citation/omission severity | 自动 required-fact 与 lexical checks 不能替代语义可用性判断 |
 | P1 | Incremental upsert/delete | 文档更新频率使全量 rebuild 超过 agreed freshness window | Idempotent event contract、version/tombstone、partial failure recovery、active snapshot consistency、rollback | R1 immutable rebuild 更易审计，当前 72-doc demo 没有增量压力 |
 | P1 | Durable OpenTelemetry | 需要跨进程追踪、历史检索、告警或多副本 | OTel semantic conventions、collector/backend、sampling、redaction、retention、access control、trace-to-eval correlation | 当前 bounded memory 足以本地调试，直接加平台会先增加运维面 |
@@ -45,7 +45,13 @@
 3. Counterbalanced real-model development replication with a new run ID. `COMPLETE WITH OBSERVATIONS`
 4. Independent indirect-injection holdout freeze/verify infrastructure. `IMPLEMENTED`; reviewer package and run `NOT RUN`
 5. Measurement-only exposure ablation for the `13/28` observation. `COMPLETE`; accepted v2 run `r2-s3-dev-exposure-20260721-04`, no production change admitted
-6. Independent package authoring, one-shot holdout execution, blind human review, semantic judge calibration, and cross-model replication. `NOT RUN`
+6. R2-S4 cross-model replication. `COMPLETE WITH OBSERVATIONS`
+7. Independent package authoring, one-shot holdout execution, blind human review, and semantic judge calibration. `NOT RUN`
+
+```text
+R2-S4 cross-model replication                  COMPLETE WITH OBSERVATIONS
+independent package / holdout / blind review / calibration  NOT RUN
+```
 
 没有完成独立验证、可信身份和部署门禁，不应把本地 demo 包装成多租户服务。
 
@@ -57,15 +63,19 @@ R2-S4 industrializes the evaluation operation, not the production service. It
 adds a canonical digest-bound plan, exact clean Git/runtime admission,
 restart-safe component reuse, no-overwrite private publication, an allowlisted
 public projection, independent recomputation, and a no-wait OS-backed lock for
-cooperating evaluators on the same local Ollama origin. At protocol freeze the
-real two-model `-01` matrix is still `NOT RUN`, so no cross-model safety result
-is claimed.
+cooperating evaluators on the same local Ollama origin. Task 8 has now
+published the real two-model `-01` matrix as `CONSISTENT_OBSERVATION` on the
+same visible synthetic dev cohort with `release_pass=false`; this is not a
+release pass and not cross-model generalization.
 
-The only admitted next implementation stage after R2-S4 closeout is **R2-S5
-Trusted Identity Boundary**. The trigger is already reproducible: the secure API
-trusts body-supplied `UserContext`. Reproducible minimal Linux deployment and
-rollback rank second; durable privacy-bounded telemetry ranks third. They are
-sequenced capabilities, not three parallel approvals.
+Only admitted next implementation: R2-S5 Trusted Identity Boundary.
+
+Rank 2: reproducible minimal Linux deploy/rollback.
+
+Rank 3: durable privacy-bounded telemetry.
+
+These are not parallel approvals. The trigger is already reproducible: the
+secure API trusts body-supplied `UserContext`.
 
 The following remain explicitly deferred until a measured trigger and isolated
 gate exist: LangGraph or another orchestration framework, vector DB migration,
@@ -80,12 +90,90 @@ human double review        NOT RUN
 production traffic         NOT RUN
 ```
 
-### R2-B: Lifecycle and operations
+## 3.2 R2-S5 execution contract
 
-1. Incremental index events and tombstones.
-2. Durable trace/metrics pipeline.
-3. Reproducible Linux/container staging.
-4. Load/soak profile and backpressure.
+### Trigger
+
+`/agent/v2/chat` still accepts body-supplied `UserContext`; local ACL tests prove
+policy data flow, not trusted tenant/group identity.
+
+### User value
+
+Enterprise users get tenant and group isolation that is derived by the server
+instead of asserted by the caller.
+
+### Minimal architecture
+
+Pin issuer, audience, and algorithm; verify token or local signed claims at the
+API boundary; derive `Principal`; map `Principal` to `UserContext`; reject before
+query analysis, retrieval, model calls, traces, and feedback when identity is
+missing or invalid.
+
+Contract path: Bearer -> pinned JWT verifier -> Principal -> deterministic UserContext -> existing AccessPolicy.
+The boundary protects chat, trace, metrics, and feedback. liveness remains public; readiness remains low-sensitivity and must not expose tenant, group, token, claim, or key details.
+
+### Contracts
+
+- `/agent/v2/chat` removes and rejects body-supplied `user_context`; an
+  offline-only compatibility factory cannot be enabled through a request.
+- Server-derived tenant, region, groups, and user id are the only authorization
+  source.
+- Trace and metrics access require an operator role; feedback uses the
+  authenticated user principal.
+- Key rotation and issuer/audience changes are explicit config changes.
+- The JWT negative matrix includes invalid signature, alg=none, algorithm confusion, expired token, nbf in future, unknown kid, wrong issuer, wrong audience, missing tenant claim, missing subject claim, oversized token, and JWKS outage.
+- The key cache and rotation fail closed.
+
+### Local gates
+
+- Valid token permits only matching tenant/group documents.
+- Missing/expired/wrong-audience/wrong-issuer/wrong-algorithm tokens fail before
+  retrieval.
+- Cross-tenant search/find/open attempts return no content.
+- Token and claim material never appears in public traces, errors, or metrics.
+- Existing R2 security and public-audit gates stay green.
+- 100% negative tokens return 401/403 before retrieval/model, and
+  retrieval/model counters stay zero.
+- 0/N unauthorized docs, citations, and traces.
+- 0 token/claim leaks in traces, errors, metrics, feedback, or public evidence.
+- 1000 warm verifications p95 <= 10ms with reported hardware.
+- full historical/security/public audit exact-SHA Linux CI.
+
+### Security
+
+Use deny-by-default authentication, bounded clock skew, allowlisted algorithms,
+and least-privilege trace/feedback access. The JWKS cache is bounded; unknown
+key ids and outage fail closed unless an explicit tested last-known-good window
+is configured. Treat token parsing errors as authentication failures, not
+model-visible content.
+
+### Rollback
+
+Keep local demo identity behind an explicit development profile only. Roll back
+by disabling the trusted-identity route and restoring the local profile; never
+silently fall back to body-supplied identity in production mode.
+Rollback must not restore public body-supplied identity. The real IdP integration remains outside the local contract.
+
+### Deferred tech-stacking
+
+LangGraph, vector DB, Kubernetes, Redis, Kafka, multi-Agent delegation,
+long-term memory, reranker, broad model registry, and queue/cache layers remain
+deferred until measured triggers and isolated gates exist.
+
+### R2-B: Ordered lifecycle and operations
+
+1. Only admitted next implementation: R2-S5 Trusted Identity Boundary.
+2. Rank 2: reproducible minimal Linux deploy/rollback.
+3. Rank 3: durable privacy-bounded telemetry.
+
+These are ordered gates, not parallel approvals.
+
+Unranked deferred triggers:
+
+- Incremental index events and tombstones require a measured update/delete
+  workload that immutable rebuild cannot satisfy.
+- Load/soak backpressure work requires a staging profile that exceeds the
+  current bounded single-host contract.
 
 ### R2-C: Evidence-driven optimization
 

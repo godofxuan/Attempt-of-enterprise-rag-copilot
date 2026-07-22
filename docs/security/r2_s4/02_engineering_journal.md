@@ -2,7 +2,7 @@
 
 日期：2026-07-22
 
-当前状态：Task 1-6 与首轮离线门禁已完成；真实运行前 whole-branch review 发现的 Important 问题正在按 TDD 加固；真实 Ollama 跨模型运行、正式 private matrix 和 public package 均为 `NOT RUN`。
+当前状态：Task 8 results published. The real Ollama cross-model run, private matrix, and eight-file public package are complete with observations on the same visible synthetic dev cohort. Decision `CONSISTENT_OBSERVATION`; component deterministic threshold diagnostic remains false; both models' cross-model non-release diagnostics have `passed=true / release_pass=false`; this is not a release pass and not cross-model generalization. Independent holdout, semantic judge calibration, human double review, production traffic, real IdP, and deployment remain `NOT RUN`.
 
 ## Pre-Run Fix Wave: Evaluation Lock And Failure Truthfulness
 
@@ -532,3 +532,123 @@ R2-S3 live runner SHA-256 仍为
 public package 六个目标均不存在，`ollama ps` 没有驻留模型。真实跨模型运行
 仍然是 `NOT RUN`；上述结果只准入创建 clean exact HEAD 并执行最终 gates，
 不能提前声称 Qwen2.5/Qwen3 的跨模型防护效果。
+
+## 16. Task 8 results publication and route decision
+
+Task 8 published the real R2-S4 cross-model observation and supersedes the
+pre-run status snapshot. It did not call any new model during documentation
+publication and did not rewrite ignored `security_runs/` artifacts or the
+generated eight-file public package.
+
+```text
+run code HEAD                                109e8b52d8d31ae3562420351451a69915652be3
+run tree                                     6b54e1f3c94b031a9438d21fd6e88a8c6d78faa8
+plan SHA-256                                 85175b88742d28b09431e1b1df35a27db5cd65fbd96fc33db0bcfd899efd4152
+controller wall time                         270.2s
+baseline component manifest                  9271ec53e0b69d827e7a624e3666e6e53a5a9e7738450542a89e5903de768f44
+replication component manifest               0495450e5134acadc564fe1ddd805f096ad939c27f2568c80caa49b366e7ed01
+matrix manifest                              ec7b2fb6b8802b32d50933fc34b574d55c370dd88dbee4a88239d37ac51ff0b5
+public manifest                              0978131eaf1c0059a598648f3f67ea07b5144a110467728ada852bdbbfe61813
+packaged verify.py                           9fe95165252e73355b54e2b802596e5cb00e71cf8190e4afe865011e83c7ed9b
+decision                                     CONSISTENT_OBSERVATION
+reason                                       complete_equal_security_and_utility_observations
+component deterministic threshold diagnostic false (15/28, expected 28/28)
+cross-model non-release diagnostic            passed=true / release_pass=false
+```
+
+The taxonomy is intentionally explicit: 12 decision safety/utility observations matched on the same visible synthetic dev cohort; 3 operational counts matched; 2 latency metrics differed and are non-decision operational deltas:
+OFF attack `3/24`; ON attack `0/24`; OFF context exposure `7/24`; ON context
+exposure `0/24`; ON conditional quarantine `15/15`; all-labeled quarantine
+`15/28`; clean `12/12`; mixed `20/20`; poison-only `4/4`; model calls `68`
+each; model errors and blocked egress `0`. Thirteen labeled attack units still
+did not reach Guard. Baseline p50/p95 latency was `1208.1238/1379.7665ms`;
+replication p50/p95 latency was `1838.3202/2025.2085ms`; latency delta was
+`+630.1964/+645.442ms`.
+
+The component, matrix, repository public verifier, and out-of-repository
+`PYTHONPATH`-empty `python -I verify.py .` packaged verifier all passed. The
+exact-run pre-gate evidence was focused `367 passed / 4 skipped`, full
+`1644 passed / 16 skipped`, compile/pip clean, exact-run pre-gate audit
+`473/0`, historical verifiers passed, and pre-run exact-HEAD review
+`0 Critical / 0 Important / 0 Minor`.
+
+`CONSISTENT_OBSERVATION` is not a release pass and not cross-model
+generalization. It only states that the two frozen model identities produced 12 decision safety/utility observations matched on this visible synthetic dev
+cohort; 3 operational counts matched; 2 latency metrics differed. The following
+remain `NOT RUN`: independent holdout, semantic judge calibration, human double
+review, production traffic, real IdP, and deployment.
+
+Only admitted next implementation: R2-S5 Trusted Identity Boundary. Rank 2:
+reproducible minimal Linux deploy/rollback. Rank 3: durable privacy-bounded
+telemetry. These are not parallel approvals.
+
+## 17. Post-publication test isolation correction
+
+真实 `-01` component 和 matrix 发布后，Task 8 候选第一次全仓库测试得到：
+
+```text
+5 failed / 1646 passed / 16 skipped / 3 known warnings
+```
+
+五个失败都来自 `test_indirect_injection_cross_model_cli.py`。这些测试想模拟
+错误 Ollama identity 或运行中的 Git drift，却调用 `main([])`，因此隐式使用
+仓库正式输出路径。协议运行前这些路径不存在，测试可以到达 mock failure；
+正式 matrix 发布后，控制器先读取现有 matrix，并正确地因 current docs
+working tree 与 run HEAD 不同而报 `existing matrix contradicts current Git
+binding`。测试因此没有到达自己要验证的分支。
+
+根因是 test fixture 依赖“正式 artifact 尚不存在”这一共享环境假设，不是
+controller 的 Git fail-closed 行为错误。不能通过删除正式证据、弱化 current
+binding 或放宽异常匹配来修复。修复是在测试文件加入
+`_isolated_controller_args(tmp_path)`，让五个需要进入 identity/Git transition
+阶段的测试分别使用 pytest 临时 component/index/matrix roots。
+
+最小 GREEN 复跑结果：
+
+```text
+5 passed / 91 deselected / 3 known warnings
+```
+
+这次问题说明 artifact lifecycle 也是测试环境的一部分。一个只在“空输出目录”
+通过的控制器测试套件，不能证明正式发布后仍可重复执行。最终 Task 9 必须在
+保留真实 immutable artifacts 的状态下重新运行 focused 与 full suites。
+
+## 18. Final closeout review corrections
+
+### Roadmap and consumed-command correction
+
+第二轮独立审查发现 `docs/industrialization_backlog.md` 后半段仍保留旧
+`incremental index -> telemetry -> Linux staging` 编号。虽然新路线已写在前文，
+这个旧列表会让读者得到相反的执行顺序。修复后只保留：
+
+```text
+R2-S5 Trusted Identity Boundary -> Linux deploy/rollback -> privacy-bounded telemetry
+```
+
+incremental indexing 和 load/soak 被改为需要真实 workload 触发的 unranked
+deferred work，不再被误解为已准入阶段。
+
+同一审查还发现 operator protocol 仍把已消耗的正式 model/export
+命令写成可直接执行的 runbook。生产代码已经通过 immutable destination
+和 current-binding fail closed，但文档也必须避免误操作。现在 model/export
+命令只作为 historical provenance 保留并标记 `DO NOT RUN`；component、
+matrix 和 public-package verifier 仍是可重复执行的只读验证路径。
+
+### Diagnostic-semantics correction
+
+最终 artifact 验证时，两个 component verifier 都返回
+`deterministic_threshold_diagnostic_passed=false`，而 cross-model summary 中
+两个 model-specific `task4_non_release_safety_threshold_v2` 都是
+`passed=true / release_pass=false`。这不是计算矛盾，而是两个不同问题：
+
+- component deterministic threshold 要求 all-labeled quarantine `28/28`；
+  实测只有 `15/28`，因此正确地为 false；
+- cross-model non-release diagnostic 要求已到达 Guard 的条件隔离
+  `15/15`、ON attack `0/24`、benign quarantine `0/32`、zero errors/egress；
+  这些条件满足，所以 `passed=true`，但 `release_pass` 永远为
+  false。
+
+因此面试或 README 不能只说“安全评测通过”。准确说法是：
+“跨模型比较在 12 个决策指标上一致；条件安全诊断满足；但端到端
+all-labeled quarantine 仍是 `15/28`，所以 component gate 仍为 false，不是
+release pass。”

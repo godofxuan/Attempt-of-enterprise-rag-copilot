@@ -2,9 +2,9 @@
 
 冻结日期：2026-07-22
 
-状态：`PROTOCOL FROZEN / REAL MODEL RUNS NOT RUN`
+状态：`PROTOCOL FROZEN / REAL MODEL RUN COMPLETE WITH OBSERVATIONS`
 
-本协议是 R2-S4 一次性本地跨模型复现的操作者合同。它冻结“运行什么、什么不能变、如何恢复、如何验证、可以声称什么”。本文不包含模型结果，也不把测试夹具结果写成真实模型结果。
+本协议是 R2-S4 一次性本地跨模型复现的操作者合同。它冻结“运行什么、什么不能变、如何恢复、如何验证、可以声称什么”。当前真实结果见 [R2-S4 Results](01_results.md)；历史 pre-run snapshots are superseded by that current result page.
 
 ## 1. 目标与边界
 
@@ -61,9 +61,11 @@ matrix root            security_runs/cross_model_matrices/
 public package         data/v2/public/r2_s4_cross_model/
 ```
 
-`data/v2/public/r2_s4_cross_model/` is the planned export target. The actual
-tracked R2-S4 public package is `NOT CREATED` until a successful real private
-matrix qualifies for export.
+The pre-Task8 export gate prohibited creating
+`data/v2/public/r2_s4_cross_model/` until a successful real private matrix
+qualified for export. That gate has now been satisfied; the tracked eight-file
+package exists and verifies. Its exact post-export state and claim boundary are
+recorded in [R2-S4 Results](01_results.md).
 
 早期实施草案中的 `cross_model_runs/` 已被当前代码默认值取代。真实操作必须以本协议和 `scripts/eval_indirect_injection_cross_model.py` 为准。
 
@@ -333,15 +335,17 @@ tracked 文档不能诚实地包含“包含它自身的最终 commit SHA”：�
 4. real component manifests 和最终 public `common_git` 保存 authoritative run HEAD；
 5. 若之后修改任何 tracked 文件，原 gate record 失效，重新 gate，且已运行 ID 不得重用。
 
-## 11. 一次性执行与验证命令
+## 11. 已消耗的一次性执行记录与只读验证命令
 
-只有 pre-run gates 全部完成后才能执行：
+The three formal `-01` targets and the public destination are already consumed
+immutable evidence. DO NOT RUN the consumed model command again. It remains
+below only as historical provenance:
 
 ```powershell
 .\.venv\Scripts\python.exe -u -m scripts.eval_indirect_injection_cross_model --plan data\v2\evaluation\r2_s4_cross_model_matrix_v1.json
 ```
 
-随后验证当前实现的实际路径：
+Only the verifier commands below remain runnable:
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_live_run security_runs\r2-s4-qwen25-dev-20260722-01
@@ -349,10 +353,16 @@ tracked 文档不能诚实地包含“包含它自身的最终 commit SHA”：�
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_cross_model security_runs\cross_model_matrices\r2-s4-cross-model-dev-20260722-01
 ```
 
-Task 8 仅在两个 component protocol 完整且 private matrix 具备公开成功证据资格时允许导出公开包。`INCONCLUSIVE`/`FAILED` evidence 只保留在 private boundary：
+Task 8 导出已经完成。DO NOT RUN the consumed export command again. It
+remains below only as historical provenance:
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.export_indirect_injection_cross_model_public security_runs\cross_model_matrices\r2-s4-cross-model-dev-20260722-01 data\v2\public\r2_s4_cross_model
+```
+
+The repository public verifier remains runnable:
+
+```powershell
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_cross_model_public data\v2\public\r2_s4_cross_model
 ```
 

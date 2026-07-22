@@ -1,0 +1,85 @@
+{
+  "artifacts": {
+    "README.md": {
+      "bytes": 1198,
+      "hash_mode": "actual_sha256",
+      "path": "README.md",
+      "sha256": "85e08aecfaa709afa0872a606eceb1978a56245fd9c4a083769126f4ac09208a"
+    },
+    "checksums.sha256": {
+      "bytes": 492,
+      "hash_mode": "actual_sha256",
+      "path": "checksums.sha256",
+      "sha256": "80c8e0bd7a421ccf1a81ba37223ee3b0b59aa15c36cd4ced41007d7feb58adf8"
+    },
+    "commands.txt": {
+      "bytes": 115,
+      "hash_mode": "actual_sha256",
+      "path": "commands.txt",
+      "sha256": "52ef39af2eb02e8b0e5a72875ff6f1c6314c42314aff78bdc9ba7d6abb966d57"
+    },
+    "manifest.json": {
+      "bytes": 3364,
+      "hash_mode": "canonical_manifest_self_normalized_v1",
+      "path": "manifest.json",
+      "sha256": "fdc7e88bc61df111ad7db2df3f355f48b99f52c15a521341c7e60bd36099f04a"
+    },
+    "per_case_redacted.jsonl": {
+      "bytes": 131751,
+      "hash_mode": "actual_sha256",
+      "path": "per_case_redacted.jsonl",
+      "sha256": "f0f40a8c791723eaf1216354cfa4014cb916a08e5cf0ef006edcc5443c2fd279"
+    },
+    "summary.json": {
+      "bytes": 15055,
+      "hash_mode": "actual_sha256",
+      "path": "summary.json",
+      "sha256": "6b5dbf398df2732bf8ff540a37032b179e0d86d256e95c4d93852b91c4e7e28f"
+    },
+    "verification_witness.json": {
+      "bytes": 1605,
+      "hash_mode": "actual_sha256",
+      "path": "verification_witness.json",
+      "sha256": "d85bceee8bc04be27f2cbee99eac68563a57511521a30ef7c8baa0c8ccfeedba"
+    },
+    "verify.py": {
+      "bytes": 46802,
+      "hash_mode": "actual_sha256",
+      "path": "verify.py",
+      "sha256": "9fe95165252e73355b54e2b802596e5cb00e71cf8190e4afe865011e83c7ed9b"
+    }
+  },
+  "common_git": {
+    "branch": "codex/rag-eval-system",
+    "dirty": false,
+    "dirty_state_sha256": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+    "head": "109e8b52d8d31ae3562420351451a69915652be3",
+    "status_entry_count": 0
+  },
+  "component_manifest_sha256": {
+    "baseline": "9271ec53e0b69d827e7a624e3666e6e53a5a9e7738450542a89e5903de768f44",
+    "replication": "0495450e5134acadc564fe1ddd805f096ad939c27f2568c80caa49b366e7ed01"
+  },
+  "decision": "CONSISTENT_OBSERVATION",
+  "evidence_status": "OBSERVATION_ONLY",
+  "experiment_id": "r2-s4-cross-model-dev-v1",
+  "limitations": [
+    "This is one local two-model dev observation, not a production certification.",
+    "The visible dev set is regression evidence and is not an independent holdout.",
+    "Only chat-model identity was intentionally varied; latency is host-specific.",
+    "Integrity hashes are audit witnesses, not signatures from an external authority."
+  ],
+  "model_digests": {
+    "baseline": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+    "replication": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41"
+  },
+  "only_changed_variable": "chat_model_identity",
+  "package_name": "r2_s4_cross_model",
+  "plan_sha256": "85175b88742d28b09431e1b1df35a27db5cd65fbd96fc33db0bcfd899efd4152",
+  "private_matrix_manifest_sha256": "ec7b2fb6b8802b32d50933fc34b574d55c370dd88dbee4a88239d37ac51ff0b5",
+  "producer": "enterprise_agentic_rag_v2",
+  "row_count": 72,
+  "schema_version": "indirect_injection_cross_model_public_manifest_v1",
+  "split": "dev",
+  "verifier_sha256": "9fe95165252e73355b54e2b802596e5cb00e71cf8190e4afe865011e83c7ed9b"
+}

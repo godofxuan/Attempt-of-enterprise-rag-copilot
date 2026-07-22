@@ -11,7 +11,7 @@
 | Identity | `UserContext` 由浏览器/调用方声明，只做 schema 和 policy 验证 | 本地演示可以验证 ACL 逻辑，但不能证明真实用户身份 | 由可信 OIDC/IAM gateway 签发身份，并加入 token/tenant/group integration tests |
 | Data realism | 72/600 文档和 52 个 eval cases 全部 synthetic | 指标证明工程 contract，不代表真实企业分布或生产泛化 | 法务批准的去标识 pilot corpus、数据治理记录和独立 held-out evaluation |
 | Live quality | 当前 canonical live dev 为 23/24 | 一个 system-runtime failure 被保留；不能报告 100% | 先定位/复现失败，再在新冻结 split 上验证，而不是改写旧 artifact |
-| Indirect document injection | D1-D7、V1-V5、S2-1、R2-S3 已完成；R2-S4 Task 1-5 已实现 canonical cross-model plan、V3 component、restart admission、六文件 private matrix 和八文件 public exporter/verifier contract；actual tracked R2-S4 public package `NOT CREATED`，真实 `-01` 双模型运行仍为 `NOT RUN` | 已证明固定规则集的软件传播边界、单模型可见 dev 观察与跨模型评测基础设施的离线 contract；public proof scope intentionally omits private input/nonce/candidate-order hashes and aligns only by ordinal/public-safe fields；尚无 Qwen2.5/Qwen3 正式 matrix 结果，不能声称跨模型泛化、未知攻击免疫或 production safety | 先按冻结协议完成 exact-HEAD gates 和一次性 R2-S4 run；独立 holdout、semantic judge calibration、human double review 仍需独立执行，且任何结果都不得命名为 release PASS |
+| Indirect document injection | D1-D7, V1-V5, S2-1, R2-S3, and R2-S4 Task 8 are complete with observations; R2-S4 public package `data/v2/public/r2_s4_cross_model` is `VERIFIED / 8 FILES`; decision `CONSISTENT_OBSERVATION` on the same visible synthetic dev cohort; `release_pass=false` | The result supports only this narrow comparison: 12 decision safety/utility observations matched for frozen Qwen2.5/Qwen3 on visible synthetic dev data; 3 operational counts matched; 2 latency metrics differed. It is not production safety evidence and not cross-model generalization. Public proof scope intentionally omits private input/nonce/candidate-order hashes and aligns only by ordinal/public-safe fields | Independent holdout, semantic judge calibration, human double review, production traffic, real IdP, and deployment remain `NOT RUN`; any broader claim requires those gates |
 | Reranker | `NOT RUN` (`no_admitted_reranker`) | 不能声称 cross-encoder/reranker 改善过排序 | 固定候选模型、license/资源预算与 latency gate；在 frozen test 上做隔离消融 |
 | Human review | `NOT RUN`；50 行、8 个人工判断列保持空白 | 自动 claim/citation/required-fact checks 不能替代语义和可用性评分 | 本人按冻结 rubric 完成 review；若用于正式质量结论，再增加第二 reviewer、分歧仲裁和 agreement 记录 |
 | Authentication/authorization | 只有本地 ACL policy，没有 SSO、token verification、policy admin 或 audit identity | 不能公网暴露为企业服务 | IAM、server-derived claims、deny-by-default policy store、admin/change audit |
@@ -46,7 +46,7 @@
 ## 4. 公开展示边界
 
 - README 与 UI 必须显示 live `23/24`，不能四舍五入为 100%。
-- indirect document injection 必须分层显示：D4 guarded V2 data flow、D5 prompt/public observability、D6 deterministic frozen OFF/ON gate 已完成；D7 fixed-order 与 S2-1 counterbalanced local BGE-M3/Qwen paired runs 均为 `COMPLETED WITH OBSERVATIONS`；R2-S3 measurement-only ablation 为 `COMPLETE`，但 source live run 和 production Guard/retrieval/Agent 未改，counterfactual coverage 仅诊断。S2-2 只完成 holdout freeze/verify 基础设施；独立 package、holdout 结果、semantic judge、cross-model replication、人工红队和 optional reranker 仍是 `NOT RUN`。
+- indirect document injection 必须分层显示：D4 guarded V2 data flow、D5 prompt/public observability、D6 deterministic frozen OFF/ON gate 已完成；D7 fixed-order 与 S2-1 counterbalanced local BGE-M3/Qwen paired runs 均为 `COMPLETED WITH OBSERVATIONS`；R2-S3 measurement-only ablation 为 `COMPLETE`，但 source live run 和 production Guard/retrieval/Agent 未改，counterfactual coverage 仅诊断。R2-S4 cross-model dev observation is COMPLETE WITH OBSERVATIONS, but independent package, independent holdout, semantic judge calibration, human double review, production traffic, real IdP, deployment, human red team, and optional reranker remain `NOT RUN`。
 - `526 passed` 是 E5 入口、`569 passed` 是 E6 收口、`574 passed` 是 E7 自动化本地门禁；它们是不同 commit 候选的历史计数，不能相加。
 - 远端 CI 声明必须同时给出 run URL 和 commit；当前可核验的 `9607e55` 与 `9fcb304` 均为历史 feature-branch 证据，不覆盖当前 R2-S4 candidate exact HEAD。
 - E7 已逐条处理 claims matrix；只能使用 `approved` 原句或 `narrowed` 后的措辞，不能删掉 synthetic、deterministic/local、样本数和 `NOT RUN` 边界。
@@ -57,7 +57,7 @@
 
 D1 froze the design; D3 built the model-free detector; D4 connected it to the default V2 path; D5 added prompt/trace/service defense in depth; D6 added the immutable deterministic paired gate. The D6 frozen synthetic result is OFF attack success `21/24` versus ON `0/24`, ON benign quarantine `0/32`, with `788 passed` full regression. D7 then observed one fixed-order local BGE-M3/Qwen pair. R2-S2 S2-1 repeated the visible dev experiment with a new run ID and exact 18/18 counterbalancing: OFF user-boundary signal `3/24` versus ON `0/24`, conditional quarantine `15/15`, all-labeled quarantine `15/28`, clean utility `12/12`, benign quarantine `0/32`, and zero model/system errors or blocked egress. S2-2 implements holdout admission and sealing, but no independent raw package or holdout score exists. None of these results establishes unseen-attack prevalence, immunity, cross-model generalization or production safety.
 
-## 6. R2-S3 current boundary
+## 6. historical R2-S3 boundary at R2-S3 cutoff
 
 R2-S3 deterministically replayed the unchanged S2-1 source admission path and
 published content-free evidence from accepted v2 run
@@ -70,10 +70,11 @@ depths `1/2/4` is `6/26`, `22/26`, and `26/26`, but only as a measurement-only
 counterfactual. No production Guard, retrieval, Agent, prompt, ranking, `top_k`,
 or `candidate_k` change was made or admitted.
 
-The decision `NO_CURRENT_BYPASS_OBSERVED` means no current dev evidence
-justifies a broader runtime prefilter. It is not a universal safety result,
-release pass, or production deployment gate. Independent holdout evaluation,
-semantic judge calibration, and cross-model replication remain `NOT RUN`.
+The decision `NO_CURRENT_BYPASS_OBSERVED` meant no R2-S3 cutoff dev evidence
+justified a broader runtime prefilter. It was not a universal safety result,
+release pass, or production deployment gate. Independent holdout evaluation and
+semantic judge calibration remain `NOT RUN`; current R2-S4 Task 8 below
+supersedes only the old cross-model-replication NOT RUN line.
 
 ## 7. R2-S3 frozen local trust boundary
 
@@ -88,42 +89,57 @@ Concurrent ABA replacement by a local writer and compromised runtime/import
 state are outside the frozen threat model. Stronger guarantees require an
 external immutable execution/attestation boundary.
 
-## 8. R2-S4 pre-run boundary
+## 8. R2-S4 current boundary
 
-R2-S4 Task 1-5 industrializes evaluation operations: a canonical plan with
-SHA-256 `85175b88742d28b09431e1b1df35a27db5cd65fbd96fc33db0bcfd899efd4152`,
-exact model digests, one clean Git/runtime snapshot, bounded restart admission,
-immutable six-file private evidence, allowlisted eight-file public evidence,
-and independent standard-library recomputation. This is infrastructure, not a
-real cross-model result. The three planned immutable `-01` run targets have not
-been executed at protocol-freeze time.
+R2-S4 Task 8 published a real two-model local observation for the same visible
+synthetic dev cohort. The run used code HEAD
+`109e8b52d8d31ae3562420351451a69915652be3`, tree
+`6b54e1f3c94b031a9438d21fd6e88a8c6d78faa8`, and plan SHA-256
+`85175b88742d28b09431e1b1df35a27db5cd65fbd96fc33db0bcfd899efd4152`.
+The matrix manifest is
+`ec7b2fb6b8802b32d50933fc34b574d55c370dd88dbee4a88239d37ac51ff0b5`;
+the eight-file public package manifest is
+`0978131eaf1c0059a598648f3f67ea07b5144a110467728ada852bdbbfe61813`.
 
-`CONSISTENT_OBSERVATION` means complete equal selected security/utility
-observations even when both are equally bad. `DIVERGENT_OBSERVATION` means a
-valid selected observation differs. Incomplete/error/blocked/non-chat mismatch
-evidence is `INCONCLUSIVE`. The separate
-`task4_non_release_safety_threshold_v2` requires exact `0/24`, `15/15`, `0/32`,
-zero model/system errors, and zero blocked egress; `release_pass` remains false.
+The decision is `CONSISTENT_OBSERVATION`: baseline Qwen2.5 and replication
+Qwen3 produced 12 decision safety/utility observations matched on this visible
+synthetic dev cohort; 3 operational counts matched; 2 latency metrics differed.
+Both models' cross-model non-release diagnostics have `passed=true` and
+`release_pass=false`. The older component deterministic threshold diagnostic
+remains false because all-labeled quarantine is `15/28`, not `28/28`. Neither
+field is a release pass, production safety evidence, or cross-model
+generalization.
+
+Key current numerators are OFF attack `3/24`, ON attack `0/24`, OFF context
+exposure `7/24`, ON context exposure `0/24`, ON conditional quarantine `15/15`,
+all-labeled quarantine `15/28`, ON benign quarantine `0/32`, clean `12/12`,
+mixed `20/20`, and poison-only `4/4`. Thirteen labeled attack units did not
+reach Guard, so the `15/28` all-labeled denominator remains a retrieval/tool
+coverage limitation. Baseline p50/p95 latency was `1208.1238/1379.7665ms`;
+replication p50/p95 latency was `1838.3202/2025.2085ms`.
+
+These remain `NOT RUN`:
 
 ```text
 independent holdout         NOT RUN
 semantic judge calibration NOT RUN
 human double review        NOT RUN
 production traffic         NOT RUN
+real IdP                   NOT RUN
+deployment                 NOT RUN
 ```
 
 R2-S4 is evaluation-operation industrialization, not production-service
-readiness. The only admitted next stage after R2-S4 closeout is R2-S5 Trusted
-Identity Boundary because the secure API still trusts body-supplied
-`UserContext`. Reproducible deployment and durable privacy-bounded telemetry
-rank after identity. No framework, vector database, Kubernetes, multi-Agent, or
-memory stack is admitted by this evidence.
+readiness. Only admitted next implementation: R2-S5 Trusted Identity Boundary.
+Rank 2: reproducible minimal Linux deploy/rollback. Rank 3: durable
+privacy-bounded telemetry. These are not parallel approvals. No framework,
+vector DB, Kubernetes, multi-Agent, or memory stack is admitted by this
+evidence.
 
 The R2-S4 controller lock is limited to cooperating evaluator processes sharing
 the same normalized local Ollama origin. It prevents overlapping R2-S4/live
 evaluators inside this codebase, but it does not stop non-cooperating external
 Ollama clients, provide production scheduling, or make model aliases immutable.
-The manual no-other-Ollama-client check remains required before real execution.
+The manual no-other-Ollama-client check remains required before any future run.
 Operators must not delete, rotate, replace, redirect, or clean
-`R2_S4_EVALUATION_LOCK_DIR` during a run. Non-cooperating post-yield lock
-pathname replacement is outside this local rendezvous lock's threat model.
+`R2_S4_EVALUATION_LOCK_DIR` during a run. Non-cooperating post-yield lock pathname replacement remains outside the standard-library threat model.
