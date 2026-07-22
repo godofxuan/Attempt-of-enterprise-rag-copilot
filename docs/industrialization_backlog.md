@@ -1,6 +1,6 @@
 # Industrialization Backlog
 
-最后更新：2026-07-21
+最后更新：2026-07-22
 
 本文不是承诺清单。每个 R2 项必须由真实失败、规模或合规需求触发，并在进入实现前定义可复现基线、验收指标、回滚和成本边界。当前 R1 状态见 [Project Status](../PROJECT_STATUS.md)。
 
@@ -19,8 +19,8 @@
 
 | Priority | Capability | Trigger evidence | Required gate | Why not in R1 |
 |---|---|---|---|---|
-| P0 | Trusted IAM identity | 需要多人/多 tenant 访问，浏览器自报 context 不可接受 | OIDC/JWT verification、server-derived tenant/group、deny-by-default、cross-tenant integration and revocation tests | 没有可信身份就不能公网部署；本地 ACL 只验证 policy data flow |
-| P0 | Independent indirect-injection validation | S2-1 已完成 counterbalanced real-model dev replication；R2-S3 已解释 13 个 rank-2 unreached units 并观察到 downstream exposure 0/13，但两者仍是可见 synthetic cohort 和单一 BGE-M3/Qwen 配置；S2-2 没有独立原始包或结果 | 独立 reviewer package、pre-run freeze、one-shot holdout、blind double review、agreement/adjudication、semantic judge calibration、跨模型矩阵和 zero unauthorized action gate | Guard、可审计协议和 measurement-only exposure attribution 已实现；现在缺的是独立分布和语义层外部有效性，不能把 `NO_CURRENT_BYPASS_OBSERVED` 当 release pass 或继续靠同一可见集合调规则 |
+| P0 | R2-S5 Trusted Identity Boundary | `/agent/v2/chat` 仍接受 request body 中调用方自报的 `UserContext`；ACL 只能验证 policy data flow，不能证明 tenant/group 来自可信 issuer | pinned issuer/audience/algorithm JWT verification、server-derived Principal/UserContext、deny-before-retrieval/model、cross-tenant/key-rotation/zero-token-leak tests | 没有可信身份就不能把本地 ACL demo 暴露为企业多租户服务；这是 R2-S4 收口后的唯一 admitted next stage |
+| P0 | Independent indirect-injection validation | S2-1 已有 counterbalanced real-model dev evidence，R2-S3 仍是同一可见 synthetic cohort；R2-S4 Task 1-5 已完成跨模型评测基础设施，但 Qwen2.5/Qwen3 正式 `-01` matrix、独立 holdout、semantic calibration 和双人盲评仍为 `NOT RUN` | exact-HEAD one-shot cross-model run、独立 reviewer package、one-shot holdout、blind double review、agreement/adjudication、semantic judge calibration 和 zero unauthorized action gate | Guard、可审计协议、exposure attribution 与跨模型运行 machinery 已实现；缺的是尚未执行的外部有效性证据，不能把 infrastructure 或 `CONSISTENT_OBSERVATION` 当 release pass |
 | P0 | Human semantic review | 需要对外报告 response quality 或用于业务 pilot | Frozen rubric、blind double review、adjudication、agreement、claim/citation/omission severity | 自动 required-fact 与 lexical checks 不能替代语义可用性判断 |
 | P1 | Incremental upsert/delete | 文档更新频率使全量 rebuild 超过 agreed freshness window | Idempotent event contract、version/tombstone、partial failure recovery、active snapshot consistency、rollback | R1 immutable rebuild 更易审计，当前 72-doc demo 没有增量压力 |
 | P1 | Durable OpenTelemetry | 需要跨进程追踪、历史检索、告警或多副本 | OTel semantic conventions、collector/backend、sampling、redaction、retention、access control、trace-to-eval correlation | 当前 bounded memory 足以本地调试，直接加平台会先增加运维面 |
@@ -50,6 +50,34 @@
 没有完成独立验证、可信身份和部署门禁，不应把本地 demo 包装成多租户服务。
 
 S2-1 暴露的 `13/28 unreached` 已由 R2-S3 在固定 Guard ruleset 下做 measurement-only ablation，不与 detector recall 混合。结果显示 13 个 units 全部在 runtime rank 2，observed downstream exposure `0/13`；depth 2/4 的 `28/28` total coverage 是 diagnostic replay，并分别增加 29/33 scans 和 3845/4200 input characters。该证据没有准入 retrieval exposure 改动。未来若出现 measured bypass 或 reachable unguarded path，必须新建设计并同时冻结 latency、clean utility、false-positive、model-call、security regression 和 rollback gates；不能为了让 test/holdout 分数变好而扩大上下文或扫描所有文档。
+
+## 3.1 R2-S4 industrialization decision
+
+R2-S4 industrializes the evaluation operation, not the production service. It
+adds a canonical digest-bound plan, exact clean Git/runtime admission,
+restart-safe component reuse, no-overwrite private publication, an allowlisted
+public projection, and independent recomputation. At protocol freeze the real
+two-model `-01` matrix is still `NOT RUN`, so no cross-model safety result is
+claimed.
+
+The only admitted next implementation stage after R2-S4 closeout is **R2-S5
+Trusted Identity Boundary**. The trigger is already reproducible: the secure API
+trusts body-supplied `UserContext`. Reproducible minimal Linux deployment and
+rollback rank second; durable privacy-bounded telemetry ranks third. They are
+sequenced capabilities, not three parallel approvals.
+
+The following remain explicitly deferred until a measured trigger and isolated
+gate exist: LangGraph or another orchestration framework, vector DB migration,
+reranker, Redis, Kafka/queue, Kubernetes/service mesh, multi-Agent delegation,
+long-term memory, generalized checkpointing, and a broad model registry. Their
+absence is scope control, not missing industrialization.
+
+```text
+independent holdout         NOT RUN
+semantic judge calibration NOT RUN
+human double review        NOT RUN
+production traffic         NOT RUN
+```
 
 ### R2-B: Lifecycle and operations
 

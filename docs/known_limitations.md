@@ -1,6 +1,6 @@
 # Known Limitations
 
-最后更新：2026-07-21
+最后更新：2026-07-22
 
 本文使用三个状态：`FAILED` 表示已运行且未通过；`NOT RUN` 表示没有满足协议的 fixture/依赖或实验；“未实现”表示代码能力不存在。`NOT RUN` 不能写成通过。
 
@@ -11,7 +11,7 @@
 | Identity | `UserContext` 由浏览器/调用方声明，只做 schema 和 policy 验证 | 本地演示可以验证 ACL 逻辑，但不能证明真实用户身份 | 由可信 OIDC/IAM gateway 签发身份，并加入 token/tenant/group integration tests |
 | Data realism | 72/600 文档和 52 个 eval cases 全部 synthetic | 指标证明工程 contract，不代表真实企业分布或生产泛化 | 法务批准的去标识 pilot corpus、数据治理记录和独立 held-out evaluation |
 | Live quality | 当前 canonical live dev 为 23/24 | 一个 system-runtime failure 被保留；不能报告 100% | 先定位/复现失败，再在新冻结 split 上验证，而不是改写旧 artifact |
-| Indirect document injection | D1-D7、V1-V5、S2-1 与 R2-S3 measurement-only ablation 已完成：S2-1 ON conditional quarantine 15/15、all-labeled 15/28；R2-S3 定位全部 13 个 unreached units 为 runtime rank 2，相关 case observed downstream exposure 0/13 | 已证明固定规则集的软件传播边界、单模型可见 dev 观察和证据可审计性；R2-S3 counterfactual depth 2/4 只是诊断，production Guard/retrieval/Agent 未改，仍未证明未知绕过、独立分布、语义服从率或跨模型泛化 | 当前证据不准入 production prefilter change；下一步由独立 reviewer 创建并冻结未见 package，再执行一次性 holdout、双人盲评、semantic judge calibration 与跨模型复现，并为任何未来 runtime exposure experiment 单独定义 latency/utility/false-positive/rollback gate |
+| Indirect document injection | D1-D7、V1-V5、S2-1、R2-S3 已完成；R2-S4 Task 1-5 已实现 canonical cross-model plan、V3 component、restart admission、六文件 private matrix 和八文件 public verifier，但真实 `-01` 双模型运行仍为 `NOT RUN` | 已证明固定规则集的软件传播边界、单模型可见 dev 观察与跨模型评测基础设施的离线 contract；尚无 Qwen2.5/Qwen3 正式 matrix 结果，不能声称跨模型泛化、未知攻击免疫或 production safety | 先按冻结协议完成 exact-HEAD gates 和一次性 R2-S4 run；独立 holdout、semantic judge calibration、human double review 仍需独立执行，且任何结果都不得命名为 release PASS |
 | Reranker | `NOT RUN` (`no_admitted_reranker`) | 不能声称 cross-encoder/reranker 改善过排序 | 固定候选模型、license/资源预算与 latency gate；在 frozen test 上做隔离消融 |
 | Human review | `NOT RUN`；50 行、8 个人工判断列保持空白 | 自动 claim/citation/required-fact checks 不能替代语义和可用性评分 | 本人按冻结 rubric 完成 review；若用于正式质量结论，再增加第二 reviewer、分歧仲裁和 agreement 记录 |
 | Authentication/authorization | 只有本地 ACL policy，没有 SSO、token verification、policy admin 或 audit identity | 不能公网暴露为企业服务 | IAM、server-derived claims、deny-by-default policy store、admin/change audit |
@@ -87,3 +87,34 @@ behavior, or producer identity.
 Concurrent ABA replacement by a local writer and compromised runtime/import
 state are outside the frozen threat model. Stronger guarantees require an
 external immutable execution/attestation boundary.
+
+## 8. R2-S4 pre-run boundary
+
+R2-S4 Task 1-5 industrializes evaluation operations: a canonical plan with
+SHA-256 `85175b88742d28b09431e1b1df35a27db5cd65fbd96fc33db0bcfd899efd4152`,
+exact model digests, one clean Git/runtime snapshot, bounded restart admission,
+immutable six-file private evidence, allowlisted eight-file public evidence,
+and independent standard-library recomputation. This is infrastructure, not a
+real cross-model result. The three planned immutable `-01` run targets have not
+been executed at protocol-freeze time.
+
+`CONSISTENT_OBSERVATION` means complete equal selected security/utility
+observations even when both are equally bad. `DIVERGENT_OBSERVATION` means a
+valid selected observation differs. Incomplete/error/blocked/non-chat mismatch
+evidence is `INCONCLUSIVE`. The separate
+`task4_non_release_safety_threshold_v2` requires exact `0/24`, `15/15`, `0/32`,
+zero model/system errors, and zero blocked egress; `release_pass` remains false.
+
+```text
+independent holdout         NOT RUN
+semantic judge calibration NOT RUN
+human double review        NOT RUN
+production traffic         NOT RUN
+```
+
+R2-S4 is evaluation-operation industrialization, not production-service
+readiness. The only admitted next stage after R2-S4 closeout is R2-S5 Trusted
+Identity Boundary because the secure API still trusts body-supplied
+`UserContext`. Reproducible deployment and durable privacy-bounded telemetry
+rank after identity. No framework, vector database, Kubernetes, multi-Agent, or
+memory stack is admitted by this evidence.
