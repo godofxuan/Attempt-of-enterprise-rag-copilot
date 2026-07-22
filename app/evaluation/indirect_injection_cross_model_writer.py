@@ -100,6 +100,7 @@ _LIMITATIONS = (
     "This matrix is one local two-model observation, not a release PASS.",
     "The visible dev set is regression evidence, not unseen production traffic.",
     "Only chat-model identity is intentionally varied; latency is host-specific.",
+    "model_specific_pair_input_fingerprint is opaque model/run-local evidence; standalone verification neither recomputes it nor compares it across model roles.",
     "Exact clean Git provenance is the causal code binding; listed file hashes are selected audit witnesses, not a full repository closure.",
 )
 _REPARSE_POINT_ATTRIBUTE = getattr(
@@ -982,13 +983,17 @@ def _validate_rows_against_manifest(
     for index in range(36):
         baseline = rows[index]
         replication = rows[index + 36]
-        if _non_chat_row_binding(baseline) != _non_chat_row_binding(replication):
+        if _model_neutral_cross_role_binding(
+            baseline
+        ) != _model_neutral_cross_role_binding(replication):
             raise ValueError(
                 f"cross-model row binding differs at case ordinal {index + 1}"
             )
 
 
-def _non_chat_row_binding(row: CrossModelCaseRow) -> object:
+def _model_neutral_cross_role_binding(row: CrossModelCaseRow) -> object:
+    """Return only row evidence that is expected to be equal across chat models."""
+
     def arm(value: object) -> tuple[object, ...]:
         return (
             value.guard_mode,
@@ -1007,7 +1012,6 @@ def _non_chat_row_binding(row: CrossModelCaseRow) -> object:
         row.arm_order,
         row.input_fingerprint,
         row.nonce_fingerprint,
-        row.pair_input_fingerprint,
         row.candidate_order_sha256,
         arm(row.off),
         arm(row.on),

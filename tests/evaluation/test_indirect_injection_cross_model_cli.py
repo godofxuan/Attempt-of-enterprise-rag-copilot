@@ -678,13 +678,18 @@ def test_real_new_flow_compares_publishes_and_readmits_matrix(
     monkeypatch: pytest.MonkeyPatch,
     writer_v3_inputs,
 ) -> None:
-    bundle, built, result = writer_v3_inputs
+    bundle, built_by_role, result_by_role = (
+        matrix_fixtures._model_specific_component_inputs(
+            tmp_path / "model-specific-inputs",
+            writer_v3_inputs,
+        )
+    )
     plan, _ = load_cross_model_plan(PLAN_PATH)
     runtime = _runtime(plan)
     current_git = matrix_fixtures._component_manifest(
         bundle,
-        built,
-        result,
+        built_by_role["baseline"],
+        result_by_role["baseline"],
         "baseline",
     ).git.model_dump(mode="python")
     args = eval_indirect_injection_cross_model.build_parser().parse_args(
@@ -709,8 +714,8 @@ def test_real_new_flow_compares_publishes_and_readmits_matrix(
         roles.append(role)
         payload = matrix_fixtures._component_manifest(
             bundle,
-            built,
-            result,
+            built_by_role[role],
+            result_by_role[role],
             role,
         ).model_dump(mode="python")
         payload["run_id"] = request.args.run_id
@@ -767,7 +772,7 @@ def test_real_new_flow_compares_publishes_and_readmits_matrix(
         target = publish_live_security_run(
             request.args.out_dir,
             manifest,
-            result,
+            result_by_role[role],
             paired_evidence="offline model-boundary fixture\n",
             commands="offline model-boundary fixture\n",
             test_output="offline model-boundary fixture\n",

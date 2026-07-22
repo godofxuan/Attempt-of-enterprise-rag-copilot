@@ -119,6 +119,9 @@ def _publish_components(
     tmp_path: Path,
     writer_v3_inputs,
     *,
+    baseline_built=None,
+    baseline_result=None,
+    replication_built=None,
     replication_result=None,
     replication_python_version=None,
     baseline_run_id=None,
@@ -127,14 +130,17 @@ def _publish_components(
     guard_sha256=None,
 ):
     bundle, built, result = writer_v3_inputs
+    baseline_built = baseline_built or built
+    baseline_result = baseline_result or result
+    replication_built = replication_built or built
     replication_result = replication_result or result
     root = tmp_path / "components"
     root.mkdir()
     forbidden = live_fixtures._forbidden_texts(bundle)
     baseline_manifest = _component_manifest(
         bundle,
-        built,
-        result,
+        baseline_built,
+        baseline_result,
         "baseline",
         run_id=baseline_run_id,
         dirty_git=dirty_git,
@@ -143,7 +149,7 @@ def _publish_components(
     )
     replication_manifest = _component_manifest(
         bundle,
-        built,
+        replication_built,
         replication_result,
         "replication",
         python_version=replication_python_version,
@@ -154,7 +160,7 @@ def _publish_components(
     baseline = publish_live_security_run(
         root,
         baseline_manifest,
-        result,
+        baseline_result,
         paired_evidence="offline fixture\n",
         commands="offline fixture\n",
         test_output="offline fixture\n",
@@ -170,6 +176,60 @@ def _publish_components(
         forbidden_texts=forbidden,
     )
     return bundle, {"baseline": baseline, "replication": replication}, forbidden
+
+
+def _model_specific_component_inputs(tmp_path: Path, writer_v3_inputs):
+    bundle, _, _ = writer_v3_inputs
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    arm_order = live_fixtures.build_counterbalanced_arm_order_plan(
+        case.case_id for case in bundle.dataset.cases
+    )
+    built_by_role = {}
+    result_by_role = {}
+    tmp_path.mkdir()
+    for role in ("baseline", "replication"):
+        planned = plan.model_for_role(role)
+        built = live_fixtures.build_live_fixture_index(
+            dataset=bundle.dataset,
+            fixtures=bundle.fixture_manifest,
+            root=tmp_path / f"{role}-security-index",
+            run_id=f"r2-s4-{role}-model-specific-index",
+            fixture_sha256=bundle.fixture_manifest_sha256,
+            embedding_model=plan.embedding.requested_name,
+            embed_text=live_fixtures._embedding,
+            started_at=live_fixtures.BUILD_TIME,
+            finished_at=live_fixtures.BUILD_TIME,
+        )
+        result = live_fixtures.evaluate_live_paired(
+            dataset=bundle.dataset,
+            fixtures=bundle.fixture_manifest,
+            snapshot=built.snapshot,
+            embed_text=live_fixtures._embedding,
+            chat_fn=live_fixtures._StructuredFixtureChat(),
+            config=live_fixtures.LiveSecurityConfig(
+                llm_endpoint="http://127.0.0.1:11434/v1",
+                chat_model=planned.requested_name,
+            ),
+            clock_ms=lambda: 1_000.0,
+            arm_order=arm_order,
+        )
+        built_by_role[role] = built
+        result_by_role[role] = result
+
+    baseline_fingerprints = {
+        item.case_id: item.pair_input_fingerprint
+        for item in result_by_role["baseline"].guard_off
+    }
+    replication_fingerprints = {
+        item.case_id: item.pair_input_fingerprint
+        for item in result_by_role["replication"].guard_off
+    }
+    assert set(baseline_fingerprints) == set(replication_fingerprints)
+    assert sum(
+        baseline_fingerprints[case_id] != replication_fingerprints[case_id]
+        for case_id in baseline_fingerprints
+    ) == 36
+    return bundle, built_by_role, result_by_role
 
 
 def _compare(bundle, components):
@@ -527,6 +587,17 @@ def test_redacted_model_error_codes_use_producer_allowlist(
         CrossModelArmObservation.model_validate_json(_json_bytes(arm))
 
 
+def test_case_row_names_and_documents_model_specific_pair_fingerprint() -> None:
+    fields = CrossModelCaseRow.model_fields
+
+    assert "pair_input_fingerprint" not in fields
+    assert "model_specific_pair_input_fingerprint" in fields
+    assert fields["model_specific_pair_input_fingerprint"].description == (
+        "Opaque model- and run-specific OFF/ON binding; it is not comparable "
+        "across model roles or independently recomputable from this redacted row."
+    )
+
+
 def test_selected_code_witnesses_cover_live_behavior_dependencies() -> None:
     assert {
         "scripts/eval_indirect_injection_live.py",
@@ -621,6 +692,47 @@ def test_publish_verify_and_exact_existing_reuse(
         "verification_witness.json",
     }
     assert len((first / "per_case_redacted.jsonl").read_text().splitlines()) == 72
+
+
+def test_publish_and_verify_accept_model_specific_pair_fingerprints(
+    tmp_path: Path,
+    writer_v3_inputs,
+) -> None:
+    bundle, built_by_role, result_by_role = _model_specific_component_inputs(
+        tmp_path / "model-specific-inputs",
+        writer_v3_inputs,
+    )
+    _, components, forbidden = _publish_components(
+        tmp_path,
+        writer_v3_inputs,
+        baseline_built=built_by_role["baseline"],
+        baseline_result=result_by_role["baseline"],
+        replication_built=built_by_role["replication"],
+        replication_result=result_by_role["replication"],
+    )
+    comparison = _compare(bundle, components)
+    matrix_root = tmp_path / "matrix"
+    matrix_root.mkdir()
+
+    package = publish_cross_model_run(
+        matrix_root,
+        comparison,
+        plan_path=PLAN_PATH,
+        component_runs=components,
+        commands="offline two-model fixture\n",
+        forbidden_texts=forbidden,
+        code_root=REPO_ROOT,
+    )
+
+    manifest = verify_cross_model_run(package)
+
+    assert comparison.decision == "CONSISTENT_OBSERVATION"
+    assert manifest.decision == comparison.decision
+    assert any(
+        "standalone verification neither recomputes it nor compares it across model roles"
+        in limitation
+        for limitation in manifest.limitations
+    )
 
 
 @pytest.mark.parametrize(
@@ -756,6 +868,57 @@ def test_verifier_rejects_resealed_row_binding_mutation(
 
     with pytest.raises(ValueError, match="digest|row binding"):
         verify_cross_model_run(package)
+
+
+def test_source_readmission_rejects_resealed_model_specific_pair_mutation(
+    tmp_path: Path,
+    writer_v3_inputs,
+) -> None:
+    bundle, components, forbidden = _publish_components(
+        tmp_path,
+        writer_v3_inputs,
+    )
+    comparison = _compare(bundle, components)
+    root = tmp_path / "matrix"
+    root.mkdir()
+    package = publish_cross_model_run(
+        root,
+        comparison,
+        plan_path=PLAN_PATH,
+        component_runs=components,
+        commands="offline fixture\n",
+        forbidden_texts=forbidden,
+        code_root=REPO_ROOT,
+    )
+    rows_path = package / "per_case_redacted.jsonl"
+    rows = [json.loads(line) for line in rows_path.read_text().splitlines()]
+    field = next(
+        name
+        for name in (
+            "model_specific_pair_input_fingerprint",
+            "pair_input_fingerprint",
+        )
+        if name in rows[0]
+    )
+    rows[0][field] = "f" * 64
+    rows_path.write_bytes(b"".join(_json_bytes(row, compact=True) for row in rows))
+    _reseal_package(package)
+
+    assert verify_cross_model_run(package).decision == comparison.decision
+    with pytest.raises(ValueError, match="does not recompute from current components"):
+        validate_current_cross_model_bindings(
+            package,
+            plan_path=PLAN_PATH,
+            component_runs=components,
+            code_root=REPO_ROOT,
+            current_git={
+                "head": "a" * 40,
+                "branch": "codex/rag-eval-system",
+                "dirty": False,
+                "status_entry_count": 0,
+                "dirty_state_sha256": CLEAN_GIT_STATE_SHA256,
+            },
+        )
 
 
 def test_existing_invalid_matrix_fails_without_overwrite(

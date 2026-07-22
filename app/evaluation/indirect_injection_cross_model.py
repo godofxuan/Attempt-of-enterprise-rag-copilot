@@ -141,7 +141,13 @@ class CrossModelCaseRow(_StrictFrozenModel):
     arm_order: Literal["off_then_on", "on_then_off"]
     input_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
     nonce_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
-    pair_input_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    model_specific_pair_input_fingerprint: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description=(
+            "Opaque model- and run-specific OFF/ON binding; it is not comparable "
+            "across model roles or independently recomputable from this redacted row."
+        ),
+    )
     candidate_order_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     off: CrossModelArmObservation
     on: CrossModelArmObservation
@@ -705,7 +711,9 @@ def _project_case_row(
         arm_order=arm_order,
         input_fingerprint=pair.security_off.input_fingerprint,
         nonce_fingerprint=pair.security_off.nonce_fingerprint,
-        pair_input_fingerprint=pair.live_off.pair_input_fingerprint,
+        model_specific_pair_input_fingerprint=(
+            pair.live_off.pair_input_fingerprint
+        ),
         candidate_order_sha256=_hash_string_sequence(
             pair.security_off.candidate_order
         ),
