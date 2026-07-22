@@ -818,7 +818,7 @@ def _validate_v2_per_case_rows(
 ]:
     try:
         payload = raw.read_bytes() if isinstance(raw, Path) else raw
-        lines = payload.decode("utf-8").splitlines()
+        lines = _canonical_jsonl_rows(payload, "v2 per-case")
     except UnicodeDecodeError as exc:
         raise ValueError("v2 per-case evidence must be UTF-8") from exc
     if len(lines) != manifest.arm_order.case_count * 2:
@@ -840,16 +840,16 @@ def _validate_v2_per_case_rows(
             zip(assignment.modes(), pair_lines),
             start=1,
         ):
-            payload = json.loads(line)
-            if not isinstance(payload, dict) or set(payload) != {
+            row_payload = line
+            if not isinstance(row_payload, dict) or set(row_payload) != {
                 "arm_execution",
                 "security",
                 "live",
             }:
                 raise ValueError("v2 per-case row has unexpected keys")
-            arm_execution = payload["arm_execution"]
-            security = payload["security"]
-            live = payload["live"]
+            arm_execution = row_payload["arm_execution"]
+            security = row_payload["security"]
+            live = row_payload["live"]
             if not isinstance(arm_execution, dict) or set(arm_execution) != {
                 "protocol_id",
                 "case_hash",
@@ -916,6 +916,48 @@ def _validate_v2_per_case_rows(
         tuple(live_by_mode["off"][case_id] for case_id in case_ids),
         tuple(live_by_mode["on"][case_id] for case_id in case_ids),
     )
+
+
+def _canonical_jsonl_rows(raw: bytes, label: str) -> list[dict[str, Any]]:
+    if not raw.endswith(b"\n"):
+        raise ValueError(f"{label} JSONL is not canonical LF-terminated JSONL")
+    decoded = raw.decode("utf-8")
+    parsed: list[dict[str, Any]] = []
+    for line_number, raw_line in enumerate(raw.splitlines(keepends=True), start=1):
+        if not raw_line.endswith(b"\n") or raw_line.endswith(b"\r\n"):
+            raise ValueError(f"{label} JSONL is not canonical LF-terminated JSONL")
+        line = raw_line[:-1]
+        if not line:
+            raise ValueError(f"{label} JSONL contains an empty row")
+        try:
+            payload = _loads_json_no_duplicate_keys(
+                line.decode("utf-8"),
+                f"{label} row {line_number}",
+            )
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"{label} row {line_number} is invalid JSON") from exc
+        if line + b"\n" != _json_bytes(payload, compact=True):
+            raise ValueError(f"{label} row {line_number} is not canonical JSON")
+        if not isinstance(payload, dict):
+            raise ValueError(f"{label} row {line_number} must be a JSON object")
+        parsed.append(payload)
+    if decoded != "".join(
+        _json_bytes(row, compact=True).decode("utf-8") for row in parsed
+    ):
+        raise ValueError(f"{label} JSONL is not canonical LF-terminated JSONL")
+    return parsed
+
+
+def _loads_json_no_duplicate_keys(value: str, label: str) -> Any:
+    def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in result:
+                raise ValueError(f"{label} contains duplicate JSON key")
+            result[key] = item
+        return result
+
+    return json.loads(value, object_pairs_hook=reject_duplicate_keys)
 
 
 def _validate_v2_summary(

@@ -588,8 +588,8 @@ def test_v3_verifier_rejects_protocol_complete_generation_system_error_rows(
     rows = rows_path.read_text(encoding="utf-8").splitlines()
     first = json.loads(rows[0])
     first["security"]["answer_mode"] = "system"
-    rows[0] = json.dumps(first, ensure_ascii=False, sort_keys=True)
-    rows_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    rows[0] = live_writer._json_bytes(first, compact=True).decode("utf-8").rstrip("\n")
+    rows_path.write_bytes(("\n".join(rows) + "\n").encode("utf-8"))
     summary_path = target / "summary.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     off_security, on_security, off_live, _ = live_writer._validate_v2_per_case_rows(
@@ -635,15 +635,62 @@ def test_v3_verifier_rejects_self_consistent_contradictory_arm_order(
     rows = rows_path.read_text(encoding="utf-8").splitlines()
     first = json.loads(rows[0])
     first["arm_execution"]["arm_position"] = 2
-    rows[0] = json.dumps(first, ensure_ascii=False, sort_keys=True)
-    rows_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    rows[0] = live_writer._json_bytes(first, compact=True).decode("utf-8").rstrip("\n")
+    rows_path.write_bytes(("\n".join(rows) + "\n").encode("utf-8"))
     _rewrite_v3_integrity_metadata(target)
 
     with pytest.raises(ValueError, match="arm position"):
         live_writer.verify_live_security_run(target)
 
 
+def test_v3_verifier_rejects_self_consistent_duplicate_json_keys_before_parsing(
+    tmp_path: Path,
+    writer_v3_inputs,
+) -> None:
+    bundle, built, result = writer_v3_inputs
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        _manifest_v3(bundle, built, result),
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+    rows_path = target / "per_case.jsonl"
+    lines = rows_path.read_text(encoding="utf-8").splitlines()
+    first = lines[0]
+    assert first.startswith('{"arm_execution":')
+    lines[0] = '{"arm_execution":{},"arm_execution":' + first.split(
+        '"arm_execution":',
+        1,
+    )[1]
+    rows_path.write_bytes(("\n".join(lines) + "\n").encode("utf-8"))
+    _rewrite_v3_integrity_metadata(target)
+
+    with pytest.raises(ValueError, match="duplicate JSON key"):
+        live_writer.verify_live_security_run(target)
+
+
 def _rewrite_v3_integrity_metadata(target: Path) -> None:
+    checksum_payload = "".join(
+        f"{live_writer._sha256(target / name)}  {name}\n"
+        for name in live_writer._CHECKSUM_CONTENT_NAMES
+    ).encode("utf-8")
+    (target / "checksums.sha256").write_bytes(checksum_payload)
+    payload = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
+    payload["artifacts"] = {
+        name: {
+            "path": name,
+            "bytes": (target / name).stat().st_size,
+            "sha256": live_writer._sha256(target / name),
+        }
+        for name in sorted(live_writer._ARTIFACT_NAMES)
+    }
+    (target / "manifest.json").write_bytes(live_writer._json_bytes(payload))
+
+
+def _rewrite_v2_integrity_metadata(target: Path) -> None:
     checksum_payload = "".join(
         f"{live_writer._sha256(target / name)}  {name}\n"
         for name in live_writer._CHECKSUM_CONTENT_NAMES
@@ -1097,12 +1144,51 @@ def test_v2_per_case_validator_rejects_tampered_arm_position(
     rows = rows_path.read_text(encoding="utf-8").splitlines()
     first = json.loads(rows[0])
     first["arm_execution"]["arm_position"] = 2
-    rows[0] = json.dumps(first, ensure_ascii=False, sort_keys=True)
+    rows[0] = live_writer._json_bytes(first, compact=True).decode("utf-8").rstrip("\n")
     tampered = tmp_path / "tampered.jsonl"
-    tampered.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    tampered.write_bytes(("\n".join(rows) + "\n").encode("utf-8"))
 
     with pytest.raises(ValueError, match="arm position"):
         live_writer._validate_v2_per_case_rows(tampered, manifest)
+
+
+def test_v2_verifier_rejects_self_consistent_noncanonical_per_case_jsonl(
+    tmp_path: Path,
+    writer_v2_inputs,
+) -> None:
+    bundle, built, result = writer_v2_inputs
+    manifest = _manifest_v2(bundle, built, result)
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        manifest,
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+    rows_path = target / "per_case.jsonl"
+    rows = [
+        json.loads(line)
+        for line in rows_path.read_text(encoding="utf-8").splitlines()
+    ]
+    rows_path.write_bytes(
+        "\n".join(
+            json.dumps(
+                row,
+                ensure_ascii=False,
+                separators=(", ", ": "),
+                sort_keys=False,
+            )
+            for row in rows
+        )
+        .encode("utf-8")
+        + b"\n",
+    )
+    _rewrite_v2_integrity_metadata(target)
+
+    with pytest.raises(ValueError, match="canonical JSONL|canonical JSON"):
+        live_writer.verify_live_security_run(target)
 
 
 def test_v2_stage_rejects_self_consistent_hashes_with_contradictory_summary(

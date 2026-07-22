@@ -43,6 +43,7 @@ from app.evaluation.indirect_injection_live_runner import (
     LiveSecurityConfig,
     LocalOllamaOnlyBoundary,
     evaluate_live_paired,
+    _summarize_live_mode,
 )
 from app.evaluation.ollama_evaluation_lock import evaluation_lock
 from app.evaluation.indirect_injection_live_writer import (
@@ -383,6 +384,8 @@ def execute_live_security_run(
         )
         if not isinstance(result, LivePairedResultV2):
             raise RuntimeError("future live evaluation did not produce a v2 result")
+        if request.experiment is not None:
+            result = _normalize_v3_generation_system_fallback(result)
         post_runtime = fetch_ollama_runtime(config, settings.embedding_model)
         _assert_ollama_runtime_stable(runtime, post_runtime)
         if request.experiment is not None:
@@ -441,6 +444,31 @@ def execute_live_security_run(
     ):
         raise RuntimeError("published live run did not verify as a v2/v3 manifest")
     return LiveExecutionOutcome(output_dir=output, manifest=verified)
+
+
+def _normalize_v3_generation_system_fallback(
+    result: LivePairedResultV2,
+) -> LivePairedResultV2:
+    off_security = tuple(result.security.guard_off.cases)
+    on_security = tuple(result.security.guard_on.cases)
+    if not any(item.answer_mode == "system" for item in off_security + on_security):
+        return result
+    return result.model_copy(
+        update={
+            "status": "FAILED",
+            "protocol_complete": False,
+            "guard_off_summary": _summarize_live_mode(
+                "off",
+                result.guard_off,
+                off_security,
+            ),
+            "guard_on_summary": _summarize_live_mode(
+                "on",
+                result.guard_on,
+                on_security,
+            ),
+        }
+    )
 
 
 def _assert_ollama_runtime_stable(

@@ -2499,6 +2499,103 @@ def test_structurally_valid_failed_v3_component_is_admitted_as_evidence(
     assert outcome.manifest.observation.protocol_complete is False
 
 
+def test_existing_failed_v3_component_output_uses_failed_evidence_admission_kind(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    _patch_main_preflight(monkeypatch, plan)
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_preflight_execution_state",
+        lambda *_args, **_kwargs: None,
+    )
+    output_root = tmp_path / "runs"
+    for component in plan.chat_models:
+        (output_root / component.run_id).mkdir(parents=True)
+
+    def admit(path: Path, **_kwargs):
+        status = (
+            "FAILED"
+            if path.name == plan.model_for_role("baseline").run_id
+            else "COMPLETED WITH OBSERVATIONS"
+        )
+        return SimpleNamespace(
+            output_dir=path,
+            manifest=SimpleNamespace(
+                run_id=path.name,
+                status=status,
+                observation=SimpleNamespace(
+                    protocol_complete=status != "FAILED",
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "admit_existing_component",
+        admit,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        lambda _request: (_ for _ in ()).throw(
+            AssertionError("existing failed V3 path executed a model component")
+        ),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "compare_verified_runs",
+        lambda *args, **kwargs: SimpleNamespace(
+            matrix_run_id=plan.matrix_run_id,
+            decision="INCONCLUSIVE",
+            invariant_mismatches=(),
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "publish_cross_model_run",
+        lambda *args, **kwargs: tmp_path / "matrix" / plan.matrix_run_id,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_forbidden_fixture_texts",
+        lambda _bundle: ("private-fixture-text",),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "validate_current_cross_model_bindings",
+        lambda *args, **kwargs: SimpleNamespace(
+            matrix_run_id=plan.matrix_run_id,
+            decision="INCONCLUSIVE",
+        ),
+        raising=False,
+    )
+
+    assert eval_indirect_injection_cross_model.main(
+        [
+            "--out-dir",
+            str(output_root),
+            "--index-root",
+            str(tmp_path / "indexes"),
+            "--matrix-out-dir",
+            str(tmp_path / "matrix"),
+        ]
+    ) == 1
+
+    component_events = [
+        json.loads(line)
+        for line in capsys.readouterr().out.splitlines()
+        if '"run_id"' in line
+    ]
+    failed = next(item for item in component_events if item["status"] == "FAILED")
+    assert failed["admission_kind"] == "admitted_failed_evidence"
+    assert failed.get("reused") is not True
+
+
 @pytest.mark.parametrize(
     ("decision", "expected"),
     [

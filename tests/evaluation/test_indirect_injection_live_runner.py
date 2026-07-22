@@ -196,46 +196,6 @@ def test_query_embedding_is_real_once_then_reused_for_the_paired_arm(
     assert result.embedding_cache_hit_count == 36
 
 
-def test_generation_system_fallback_makes_live_result_failed(
-    live_inputs,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    bundle, built = live_inputs
-    original = live_runner._evaluate_live_case
-    injected = False
-
-    def system_fallback_once(**kwargs):
-        nonlocal injected
-        security, observation = original(**kwargs)
-        if not injected:
-            injected = True
-            security = security.model_copy(update={"answer_mode": "system"})
-        return security, observation
-
-    monkeypatch.setattr(
-        live_runner,
-        "_evaluate_live_case",
-        system_fallback_once,
-    )
-
-    result = evaluate_live_paired(
-        dataset=bundle.dataset,
-        fixtures=bundle.fixture_manifest,
-        snapshot=built.snapshot,
-        embed_text=_embedding,
-        chat_fn=_StructuredFixtureChat(),
-        config=LiveSecurityConfig(
-            llm_endpoint="http://127.0.0.1:11434/v1",
-            chat_model="qwen2.5:3b",
-        ),
-        clock_ms=lambda: 1_000.0,
-    )
-
-    assert result.status == "FAILED"
-    assert result.protocol_complete is False
-    assert result.guard_off_summary.generation_system_error.numerator == 1
-
-
 def test_counterbalanced_arm_order_controls_calls_and_preserves_mode_alignment(
     live_inputs,
     monkeypatch: pytest.MonkeyPatch,

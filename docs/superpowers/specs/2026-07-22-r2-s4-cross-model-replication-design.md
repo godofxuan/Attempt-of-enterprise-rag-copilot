@@ -22,6 +22,13 @@ not a list of fashionable dependencies. R2-S4 therefore turns the live
 evaluation into a declarative, digest-bound, restart-safe experiment with
 immutable private evidence and independently recomputable public evidence.
 
+Current implementation note: R2-S4 has an exporter/verifier contract for the
+eight-file public package, but the actual tracked R2-S4 public package is
+`NOT CREATED` until a successful real private matrix qualifies for export.
+Public rows intentionally omit private input, nonce, and candidate-order hashes;
+the public verifier aligns cross-role evidence by opaque ordinal, public case
+class, arm order, and public-safe arm fields only.
+
 ## 2. Baseline And Replication Models
 
 The local model matrix is frozen before implementation:
@@ -257,6 +264,15 @@ Malformed schemas, hash contradictions, wrong frozen run/model identity, or
 invalid package structure are rejected as invalid evidence before an accepted
 decision is produced. Model-call and latency deltas remain reported operational
 observations; they are not themselves selected security/utility decision fields.
+
+Compatibility constraint: `app/evaluation/indirect_injection_live_runner.py`
+remains a frozen R2-S3 replay dependency at SHA-256
+`a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958`.
+R2-S4 does not move `answer_mode=system` completion semantics into that runner.
+The cross-model V3 adapter in `scripts/eval_indirect_injection_live.py`
+normalizes such results to `FAILED + protocol_complete=false` before component
+manifest publication; direct historical V2 execution keeps the frozen runner
+behavior.
 
 Safety quality is recorded separately as
 `task4_non_release_safety_threshold_v2`. For each model it requires exact ON

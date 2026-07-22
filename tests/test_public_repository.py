@@ -633,6 +633,9 @@ def test_root_status_is_the_only_current_status_entrypoint() -> None:
     assert "526 passed" in status
     assert "574 passed" in status
     assert "109 passed" not in status
+    assert "R2-S4 public package exporter/verifier contract" in status
+    assert "actual tracked R2-S4 public package NOT CREATED" in status
+    assert "八文件 public package 与独立标准库 verifier" not in status
     assert "历史快照" in historical[:300]
     assert "../PROJECT_STATUS.md" in historical[:300]
 

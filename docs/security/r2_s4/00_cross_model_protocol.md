@@ -61,6 +61,10 @@ matrix root            security_runs/cross_model_matrices/
 public package         data/v2/public/r2_s4_cross_model/
 ```
 
+`data/v2/public/r2_s4_cross_model/` is the planned export target. The actual
+tracked R2-S4 public package is `NOT CREATED` until a successful real private
+matrix qualifies for export.
+
 早期实施草案中的 `cross_model_runs/` 已被当前代码默认值取代。真实操作必须以本协议和 `scripts/eval_indirect_injection_cross_model.py` 为准。
 
 ## 3. 数据流与代码边界
@@ -78,6 +82,13 @@ checked-in canonical plan
 -> allowlisted eight-file public projection
 -> repository-trusted and isolated standard-library verification
 ```
+
+Public rows intentionally omit private `input_fingerprint`,
+`nonce_fingerprint`, and `candidate_order_sha256` values. Those hashes remain
+private matrix evidence only. The public verifier has a reduced proof scope:
+it checks exact cardinality and ordinal uniqueness, then aligns baseline and
+replication rows by opaque ordinal, public case class, arm order, and
+public-safe arm fields.
 
 主要代码职责：
 
@@ -232,6 +243,19 @@ Decision 只表示“两个完整观察是否一致”：
 Schema、hash、run/model identity 或 package 结构造假属于 invalid evidence，verifier 直接非零失败，不应伪造一个 observation decision。
 
 结构有效的 `FAILED` V3 与 invalid evidence 不同：前者可以保留为 private typed evidence 并形成 `INCONCLUSIVE` matrix；后者不能进入比较。`FAILED` V3 不能支持 release claim，也不能作为 Task 8 成功公开证据包的 source。
+
+Compatibility boundary: `app/evaluation/indirect_injection_live_runner.py` is a
+frozen R2-S3 replay dependency and must retain SHA-256
+`a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958`. R2-S4
+therefore does not change direct V2 runner completion semantics. Cross-model
+V3 component publication instead normalizes any `answer_mode=system` result in
+`scripts/eval_indirect_injection_live.py` before manifest publication, yielding
+`FAILED + protocol_complete=false`; the live writer/verifier remains fail-closed
+for contradictory complete manifests.
+
+Live V2/V3 component verification requires `per_case.jsonl` to be exact compact
+sorted JSONL with one LF-terminated object per line and no duplicate JSON keys
+before typed parsing. Historical canonical V1/V2 packages remain valid.
 
 `model_call_count` 与 latency 会报告 delta，但不单独把结果改成 divergent；它们是资源/宿主观察，不是本轮选定的安全/效用一致性字段。
 

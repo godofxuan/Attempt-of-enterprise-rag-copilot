@@ -132,6 +132,7 @@ class ExecutionInvariantSnapshot:
 class ComponentRun:
     role: str
     reused: bool
+    admission_kind: str
     outcome: LiveExecutionOutcome
 
 
@@ -287,19 +288,26 @@ def run_component(
     if target.parent != output_root:
         raise ValueError("planned component output resolves outside output root")
     if target.exists():
+        outcome = admit_existing_component(
+            target,
+            plan=plan,
+            plan_sha256=plan_sha256,
+            component=component,
+            git_provenance=git_provenance,
+            context=context,
+            runtime=runtime,
+            execution=execution,
+        )
+        failed = outcome.manifest.status == "FAILED"
         return ComponentRun(
             role=component.role,
-            reused=True,
-            outcome=admit_existing_component(
-                target,
-                plan=plan,
-                plan_sha256=plan_sha256,
-                component=component,
-                git_provenance=git_provenance,
-                context=context,
-                runtime=runtime,
-                execution=execution,
+            reused=not failed,
+            admission_kind=(
+                "admitted_failed_evidence"
+                if failed
+                else "reused_completed_component"
             ),
+            outcome=outcome,
         )
 
     request_args = argparse.Namespace(
@@ -336,6 +344,7 @@ def run_component(
     return ComponentRun(
         role=component.role,
         reused=False,
+        admission_kind="new_execution",
         outcome=admit_existing_component(
             target,
             plan=plan,
@@ -454,6 +463,7 @@ def _main_locked(args: argparse.Namespace) -> int:
                     "run_id": manifest.run_id,
                     "role": component.role,
                     "reused": component.reused,
+                    "admission_kind": component.admission_kind,
                     "status": manifest.status,
                     "protocol_complete": manifest.observation.protocol_complete,
                     "output_path": str(component.outcome.output_dir),

@@ -401,6 +401,11 @@ def test_public_rows_are_exact_allowlisted_role_digest_and_pair_evidence(
     public_package: Path,
 ) -> None:
     rows = _rows(public_package)
+    private_hash_fields = {
+        "input_fingerprint",
+        "nonce_fingerprint",
+        "candidate_order_sha256",
+    }
     assert len(rows) == 72
     assert [row["row_ordinal"] for row in rows] == list(range(1, 73))
     assert [row["case_ordinal"] for row in rows] == list(range(1, 37)) * 2
@@ -416,7 +421,9 @@ def test_public_rows_are_exact_allowlisted_role_digest_and_pair_evidence(
     assert all(set(row) == set(PUBLIC_ROW_KEYS) for row in rows)
     assert all(set(row["off"]) == set(PUBLIC_ARM_KEYS) for row in rows)
     assert all(set(row["on"]) == set(PUBLIC_ARM_KEYS) for row in rows)
+    assert private_hash_fields.isdisjoint(PUBLIC_ROW_KEYS)
     assert all("model_specific_pair_input_fingerprint" not in row for row in rows)
+    assert all(private_hash_fields.isdisjoint(row) for row in rows)
 
     for ordinal in range(36):
         baseline = rows[ordinal]
@@ -425,12 +432,27 @@ def test_public_rows_are_exact_allowlisted_role_digest_and_pair_evidence(
             "case_ordinal",
             "case_class",
             "arm_order",
-            "input_fingerprint",
-            "nonce_fingerprint",
-            "candidate_order_sha256",
             "non_chat_invariants_match",
         ):
             assert baseline[field] == replication[field]
+
+
+def test_public_verifier_rejects_resealed_private_hash_fields(
+    tmp_path: Path,
+    public_package: Path,
+) -> None:
+    package = _copy_package(public_package, tmp_path)
+    rows = _rows(package)
+    rows[0]["input_fingerprint"] = "a" * 64
+    rows[0]["nonce_fingerprint"] = "b" * 64
+    rows[0]["candidate_order_sha256"] = "c" * 64
+    (package / "per_case_redacted.jsonl").write_bytes(
+        b"".join(_json_line(row) for row in rows)
+    )
+    _refresh_transport(package)
+
+    with pytest.raises(PublicCrossModelVerificationError, match="keys|field|set"):
+        verify_public_package(package)
 
 
 def test_projection_is_deterministic_and_does_not_dump_private_models(
@@ -786,7 +808,7 @@ def test_semantic_mutation_fails_after_transport_is_fully_resealed(
     elif mutation == "model_digest":
         rows[0]["model_digest"] = "f" * 64
     elif mutation == "pair_semantics":
-        rows[36]["candidate_order_sha256"] = "e" * 64
+        rows[36]["off"]["candidate_count"] += 1
     elif mutation == "manifest_contradiction":
         manifest["row_count"] = 71
     else:  # pragma: no cover

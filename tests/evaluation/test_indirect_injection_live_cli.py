@@ -20,6 +20,7 @@ from app.evaluation.indirect_injection_writer import (
     R1HashPair,
 )
 from scripts import eval_indirect_injection_live
+from tests.evaluation import test_indirect_injection_live_writer as live_writer_tests
 from tests.evaluation.test_indirect_injection_live_runner import (
     FREEZE_HEAD,
     FROZEN_AT,
@@ -36,6 +37,11 @@ PLAN_PATH = (
     / "r2_s4_cross_model_matrix_v1.json"
 )
 PLAN, PLAN_SHA256 = load_cross_model_plan(PLAN_PATH)
+
+
+@pytest.fixture(scope="module")
+def writer_v3_inputs(tmp_path_factory: pytest.TempPathFactory):
+    return live_writer_tests.writer_v3_inputs.__wrapped__(tmp_path_factory)
 
 
 def _bundle_root(tmp_path: Path) -> Path:
@@ -154,7 +160,10 @@ def test_direct_live_execute_acquires_shared_endpoint_lock_before_model_side_eff
     monkeypatch.setattr(
         eval_indirect_injection_live,
         "verify_r1_frozen_hashes",
-        lambda _root: {},
+        lambda _root: {
+            path: R1HashPair(expected=digest, actual=digest)
+            for path, digest in R1_FROZEN_EXPECTED_HASHES.items()
+        },
     )
     monkeypatch.setattr(
         eval_indirect_injection_live,
@@ -327,7 +336,10 @@ def test_cross_model_runtime_identity_mismatch_aborts_before_index_or_model_work
     monkeypatch.setattr(
         eval_indirect_injection_live,
         "verify_r1_frozen_hashes",
-        lambda _root: {},
+        lambda _root: {
+            path: R1HashPair(expected=digest, actual=digest)
+            for path, digest in R1_FROZEN_EXPECTED_HASHES.items()
+        },
     )
     monkeypatch.setattr(
         eval_indirect_injection_live,
@@ -401,6 +413,176 @@ def test_cross_model_runtime_identity_mismatch_aborts_before_index_or_model_work
         eval_indirect_injection_live.execute_live_security_run(request)
 
     assert called == ["runtime"]
+
+
+def test_cross_model_v3_boundary_normalizes_generation_system_fallback_before_publish(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    writer_v3_inputs,
+) -> None:
+    bundle, built, result = writer_v3_inputs
+    off_cases = list(result.security.guard_off.cases)
+    off_cases[0] = off_cases[0].model_copy(update={"answer_mode": "system"})
+    system_security = result.security.model_copy(
+        update={
+            "guard_off": result.security.guard_off.model_copy(
+                update={"cases": tuple(off_cases)}
+            )
+        }
+    )
+    contradictory_complete = result.model_copy(
+        update={
+            "status": "COMPLETED WITH OBSERVATIONS",
+            "protocol_complete": True,
+            "security": system_security,
+        }
+    )
+    model = PLAN.model_for_role("replication")
+    settings = SimpleNamespace(
+        llm_base_url="http://127.0.0.1:11434/v1",
+        chat_model="qwen2.5:3b",
+        embedding_model=PLAN.embedding.requested_name,
+        structured_generation_max_attempts=2,
+        model_request_timeout_seconds=12.0,
+        model_max_attempts=2,
+        model_retry_backoff_ms=100,
+        v2_indexes_dir=tmp_path / "production-index",
+    )
+    runtime = _planned_runtime()
+    captured: dict[str, object] = {}
+    args = eval_indirect_injection_live.build_parser().parse_args(
+        [
+            "--split",
+            "dev",
+            "--run-id",
+            "r2-s4-v3-system-fallback-adapter",
+            "--data-root",
+            str(tmp_path / "unused-data"),
+            "--out-dir",
+            str(tmp_path / "runs"),
+            "--index-root",
+            str(tmp_path / "indexes"),
+        ]
+    )
+
+    monkeypatch.setattr(eval_indirect_injection_live, "get_settings", lambda: settings)
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "verify_r1_frozen_hashes",
+        lambda _root: {
+            path: R1HashPair(expected=digest, actual=digest)
+            for path, digest in R1_FROZEN_EXPECTED_HASHES.items()
+        },
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "load_security_bundle",
+        lambda _root, _split: bundle,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "_git_provenance",
+        lambda _root: {
+            "head": "a" * 40,
+            "branch": "codex/rag-eval-system",
+            "dirty": False,
+            "status_entry_count": 0,
+            "dirty_state_sha256": "b" * 64,
+        },
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "_installed_dependency_snapshot",
+        lambda: {
+            "installed_snapshot_command": ("python", "-m", "pip", "freeze", "--all"),
+            "installed_snapshot_sha256": "c" * 64,
+            "installed_package_count": 50,
+        },
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "production_active_index_reference",
+        lambda _root: built.production_index
+        if hasattr(built, "production_index")
+        else LiveIndexReference(
+            role="production_active_reference",
+            run_id="production-index",
+            active_pointer_sha256="1" * 64,
+            manifest_sha256="2" * 64,
+            corpus_sha256="3" * 64,
+            embedding_model=PLAN.embedding.requested_name,
+            embedding_dimension=1_024,
+            indexed_chunk_count=100,
+        ),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "fetch_ollama_runtime",
+        lambda *_args, **_kwargs: runtime,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "run_model_smoke",
+        lambda *_args, **_kwargs: eval_indirect_injection_live.ModelSmokeEvidence(
+            embedding_dimension=1_024,
+            structured_chat_valid=True,
+            allowed_http_request_count=2,
+            blocked_egress_attempt_count=0,
+        ),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "build_live_fixture_index",
+        lambda *_args, **_kwargs: built,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "evaluate_live_paired",
+        lambda *_args, **_kwargs: contradictory_complete,
+    )
+
+    def capture_publish(
+        output_root,
+        manifest,
+        published_result,
+        **_kwargs,
+    ):
+        captured["manifest"] = manifest
+        captured["result"] = published_result
+        output = Path(output_root) / args.run_id
+        output.mkdir(parents=True)
+        return output
+
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "publish_live_security_run",
+        capture_publish,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "verify_live_security_run",
+        lambda _output: captured["manifest"],
+    )
+    request = eval_indirect_injection_live.LiveExecutionRequest(
+        args=args,
+        chat_model=model.requested_name,
+        expected_chat_digest=model.digest,
+        experiment=_cross_model_binding(),
+        evaluator_path="scripts/eval_indirect_injection_cross_model.py",
+        canonical_argv=("python", "-m", "scripts.eval_indirect_injection_cross_model"),
+    )
+
+    outcome = eval_indirect_injection_live.execute_live_security_run(request)
+
+    published_result = captured["result"]
+    manifest = captured["manifest"]
+    assert published_result.status == "FAILED"
+    assert published_result.protocol_complete is False
+    assert published_result.guard_off_summary.generation_system_error.numerator == 1
+    assert manifest.status == "FAILED"
+    assert manifest.observation.protocol_complete is False
+    assert manifest.evaluator.exit_code == 1
+    assert outcome.manifest is manifest
 
 
 @pytest.mark.parametrize(

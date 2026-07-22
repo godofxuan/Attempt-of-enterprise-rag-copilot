@@ -47,9 +47,6 @@ PUBLIC_ROW_KEYS = frozenset(
         "model_role",
         "model_digest",
         "arm_order",
-        "input_fingerprint",
-        "nonce_fingerprint",
-        "candidate_order_sha256",
         "component_protocol_complete",
         "non_chat_invariants_match",
         "off",
@@ -184,11 +181,6 @@ _EXPECTED_ARM_ORDERS = (
     "on_then_off", "off_then_on", "on_then_off",
     "off_then_on", "on_then_off", "off_then_on",
     "off_then_on", "on_then_off", "off_then_on",
-)
-_HASH_FIELDS = (
-    "input_fingerprint",
-    "nonce_fingerprint",
-    "candidate_order_sha256",
 )
 _COUNT_ARM_FIELDS = (
     "candidate_count",
@@ -390,6 +382,9 @@ def build_public_readme(manifest: dict[str, object]) -> str:
         "```\n\n"
         "The verifier uses only the Python standard library and recomputes model "
         "summaries, deltas, and the observation decision from 72 redacted rows. "
+        "Public rows intentionally omit private input, nonce, and candidate-order "
+        "hashes; cross-role checks align by opaque ordinal, public case class, "
+        "arm order, and public-safe arm fields only. "
         "This package is not a production certification or release gate.\n"
     )
 
@@ -403,10 +398,10 @@ def _validate_rows(
     expected_cases = tuple(range(1, 37)) * 2
     validated: list[dict[str, object]] = []
     role_arm_orders: dict[str, list[str]] = {"baseline": [], "replication": []}
-    role_inputs: dict[str, set[str]] = {"baseline": set(), "replication": set()}
-    role_nonces: dict[str, set[str]] = {"baseline": set(), "replication": set()}
     protocol_flags: dict[str, set[bool]] = {"baseline": set(), "replication": set()}
     invariant_flags: set[bool] = set()
+    seen_row_ordinals: set[int] = set()
+    seen_role_cases: set[tuple[str, int]] = set()
 
     for index, value in enumerate(rows):
         label = f"row {index + 1}"
@@ -418,6 +413,9 @@ def _validate_rows(
         _require_int(row["case_ordinal"], f"{label} case ordinal", minimum=1)
         if row["row_ordinal"] != index + 1:
             raise PublicCrossModelVerificationError("row ordinals/order are not exact")
+        if row["row_ordinal"] in seen_row_ordinals:
+            raise PublicCrossModelVerificationError("row ordinals are duplicated")
+        seen_row_ordinals.add(row["row_ordinal"])
         if row["case_ordinal"] != expected_cases[index]:
             raise PublicCrossModelVerificationError("case ordinals/order are not exact")
         role = row["model_role"]
@@ -427,6 +425,10 @@ def _validate_rows(
             )
         if row["model_digest"] != _MODEL_DIGESTS[role]:
             raise PublicCrossModelVerificationError("row model digest is not exact")
+        role_case = (role, row["case_ordinal"])
+        if role_case in seen_role_cases:
+            raise PublicCrossModelVerificationError("role/case ordinals are duplicated")
+        seen_role_cases.add(role_case)
         case_class = _require_mapping(row["case_class"], f"{label} case class")
         _require_keys(case_class, _CASE_CLASS_KEYS, f"{label} case class")
         _require_exact_json(
@@ -437,14 +439,6 @@ def _validate_rows(
         if row["arm_order"] != _EXPECTED_ARM_ORDERS[row["case_ordinal"] - 1]:
             raise PublicCrossModelVerificationError(f"{label} arm order is not exact")
         role_arm_orders[role].append(row["arm_order"])
-        for field in _HASH_FIELDS:
-            _require_hash(row[field], f"{label} {field}")
-        if row["input_fingerprint"] in role_inputs[role]:
-            raise PublicCrossModelVerificationError("input fingerprints are duplicated")
-        if row["nonce_fingerprint"] in role_nonces[role]:
-            raise PublicCrossModelVerificationError("nonce fingerprints are duplicated")
-        role_inputs[role].add(row["input_fingerprint"])
-        role_nonces[role].add(row["nonce_fingerprint"])
         _require_bool(
             row["component_protocol_complete"],
             f"{label} component protocol flag",
@@ -479,6 +473,8 @@ def _validate_rows(
         raise PublicCrossModelVerificationError(
             "non-chat invariant flag is not uniform"
         )
+    if len(seen_row_ordinals) != 72 or len(seen_role_cases) != 72:
+        raise PublicCrossModelVerificationError("public row cardinality is not exact")
 
     for index in range(36):
         baseline = validated[index]
@@ -544,9 +540,6 @@ def _model_neutral_binding(row: dict[str, object]) -> object:
         row["case_ordinal"],
         row["case_class"],
         row["arm_order"],
-        row["input_fingerprint"],
-        row["nonce_fingerprint"],
-        row["candidate_order_sha256"],
         row["non_chat_invariants_match"],
         arm_binding(row["off"]),
         arm_binding(row["on"]),

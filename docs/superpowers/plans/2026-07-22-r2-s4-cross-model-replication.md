@@ -4,7 +4,7 @@
 
 **Goal:** Build and execute a digest-bound Qwen2.5:3b versus Qwen3:8b dev security replication whose only changed variable is chat-model identity, with restart-safe operation and independently verifiable public evidence.
 
-**Architecture:** Preserve the historical live CLI and extract its execution body behind an internal typed request. A new declarative matrix orchestrator validates a checked-in plan, executes or exactly reuses two immutable V3 live runs, verifies non-chat invariants, publishes a private comparison, and exports an eight-file content-free package with a standard-library verifier.
+**Architecture:** Preserve the historical live CLI and extract its execution body behind an internal typed request. A new declarative matrix orchestrator validates a checked-in plan, executes or exactly reuses two immutable V3 live runs, verifies non-chat invariants, publishes a private comparison, and defines an eight-file content-free public-package exporter/verifier contract. The actual tracked R2-S4 public package remains `NOT CREATED` until a successful real matrix qualifies for export.
 
 **Tech Stack:** Python 3.11, Pydantic v2 strict frozen models, Ollama local API, BGE-M3, Qwen2.5:3b, Qwen3:8b, canonical JSON/JSONL, SHA-256, pytest, PowerShell, GitHub Actions.
 
@@ -20,8 +20,8 @@
 - The existing `scripts.eval_indirect_injection_live` parser must not expose `--chat-model`, `--embedding-model`, `--force`, or a Guard override.
 - Do not change production Guard, retrieval, Agent, prompts, frozen test data, holdout data, or historical immutable run artifacts.
 - Do not tune timeouts, attempts, rules, labels, or prompts after seeing either real-model result.
-- Private `security_runs/`, including `security_runs/cross_model_matrices/`, remains ignored; only the allowlisted public package is tracked.
-- Public evidence excludes questions, retrieved text, prompts, answers, canaries, raw source IDs, absolute paths, credentials, environment variables, and private run locations.
+- Private `security_runs/`, including `security_runs/cross_model_matrices/`, remains ignored; only a later allowlisted public package may be tracked after a qualifying run.
+- Public evidence excludes questions, retrieved text, prompts, answers, canaries, raw source IDs, absolute paths, credentials, environment variables, private run locations, input fingerprints, nonce fingerprints, and candidate-order hashes. Those hashes remain private matrix evidence only.
 - Any post-run change to bound evaluator/writer/verifier/plan/Guard/retrieval/Agent bytes requires new run IDs; never rerun the three IDs above.
 - Use RED/GREEN TDD, explicit-path staging, per-task spec/quality review, final whole-branch review, exact-HEAD local gates, and exact-SHA GitHub CI.
 - The evaluator acquires a standard-library no-wait OS-backed exclusive lock keyed by normalized local Ollama origin before preflight, Git/identity reads, index build, model work, and matrix/publication. Keep the manual no-other-Ollama-client check for non-cooperating external clients.
@@ -414,6 +414,13 @@ typed `SecurityCaseResult` and `LiveCaseObservation`; join by model role and
 case ID; derive public-safe case class from the frozen dataset, not from model
 output. Recompute rates using integer numerator/denominator pairs and nearest-
 rank p50/p95 already used by the live runner.
+
+Do not change `app/evaluation/indirect_injection_live_runner.py`; it is a
+frozen R2-S3 replay dependency whose required SHA-256 is
+`a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958`.
+Handle `answer_mode=system` completion truthfulness only at the cross-model V3
+adapter boundary in `scripts/eval_indirect_injection_live.py` before manifest
+publication.
 
 - [ ] **Step 4: Implement immutable private publication**
 

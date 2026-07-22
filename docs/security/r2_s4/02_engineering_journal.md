@@ -22,11 +22,13 @@ controller also enforces the full clean Git triple before component context or
 identity work: `dirty is False`, `status_entry_count == 0`, and
 `dirty_state_sha256 == CLEAN_GIT_STATE_SHA256`.
 
-The live runner and V2/V3 verifier now treat `generation_system_error` as a
-model/system error: live publication produces a structurally valid `FAILED` V3
-component with evaluator exit `1`, private matrix comparison becomes
-`INCONCLUSIVE`, and public export rejects it. Tests cover RED/GREEN for the
-live runner, V3 verification, real subprocess lock contention, release and
+The frozen live runner remains byte-for-byte compatible with the R2-S3 replay
+hash. R2-S4 handles `generation_system_error` at the V3 publication boundary:
+the cross-model live adapter normalizes any `answer_mode=system` result to a
+structurally valid `FAILED` V3 component with evaluator exit `1`, the V2/V3
+verifier rejects contradictory complete manifests, private matrix comparison
+becomes `INCONCLUSIVE`, and public export rejects it. Tests cover RED/GREEN for
+the V3 adapter, V3 verification, real subprocess lock contention, release and
 reacquire, stale pathname behavior, strict Git preflight, reused/new divergent
 exit `0`, new/reused inconclusive exit `1`, and the on-disk failed-V3 private
 matrix/public rejection flow.
@@ -80,7 +82,7 @@ R2-S4 没有继续往 RAG 中叠框架。它把“手工改 `.env`，分别跑�
 | Task 2 | `4c6fb12`, `1568c29` | V3 manifest 及 exact plan/model binding |
 | Task 3 | `dca7bd4`, `2ee31ea`, `bcb148c`, `972f768` | restart-safe orchestrator 与 execution/transport binding |
 | Task 4 | `a0391c3`, `31d01e1`, `ac5996c` | 六文件 private matrix、重算、decision、restart admission |
-| Task 5 | `a4b5098`, `734340a` | 八文件 public package 与独立标准库 verifier |
+| Task 5 | `a4b5098`, `734340a` | 八文件 public-package exporter/verifier contract; actual tracked R2-S4 package `NOT CREATED` |
 
 Task 1-5 期间没有调用真实 Ollama evaluation，也没有创建三个计划中的 `-01` 正式目标。
 
@@ -212,6 +214,14 @@ orchestrator 只公开 `--plan`、`--out-dir`、`--index-root`、`--matrix-out-d
 
 matrix 不复制两个 component summary。它读取并校验 V3 `per_case.jsonl`，用 private case ID 在内存中 join OFF/ON，再发布 opaque ordinal 和 public-safe case class。17 项指标、p50/p95、delta 和 decision 全部从 typed rows 重算。
 
+Final whole-branch review narrowed the public proof boundary further:
+`input_fingerprint`, `nonce_fingerprint`, and `candidate_order_sha256` remain
+only in private matrix evidence. Public rows align baseline/replication by
+opaque ordinal, public case class, arm order, and public-safe arm fields, with
+exact 72-row cardinality and ordinal uniqueness. This avoids publishing private
+linkable hashes while preserving independent public recomputation of summaries,
+deltas, and the observation decision.
+
 ### 首轮 review 的主要问题
 
 1. **stale matrix reuse**：旧 matrix 可以跨新 Git HEAD、data 或 Guard 被复用，因为 current binding 不完整。
@@ -239,12 +249,11 @@ matrix 不复制两个 component summary。它读取并校验 V3 `per_case.jsonl
 
 `pair_input_fingerprint` 的计算包含 chat model identity。因此同一 case 在 Qwen2.5 与 Qwen3 下应当不同。第一轮修复却要求跨 role 相等，真实跨模型 matrix 会永远 fail closed。
 
-`ac5996c` 将公开字段改名为 `model_specific_pair_input_fingerprint`：
-
-- 仍要求一个 model component 内 OFF 与 ON fingerprint 相等；
-- 不再要求 baseline 与 replication 的 raw fingerprint 相等；
-- 跨模型继续比较 case class、arm order、input/nonce fingerprint、candidate-order hash 和 retrieval/Guard shape；
-- source-backed readmission 仍可发现被重新封装的 fingerprint 篡改。
+Final whole-branch review removed all input/nonce/candidate-order hashes from
+the public row schema instead of renaming them. Those values remain private
+matrix evidence. Public cross-model alignment now uses opaque ordinal, public
+case class, arm order, and public-safe arm fields; source-backed private
+readmission still detects repackaged fingerprint tampering.
 
 offline 双角色测试确认 `36/36` model-specific fingerprints 不同，同时 compare -> publish -> standalone verify -> current readmit 全部通过。
 
@@ -410,10 +419,29 @@ Ollama 请求使用 model name；manifest 记录的是运行前解析到的 dige
 
 修复：
 
+- compatibility finding: `app/evaluation/indirect_injection_live_runner.py` is
+  frozen by historical R2-S3 replay evidence and must retain SHA-256
+  `a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958`;
+  R2-S4 cannot move `generation_system_error` completion semantics into that
+  file without invalidating historical replay checks；
+- V3 adapter solution: cross-model calls through `scripts/eval_indirect_injection_live.py`
+  normalize `answer_mode=system` to `FAILED + protocol_complete=false` before
+  manifest publication, while historical direct V2 execution keeps the frozen
+  runner behavior；
 - private producer 与独立 public verifier 都把 `generation_system_error` 计入现有第 13 个 `model_error_count`，保持冻结 17-metric schema 不扩字段；
 - admission 只接受两种一致状态：`COMPLETED WITH OBSERVATIONS + protocol_complete=true`，或 `FAILED + protocol_complete=false`；
 - valid failed package 可以形成 private `INCONCLUSIVE` matrix，CLI 返回 `1`；invalid schema/hash/identity 仍直接失败；
 - public exporter 拒绝 `INCONCLUSIVE` 或任一 incomplete component，防止 private failure evidence 被包装成公开成功证据。
+
+Controller JSON output now distinguishes completed component reuse from
+structurally valid failed evidence admission with `admitted_failed_evidence`.
+A FAILED V3 component is not logged as `reused=true` successful reuse.
+
+Live V2/V3 component verifier hardening now rejects self-consistent transport
+packages whose `per_case.jsonl` bytes are semantically equivalent but
+noncanonical, or whose JSON contains duplicate keys before typed parsing. The
+required format is compact, sorted-key, one-object-per-line JSONL with LF
+trailing newlines.
 
 ### 13.4 descriptor-pinned evidence snapshot
 
@@ -467,3 +495,40 @@ public failed-source export gate                1 passed
 **问：这算 Agentic RAG 工业化吗？**
 
 答：它工业化了 Agent/RAG 的安全评测生命周期，但 serving path 仍是本地 demo。下一步不是加更多 Agent 框架，而是先把 body-supplied identity 改成 server-verified identity。
+
+## 15. 最终修复复跑与独立复审记录
+
+主控制器第一次重建 focused 命令时误加入了仓库中不存在的
+`tests/test_runtime_dependency_lock.py`。Pytest 在 collection 前用
+`file or directory not found` 退出，耗时约 2 秒且没有执行任何测试。
+这属于 operator command error，不是产品代码失败。处理方法是先用
+`rg --files tests` 从当前仓库重新枚举真实测试文件，再按冻结的九文件清单复跑；
+不把这次退出伪装成测试通过，也不为迎合旧命令创建无意义占位文件。
+
+修正后的 focused suite 由主控制器在未提交的最终代码字节上执行，结果为：
+
+```text
+367 passed / 4 skipped / 3 known SWIG deprecation warnings
+```
+
+随后执行了 `compileall`、`git diff --check` 和公开仓库审计；三项均成功，
+公开审计为 `473 candidates / 0 findings`。这里的 `0 findings` 表示扫描了
+473 个候选位置后没有命中公开泄漏规则，不表示扫描器没有工作。
+
+独立 whole-branch rereview 逐项复核上一轮的 1 Important + 3 Minor：
+
+1. public row 私有指纹泄漏；
+2. FAILED V3 被误报为成功复用；
+3. V2/V3 `per_case.jsonl` 接受非 canonical bytes 或重复 JSON key；
+4. 状态文档把 exporter/verifier contract 写得像真实 public package 已存在。
+
+复审结果为 `0 Critical / 0 Important / 0 Minor`，报告保存在忽略文件
+`.superpowers/sdd/r2-s4-final-whole-branch-rereview.md`。复审同时确认 frozen
+R2-S3 live runner SHA-256 仍为
+`a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958`，
+`answer_mode=system` 的 failure normalization 只位于 R2-S4 V3 adapter。
+
+在本记录写入时，两个正式 component、两个 auxiliary index、正式 matrix 和
+public package 六个目标均不存在，`ollama ps` 没有驻留模型。真实跨模型运行
+仍然是 `NOT RUN`；上述结果只准入创建 clean exact HEAD 并执行最终 gates，
+不能提前声称 Qwen2.5/Qwen3 的跨模型防护效果。

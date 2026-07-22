@@ -170,9 +170,6 @@ def _project_row(
         "model_role": role,
         "model_digest": row.model_digest,
         "arm_order": row.arm_order,
-        "input_fingerprint": row.input_fingerprint,
-        "nonce_fingerprint": row.nonce_fingerprint,
-        "candidate_order_sha256": row.candidate_order_sha256,
         "component_protocol_complete": snapshot.manifest.components[
             role
         ].protocol_complete,
@@ -448,6 +445,9 @@ def _build_public_readme(manifest: dict[str, object]) -> str:
         "```\n\n"
         "The verifier uses only the Python standard library and recomputes model "
         "summaries, deltas, and the observation decision from 72 redacted rows. "
+        "Public rows intentionally omit private input, nonce, and candidate-order "
+        "hashes; cross-role checks align by opaque ordinal, public case class, "
+        "arm order, and public-safe arm fields only. "
         "This package is not a production certification or release gate.\n"
     )
 
