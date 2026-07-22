@@ -749,6 +749,8 @@ def evaluate_live_paired(
         and all(item.retrieval_completed for item in on_observations)
         and all(not item.model_error_codes for item in off_observations)
         and all(not item.model_error_codes for item in on_observations)
+        and all(item.answer_mode != "system" for item in off_security)
+        and all(item.answer_mode != "system" for item in on_security)
     )
     result_payload = {
         "schema_version": (

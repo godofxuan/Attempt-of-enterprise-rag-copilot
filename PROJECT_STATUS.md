@@ -1,8 +1,8 @@
 # Enterprise Agentic RAG - Current Status
 
-更新时间：2026-07-19（R2-S3 同步补充：2026-07-21）
+更新时间：2026-07-22（R2-S4 真实运行前加固）
 
-状态：E7 自动化代码/数据门禁、功能分支 Git 交付、GitHub clean clone 和 Ubuntu GitHub Actions 均已完成。R2-S1 已完成 D1-D7 与审计加固 V0-V5，其中 V0 是审计验证，V1-V5 是实现加固。R2-S2 S2-1 使用新 run ID 执行真实 BGE-M3 + Qwen2.5:3b 的 18/18 反平衡 dev replication：OFF raw/user-boundary signal `3/24`，ON `0/24`；真正到达 Guard 的 attack units 在 ON 下 `15/15` 隔离，但 all-labeled 口径为 `15/28`。R2-S3 accepted v2 run `r2-s3-dev-exposure-20260721-04` 在不修改 source live run、production Guard、retrieval 或 Agent 的前提下完成 measurement-only exposure ablation：13 个 unreached units 全部位于 persisted runtime rank 2，相关 case 的 observed downstream exposure 为 `0/13`；depth `1/2/4` coverage 是 diagnostic counterfactual，不是 production execution，结论 `NO_CURRENT_BYPASS_OBSERVED` 不是 release pass 或 universal safety result。Final local gates 为 focused `457 passed / 10 skipped / 3 known warnings`、full `1395 passed / 13 skipped / 3 known warnings`、public audit `454 candidates / 0 findings`；skips 是 platform-dependent symlink/junction variants unavailable on this host。source/private/public/isolated verifiers 与 frozen hashes 保留此前 accepted evidence，本轮未重跑。S2-2 holdout freeze/verify 基础设施已实现，但 independent holdout、semantic judge、cross-model replication、50 行人工语义评分与 owner 代码/口述验收仍为 `NOT RUN`。Push is allowed only after fixed-HEAD reviews and local gates pass; actual delivery and CI state are established by Git and GitHub Actions. 本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
+状态：R2-S4 已实现 canonical digest-bound plan、V3 component evidence、重启控制器、六文件 private matrix、八文件 public package 与独立标准库 verifier。真实 Qwen2.5/Qwen3 `-01` 跨模型运行仍为 `NOT RUN`，三个正式目标均未创建。运行前独立审查发现 orphan index、canonical plan 信任边界、运行中模型 identity drift、system error 计数、`FAILED V3` failure evidence 与 descriptor-pinned reads 等问题；当前正在按 TDD 修复并重新执行 exact-HEAD gates/复审。历史基础包括 E7 交付、R2-S1 D1-D7 与审计加固 V0-V5，其中 V0 是审计验证、V1-V5 是实现加固。旧 R2-S3 focused `457 passed / 10 skipped / 3 known warnings`、full `1395 passed / 13 skipped / 3 known warnings`、public audit `454 candidates / 0 findings` 只属于历史候选；platform-dependent symlink/junction variants unavailable on this host；这些数字不是当前 R2-S4 HEAD 的验收结果。R2-S4 在全部 Critical/Important 清零前不会调用真实模型。S2-2 independent holdout、semantic judge calibration、human double review 与 production traffic 仍为 `NOT RUN`。R2-S4 收口后唯一已准入的 serving-path 下一阶段是 R2-S5 Trusted Identity Boundary；可复现 Linux 部署/回滚和持久化脱敏观测依次排后，不因技术流行度提前叠加框架。Push is allowed only after fixed-HEAD reviews and local gates pass; actual delivery and CI state are established by Git and GitHub Actions. 本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
 
 ## 1. 当前定位
 
@@ -256,7 +256,7 @@ R2-S1 V1-V5 与收口修复提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已
 
 ### GitHub 交付与远端复现
 
-历史 E7 代码候选 `9607e55ec0fc12e98d1f61e199bfbf6ac12a0eee` 已推送到 `origin/codex/rag-eval-system`。第四个全新 GitHub clone 得到 frozen hash exact、compile exit 0、public audit 331/0、full pytest 574 passed。Ubuntu/Python 3.11 的 [GitHub Actions run 29553278709](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 为 `success`。这些证据只覆盖该历史 commit，不代表已 merge、部署或达到生产 SLO；它与后续 `9fcb304` 的历史 CI 均不覆盖当前 R2-S3 exact HEAD。
+历史 E7 代码候选 `9607e55ec0fc12e98d1f61e199bfbf6ac12a0eee` 已推送到 `origin/codex/rag-eval-system`。第四个全新 GitHub clone 得到 frozen hash exact、compile exit 0、public audit 331/0、full pytest 574 passed。Ubuntu/Python 3.11 的 [GitHub Actions run 29553278709](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 为 `success`。这些证据只覆盖该历史 commit，不代表已 merge、部署或达到生产 SLO；它与后续 `9fcb304` 的历史 CI 均不覆盖当前 R2-S4 candidate exact HEAD。
 
 ### 评估与负载
 
@@ -298,7 +298,7 @@ R2-S1 V1-V5 与收口修复提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已
 - Optional reranker：`NOT RUN`，没有 admitted reranker。
 - Human semantic review：`NOT RUN`；50 行表仍为空，等待本人判断。
 - Owner code experiments and oral defense：`NOT RUN`；Codex 不能代替本人完成。
-- GitHub remote CI：历史提交 `9607e55` 与 `9fcb304` 的对应 run 已通过；各自只证明该 feature-branch commit 的 Ubuntu CI，均不覆盖当前 R2-S3 exact HEAD，也不外推为 branch protection、部署或生产验收。
+- GitHub remote CI：历史提交 `9607e55` 与 `9fcb304` 的对应 run 已通过；各自只证明该 feature-branch commit 的 Ubuntu CI，均不覆盖当前 R2-S4 candidate exact HEAD，也不外推为 branch protection、部署或生产验收。
 - 当前 ACL 使用调用方自报 `UserContext`，不是 IAM；数据全部 synthetic；本地 load 不是生产吞吐/SLO。
 - 本次只推送功能分支，不自动 merge、tag、修改默认分支或仓库可见性。
 
@@ -390,9 +390,9 @@ independent reviewer package                   NOT CREATED
 independent holdout model run                  NOT RUN
 blind double review / agreement                NOT RUN
 semantic judge / cross-model replication       NOT RUN
-current full repository regression             1395 PASSED / 13 SKIPPED / 3 KNOWN WARNINGS
-current public repository audit                454 CANDIDATES / 0 FINDINGS
-compileall / pip check                         CLEAN / CLEAN
+historical R2-S2/R2-S3 full regression only    1395 PASSED / 13 SKIPPED / 3 KNOWN WARNINGS; not a current R2-S4 HEAD gate
+historical R2-S2/R2-S3 public audit only       454 CANDIDATES / 0 FINDINGS; not a current R2-S4 HEAD gate
+historical compileall / pip check only         CLEAN / CLEAN; not a current R2-S4 HEAD gate
 ```
 
 下一步不能由当前 Guard 开发者代替独立 reviewer 编写攻击 payload。正确交接是：独立人员按冻结协议创建 `holdout_submissions/<submission-id>/`，在 clean tracked Git baseline 上 freeze 并由另一 reviewer 核验 manifest；只有 freeze 后才实现一次性 evaluation adapter。若 holdout 失败，只能把失败类型带回新的 dev regression，不能反复查看同一 holdout 调规则后继续称其未见。
@@ -401,7 +401,7 @@ compileall / pip check                         CLEAN / CLEAN
 
 ```text
 R2-S3 measurement-only exposure ablation       COMPLETE
-source live run                                UNCHANGED / VERIFIED
+historical R2-S3 source live run               UNCHANGED / VERIFIED; not a current R2-S4 gate
 production Guard / retrieval / Agent           UNCHANGED
 actual live / replay Guard reach                15/28 / 15/28
 conditional quarantine                          15/15
@@ -411,12 +411,29 @@ counterfactual total reach d1/d2/d4             15/28 / 28/28 / 28/28
 counterfactual production execution             NOT RUN / DIAGNOSTIC ONLY
 independent holdout                              NOT RUN
 semantic judge / cross-model replication        NOT RUN
-final focused / full pytest                      457 passed / 10 skipped / 3 warnings; 1395 passed / 13 skipped / 3 warnings
+historical R2-S3 focused / full pytest           457 passed / 10 skipped / 3 warnings; 1395 passed / 13 skipped / 3 warnings; not a current R2-S4 HEAD gate
 skip qualification                               platform-dependent symlink/junction variants unavailable on this host
-compile / pip / public audit                    CLEAN / CLEAN / 454 candidates / 0 findings
-source / private / public / isolated verifier   VERIFIED
+historical R2-S3 compile / pip / public audit   CLEAN / CLEAN / 454 candidates / 0 findings; not a current R2-S4 HEAD gate
+historical R2-S3 source/private/public verifier VERIFIED; not a current R2-S4 gate
 frozen hash comparisons                         EXACT
 push / remote CI                                 Push is allowed only after fixed-HEAD reviews and local gates pass; actual delivery and CI state are established by Git and GitHub Actions.
 ```
 
 `NO_CURRENT_BYPASS_OBSERVED` 只表示当前冻结 dev observation 没有为 production retrieval/prefilter change 提供准入证据。它不能写成 release pass、universal safety result 或 production deployment approval。
+
+## 11. R2-S4 当前状态
+
+```text
+cross-model plan / V3 components / matrix      IMPLEMENTED
+pre-run independent review                     FIXES IN PROGRESS
+formal qwen2.5 component -01                   NOT RUN / TARGET ABSENT
+formal qwen3 component -01                     NOT RUN / TARGET ABSENT
+formal private matrix -01                      NOT RUN / TARGET ABSENT
+public R2-S4 package                           NOT CREATED
+independent holdout                            NOT RUN
+semantic judge calibration                     NOT RUN
+human double review                            NOT RUN
+production traffic                             NOT RUN
+```
+
+本轮先修复证据系统而不是先跑模型，因为一旦 `-01` immutable target 被不完整代码占用，就不能删除目录后假装是同一次实验。当前候选只有在聚焦/全量测试、compile、dependency check、public audit、历史证据只读验证和新一轮 whole-branch review 全部通过后，才允许执行一次真实跨模型命令。

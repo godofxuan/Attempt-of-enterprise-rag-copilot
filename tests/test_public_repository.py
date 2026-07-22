@@ -628,8 +628,8 @@ def test_root_status_is_the_only_current_status_entrypoint() -> None:
         encoding="utf-8"
     )
 
-    assert "更新时间：2026-07-19" in status
-    assert "状态：E7" in status
+    assert "更新时间：2026-07-22" in status
+    assert "状态：R2-S4" in status
     assert "526 passed" in status
     assert "574 passed" in status
     assert "109 passed" not in status
@@ -1280,20 +1280,20 @@ def test_r2_s3_docs_state_frozen_local_trust_boundary() -> None:
             assert phrase.casefold() in text, f"{document} is missing: {phrase}"
 
 
-def test_r2_s3_backlog_remote_ci_claims_are_exact_head_scoped() -> None:
+def test_r2_s4_backlog_remote_ci_claims_are_exact_head_scoped() -> None:
     backlog = (ROOT / "docs" / "industrialization_backlog.md").read_text(
         encoding="utf-8"
     )
 
     assert (
-        "| P1 | Remote CI evidence for the current R2-S3 exact HEAD |"
+        "| P1 | Remote CI evidence for the current R2-S4 exact HEAD |"
         in backlog
     )
     assert "Historical `9607e55` evidence applies only to that commit." in backlog
-    assert "- current R2-S3 exact HEAD remote CI passed;" in backlog
+    assert "- current R2-S4 exact HEAD remote CI passed;" in backlog
 
 
-def test_remote_ci_history_is_not_presented_as_current_r2_s3_evidence() -> None:
+def test_remote_ci_history_is_not_presented_as_current_r2_s4_evidence() -> None:
     status = (ROOT / "PROJECT_STATUS.md").read_text(encoding="utf-8")
     limitations = (ROOT / "docs" / "known_limitations.md").read_text(
         encoding="utf-8"
@@ -1302,7 +1302,7 @@ def test_remote_ci_history_is_not_presented_as_current_r2_s3_evidence() -> None:
     for content in (status, limitations):
         assert "9607e55" in content
         assert "9fcb304" in content
-        assert "不覆盖当前 R2-S3 exact HEAD" in content
+        assert "不覆盖当前 R2-S4 candidate exact HEAD" in content
     assert "历史 E7 代码候选 `9607e55" in status
     assert "当前功能分支候选" not in status
 
@@ -1439,25 +1439,26 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     )[0]
     r2_s3_status = status.split("## 10. R2-S3 当前状态", 1)[1]
     expected_r2_s2_lines = (
-        "current full repository regression             "
-        "1395 PASSED / 13 SKIPPED / 3 KNOWN WARNINGS",
-        "current public repository audit                "
-        "454 CANDIDATES / 0 FINDINGS",
+        "historical R2-S2/R2-S3 full regression only    "
+        "1395 PASSED / 13 SKIPPED / 3 KNOWN WARNINGS; not a current R2-S4 HEAD gate",
+        "historical R2-S2/R2-S3 public audit only       "
+        "454 CANDIDATES / 0 FINDINGS; not a current R2-S4 HEAD gate",
     )
     missing_r2_s2_lines = tuple(
         line for line in expected_r2_s2_lines if line not in r2_s2_status
     )
     assert not missing_r2_s2_lines, (
-        f"missing exact current R2-S2 lines: {missing_r2_s2_lines}"
+        f"missing exact historical R2-S2 lines: {missing_r2_s2_lines}"
     )
     assert (
-        "final focused / full pytest                      "
+        "historical R2-S3 focused / full pytest           "
         "457 passed / 10 skipped / 3 warnings; "
-        "1395 passed / 13 skipped / 3 warnings"
+        "1395 passed / 13 skipped / 3 warnings; not a current R2-S4 HEAD gate"
     ) in r2_s3_status
     assert (
-        "compile / pip / public audit                    "
-        "CLEAN / CLEAN / 454 candidates / 0 findings"
+        "historical R2-S3 compile / pip / public audit   "
+        "CLEAN / CLEAN / 454 candidates / 0 findings; "
+        "not a current R2-S4 HEAD gate"
     ) in r2_s3_status
     assert f"push / remote CI                                 {required_boundary}" in (
         r2_s3_status

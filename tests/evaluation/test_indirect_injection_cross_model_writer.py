@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -32,6 +34,7 @@ from app.evaluation.indirect_injection_cross_model_writer import (
     _json_bytes,
     _sha256_bytes,
     publish_cross_model_run,
+    load_verified_cross_model_run_snapshot,
     validate_current_cross_model_bindings,
     verify_cross_model_run,
 )
@@ -569,6 +572,96 @@ def test_incomplete_equal_observations_are_inconclusive(
 
     assert decision == "INCONCLUSIVE"
     assert reasons == ("component_protocol_incomplete",)
+
+
+def test_generation_system_error_is_counted_and_fails_safety_diagnostic(
+    tmp_path: Path,
+    writer_v3_inputs,
+) -> None:
+    bundle, components, _ = _publish_components(tmp_path, writer_v3_inputs)
+    comparison = _compare(bundle, components)
+    baseline_rows = [
+        row for row in comparison.rows if row.model_role == "baseline"
+    ]
+    baseline_rows[0] = baseline_rows[0].model_copy(
+        update={
+            "off": baseline_rows[0].off.model_copy(
+                update={"generation_system_error": True}
+            )
+        }
+    )
+
+    summary = _summarize_model(
+        "baseline",
+        comparison.summaries["baseline"].model_digest,
+        tuple(baseline_rows),
+        True,
+    )
+
+    assert summary.metrics["model_error_count"].value == 1.0
+    assert summary.protocol_complete is False
+    assert summary.non_release_safety_diagnostic.model_errors_zero is False
+    assert summary.non_release_safety_diagnostic.passed is False
+
+
+def test_private_matrix_snapshot_uses_descriptor_bytes_and_detects_parent_change(
+    tmp_path: Path,
+    writer_v3_inputs,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle, components, forbidden = _publish_components(tmp_path, writer_v3_inputs)
+    package = publish_cross_model_run(
+        tmp_path / "matrix",
+        _compare(bundle, components),
+        plan_path=PLAN_PATH,
+        component_runs=components,
+        commands="offline descriptor fixture\n",
+        forbidden_texts=forbidden,
+        code_root=REPO_ROOT,
+    )
+    snapshot = load_verified_cross_model_run_snapshot(package)
+    parent = package.parent.absolute()
+    real_lstat = Path.lstat
+
+    def replaced_parent(path: Path):
+        observed = real_lstat(path)
+        if path.absolute() != parent:
+            return observed
+        return SimpleNamespace(
+            st_dev=observed.st_dev,
+            st_ino=observed.st_ino + 1,
+            st_mode=observed.st_mode,
+            st_size=observed.st_size,
+            st_mtime_ns=observed.st_mtime_ns,
+            st_ctime_ns=observed.st_ctime_ns,
+            st_file_attributes=getattr(observed, "st_file_attributes", 0),
+        )
+
+    monkeypatch.setattr(Path, "lstat", replaced_parent)
+
+    with pytest.raises(ValueError, match="directory identity changed"):
+        snapshot.assert_unchanged()
+
+
+def test_private_matrix_descriptor_rejects_coordinated_file_selection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    selected = tmp_path / "selected.txt"
+    replacement = tmp_path / "replacement.txt"
+    selected.write_bytes(b"AAAA")
+    replacement.write_bytes(b"BBBB")
+    real_open = os.open
+
+    def coordinated_open(path, flags, *args, **kwargs):
+        if Path(path).absolute() == selected.absolute():
+            return real_open(replacement, flags, *args, **kwargs)
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", coordinated_open)
+
+    with pytest.raises(ValueError, match="identity changed before descriptor read"):
+        matrix_writer._read_regular_file_snapshot(selected, "matrix fixture")
 
 
 def test_wrong_component_run_id_is_invalid_not_inconclusive(

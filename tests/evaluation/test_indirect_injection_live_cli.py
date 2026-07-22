@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -115,6 +116,111 @@ def test_parser_has_no_force_guard_or_model_override_switches() -> None:
     assert "--embedding-model" not in options
     assert "--arm-order-protocol" not in options
     assert {"--split", "--run-id", "--data-root", "--out-dir", "--index-root"}.issubset(options)
+
+
+def test_direct_live_execute_acquires_shared_endpoint_lock_before_model_side_effects(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[str] = []
+
+    @contextlib.contextmanager
+    def recording_lock(origin: str):
+        events.append(f"lock-enter:{origin}")
+        try:
+            yield
+        finally:
+            events.append("lock-exit")
+
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "evaluation_lock",
+        recording_lock,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "get_settings",
+        lambda: SimpleNamespace(
+            llm_base_url="http://localhost:11434/v1",
+            chat_model="qwen2.5:3b",
+            embedding_model="bge-m3",
+            structured_generation_max_attempts=2,
+            model_request_timeout_seconds=12.0,
+            model_max_attempts=2,
+            model_retry_backoff_ms=100,
+            v2_indexes_dir=tmp_path / "production-index",
+        ),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "verify_r1_frozen_hashes",
+        lambda _root: {},
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "_git_provenance",
+        lambda _root: {"head": "a" * 40},
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "_installed_dependency_snapshot",
+        lambda: {
+            "installed_snapshot_sha256": "b" * 64,
+            "installed_package_count": 1,
+        },
+    )
+
+    def stop_at_first_evaluator_side_effect(_root: Path):
+        events.append("production-index")
+        raise RuntimeError("stop after direct live lock")
+
+    monkeypatch.setattr(
+        eval_indirect_injection_live,
+        "production_active_index_reference",
+        stop_at_first_evaluator_side_effect,
+    )
+    for name in (
+        "fetch_ollama_runtime",
+        "run_model_smoke",
+        "build_live_fixture_index",
+        "evaluate_live_paired",
+    ):
+        monkeypatch.setattr(
+            eval_indirect_injection_live,
+            name,
+            lambda *args, _name=name, **kwargs: (_ for _ in ()).throw(
+                AssertionError(f"{_name} ran before ordering stop")
+            ),
+        )
+    args = eval_indirect_injection_live.build_parser().parse_args(
+        [
+            "--split",
+            "dev",
+            "--run-id",
+            "d7-lock-ordering-probe",
+            "--data-root",
+            str(_bundle_root(tmp_path)),
+            "--out-dir",
+            str(tmp_path / "runs"),
+            "--index-root",
+            str(tmp_path / "indexes"),
+        ]
+    )
+    request = eval_indirect_injection_live.LiveExecutionRequest(
+        args=args,
+        chat_model="qwen2.5:3b",
+        expected_chat_digest=eval_indirect_injection_live.FROZEN_QWEN25_CHAT_DIGEST,
+        canonical_argv=("python", "-m", "scripts.eval_indirect_injection_live"),
+    )
+
+    with pytest.raises(RuntimeError, match="stop after direct live lock"):
+        eval_indirect_injection_live.execute_live_security_run(request)
+
+    assert events == [
+        "lock-enter:http://localhost:11434/v1",
+        "production-index",
+        "lock-exit",
+    ]
 
 
 def test_cross_model_request_rejects_test_before_settings_or_external_work(
@@ -610,16 +716,21 @@ def test_completed_live_observation_publishes_and_returns_zero_even_with_attacks
             indexed_chunk_count=100,
         ),
     )
+
+    runtime_calls: list[str] = []
+
+    def stable_runtime(*_args, **_kwargs):
+        runtime_calls.append("runtime")
+        return eval_indirect_injection_live.OllamaRuntimeSnapshot(
+            version="0.32.1",
+            embedding=embedding_identity,
+            chat=chat_identity,
+        )
+
     monkeypatch.setattr(
         eval_indirect_injection_live,
         "fetch_ollama_runtime",
-        lambda _config, _embedding_model: (
-            eval_indirect_injection_live.OllamaRuntimeSnapshot(
-                version="0.32.1",
-                embedding=embedding_identity,
-                chat=chat_identity,
-            )
-        ),
+        stable_runtime,
     )
     monkeypatch.setattr(
         eval_indirect_injection_live,
@@ -656,6 +767,7 @@ def test_completed_live_observation_publishes_and_returns_zero_even_with_attacks
     )
 
     assert exit_code == 0
+    assert runtime_calls == ["runtime", "runtime"]
     run = out / "d7-completed-observation"
     manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
     summary = json.loads((run / "summary.json").read_text(encoding="utf-8"))
@@ -696,6 +808,21 @@ def test_completed_live_observation_publishes_and_returns_zero_even_with_attacks
         True,
         False,
     }
+
+
+def test_live_runtime_identity_drift_is_rejected() -> None:
+    initial = _planned_runtime()
+    changed = eval_indirect_injection_live.OllamaRuntimeSnapshot(
+        version=initial.version,
+        embedding=initial.embedding,
+        chat=initial.chat.model_copy(update={"digest": "f" * 64}),
+    )
+
+    with pytest.raises(ValueError, match="changed during live evaluation"):
+        eval_indirect_injection_live._assert_ollama_runtime_stable(
+            initial,
+            changed,
+        )
 
 
 def test_frozen_formal_d7_run_id_is_rejected_before_any_external_work(

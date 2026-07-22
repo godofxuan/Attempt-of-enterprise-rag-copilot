@@ -2,7 +2,60 @@
 
 日期：2026-07-22
 
-当前状态：Task 1-5 实现与复审完成；Task 6 协议冻结中；真实 Ollama 跨模型运行、正式 private matrix 和 public package 均为 `NOT RUN`。
+当前状态：Task 1-6 与首轮离线门禁已完成；真实运行前 whole-branch review 发现的 Important 问题正在按 TDD 加固；真实 Ollama 跨模型运行、正式 private matrix 和 public package 均为 `NOT RUN`。
+
+## Pre-Run Fix Wave: Evaluation Lock And Failure Truthfulness
+
+Root cause: the first remediation still relied on a manual trusted
+single-operator condition and only checked `git.dirty` before identity/model
+work. It also treated a structured generation `system` fallback as a matrix
+error while the live component producer could still publish
+`COMPLETED WITH OBSERVATIONS`. That split made component and matrix semantics
+inconsistent and left a race window before model work.
+
+Fix: the cross-model controller now acquires a no-wait OS file lock keyed by the
+normalized local Ollama origin before preflight, Git reads, identity reads,
+index build, component execution, and matrix publication. The live OS lock is
+authoritative, not pathname contents; stale files after crashes do not block
+reacquisition, while redirecting or non-regular lock paths fail closed. The
+controller also enforces the full clean Git triple before component context or
+identity work: `dirty is False`, `status_entry_count == 0`, and
+`dirty_state_sha256 == CLEAN_GIT_STATE_SHA256`.
+
+The live runner and V2/V3 verifier now treat `generation_system_error` as a
+model/system error: live publication produces a structurally valid `FAILED` V3
+component with evaluator exit `1`, private matrix comparison becomes
+`INCONCLUSIVE`, and public export rejects it. Tests cover RED/GREEN for the
+live runner, V3 verification, real subprocess lock contention, release and
+reacquire, stale pathname behavior, strict Git preflight, reused/new divergent
+exit `0`, new/reused inconclusive exit `1`, and the on-disk failed-V3 private
+matrix/public rejection flow.
+
+Continuation review fix: the lock boundary moved out of the cross-model script
+and into `app/evaluation/ollama_evaluation_lock.py`, then both the direct live
+CLI and cross-model controller were wired to that shared implementation. Direct
+live acquisition happens after the historical frozen-data gates and before
+runtime/model/index/evaluation side effects; cross-model component execution
+continues to call `execute_live_security_run` internally without reacquiring the
+lock, avoiding self-deadlock. The lock now validates the full lexical parent
+chain, rejects symlink/junction/reparse parents and final paths, opens the final
+file without following symlinks where available, and compares final-path
+`lstat()` identity with opened-descriptor `fstat()` identity before acquisition.
+Additional tests cover live-vs-cross-process contention, direct-live ordering,
+parent redirect rejection, final A-to-B replacement rejection, and existing real
+INCONCLUSIVE matrix admission through `validate_current_cross_model_bindings`
+plus controller `main()` exit `1` with identity/model execution forbidden.
+
+Final narrow correction: `PROJECT_STATUS.md` now labels the R2-S3 compile/pip
+and public audit row as historical only and explicitly not a current R2-S4 HEAD
+gate. Cross-model `main()` validates the canonical checked-in plan before
+resolving settings or acquiring the Ollama endpoint lock, so a byte-identical
+external `--plan` cannot create or touch lock state. The lock performs one more
+final-path `lstat()` versus descriptor `fstat()` identity check after the OS
+lock is acquired and before yielding the critical section; on mismatch it
+releases/fails closed. Operators must not delete or rotate
+`R2_S4_EVALUATION_LOCK_DIR` during a run, and non-cooperating post-yield
+pathname replacement remains outside this local rendezvous lock's threat model.
 
 ## 1. 这阶段到底做了什么
 
@@ -323,7 +376,77 @@ human double review        NOT RUN
 production traffic         NOT RUN
 ```
 
-## 13. 面试高频问答
+## 13. 真实运行前 whole-branch review 加固
+
+首轮 pre-run review 的结论是 `NOT READY FOR RUN`，不是因为模型分数差，而是证据生命周期仍有可复现缺口。由于三个 `-01` target 尚不存在，这些问题可以在不污染正式实验的前提下修复。
+
+### 13.1 执行状态和 canonical plan 信任边界
+
+旧控制器分别检查 output/index/matrix 路径，但没有在第一次 Ollama identity lookup 前联合分类状态。崩溃若发生在 auxiliary index 发布后、component 发布前，同一 `-01` 会留下 orphan index；再次执行会在已经做过模型工作后才失败。另一个问题是任意位置的 plan byte-copy 可以通过 strict JSON/hash，直到两个 component 都跑完后才在 matrix writer 的 repository boundary 失败。
+
+修复：
+
+- `scripts/eval_indirect_injection_cross_model.py` 只接受 checked-in canonical plan 的真实 lexical path；external/ignored/alternate copy 在 Git 和模型调用前失败；
+- 新增联合 preflight，拒绝 output-absent/index-present、partial component、matching stale staging，以及相同或互相嵌套的 final targets；
+- orphan index 明确分类为 non-resumable `-01`，保留现场并要求 reviewed `-02` plan/IDs，禁止删除后重跑；
+- structurally valid V3 在 preflight 即完成基础 plan/run/role 检查，完整 current Git/data/Guard/runtime binding 仍由 admission 层执行。
+
+困难在于默认目录本来就是嵌套的：`security_runs/.d7_indexes` 与 `security_runs/cross_model_matrices` 都在 `security_runs` 下。不能粗暴禁止 root nesting，只能比较五个最终 component/index/matrix target 是否相等或互为祖先。
+
+### 13.2 模型别名在长运行中的漂移
+
+Ollama 请求使用 model name；manifest 记录的是运行前解析到的 digest。如果长运行期间 alias 被重新指向，旧实现仍可能把后半段请求错误归因给旧 digest。
+
+修复分两层：
+
+- inner live executor 在 smoke/index/72-event evaluation 后重新读取 Ollama version、embedding identity 和当前 chat identity，发布前必须与初始 snapshot 完全相等；
+- outer cross-model controller 在每个新 component 返回后、current admission 前再次读取全部冻结 identity；任何变化都停止，不发布 matrix。
+
+这不是让 HTTP 请求直接使用 digest（Ollama API 仍按 name 调用），而是 pre/post attestation。它能把运行期漂移变成显式失败，不能替代外部 immutable model registry 或签名 attestation。
+
+### 13.3 system error 和 `FAILED V3` 语义
+
+旧 `model_error_count` 只统计 transport/model error codes，没有把 `generation_system_error` 计入，因此 safety diagnostic 可能错误显示 `model_errors_zero=true`。同时，live writer 可以保留一致的 `FAILED V3`，但 controller 只准入成功 component，导致比较器承诺的 private `INCONCLUSIVE` matrix 实际无法生成。
+
+修复：
+
+- private producer 与独立 public verifier 都把 `generation_system_error` 计入现有第 13 个 `model_error_count`，保持冻结 17-metric schema 不扩字段；
+- admission 只接受两种一致状态：`COMPLETED WITH OBSERVATIONS + protocol_complete=true`，或 `FAILED + protocol_complete=false`；
+- valid failed package 可以形成 private `INCONCLUSIVE` matrix，CLI 返回 `1`；invalid schema/hash/identity 仍直接失败；
+- public exporter 拒绝 `INCONCLUSIVE` 或任一 incomplete component，防止 private failure evidence 被包装成公开成功证据。
+
+### 13.4 descriptor-pinned evidence snapshot
+
+旧 private verifier 使用 `lstat(path) -> Path.read_bytes() -> lstat(path)`。并发替换可以让两次 `lstat` 都看到文件 A，而中间的 pathname open 读到文件 B。hash 会忠实描述 B，却错误归因给 A 的 path identity。
+
+修复：
+
+- live V3 与 private matrix verifier 先校验从 filesystem anchor 到 package 的每个 lexical directory component，拒绝 symlink/junction/reparse；
+- 每个精确 artifact 使用 `os.open`（可用时带 `O_NOFOLLOW`），读取前后 `fstat`，并把 descriptor identity 与 pathname identity 比较；
+- manifest、summary、rows、checksums 和 artifact hashes 全部只消费一次捕获的 bytes，不再按 path 重开；
+- snapshot 保存完整 artifact bytes、file identities 和 directory identities，current-binding/compare 完成前再次 `assert_unchanged()`；
+- deterministic tests 模拟 descriptor 被导向 B、父目录 identity 变化和 artifact replacement。
+
+这是 trusted-local best-effort replacement detection，不是对恶意 kernel、compromised Python runtime 或外部签名缺失的解决方案。
+
+### 13.5 当前验证结果和下一步
+
+本轮新增测试先在旧实现上得到预期 RED，随后局部 GREEN：
+
+```text
+preflight/runtime/error/failure semantics      15 passed
+live V3 snapshot hardening                    41 passed / 1 platform skip
+private matrix descriptor hardening           42 passed / 1 platform skip
+public failed-source export gate                1 passed
+```
+
+这些是修复过程中的 focused evidence，不是最终 exact-HEAD gate。下一步必须依次完成 formatting/diff 检查、R2-S4 focused suite、full repository suite、compile/pip/audit、历史 artifacts 只读验证、全新 whole-branch review 和 clean commit。只有新 review 为 `0 Critical / 0 Important`，才能执行真实模型。
+
+### 13.6 为什么这属于工业化而不是技术堆叠
+
+这些改动没有引入 LangGraph、Kafka、Kubernetes、vector DB 或多 Agent。它们解决的是工业实验最容易被忽略的四件事：运行身份可信、失败可分类、证据不可悄悄覆盖、结论可由另一个 verifier 重算。R2-S4 收口后的产品路径仍按业务风险排序：R2-S5 trusted identity -> reproducible Linux deploy/rollback -> durable privacy-bounded telemetry。只有出现测量到的规模、延迟或协作瓶颈，才准入 vector service、queue、cache 或 multi-Agent。
+
+## 14. 面试高频问答
 
 **问：为什么不直接改 `.env` 跑两次？**
 

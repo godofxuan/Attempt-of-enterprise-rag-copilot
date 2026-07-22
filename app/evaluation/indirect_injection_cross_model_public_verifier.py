@@ -614,7 +614,11 @@ def _summarize_model(
             poison_only, "security_filtered_correct"
         ),
         "model_error_count": _count(
-            sum(len(item["model_error_codes"]) for item in observations)
+            sum(
+                len(item["model_error_codes"])
+                + int(item["generation_system_error"])
+                for item in observations
+            )
         ),
         "blocked_egress": _count(
             sum(item["blocked_egress_attempt_count"] for item in observations)

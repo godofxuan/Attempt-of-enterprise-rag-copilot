@@ -108,26 +108,67 @@ checked-in canonical plan
 
 ## 5. Restart、失败与不可变规则
 
-对每个目标执行以下状态机：
+在任何 Ollama identity、embedding、smoke 或 chat 调用之前，controller 必须联合分类 component output、对应 auxiliary index 和 matrix final target。状态机是：
 
-1. **目标不存在**：可以执行。
-2. **完整目标存在**：先从字节验证全部 artifact；只有 plan、HEAD、data、Guard、runtime、model、run ID、protocol 全部精确一致才复用。
-3. **partial/staging/redirect/contradictory target**：fail closed，不继续模型调用。
-4. **矩阵已存在**：先做当前源码/组件/矩阵重新准入；该路径发生在 Ollama identity lookup 之前。
-5. **任何正式目标均不覆盖**：writer 使用 atomic no-replace publication；没有 `--force`。
+1. **component output 与 auxiliary index 均不存在**：可以执行该 component。
+2. **完整成功 V3 component 存在**：先从字节验证全部 artifact；只有 plan、HEAD、data、Guard、runtime、model、run ID、protocol 全部精确一致才作为成功 component 复用。
+3. **结构有效但 status=`FAILED` 的 V3 component 存在**：它是有效的 typed private failure evidence，不重跑同一 ID，也不冒充成功复用；允许它支持 private `INCONCLUSIVE` matrix，controller 最终返回非零。
+4. **component output 不存在但 auxiliary index target 存在**：分类为 `ORPHAN_AUXILIARY_INDEX`，在任何模型侧调用前 fail closed。无论 index 看起来完整、partial 或可读，都不得删除、覆盖或复用。
+5. **partial/staging/redirect/contradictory target**：fail closed，不继续模型调用。
+6. **矩阵已存在**：先做当前源码/组件/矩阵重新准入；该路径发生在 Ollama identity lookup 之前。
+7. **任何正式目标均不覆盖**：writer 使用 atomic no-replace publication；没有 `--force`。
+
+`ORPHAN_AUXILIARY_INDEX` 的恢复合同是：保留现场和分类记录；停止 `-01`；完成 TDD 修复、独立复审和 tracked commit；冻结新的 canonical plan 与三个 `-02` ID；重新执行 exact-HEAD gates。它不是“删掉 index 再跑一次”的可恢复状态。
 
 允许使用同一 `-01` 命令恢复的情况只有：
 
-- preflight 在创建正式目标前失败，修复外部条件后重试；
+- preflight 在创建正式目标和 auxiliary index 前失败，修复外部条件后重试；
 - 已有 component 是完整且精确可验证的 V3，重启时复用它并继续缺失 component。
 
 必须转为新 `-02` 计划/ID 的情况：
 
 - 发现 evaluator、writer、verifier、plan、Guard、retrieval 或协议代码缺陷；
+- 发现 `ORPHAN_AUXILIARY_INDEX`；
 - 已产生与 `-01` 绑定的完整或矛盾证据；
 - 修复改变任何被 manifest 绑定的字节或语义。
 
 `-02` 不是手工改目录名。必须保留 `-01` 历史，先用 TDD 修复和独立复审，再提交新的 canonical plan/contracts 和三个新 ID。严禁修改、删除后重用或覆盖旧 ID。
+
+The direct live CLI and cross-model controller both acquire the shared
+standard-library no-wait OS-backed exclusive evaluation lock implemented in
+`app/evaluation/ollama_evaluation_lock.py`. The cross-model controller acquires
+it before preflight classification, Git provenance reads, Ollama identity reads,
+auxiliary index build, component execution, and immutable matrix publication.
+The direct live CLI acquires the same lock after historical frozen-data
+admission and before runtime/model/index/evaluation side effects. The internal
+`execute_live_security_run` path used by cross-model component execution does
+not acquire a second lock, so the controller cannot self-deadlock.
+
+The lock key is the normalized local Ollama origin
+(`http://localhost:11434/v1` and `http://127.0.0.1:11434` share one origin).
+The pathname is only a rendezvous file; stale bytes left after a crash do not
+own the lock, and reacquisition is governed by the live OS file lock. Lock-root
+parents and the final path are validated lexically with `lstat()` before use;
+symlink/junction/reparse parents, redirected final paths, and non-regular final
+paths fail closed. The final file is opened without following symlinks where the
+platform supports it, and the opened descriptor's `fstat()` identity must still
+match the final path's `lstat()` identity before the OS lock is taken. The same
+identity check is repeated immediately after the OS lock is taken and before
+the critical section is yielded.
+
+This lock prevents cooperating direct-live/cross-model evaluators in this
+repository from overlapping on the same local Ollama endpoint. It is not a
+production scheduler, does not control non-cooperating external Ollama clients,
+and does not make model aliases immutable. The manual pre-run check for other
+Ollama clients remains a required limitation check for non-cooperating
+processes.
+
+Operators must not delete, rotate, replace, redirect, or clean
+`R2_S4_EVALUATION_LOCK_DIR` while any cooperating evaluator is running. A
+non-cooperating local writer that replaces the lock pathname after a process
+has entered the yielded critical section is outside this lock's threat model;
+that scenario is covered by the manual no-other-local-actor pre-run
+requirement, not by the rendezvous file itself.
 
 ## 6. 私有六文件与公开八文件
 
@@ -190,6 +231,8 @@ Decision 只表示“两个完整观察是否一致”：
 
 Schema、hash、run/model identity 或 package 结构造假属于 invalid evidence，verifier 直接非零失败，不应伪造一个 observation decision。
 
+结构有效的 `FAILED` V3 与 invalid evidence 不同：前者可以保留为 private typed evidence 并形成 `INCONCLUSIVE` matrix；后者不能进入比较。`FAILED` V3 不能支持 release claim，也不能作为 Task 8 成功公开证据包的 source。
+
 `model_call_count` 与 latency 会报告 delta，但不单独把结果改成 divergent；它们是资源/宿主观察，不是本轮选定的安全/效用一致性字段。
 
 安全质量另由 `task4_non_release_safety_threshold_v2` 诊断：
@@ -211,6 +254,7 @@ release_pass                     false
 |---|---|
 | matrix decision consistent/divergent | evaluator exit `0`，表示实验完整，不表示 release pass |
 | matrix decision inconclusive | evaluator exit `1` |
+| structurally valid `FAILED` V3 | 可发布 private `INCONCLUSIVE` matrix；evaluator exit `1`；禁止 release/public-evidence success |
 | preflight/schema/hash/path/identity failure | exception/non-zero；不得发布矩阵或公开包 |
 | private/public verifier exit `0` | package 完整且可重算，不表示结果安全 |
 | public exporter exit `1` | source invalid、privacy/path/no-overwrite 等导出失败 |
@@ -222,7 +266,7 @@ release_pass                     false
 真实模型运行前，必须全部满足：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_live_runner.py tests\evaluation\test_indirect_injection_live_writer.py tests\evaluation\test_indirect_injection_live_cli.py tests\evaluation\test_indirect_injection_cross_model.py tests\evaluation\test_indirect_injection_cross_model_cli.py tests\evaluation\test_indirect_injection_cross_model_writer.py tests\evaluation\test_indirect_injection_cross_model_public.py tests\test_public_repository.py
+.\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_live_runner.py tests\evaluation\test_indirect_injection_live_writer.py tests\evaluation\test_indirect_injection_live_snapshot_hardening.py tests\evaluation\test_indirect_injection_live_cli.py tests\evaluation\test_indirect_injection_cross_model.py tests\evaluation\test_indirect_injection_cross_model_cli.py tests\evaluation\test_indirect_injection_cross_model_writer.py tests\evaluation\test_indirect_injection_cross_model_public.py tests\test_public_repository.py
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe -m compileall -q app scripts streamlit_app tests
 .\.venv\Scripts\python.exe -m pip check
@@ -244,8 +288,10 @@ release_pass                     false
 
 - Task 1-5 最终复审没有 open Critical/Important；
 - worktree clean；三个 `-01` 正式目标均不存在；
-- 本机模型 digest 精确；没有并发 evaluator 使用 Ollama；
+- 本机模型 digest 精确；controller lock 未被同一 Ollama origin 的 cooperating evaluator 占用；没有非 cooperating 外部 Ollama client；
 - branch/HEAD、hardware/time 与所有命令输出写入 ignored pre-run record。
+
+并发检查必须在执行命令前立即完成。OS-backed controller lock 会阻止 cooperating evaluator 重叠；发现或怀疑非 cooperating 外部 client 正在使用同一 Ollama endpoint 时仍必须停止，不能把结果归因于单模型变量实验。
 
 说明：早期 Task 6 brief 曾记录 `--scope tracked`，但当前
 `scripts.audit_public_repo` CLI 不提供该参数；协议冻结时已通过真实命令
@@ -279,12 +325,33 @@ tracked 文档不能诚实地包含“包含它自身的最终 commit SHA”：�
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_cross_model security_runs\cross_model_matrices\r2-s4-cross-model-dev-20260722-01
 ```
 
-Task 8 才允许导出公开包：
+Task 8 仅在两个 component protocol 完整且 private matrix 具备公开成功证据资格时允许导出公开包。`INCONCLUSIVE`/`FAILED` evidence 只保留在 private boundary：
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.export_indirect_injection_cross_model_public security_runs\cross_model_matrices\r2-s4-cross-model-dev-20260722-01 data\v2\public\r2_s4_cross_model
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_cross_model_public data\v2\public\r2_s4_cross_model
 ```
+
+随后必须把精确八文件包复制到仓库外的全新目录，并在仓库外 working directory 下执行 packaged verifier：
+
+```powershell
+$python = (Resolve-Path .\.venv\Scripts\python.exe).Path
+$isolated = Join-Path $env:TEMP 'r2-s4-cross-model-public-verify-01'
+if (Test-Path -LiteralPath $isolated) { throw "isolated verification target already exists: $isolated" }
+Copy-Item -LiteralPath data\v2\public\r2_s4_cross_model -Destination $isolated -Recurse
+$savedPythonPath = $env:PYTHONPATH
+try {
+    $env:PYTHONPATH = ''
+    Push-Location $env:TEMP
+    & $python -I (Join-Path $isolated 'verify.py') $isolated
+    if ($LASTEXITCODE -ne 0) { throw "isolated packaged verifier failed with exit $LASTEXITCODE" }
+} finally {
+    Pop-Location
+    $env:PYTHONPATH = $savedPythonPath
+}
+```
+
+这里的“隔离”要求同时满足：copy 位于 repository 外、当前目录位于 repository 外、`PYTHONPATH` 为空、Python 使用 `-I`，并且 `verify.py` 只依赖标准库。repository-trusted verifier 与 isolated packaged verifier 必须都退出 `0` 且重算一致。
 
 ## 12. 明确未运行
 

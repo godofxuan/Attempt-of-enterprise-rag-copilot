@@ -102,6 +102,7 @@ comparison writer.
 
 ```text
 checked-in cross-model plan
+-> acquire no-wait OS evaluation lock for the normalized local Ollama origin
 -> validate schema, split, model names/digests, run IDs, and current clean HEAD
 -> verify Ollama identities and BGE-M3 digest
 -> baseline live paired run (Qwen2.5:3b)
@@ -200,6 +201,23 @@ The matrix command runs sequentially. Before each component:
 This is bounded restart safety, not a general workflow engine. Rollback is to
 remove only an uncommitted failed experiment directory after manually checking
 its resolved path; production Agent behavior is unchanged.
+
+### Evaluation Lock Amendment
+
+The original design assumed a trusted single local operator and manual
+no-other-evaluator checks. Pre-run review showed that this was an admitted race:
+another cooperating evaluator could start after the manual check and overlap on
+the same Ollama aliases before immutable publication failed closed. R2-S4 now
+uses a standard-library, no-wait, OS-backed exclusive file lock keyed by the
+normalized local Ollama origin. The controller acquires it before preflight,
+Git/identity reads, index build, model work, component publication, and matrix
+publication, and releases it on every exit.
+
+The lock pathname is not the owner; the live OS file lock is. A stale lock file
+left after a crash does not block reacquisition, while a symlink, junction,
+redirecting reparse point, directory, or other non-regular lock path fails
+closed. The lock only coordinates cooperating evaluator processes. Operators
+must still check for non-cooperating external Ollama clients.
 
 ## 10. Comparison Metrics And Decision
 

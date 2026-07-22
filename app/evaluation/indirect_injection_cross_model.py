@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import stat
 from dataclasses import dataclass
 from pathlib import Path
@@ -566,15 +567,12 @@ def _load_verified_component(path: Path, role: CrossModelRole) -> _VerifiedCompo
     evidence = manifest.artifacts.get("per_case.jsonl")
     if evidence is None:
         raise ValueError(f"{role} component lacks per-case artifact evidence")
-    snapshot.assert_manifest_unchanged()
-    payload = _read_regular_file_snapshot(
-        snapshot.run_dir / "per_case.jsonl",
-        f"{role} component per-case evidence",
-    )
+    snapshot.assert_unchanged()
+    payload = snapshot.artifact_bytes("per_case.jsonl")
     if len(payload) != evidence.bytes or _sha256_bytes(payload) != evidence.sha256:
         raise ValueError(f"{role} component per-case evidence changed after verify")
     pairs = _parse_component_rows(payload, manifest, role)
-    snapshot.assert_manifest_unchanged()
+    snapshot.assert_unchanged()
     return _VerifiedComponent(
         role=role,
         manifest=manifest,
@@ -860,7 +858,10 @@ def _summarize_model(
             "security_filtered_correct",
         ),
         "model_error_count": CrossModelMetric.from_count(
-            sum(len(item.model_error_codes) for item in observations)
+            sum(
+                len(item.model_error_codes) + int(item.generation_system_error)
+                for item in observations
+            )
         ),
         "blocked_egress": CrossModelMetric.from_count(
             sum(item.blocked_egress_attempt_count for item in observations)
@@ -1230,38 +1231,58 @@ def _hash_string_sequence(values: tuple[str, ...]) -> str:
 
 
 def _read_regular_file_snapshot(path: Path, label: str) -> bytes:
+    descriptor = -1
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
     try:
-        before = path.lstat()
-        if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
+        path_before = path.lstat()
+        if stat.S_ISLNK(path_before.st_mode) or not stat.S_ISREG(path_before.st_mode):
             raise ValueError(f"{label} must be a regular non-symlink file")
-        payload = path.read_bytes()
-        after = path.lstat()
+        descriptor = os.open(path, flags)
+        descriptor_before = os.fstat(descriptor)
+        before_identity = _stat_file_identity(path_before)
+        if (
+            not stat.S_ISREG(descriptor_before.st_mode)
+            or _stat_file_identity(descriptor_before) != before_identity
+        ):
+            raise ValueError(f"{label} identity changed before descriptor read")
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        descriptor_after = os.fstat(descriptor)
+        path_after = path.lstat()
+    except ValueError:
+        raise
     except OSError as exc:
         raise ValueError(f"{label} must be a regular non-symlink file") from exc
-    before_identity = (
-        before.st_dev,
-        before.st_ino,
-        before.st_mode,
-        before.st_size,
-        before.st_mtime_ns,
-        before.st_ctime_ns,
-    )
-    after_identity = (
-        after.st_dev,
-        after.st_ino,
-        after.st_mode,
-        after.st_size,
-        after.st_mtime_ns,
-        after.st_ctime_ns,
-    )
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    payload = b"".join(chunks)
     if (
-        stat.S_ISLNK(after.st_mode)
-        or not stat.S_ISREG(after.st_mode)
-        or before_identity != after_identity
-        or len(payload) != before.st_size
+        stat.S_ISLNK(path_after.st_mode)
+        or not stat.S_ISREG(path_after.st_mode)
+        or _stat_file_identity(descriptor_before) != before_identity
+        or _stat_file_identity(descriptor_after) != before_identity
+        or _stat_file_identity(path_after) != before_identity
+        or len(payload) != path_before.st_size
     ):
-        raise ValueError(f"{label} changed during snapshot read")
+        raise ValueError(f"{label} identity changed during descriptor read")
     return payload
+
+
+def _stat_file_identity(value: object) -> tuple[int, int, int, int, int, int]:
+    return (
+        value.st_dev,
+        value.st_ino,
+        value.st_mode,
+        value.st_size,
+        value.st_mtime_ns,
+        value.st_ctime_ns,
+    )
 
 
 def _compact_json_bytes(value: object) -> bytes:
@@ -1285,7 +1306,7 @@ def load_cross_model_plan(path: Path) -> tuple[CrossModelPlanV1, str]:
     """Load the immutable plan only when its bytes are canonical and valid."""
 
     try:
-        raw = path.read_bytes()
+        raw = _read_regular_file_snapshot(path, "cross-model plan")
         payload = _load_json_object(raw)
         if raw != _canonical_json_bytes(payload):
             raise CrossModelPlanError("cross-model plan is not canonical JSON")

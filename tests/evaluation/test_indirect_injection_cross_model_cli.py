@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import argparse
+import hashlib
 import json
 import os
-import argparse
+import subprocess
+import sys
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,6 +23,7 @@ from app.evaluation.indirect_injection_live_writer import (
     OllamaModelIdentity,
     publish_live_security_run,
 )
+from app.evaluation.indirect_injection_live_index import build_live_fixture_index
 from tests.evaluation.path_redirect_helpers import (
     directory_redirect,
     with_reparse_point_attribute,
@@ -31,6 +35,7 @@ from scripts import eval_indirect_injection_cross_model
 
 ROOT = Path(__file__).resolve().parents[2]
 PLAN_PATH = ROOT / "data" / "v2" / "evaluation" / "r2_s4_cross_model_matrix_v1.json"
+CLEAN_GIT_STATE_SHA256 = hashlib.sha256(b"\0\0").hexdigest()
 
 
 def _identity(name: str, digest: str, capability: str) -> OllamaModelIdentity:
@@ -74,7 +79,7 @@ def _clean_git() -> dict[str, object]:
         "branch": "codex/rag-eval-system",
         "dirty": False,
         "status_entry_count": 0,
-        "dirty_state_sha256": "b" * 64,
+        "dirty_state_sha256": CLEAN_GIT_STATE_SHA256,
     }
 
 
@@ -438,6 +443,337 @@ def test_dirty_git_fails_before_identity_or_execution(
     assert called == []
 
 
+@pytest.mark.parametrize(
+    "git",
+    [
+        _clean_git() | {"status_entry_count": 1},
+        _clean_git() | {"dirty_state_sha256": "b" * 64},
+    ],
+)
+def test_incomplete_clean_git_triple_fails_before_context_identity_or_execution(
+    monkeypatch: pytest.MonkeyPatch,
+    git: dict[str, object],
+) -> None:
+    called: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: dict(git),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_load_component_context",
+        lambda _plan: called.append("context"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        lambda _request: called.append("execution"),
+    )
+
+    with pytest.raises(ValueError, match="clean Git"):
+        eval_indirect_injection_cross_model.main([])
+
+    assert called == []
+
+
+def test_controller_acquires_endpoint_lock_before_git_or_preflight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[str] = []
+
+    class RecordingLock:
+        def __enter__(self):
+            events.append("lock-enter")
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            events.append("lock-exit")
+            return False
+
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_evaluation_lock",
+        lambda origin, lock_root=None: RecordingLock(),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: events.append("git") or (_clean_git() | {"dirty": True}),
+    )
+
+    with pytest.raises(ValueError, match="clean Git"):
+        eval_indirect_injection_cross_model.main(
+            [
+                "--out-dir",
+                str(tmp_path / "runs"),
+                "--index-root",
+                str(tmp_path / "indexes"),
+                "--matrix-out-dir",
+                str(tmp_path / "matrix"),
+            ]
+        )
+
+    assert events == ["lock-enter", "git", "lock-exit"]
+
+
+def test_external_byte_identical_plan_rejects_before_settings_or_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    external_plan = tmp_path / "copied-plan.json"
+    external_plan.write_bytes(PLAN_PATH.read_bytes())
+    lock_root = tmp_path / "locks"
+    lock_root.mkdir()
+    called: list[str] = []
+    monkeypatch.setenv("R2_S4_EVALUATION_LOCK_DIR", str(lock_root))
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "get_settings",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("get_settings ran before canonical plan rejection")
+        ),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_evaluation_lock",
+        lambda *_args, **_kwargs: called.append("lock"),
+    )
+
+    with pytest.raises(ValueError, match="canonical checked-in plan"):
+        eval_indirect_injection_cross_model.main(["--plan", str(external_plan)])
+
+    assert called == []
+    assert list(lock_root.iterdir()) == []
+
+
+def test_evaluation_lock_contends_across_processes_and_reacquires(
+    tmp_path: Path,
+) -> None:
+    origin = "http://127.0.0.1:11434"
+    with eval_indirect_injection_cross_model._evaluation_lock(
+        origin,
+        lock_root=tmp_path,
+    ):
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "from pathlib import Path\n"
+                    "from scripts import eval_indirect_injection_cross_model as m\n"
+                    "try:\n"
+                    f"    with m._evaluation_lock({origin!r}, lock_root=Path({str(tmp_path)!r})):\n"
+                    "        raise SystemExit(0)\n"
+                    "except RuntimeError as exc:\n"
+                    "    print(str(exc))\n"
+                    "    raise SystemExit(7)\n"
+                ),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+
+    assert completed.returncode == 7
+    assert "evaluation lock" in completed.stdout
+    with eval_indirect_injection_cross_model._evaluation_lock(
+        origin,
+        lock_root=tmp_path,
+    ):
+        pass
+
+
+def test_shared_evaluation_lock_contends_between_live_and_cross_model_processes(
+    tmp_path: Path,
+) -> None:
+    from app.evaluation.ollama_evaluation_lock import evaluation_lock
+
+    origin = "http://127.0.0.1:11434/v1"
+    environment = os.environ.copy()
+    environment["R2_S4_EVALUATION_LOCK_DIR"] = str(tmp_path)
+    with evaluation_lock(origin, lock_root=tmp_path):
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "from scripts import eval_indirect_injection_live as m\n"
+                    "def stop_after_missing_lock(_root):\n"
+                    "    raise SystemExit(3)\n"
+                    "m.verify_r1_frozen_hashes = lambda _root: {}\n"
+                    "m._git_provenance = lambda _root: {'head': 'a' * 40}\n"
+                    "m._installed_dependency_snapshot = lambda: {\n"
+                    "    'installed_snapshot_sha256': 'b' * 64,\n"
+                    "    'installed_package_count': 1,\n"
+                    "}\n"
+                    "m.production_active_index_reference = stop_after_missing_lock\n"
+                    "m.fetch_ollama_runtime = lambda *a, **k: (_ for _ in ()).throw(SystemExit(4))\n"
+                    "m.run_model_smoke = lambda *a, **k: (_ for _ in ()).throw(SystemExit(5))\n"
+                    "m.build_live_fixture_index = lambda *a, **k: (_ for _ in ()).throw(SystemExit(6))\n"
+                    "try:\n"
+                    "    raise SystemExit(m.main([\n"
+                    "        '--split', 'dev',\n"
+                    "        '--run-id', 'd7-live-vs-cross-lock-probe',\n"
+                    "    ]))\n"
+                    "except RuntimeError as exc:\n"
+                    "    print(str(exc))\n"
+                    "    raise SystemExit(7)\n"
+                ),
+            ],
+            cwd=ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+
+    assert completed.returncode == 7
+    assert "evaluation lock" in completed.stdout
+    with evaluation_lock(origin, lock_root=tmp_path):
+        pass
+
+
+def test_evaluation_lock_uses_os_lock_not_stale_pathname(
+    tmp_path: Path,
+) -> None:
+    origin = "http://localhost:11434/v1"
+    lock_path = eval_indirect_injection_cross_model._evaluation_lock_path(
+        origin,
+        lock_root=tmp_path,
+    )
+    lock_path.write_text("stale owner marker\n", encoding="utf-8")
+
+    with eval_indirect_injection_cross_model._evaluation_lock(
+        origin,
+        lock_root=tmp_path,
+    ):
+        assert lock_path.is_file()
+
+
+def test_evaluation_lock_rejects_redirected_or_non_regular_lock_path(
+    tmp_path: Path,
+) -> None:
+    origin = "http://127.0.0.1:11434"
+    lock_path = eval_indirect_injection_cross_model._evaluation_lock_path(
+        origin,
+        lock_root=tmp_path,
+    )
+    lock_path.mkdir(parents=True)
+
+    with pytest.raises(ValueError, match="regular"):
+        with eval_indirect_injection_cross_model._evaluation_lock(
+            origin,
+            lock_root=tmp_path,
+        ):
+            pass
+
+
+def test_evaluation_lock_rejects_redirected_parent_chain(
+    tmp_path: Path,
+) -> None:
+    from app.evaluation.ollama_evaluation_lock import evaluation_lock
+
+    real = tmp_path / "real-root"
+    real.mkdir()
+    link = tmp_path / "redirect-root"
+    with directory_redirect(link, real):
+        with pytest.raises(ValueError, match="symlink|redirect"):
+            with evaluation_lock(
+                "http://127.0.0.1:11434",
+                lock_root=link / "locks",
+            ):
+                pass
+
+
+def test_evaluation_lock_rejects_final_path_replacement_before_use(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.evaluation import ollama_evaluation_lock
+
+    origin = "http://127.0.0.1:11434"
+    lock_path = ollama_evaluation_lock.evaluation_lock_path(
+        origin,
+        lock_root=tmp_path,
+    )
+    lock_path.write_text("original stale marker\n", encoding="utf-8")
+    original_open = ollama_evaluation_lock.os.open
+    replaced = False
+
+    def replacing_open(path, flags, mode=0o666, *args, **kwargs):
+        nonlocal replaced
+        if Path(path) == lock_path and not replaced:
+            replaced = True
+            os.unlink(lock_path)
+            lock_path.write_text("replacement marker\n", encoding="utf-8")
+        return original_open(path, flags, mode, *args, **kwargs)
+
+    monkeypatch.setattr(ollama_evaluation_lock.os, "open", replacing_open)
+
+    with pytest.raises(ValueError, match="changed"):
+        with ollama_evaluation_lock.evaluation_lock(origin, lock_root=tmp_path):
+            pass
+
+    assert replaced is True
+
+
+def test_evaluation_lock_rechecks_identity_after_acquire_before_yield(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.evaluation import ollama_evaluation_lock
+
+    origin = "http://127.0.0.1:11434"
+    lock_path = ollama_evaluation_lock.evaluation_lock_path(
+        origin,
+        lock_root=tmp_path,
+    )
+    replacement = tmp_path / "replacement.lock"
+    replacement.write_text("replacement\n", encoding="utf-8")
+    original_acquire = ollama_evaluation_lock._acquire_os_lock
+    original_lstat = Path.lstat
+    acquired: list[str] = []
+    entered: list[str] = []
+
+    def acquire_then_replace(fd: int, locked_origin: str) -> None:
+        original_acquire(fd, locked_origin)
+        acquired.append("acquired")
+        try:
+            os.replace(replacement, lock_path)
+        except PermissionError:
+            replacement_stat = replacement.lstat()
+
+            def replaced_lstat(path: Path):
+                if Path(path) == lock_path:
+                    return replacement_stat
+                return original_lstat(path)
+
+            monkeypatch.setattr(Path, "lstat", replaced_lstat)
+
+    monkeypatch.setattr(
+        ollama_evaluation_lock,
+        "_acquire_os_lock",
+        acquire_then_replace,
+    )
+
+    with pytest.raises(ValueError, match="changed"):
+        with ollama_evaluation_lock.evaluation_lock(origin, lock_root=tmp_path):
+            entered.append("yielded")
+
+    assert acquired == ["acquired"]
+    assert entered == []
+
+
 @pytest.mark.parametrize("mutation", ["missing", "wrong_embedding", "wrong_digest"])
 def test_missing_or_wrong_ollama_identity_fails_before_execution(
     monkeypatch: pytest.MonkeyPatch,
@@ -563,6 +899,54 @@ def test_exact_existing_matrix_is_reused_without_identity_or_component_work(
     assert called == []
     payload = json.loads(capsys.readouterr().out)
     assert payload["matrix_run_id"] == plan.matrix_run_id
+    assert payload["reused"] is True
+
+
+@pytest.mark.parametrize(
+    ("decision", "expected_exit"),
+    [
+        ("DIVERGENT_OBSERVATION", 0),
+        ("INCONCLUSIVE", 1),
+    ],
+)
+def test_existing_matrix_main_exit_uses_verified_decision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    decision: str,
+    expected_exit: int,
+) -> None:
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: _clean_git(),
+    )
+    matrix_root = tmp_path / "matrix"
+    (matrix_root / plan.matrix_run_id).mkdir(parents=True)
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "validate_current_cross_model_bindings",
+        lambda *args, **kwargs: SimpleNamespace(
+            matrix_run_id=plan.matrix_run_id,
+            decision=decision,
+        ),
+        raising=False,
+    )
+
+    assert eval_indirect_injection_cross_model.main(
+        [
+            "--out-dir",
+            str(tmp_path / "components"),
+            "--index-root",
+            str(tmp_path / "indexes"),
+            "--matrix-out-dir",
+            str(matrix_root),
+        ]
+    ) == expected_exit
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["decision"] == decision
     assert payload["reused"] is True
 
 
@@ -901,6 +1285,92 @@ def test_runs_absent_components_baseline_then_replication(
     ]
     assert len(published) == 1
     assert '"reused": false' in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("decision", "expected_exit"),
+    [
+        ("DIVERGENT_OBSERVATION", 0),
+        ("INCONCLUSIVE", 1),
+    ],
+)
+def test_new_matrix_main_exit_uses_published_decision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    decision: str,
+    expected_exit: int,
+) -> None:
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    _patch_main_preflight(monkeypatch, plan)
+    outcomes: dict[str, object] = {}
+
+    def execute(request):
+        manifest = SimpleNamespace(
+            run_id=request.args.run_id,
+            status="COMPLETED WITH OBSERVATIONS",
+            observation=SimpleNamespace(protocol_complete=True),
+        )
+        outcome = SimpleNamespace(
+            output_dir=request.args.out_dir / request.args.run_id,
+            manifest=manifest,
+        )
+        outcomes[request.args.run_id] = outcome
+        return outcome
+
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        execute,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "admit_existing_component",
+        lambda target, **_kwargs: outcomes[target.name],
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "compare_verified_runs",
+        lambda *args, **kwargs: SimpleNamespace(
+            matrix_run_id=plan.matrix_run_id,
+            decision=decision,
+            invariant_mismatches=(),
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "publish_cross_model_run",
+        lambda *args, **kwargs: tmp_path / "matrix" / plan.matrix_run_id,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_forbidden_fixture_texts",
+        lambda _bundle: ("private-fixture-text",),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "validate_current_cross_model_bindings",
+        lambda *args, **kwargs: SimpleNamespace(
+            matrix_run_id=plan.matrix_run_id,
+            decision=decision,
+        ),
+        raising=False,
+    )
+
+    assert eval_indirect_injection_cross_model.main(
+        [
+            "--out-dir",
+            str(tmp_path / "runs"),
+            "--index-root",
+            str(tmp_path / "indexes"),
+            "--matrix-out-dir",
+            str(tmp_path / "matrix"),
+        ]
+    ) == expected_exit
+
+    assert f'"decision": "{decision}"' in capsys.readouterr().out
 
 
 def test_git_transition_after_component_fails_closed(
@@ -1763,3 +2233,282 @@ def test_run_component_rejects_redirected_root_before_resolve(
             runtime=_runtime(plan),
             execution=_execution(),
         )
+
+
+def test_external_byte_identical_plan_fails_before_git_or_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    copied_plan = tmp_path / "copied-plan.json"
+    copied_plan.write_bytes(PLAN_PATH.read_bytes())
+    called: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: called.append("git"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+
+    with pytest.raises(ValueError, match="canonical checked-in plan"):
+        eval_indirect_injection_cross_model.main(
+            ["--plan", str(copied_plan)]
+        )
+
+    assert called == []
+
+
+@pytest.mark.parametrize(
+    "state",
+    ["orphan_index", "partial_component", "stale_component_stage", "stale_matrix_stage"],
+)
+def test_non_resumable_execution_state_fails_before_git_or_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    state: str,
+) -> None:
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    component = plan.model_for_role("baseline")
+    output_root = tmp_path / "runs"
+    index_root = tmp_path / "indexes"
+    matrix_root = tmp_path / "matrices"
+    output_root.mkdir()
+    index_root.mkdir()
+    matrix_root.mkdir()
+    expected = ""
+    if state == "orphan_index":
+        (index_root / component.run_id).mkdir()
+        expected = "orphan auxiliary index"
+    elif state == "partial_component":
+        target = output_root / component.run_id
+        target.mkdir()
+        (target / "partial.txt").write_text("partial", encoding="utf-8")
+        expected = "partial or invalid"
+    elif state == "stale_component_stage":
+        (output_root / f".{component.run_id}.staging-crash").mkdir()
+        expected = "stale staging"
+    else:
+        (matrix_root / f".{plan.matrix_run_id}.staging-crash").mkdir()
+        expected = "stale staging"
+    called: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: called.append("git"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+
+    with pytest.raises(ValueError, match=expected):
+        eval_indirect_injection_cross_model.main(
+            [
+                "--out-dir", str(output_root),
+                "--index-root", str(index_root),
+                "--matrix-out-dir", str(matrix_root),
+            ]
+        )
+
+    assert called == []
+
+
+def test_real_index_writer_orphan_requires_new_ids_before_model_activity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    writer_v3_inputs,
+) -> None:
+    plan, _ = load_cross_model_plan(PLAN_PATH)
+    component = plan.model_for_role("baseline")
+    bundle, _, _ = writer_v3_inputs
+    output_root = tmp_path / "runs"
+    index_root = tmp_path / "indexes"
+    matrix_root = tmp_path / "matrices"
+    index_target = index_root / component.run_id
+
+    def interrupted_first_attempt() -> None:
+        build_live_fixture_index(
+            dataset=bundle.dataset,
+            fixtures=bundle.fixture_manifest,
+            root=index_target,
+            run_id="simulated-post-index-crash",
+            fixture_sha256=bundle.fixture_manifest_sha256,
+            embedding_model=plan.embedding.requested_name,
+            embed_text=live_writer_tests._embedding,
+        )
+        raise RuntimeError("simulated crash after index publication")
+
+    with pytest.raises(RuntimeError, match="after index publication"):
+        interrupted_first_attempt()
+    assert index_target.is_dir()
+    assert not (output_root / component.run_id).exists()
+
+    called: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: called.append("git"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        lambda _request: called.append("execution"),
+    )
+
+    with pytest.raises(ValueError, match="orphan auxiliary index"):
+        eval_indirect_injection_cross_model.main(
+            [
+                "--out-dir", str(output_root),
+                "--index-root", str(index_root),
+                "--matrix-out-dir", str(matrix_root),
+            ]
+        )
+
+    assert called == []
+
+
+def test_overlapping_final_targets_fail_before_git_or_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shared_root = tmp_path / "shared"
+    called: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: called.append("git"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: called.append("identity"),
+    )
+
+    with pytest.raises(ValueError, match="overlap|nested"):
+        eval_indirect_injection_cross_model.main(
+            [
+                "--out-dir", str(shared_root),
+                "--index-root", str(shared_root),
+                "--matrix-out-dir", str(tmp_path / "matrices"),
+            ]
+        )
+
+    assert called == []
+
+
+def test_controller_rejects_post_component_identity_drift_before_admission(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan, plan_sha256 = load_cross_model_plan(PLAN_PATH)
+    component = plan.model_for_role("baseline")
+    initial = _runtime(plan)
+    changed = replace(
+        initial,
+        chats={
+            **initial.chats,
+            "baseline": initial.chats["baseline"].model_copy(
+                update={"digest": "f" * 64}
+            ),
+        },
+    )
+    output_root = tmp_path / "runs"
+    target = output_root / component.run_id
+    admitted: list[Path] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        lambda _request: SimpleNamespace(output_dir=target, manifest=object()),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: changed,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "admit_existing_component",
+        lambda path, **_kwargs: admitted.append(path),
+    )
+    args = SimpleNamespace(
+        out_dir=output_root,
+        index_root=tmp_path / "indexes",
+        matrix_out_dir=tmp_path / "matrices",
+        plan=PLAN_PATH,
+    )
+
+    with pytest.raises(ValueError, match="changed during component execution"):
+        eval_indirect_injection_cross_model.run_component(
+            args,
+            plan=plan,
+            plan_sha256=plan_sha256,
+            component=component,
+            git_provenance=_clean_git(),
+            context=_component_context(plan),
+            runtime=initial,
+            execution=_execution(),
+        )
+
+    assert admitted == []
+
+
+def test_structurally_valid_failed_v3_component_is_admitted_as_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    writer_v3_inputs,
+) -> None:
+    target, plan, plan_sha256, component, context, runtime, execution = (
+        _real_admission_inputs(tmp_path, writer_v3_inputs)
+    )
+    manifest = eval_indirect_injection_cross_model.verify_live_security_run(target)
+    failed = manifest.model_copy(
+        update={
+            "status": "FAILED",
+            "observation": manifest.observation.model_copy(
+                update={"protocol_complete": False}
+            ),
+        }
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "verify_live_security_run",
+        lambda _target: failed,
+    )
+
+    outcome = eval_indirect_injection_cross_model.admit_existing_component(
+        target,
+        plan=plan,
+        plan_sha256=plan_sha256,
+        component=component,
+        git_provenance=_clean_git(),
+        context=context,
+        runtime=runtime,
+        execution=execution,
+    )
+
+    assert outcome.manifest.status == "FAILED"
+    assert outcome.manifest.observation.protocol_complete is False
+
+
+@pytest.mark.parametrize(
+    ("decision", "expected"),
+    [
+        ("CONSISTENT_OBSERVATION", 0),
+        ("DIVERGENT_OBSERVATION", 0),
+        ("INCONCLUSIVE", 1),
+    ],
+)
+def test_controller_exit_code_distinguishes_observation_from_inconclusive(
+    decision: str,
+    expected: int,
+) -> None:
+    assert eval_indirect_injection_cross_model._decision_exit_code(decision) == expected

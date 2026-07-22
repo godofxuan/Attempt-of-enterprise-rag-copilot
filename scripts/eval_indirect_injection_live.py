@@ -6,6 +6,7 @@ except ModuleNotFoundError:
     from scripts import _bootstrap  # noqa: F401
 
 import argparse
+import contextlib
 import hashlib
 import json
 import platform
@@ -43,6 +44,7 @@ from app.evaluation.indirect_injection_live_runner import (
     LocalOllamaOnlyBoundary,
     evaluate_live_paired,
 )
+from app.evaluation.ollama_evaluation_lock import evaluation_lock
 from app.evaluation.indirect_injection_live_writer import (
     CrossModelExperimentBinding,
     LiveIndexReference,
@@ -313,118 +315,140 @@ def execute_live_security_run(
             settings.structured_generation_max_attempts
         ),
     )
-    if request.experiment is None:
-        _validate_frozen_models(settings.embedding_model, settings.chat_model)
-        if settings.chat_model != request.chat_model:
-            raise ValueError("D7 frozen protocol chat model changed internally")
-    else:
-        _validate_frozen_embedding_model(settings.embedding_model)
+    lock_context = (
+        evaluation_lock(config.llm_endpoint)
+        if request.experiment is None
+        else contextlib.nullcontext()
+    )
+    with lock_context:
+        if request.experiment is None:
+            _validate_frozen_models(settings.embedding_model, settings.chat_model)
+            if settings.chat_model != request.chat_model:
+                raise ValueError("D7 frozen protocol chat model changed internally")
+        else:
+            _validate_frozen_embedding_model(settings.embedding_model)
 
-    started_at = datetime.now(timezone.utc)
-    git_provenance = _git_provenance(BASE_DIR)
-    installed_dependencies = _installed_dependency_snapshot()
-    if request.experiment is not None:
-        runtime = fetch_ollama_runtime(config, settings.embedding_model)
-        validate_v3_cross_model_plan_binding(
-            request.experiment,
-            embedding=runtime.embedding,
-            chat=runtime.chat,
-        )
-        production_index = production_active_index_reference(
-            settings.v2_indexes_dir
-        )
-    else:
-        production_index = production_active_index_reference(
-            settings.v2_indexes_dir
-        )
-        runtime = fetch_ollama_runtime(config, settings.embedding_model)
-        if runtime.chat.digest != request.expected_chat_digest:
-            raise ValueError(
-                "resolved Ollama chat model digest does not match expected "
-                "chat model digest"
+        started_at = datetime.now(timezone.utc)
+        git_provenance = _git_provenance(BASE_DIR)
+        installed_dependencies = _installed_dependency_snapshot()
+        if request.experiment is not None:
+            runtime = fetch_ollama_runtime(config, settings.embedding_model)
+            validate_v3_cross_model_plan_binding(
+                request.experiment,
+                embedding=runtime.embedding,
+                chat=runtime.chat,
             )
-    smoke = run_model_smoke(config, settings.embedding_model, runtime)
+            production_index = production_active_index_reference(
+                settings.v2_indexes_dir
+            )
+        else:
+            production_index = production_active_index_reference(
+                settings.v2_indexes_dir
+            )
+            runtime = fetch_ollama_runtime(config, settings.embedding_model)
+            if runtime.chat.digest != request.expected_chat_digest:
+                raise ValueError(
+                    "resolved Ollama chat model digest does not match expected "
+                    "chat model digest"
+                )
+        smoke = run_model_smoke(config, settings.embedding_model, runtime)
 
-    security_index_root = (args.index_root.resolve() / args.run_id).resolve()
-    if security_index_root.parent != args.index_root.resolve():
-        raise ValueError("run ID resolves outside security index root")
-    index_run_id = "d7-live-" + hashlib.sha256(
-        f"{args.split}|{args.run_id}".encode("utf-8")
-    ).hexdigest()[:20]
-    with LocalOllamaOnlyBoundary(config.llm_endpoint) as index_egress:
-        built = build_live_fixture_index(
+        security_index_root = (args.index_root.resolve() / args.run_id).resolve()
+        if security_index_root.parent != args.index_root.resolve():
+            raise ValueError("run ID resolves outside security index root")
+        index_run_id = "d7-live-" + hashlib.sha256(
+            f"{args.split}|{args.run_id}".encode("utf-8")
+        ).hexdigest()[:20]
+        with LocalOllamaOnlyBoundary(config.llm_endpoint) as index_egress:
+            built = build_live_fixture_index(
+                dataset=bundle.dataset,
+                fixtures=bundle.fixture_manifest,
+                root=security_index_root,
+                run_id=index_run_id,
+                fixture_sha256=bundle.fixture_manifest_sha256,
+                embedding_model=settings.embedding_model,
+                embed_text=lambda text: _embed_text(settings.embedding_model, text),
+            )
+        if index_egress.blocked_attempt_count:
+            raise RuntimeError("security index build attempted external egress")
+
+        result = evaluate_live_paired(
             dataset=bundle.dataset,
             fixtures=bundle.fixture_manifest,
-            root=security_index_root,
-            run_id=index_run_id,
-            fixture_sha256=bundle.fixture_manifest_sha256,
-            embedding_model=settings.embedding_model,
+            snapshot=built.snapshot,
             embed_text=lambda text: _embed_text(settings.embedding_model, text),
+            chat_fn=chat_with_ollama,
+            config=config,
+            arm_order=arm_order,
         )
-    if index_egress.blocked_attempt_count:
-        raise RuntimeError("security index build attempted external egress")
-
-    result = evaluate_live_paired(
-        dataset=bundle.dataset,
-        fixtures=bundle.fixture_manifest,
-        snapshot=built.snapshot,
-        embed_text=lambda text: _embed_text(settings.embedding_model, text),
-        chat_fn=chat_with_ollama,
-        config=config,
-        arm_order=arm_order,
-    )
-    if not isinstance(result, LivePairedResultV2):
-        raise RuntimeError("future live evaluation did not produce a v2 result")
-    _assert_git_provenance_stable(
-        git_provenance,
-        _git_provenance(BASE_DIR),
-    )
-    completed_at = datetime.now(timezone.utc)
-    canonical_argv = request.canonical_argv or _canonical_argv(args)
-    security_index = _security_index_reference(built)
-    manifest = _build_manifest(
-        args=args,
-        bundle=bundle,
-        result=result,
-        config=config,
-        runtime=runtime,
-        production_index=production_index,
-        security_index=security_index,
-        r1_hashes=r1_hashes,
-        git_provenance=git_provenance,
-        installed_dependencies=installed_dependencies,
-        canonical_argv=canonical_argv,
-        started_at=started_at,
-        completed_at=completed_at,
-        index_embedding_call_count=built.embedding_call_count,
-        experiment=request.experiment,
-        evaluator_path=request.evaluator_path,
-        transport=transport,
-    )
-    forbidden_texts = _forbidden_fixture_texts(bundle)
-    output = publish_live_security_run(
-        output_root,
-        manifest,
-        result,
-        paired_evidence=_paired_evidence(result),
-        commands=" ".join(canonical_argv) + "\n",
-        test_output=_preflight_evidence(
-            runtime,
-            smoke,
-            production_index,
-            security_index,
-            built,
-            index_egress.allowed_http_request_count,
-        ),
-        forbidden_texts=forbidden_texts,
-    )
-    verified = verify_live_security_run(output)
+        if not isinstance(result, LivePairedResultV2):
+            raise RuntimeError("future live evaluation did not produce a v2 result")
+        post_runtime = fetch_ollama_runtime(config, settings.embedding_model)
+        _assert_ollama_runtime_stable(runtime, post_runtime)
+        if request.experiment is not None:
+            validate_v3_cross_model_plan_binding(
+                request.experiment,
+                embedding=post_runtime.embedding,
+                chat=post_runtime.chat,
+            )
+        _assert_git_provenance_stable(
+            git_provenance,
+            _git_provenance(BASE_DIR),
+        )
+        completed_at = datetime.now(timezone.utc)
+        canonical_argv = request.canonical_argv or _canonical_argv(args)
+        security_index = _security_index_reference(built)
+        manifest = _build_manifest(
+            args=args,
+            bundle=bundle,
+            result=result,
+            config=config,
+            runtime=runtime,
+            production_index=production_index,
+            security_index=security_index,
+            r1_hashes=r1_hashes,
+            git_provenance=git_provenance,
+            installed_dependencies=installed_dependencies,
+            canonical_argv=canonical_argv,
+            started_at=started_at,
+            completed_at=completed_at,
+            index_embedding_call_count=built.embedding_call_count,
+            experiment=request.experiment,
+            evaluator_path=request.evaluator_path,
+            transport=transport,
+        )
+        forbidden_texts = _forbidden_fixture_texts(bundle)
+        output = publish_live_security_run(
+            output_root,
+            manifest,
+            result,
+            paired_evidence=_paired_evidence(result),
+            commands=" ".join(canonical_argv) + "\n",
+            test_output=_preflight_evidence(
+                runtime,
+                smoke,
+                production_index,
+                security_index,
+                built,
+                index_egress.allowed_http_request_count,
+            ),
+            forbidden_texts=forbidden_texts,
+        )
+        verified = verify_live_security_run(output)
     if not isinstance(
         verified,
         (LiveSecurityRunManifestV3, LiveSecurityRunManifestV2),
     ):
         raise RuntimeError("published live run did not verify as a v2/v3 manifest")
     return LiveExecutionOutcome(output_dir=output, manifest=verified)
+
+
+def _assert_ollama_runtime_stable(
+    before: OllamaRuntimeSnapshot,
+    after: OllamaRuntimeSnapshot,
+) -> None:
+    if before != after:
+        raise ValueError("Ollama model/runtime identity changed during live evaluation")
 
 
 def _validate_execution_request(request: LiveExecutionRequest) -> None:

@@ -91,6 +91,7 @@ def export_cross_model_public(private_run: Path, output_dir: Path) -> Path:
     """Verify a private matrix, project safe fields, and publish once."""
 
     snapshot = load_verified_cross_model_run_snapshot(Path(private_run))
+    _require_public_source_eligible(snapshot.manifest)
     snapshot.assert_unchanged()
     rows = tuple(_project_row(snapshot, row) for row in snapshot.rows)
     verifier_path = Path(trusted_verifier.__file__)
@@ -133,6 +134,22 @@ def export_cross_model_public(private_run: Path, output_dir: Path) -> Path:
         shutil.rmtree(stage, ignore_errors=True)
         raise
     return target.resolve()
+
+
+def _require_public_source_eligible(manifest: Any) -> None:
+    components = manifest.components
+    if (
+        manifest.decision == "INCONCLUSIVE"
+        or set(components) != {"baseline", "replication"}
+        or any(
+            not components[role].protocol_complete
+            for role in ("baseline", "replication")
+        )
+    ):
+        raise ValueError(
+            "public evidence source is not eligible: private observation is "
+            "inconclusive or has an incomplete component"
+        )
 
 
 def _project_row(

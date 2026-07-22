@@ -109,6 +109,7 @@ _REPARSE_POINT_ATTRIBUTE = getattr(
     0x400,
 )
 _FileIdentity = tuple[int, int, int, int, int, int]
+_DirectoryIdentity = tuple[int, int, int, int]
 
 
 class _StrictFrozenModel(BaseModel):
@@ -276,9 +277,20 @@ class VerifiedCrossModelRunSnapshot:
     manifest_sha256: str
     artifacts: Mapping[str, bytes]
     _identities: Mapping[str, _FileIdentity]
+    _directory_identities: tuple[tuple[Path, _DirectoryIdentity], ...] = ()
 
     def assert_unchanged(self) -> None:
         try:
+            for path, expected in self._directory_identities:
+                observed = path.lstat()
+                if (
+                    _is_redirecting_path(observed)
+                    or not stat.S_ISDIR(observed.st_mode)
+                    or _directory_identity(observed) != expected
+                ):
+                    raise ValueError(
+                        "cross-model directory identity changed after verification"
+                    )
             names = {item.name for item in self.run_dir.iterdir()}
             if names != set(PRIVATE_CROSS_MODEL_ARTIFACT_FILES):
                 raise ValueError("cross-model package changed after verification")
@@ -407,11 +419,15 @@ def publish_cross_model_run(
 def load_verified_cross_model_run_snapshot(
     run_dir: Path,
 ) -> VerifiedCrossModelRunSnapshot:
-    trusted = _validated_trusted_directory(
+    trusted, directory_identities = _validated_trusted_directory_snapshot(
         Path(run_dir),
         "cross-model run directory",
     )
-    snapshot = _validate_package(trusted, require_directory_identity=True)
+    snapshot = _validate_package(
+        trusted,
+        require_directory_identity=True,
+        directory_identities=directory_identities,
+    )
     snapshot.assert_unchanged()
     return snapshot
 
@@ -844,6 +860,7 @@ def _validate_package(
     run_dir: Path,
     *,
     require_directory_identity: bool,
+    directory_identities: tuple[tuple[Path, _DirectoryIdentity], ...] = (),
 ) -> VerifiedCrossModelRunSnapshot:
     names = {item.name for item in run_dir.iterdir()}
     if names != set(PRIVATE_CROSS_MODEL_ARTIFACT_FILES):
@@ -913,6 +930,7 @@ def _validate_package(
         manifest_sha256=_sha256_bytes(artifacts["manifest.json"]),
         artifacts=artifacts,
         _identities=identities,
+        _directory_identities=directory_identities,
     )
 
 
@@ -1108,11 +1126,19 @@ def _validated_repository_file(repository: Path, path: Path, label: str) -> Path
 
 
 def _validated_trusted_directory(path: Path, label: str) -> Path:
+    lexical, _ = _validated_trusted_directory_snapshot(path, label)
+    return lexical
+
+
+def _validated_trusted_directory_snapshot(
+    path: Path,
+    label: str,
+) -> tuple[Path, tuple[tuple[Path, _DirectoryIdentity], ...]]:
     lexical = Path(os.path.abspath(path))
-    current = Path(lexical.anchor)
+    chain = tuple(reversed((lexical, *lexical.parents)))
+    identities: list[tuple[Path, _DirectoryIdentity]] = []
     try:
-        for part in lexical.parts[1:]:
-            current = current / part
+        for current in chain:
             observed = current.lstat()
             if _is_redirecting_path(observed):
                 raise ValueError(
@@ -1120,9 +1146,12 @@ def _validated_trusted_directory(path: Path, label: str) -> Path:
                 )
             if not stat.S_ISDIR(observed.st_mode):
                 raise FileNotFoundError(f"{label} not found: {path}")
+            identities.append((current, _directory_identity(observed)))
+    except ValueError:
+        raise
     except OSError as exc:
         raise FileNotFoundError(f"{label} not found: {path}") from exc
-    return lexical.resolve()
+    return lexical, tuple(identities)
 
 
 def _validated_fixed_regular_path(root: Path, relative: Path, label: str) -> Path:
@@ -1148,22 +1177,46 @@ def _read_regular_file_snapshot(
     path: Path,
     label: str,
 ) -> tuple[bytes, _FileIdentity]:
+    descriptor = -1
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
     try:
-        before = path.lstat()
-        if _is_redirecting_path(before) or not stat.S_ISREG(before.st_mode):
+        path_before = path.lstat()
+        if _is_redirecting_path(path_before) or not stat.S_ISREG(path_before.st_mode):
             raise ValueError(f"{label} must be a regular non-symlink file")
-        payload = path.read_bytes()
-        after = path.lstat()
+        descriptor = os.open(path, flags)
+        descriptor_before = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(descriptor_before.st_mode)
+            or _file_identity(descriptor_before) != _file_identity(path_before)
+        ):
+            raise ValueError(f"{label} identity changed before descriptor read")
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        descriptor_after = os.fstat(descriptor)
+        path_after = path.lstat()
+    except ValueError:
+        raise
     except OSError as exc:
         raise ValueError(f"{label} must be a regular non-symlink file") from exc
-    identity = _file_identity(before)
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    identity = _file_identity(path_before)
+    payload = b"".join(chunks)
     if (
-        _is_redirecting_path(after)
-        or not stat.S_ISREG(after.st_mode)
-        or _file_identity(after) != identity
-        or len(payload) != before.st_size
+        _is_redirecting_path(path_after)
+        or not stat.S_ISREG(path_after.st_mode)
+        or _file_identity(descriptor_before) != identity
+        or _file_identity(descriptor_after) != identity
+        or _file_identity(path_after) != identity
+        or len(payload) != path_before.st_size
     ):
-        raise ValueError(f"{label} changed during snapshot read")
+        raise ValueError(f"{label} identity changed during descriptor read")
     return payload, identity
 
 
@@ -1195,6 +1248,15 @@ def _file_identity(value: os.stat_result) -> _FileIdentity:
         value.st_size,
         value.st_mtime_ns,
         value.st_ctime_ns,
+    )
+
+
+def _directory_identity(value: os.stat_result) -> _DirectoryIdentity:
+    return (
+        value.st_dev,
+        value.st_ino,
+        stat.S_IFMT(value.st_mode),
+        getattr(value, "st_file_attributes", 0),
     )
 
 

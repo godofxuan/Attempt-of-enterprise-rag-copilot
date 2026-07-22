@@ -24,6 +24,7 @@ from app.domain.retrieved_security import (
     MAX_SCAN_CHARS,
 )
 from app.evaluation.indirect_injection_cross_model import (
+    CLEAN_GIT_STATE_SHA256,
     CrossModelModelPlan,
     CrossModelPlanV1,
     compare_verified_runs,
@@ -36,6 +37,11 @@ from app.evaluation.indirect_injection_cross_model_writer import (
 from app.evaluation.indirect_injection_dataset import (
     LoadedSecurityBundle,
     load_security_bundle,
+)
+from app.evaluation.ollama_evaluation_lock import (
+    evaluation_lock,
+    evaluation_lock_path,
+    normalized_ollama_origin,
 )
 from app.evaluation.indirect_injection_live_runner import (
     LiveSecurityConfig,
@@ -144,6 +150,28 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _configured_ollama_origin() -> str:
+    settings = get_settings()
+    baseline = LiveSecurityConfig(
+        llm_endpoint=settings.llm_base_url,
+        chat_model="qwen2.5:3b",
+        structured_generation_max_attempts=settings.structured_generation_max_attempts,
+    )
+    return baseline.ollama_origin
+
+
+def _normalized_ollama_origin(origin: str) -> str:
+    return normalized_ollama_origin(origin)
+
+
+def _evaluation_lock_path(origin: str, *, lock_root: Path | None = None) -> Path:
+    return evaluation_lock_path(origin, lock_root=lock_root)
+
+
+def _evaluation_lock(origin: str, *, lock_root: Path | None = None):
+    return evaluation_lock(origin, lock_root=lock_root)
+
+
 def fetch_ollama_identities(plan: CrossModelPlanV1) -> OllamaIdentitySnapshot:
     """Read the local Ollama tags once for every fixed identity in the plan."""
 
@@ -202,13 +230,19 @@ def admit_existing_component(
     manifest = verify_live_security_run(target)
     if not isinstance(manifest, LiveSecurityRunManifestV3):
         raise ValueError("existing component is not a complete V3 live run")
+    valid_observation_state = (
+        manifest.status == "COMPLETED WITH OBSERVATIONS"
+        and manifest.observation.protocol_complete
+    ) or (
+        manifest.status == "FAILED"
+        and not manifest.observation.protocol_complete
+    )
     if (
         manifest.run_id != component.run_id
         or manifest.split != plan.split
-        or manifest.status != "COMPLETED WITH OBSERVATIONS"
-        or not manifest.observation.protocol_complete
+        or not valid_observation_state
     ):
-        raise ValueError("existing component has incomplete or contradictory run binding")
+        raise ValueError("existing component has contradictory run binding")
     experiment = manifest.experiment
     if (
         experiment.plan_id != plan.experiment_id
@@ -292,6 +326,13 @@ def run_component(
     outcome = execute_live_security_run(request)
     if _validated_lexical_path(outcome.output_dir, "returned component output") != target:
         raise ValueError("new component returned a contradictory output path")
+    post_runtime = fetch_ollama_identities(plan)
+    _assert_ollama_identity_snapshot_stable(
+        runtime,
+        post_runtime,
+        scope="component execution",
+    )
+    _validate_runtime_identities(plan, post_runtime)
     return ComponentRun(
         role=component.role,
         reused=False,
@@ -302,7 +343,7 @@ def run_component(
             component=component,
             git_provenance=git_provenance,
             context=context,
-            runtime=runtime,
+            runtime=post_runtime,
             execution=execution,
         ),
     )
@@ -310,12 +351,18 @@ def run_component(
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    plan, plan_sha256 = load_cross_model_plan(Path(args.plan))
+    args.plan = _validated_canonical_plan_path(Path(args.plan))
+    with _evaluation_lock(_configured_ollama_origin()):
+        return _main_locked(args)
+
+
+def _main_locked(args: argparse.Namespace) -> int:
+    plan, plan_sha256 = load_cross_model_plan(args.plan)
     _validate_plan_execution_targets(plan)
     _validate_execution_paths(args, plan)
+    _preflight_execution_state(args, plan, plan_sha256)
     git_provenance = _git_provenance(BASE_DIR)
-    if git_provenance.get("dirty"):
-        raise ValueError("cross-model execution requires one clean Git snapshot")
+    _require_clean_git_provenance(git_provenance)
     context = _load_component_context(plan)
     component_paths = {
         component.role: Path(args.out_dir) / component.run_id
@@ -345,7 +392,7 @@ def main(argv: list[str] | None = None) -> int:
                 sort_keys=True,
             )
         )
-        return 1 if manifest.decision == "INCONCLUSIVE" else 0
+        return _decision_exit_code(manifest.decision)
 
     runtime = fetch_ollama_identities(plan)
     _validate_runtime_identities(plan, runtime)
@@ -427,7 +474,7 @@ def main(argv: list[str] | None = None) -> int:
             sort_keys=True,
         )
     )
-    return 1 if matrix_manifest.decision == "INCONCLUSIVE" else 0
+    return _decision_exit_code(matrix_manifest.decision)
 
 
 def _load_component_context(plan: CrossModelPlanV1) -> ComponentContext:
@@ -598,6 +645,27 @@ def _validate_runtime_identities(
             raise ValueError("Ollama identities contradict the frozen chat plan")
 
 
+def _require_clean_git_provenance(git_provenance: Mapping[str, object]) -> None:
+    if (
+        git_provenance.get("dirty") is not False
+        or git_provenance.get("status_entry_count") != 0
+        or git_provenance.get("dirty_state_sha256") != CLEAN_GIT_STATE_SHA256
+    ):
+        raise ValueError(
+            "cross-model execution requires one exact clean Git snapshot"
+        )
+
+
+def _assert_ollama_identity_snapshot_stable(
+    before: OllamaIdentitySnapshot,
+    after: OllamaIdentitySnapshot,
+    *,
+    scope: str,
+) -> None:
+    if before != after:
+        raise ValueError(f"Ollama model/runtime identity changed during {scope}")
+
+
 def _validate_data_binding(
     manifest: LiveSecurityRunManifestV3,
     plan: CrossModelPlanV1,
@@ -739,6 +807,135 @@ def _validate_execution_paths(
     for label, path in targets:
         _reject_frozen_formal_d7_path(path, label)
 
+    final_targets = [
+        ("matrix output", matrix_target),
+        *(
+            ("component output", output_root / component.run_id)
+            for component in plan.chat_models
+        ),
+        *(
+            ("component index", index_root / component.run_id)
+            for component in plan.chat_models
+        ),
+    ]
+    _validate_final_target_topology(final_targets)
+
+
+def _validated_canonical_plan_path(path: Path) -> Path:
+    supplied = _absolute_lexical(path)
+    canonical = _absolute_lexical(DEFAULT_PLAN_PATH)
+    _validate_lexical_chain(supplied, "cross-model plan")
+    _validate_lexical_chain(canonical, "canonical cross-model plan")
+    try:
+        observed = supplied.lstat()
+        canonical_observed = canonical.lstat()
+    except OSError as exc:
+        raise ValueError("cross-model plan must be the canonical checked-in plan") from exc
+    if (
+        _is_redirecting_path(observed)
+        or _is_redirecting_path(canonical_observed)
+        or not stat.S_ISREG(observed.st_mode)
+        or not stat.S_ISREG(canonical_observed.st_mode)
+        or supplied.resolve() != canonical.resolve()
+    ):
+        raise ValueError("cross-model plan must be the canonical checked-in plan")
+    return canonical.resolve()
+
+
+def _preflight_execution_state(
+    args: argparse.Namespace,
+    plan: CrossModelPlanV1,
+    plan_sha256: str,
+) -> None:
+    output_root = Path(args.out_dir)
+    index_root = Path(args.index_root)
+    matrix_root = Path(args.matrix_out_dir)
+    _reject_matching_staging_entries(
+        matrix_root,
+        f".{plan.matrix_run_id}.staging-",
+        "matrix output",
+    )
+    for component in plan.chat_models:
+        output_target = output_root / component.run_id
+        index_target = index_root / component.run_id
+        _reject_matching_staging_entries(
+            output_root,
+            f".{component.run_id}.staging-",
+            f"{component.role} component output",
+        )
+        output_exists = _lexical_exists(output_target)
+        index_exists = _lexical_exists(index_target)
+        if not output_exists:
+            if index_exists:
+                raise ValueError(
+                    "orphan auxiliary index detected before model activity; "
+                    "the immutable run ID is non-resumable and requires a "
+                    "reviewed plan with new run IDs"
+                )
+            continue
+        try:
+            manifest = verify_live_security_run(output_target)
+        except (OSError, ValueError) as exc:
+            raise ValueError(
+                f"partial or invalid {component.role} component output: {exc}"
+            ) from exc
+        if not isinstance(manifest, LiveSecurityRunManifestV3):
+            raise ValueError(
+                f"{component.role} component is not a structurally valid V3 package"
+            )
+        experiment = manifest.experiment
+        if (
+            manifest.run_id != component.run_id
+            or manifest.split != plan.split
+            or experiment.plan_id != plan.experiment_id
+            or experiment.plan_sha256 != plan_sha256
+            or experiment.model_role != component.role
+            or experiment.only_changed_variable != plan.only_changed_variable
+        ):
+            raise ValueError(
+                f"{component.role} component has contradictory frozen-plan binding"
+            )
+
+
+def _reject_matching_staging_entries(
+    root: Path,
+    prefix: str,
+    label: str,
+) -> None:
+    if not _lexical_exists(root):
+        return
+    try:
+        matches = sorted(
+            child.name for child in root.iterdir() if child.name.startswith(prefix)
+        )
+    except OSError as exc:
+        raise ValueError(f"{label} staging state cannot be inspected") from exc
+    if matches:
+        raise ValueError(
+            f"stale staging state exists for {label}: {matches[0]}"
+        )
+
+
+def _validate_final_target_topology(
+    targets: list[tuple[str, Path]],
+) -> None:
+    resolved = [(label, path.resolve()) for label, path in targets]
+    for index, (left_label, left) in enumerate(resolved):
+        for right_label, right in resolved[index + 1 :]:
+            if _same_or_nested(left, right) or _same_or_nested(right, left):
+                raise ValueError(
+                    "planned final targets overlap or are nested: "
+                    f"{left_label}={left} and {right_label}={right}"
+                )
+
+
+def _same_or_nested(parent: Path, child: Path) -> bool:
+    try:
+        child.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
 
 def _validated_lexical_directory(path: Path, label: str) -> Path:
     absolute = _absolute_lexical(path)
@@ -835,6 +1032,14 @@ def _canonical_argv(args: argparse.Namespace) -> tuple[str, ...]:
         "--matrix-out-dir",
         _safe_display_path(Path(args.matrix_out_dir).resolve(), BASE_DIR),
     )
+
+
+def _decision_exit_code(decision: str) -> int:
+    if decision in {"CONSISTENT_OBSERVATION", "DIVERGENT_OBSERVATION"}:
+        return 0
+    if decision == "INCONCLUSIVE":
+        return 1
+    raise ValueError(f"unsupported cross-model decision: {decision}")
 
 
 def _model_dump(value: object) -> object:

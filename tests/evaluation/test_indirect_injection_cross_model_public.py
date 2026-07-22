@@ -31,11 +31,19 @@ from app.evaluation.indirect_injection_cross_model_public_verifier import (
 from app.evaluation.indirect_injection_cross_model_writer import (
     load_verified_cross_model_run_snapshot,
     publish_cross_model_run,
+    validate_current_cross_model_bindings,
+    verify_cross_model_run,
+)
+from app.evaluation.indirect_injection_live_writer import (
+    LiveSecurityRunManifestV3,
+    publish_live_security_run,
 )
 from tests.evaluation import (
     test_indirect_injection_cross_model_writer as private_fixtures,
 )
+from tests.evaluation import test_indirect_injection_live_writer as live_fixtures
 from tests.evaluation.path_redirect_helpers import directory_redirect
+from scripts import eval_indirect_injection_cross_model
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -500,6 +508,185 @@ def test_packaged_verifier_runs_isolated_without_repo_or_pythonpath(
     assert imported_roots <= set(sys.stdlib_module_names) | {"__future__"}
     assert "app" not in imported_roots
     assert "pydantic" not in imported_roots
+
+
+def test_independent_verifier_counts_generation_system_error_as_model_error(
+    public_package: Path,
+) -> None:
+    rows = _rows(public_package)
+    baseline_rows = [row for row in rows if row["model_role"] == "baseline"]
+    replication_rows = [
+        row for row in rows if row["model_role"] == "replication"
+    ]
+    baseline_rows[0]["off"]["generation_system_error"] = True
+
+    baseline = public_verifier._summarize_model(
+        "baseline",
+        BASELINE_MODEL_DIGEST,
+        baseline_rows,
+    )
+    replication = public_verifier._summarize_model(
+        "replication",
+        REPLICATION_MODEL_DIGEST,
+        replication_rows,
+    )
+    decision, reasons = public_verifier._comparison_decision(
+        {"baseline": baseline, "replication": replication},
+        baseline_rows + replication_rows,
+    )
+
+    assert baseline["metrics"]["model_error_count"]["value"] == 1.0
+    assert baseline["protocol_complete"] is False
+    assert baseline["non_release_safety_diagnostic"]["model_errors_zero"] is False
+    assert baseline["non_release_safety_diagnostic"]["passed"] is False
+    assert decision == "INCONCLUSIVE"
+    assert reasons == ("component_protocol_incomplete",)
+
+
+def test_public_export_rejects_private_inconclusive_or_failed_source(
+    private_matrix: tuple[Path, object],
+) -> None:
+    snapshot = load_verified_cross_model_run_snapshot(private_matrix[0])
+    inconclusive_manifest = snapshot.manifest.model_copy(
+        update={"decision": "INCONCLUSIVE"}
+    )
+    failed_components = dict(snapshot.manifest.components)
+    failed_components["baseline"] = failed_components["baseline"].model_copy(
+        update={"protocol_complete": False}
+    )
+    failed_manifest = snapshot.manifest.model_copy(
+        update={"components": failed_components}
+    )
+
+    with pytest.raises(ValueError, match="public evidence source is not eligible"):
+        public_exporter._require_public_source_eligible(inconclusive_manifest)
+    with pytest.raises(ValueError, match="public evidence source is not eligible"):
+        public_exporter._require_public_source_eligible(failed_manifest)
+
+
+def test_failed_v3_component_publishes_private_inconclusive_and_public_rejects(
+    tmp_path: Path,
+    writer_v3_inputs,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle, built, result = writer_v3_inputs
+    failed_off_cases = list(result.security.guard_off.cases)
+    failed_off_cases[0] = failed_off_cases[0].model_copy(
+        update={"answer_mode": "system"}
+    )
+    failed_security = result.security.model_copy(
+        update={
+            "guard_off": result.security.guard_off.model_copy(
+                update={"cases": tuple(failed_off_cases)}
+            )
+        }
+    )
+    failed_result = result.model_copy(
+        update={
+            "status": "FAILED",
+            "protocol_complete": False,
+            "security": failed_security,
+            "guard_off_summary": private_fixtures._summarize_live_mode(
+                "off",
+                result.guard_off,
+                tuple(failed_off_cases),
+            ),
+        }
+    )
+    component_root = tmp_path / "components"
+    component_root.mkdir()
+    forbidden = live_fixtures._forbidden_texts(bundle)
+    baseline_payload = private_fixtures._component_manifest(
+        bundle,
+        built,
+        result,
+        "baseline",
+    ).model_dump(mode="python")
+    baseline_payload.update({"status": "FAILED"})
+    baseline_payload["observation"].update(
+        {"status": "FAILED", "protocol_complete": False}
+    )
+    baseline_payload["evaluator"]["exit_code"] = 1
+    baseline = publish_live_security_run(
+        component_root,
+        LiveSecurityRunManifestV3.model_validate(baseline_payload),
+        failed_result,
+        paired_evidence="failed generation-system fixture\n",
+        commands="offline fixture\n",
+        test_output="offline fixture\n",
+        forbidden_texts=forbidden,
+    )
+    replication = publish_live_security_run(
+        component_root,
+        private_fixtures._component_manifest(bundle, built, result, "replication"),
+        result,
+        paired_evidence="offline fixture\n",
+        commands="offline fixture\n",
+        test_output="offline fixture\n",
+        forbidden_texts=forbidden,
+    )
+    components = {"baseline": baseline, "replication": replication}
+    comparison = private_fixtures._compare(bundle, components)
+
+    assert comparison.decision == "INCONCLUSIVE"
+    assert comparison.summaries["baseline"].protocol_complete is False
+    assert comparison.summaries["baseline"].metrics["model_error_count"].value == 1.0
+
+    matrix = publish_cross_model_run(
+        tmp_path / "matrix",
+        comparison,
+        plan_path=private_fixtures.PLAN_PATH,
+        component_runs=components,
+        commands="offline failed-component fixture\n",
+        forbidden_texts=forbidden,
+        code_root=REPO_ROOT,
+    )
+    manifest = verify_cross_model_run(matrix)
+
+    assert manifest.decision == "INCONCLUSIVE"
+    assert manifest.components["baseline"].protocol_complete is False
+    admitted = validate_current_cross_model_bindings(
+        matrix,
+        plan_path=private_fixtures.PLAN_PATH,
+        component_runs=components,
+        code_root=REPO_ROOT,
+        current_git=manifest.git,
+    )
+    assert admitted.decision == "INCONCLUSIVE"
+    forbidden_calls: list[str] = []
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_git_provenance",
+        lambda _root: manifest.git.model_dump(mode="python"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "_capture_current_effective_static_binding",
+        lambda _plan, _args: None,
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "fetch_ollama_identities",
+        lambda _plan: forbidden_calls.append("identity"),
+    )
+    monkeypatch.setattr(
+        eval_indirect_injection_cross_model,
+        "execute_live_security_run",
+        lambda _request: forbidden_calls.append("execute"),
+    )
+    assert eval_indirect_injection_cross_model.main(
+        [
+            "--out-dir",
+            str(component_root),
+            "--index-root",
+            str(tmp_path / "indexes"),
+            "--matrix-out-dir",
+            str(tmp_path / "matrix"),
+        ]
+    ) == 1
+    assert forbidden_calls == []
+    with pytest.raises(ValueError, match="public evidence source is not eligible"):
+        export_cross_model_public(matrix, tmp_path / "public")
 
 
 @pytest.mark.parametrize(

@@ -3,12 +3,14 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import os
 import shutil
 import stat
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path, PurePosixPath, PureWindowsPath
+from types import MappingProxyType
 from typing import Any, Literal, Mapping
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -59,6 +61,7 @@ _REPARSE_POINT_ATTRIBUTE = getattr(
     0x400,
 )
 _FileIdentity = tuple[int, int, int, int, int, int]
+_DirectoryIdentity = tuple[int, int, int, int]
 
 
 @dataclass(frozen=True)
@@ -67,22 +70,64 @@ class VerifiedLiveSecurityRunSnapshot:
     manifest: LiveSecurityRunManifest
     manifest_bytes: bytes
     manifest_sha256: str
-    _manifest_identity: _FileIdentity
+    _artifacts: Mapping[str, bytes] = field(default_factory=dict)
+    _artifact_identities: Mapping[str, _FileIdentity] = field(default_factory=dict)
+    _directory_identities: tuple[tuple[Path, _DirectoryIdentity], ...] = ()
+    _manifest_identity: _FileIdentity | None = None
 
-    def assert_manifest_unchanged(self) -> None:
-        path = self.run_dir / "manifest.json"
+    def artifact_bytes(self, name: str) -> bytes:
         try:
-            current = path.lstat()
+            return self._artifacts[name]
+        except KeyError as exc:
+            raise KeyError(f"unknown live security artifact: {name}") from exc
+
+    def assert_unchanged(self) -> None:
+        expected_names = {*_ARTIFACT_NAMES, "manifest.json"}
+        try:
+            for path, expected in self._directory_identities:
+                observed = path.lstat()
+                if (
+                    _is_redirecting_path(observed)
+                    or not stat.S_ISDIR(observed.st_mode)
+                    or _directory_identity(observed) != expected
+                ):
+                    raise ValueError(
+                        "live security directory identity changed during verification"
+                    )
+            if not self._artifact_identities and self._manifest_identity is not None:
+                observed = (self.run_dir / "manifest.json").lstat()
+                if (
+                    _is_redirecting_path(observed)
+                    or not stat.S_ISREG(observed.st_mode)
+                    or _file_identity(observed) != self._manifest_identity
+                ):
+                    raise ValueError(
+                        "live security manifest changed during verification"
+                    )
+                return
+            if {item.name for item in self.run_dir.iterdir()} != expected_names:
+                raise ValueError(
+                    "live security artifact set changed during verification"
+                )
+            for name, expected in self._artifact_identities.items():
+                observed = (self.run_dir / name).lstat()
+                if (
+                    _is_redirecting_path(observed)
+                    or not stat.S_ISREG(observed.st_mode)
+                    or _file_identity(observed) != expected
+                ):
+                    raise ValueError(
+                        f"live security artifact changed during verification: {name}"
+                    )
+        except ValueError:
+            raise
         except OSError as exc:
             raise ValueError(
-                "live security manifest changed during verification"
+                "live security package changed during verification"
             ) from exc
-        if (
-            _is_redirecting_path(current)
-            or not stat.S_ISREG(current.st_mode)
-            or _file_identity(current) != self._manifest_identity
-        ):
-            raise ValueError("live security manifest changed during verification")
+
+    def assert_manifest_unchanged(self) -> None:
+        self.assert_unchanged()
 
 
 _CHECKSUM_CONTENT_NAMES = tuple(sorted(_ARTIFACT_NAMES - {"checksums.sha256"}))
@@ -763,7 +808,7 @@ def _v2_case_failure_codes(
 
 
 def _validate_v2_per_case_rows(
-    path: Path,
+    raw: bytes | Path,
     manifest: LiveSecurityRunManifestV2,
 ) -> tuple[
     tuple[SecurityCaseResult, ...],
@@ -771,7 +816,11 @@ def _validate_v2_per_case_rows(
     tuple[LiveCaseObservation, ...],
     tuple[LiveCaseObservation, ...],
 ]:
-    lines = path.read_text(encoding="utf-8").splitlines()
+    try:
+        payload = raw.read_bytes() if isinstance(raw, Path) else raw
+        lines = payload.decode("utf-8").splitlines()
+    except UnicodeDecodeError as exc:
+        raise ValueError("v2 per-case evidence must be UTF-8") from exc
     if len(lines) != manifest.arm_order.case_count * 2:
         raise ValueError("v2 per-case row count does not match the arm-order plan")
 
@@ -906,6 +955,8 @@ def _validate_v2_summary(
         and all(item.retrieval_completed for item in on_live)
         and all(not item.model_error_codes for item in off_live)
         and all(not item.model_error_codes for item in on_live)
+        and all(item.answer_mode != "system" for item in off_security)
+        and all(item.answer_mode != "system" for item in on_security)
     )
     status: LiveRunStatus = (
         "COMPLETED WITH OBSERVATIONS" if protocol_complete else "FAILED"
@@ -967,17 +1018,29 @@ def _validate_stage(
     manifest: LiveSecurityRunManifest,
     *,
     manifest_bytes: bytes | None = None,
+    artifact_bytes: Mapping[str, bytes] | None = None,
 ) -> None:
     expected = {*_ARTIFACT_NAMES, "manifest.json"}
-    if {path.name for path in stage.iterdir()} != expected:
-        raise ValueError("live security run has an unexpected artifact set")
-    for name in sorted(expected):
-        _validated_fixed_regular_path(
-            stage,
-            Path(name),
-            f"live security artifact {name}",
-        )
-    summary_bytes = (stage / "summary.json").read_bytes()
+    if artifact_bytes is None:
+        if {path.name for path in stage.iterdir()} != expected:
+            raise ValueError("live security run has an unexpected artifact set")
+        captured: dict[str, bytes] = {}
+        for name in sorted(expected):
+            path = _validated_fixed_regular_path(
+                stage,
+                Path(name),
+                f"live security artifact {name}",
+            )
+            captured[name] = path.read_bytes()
+        files: Mapping[str, bytes] = captured
+    else:
+        if set(artifact_bytes) != expected:
+            raise ValueError("live security run has an unexpected artifact set")
+        files = artifact_bytes
+    if manifest_bytes is not None and files["manifest.json"] != manifest_bytes:
+        raise ValueError("captured live manifest bytes differ")
+
+    summary_bytes = files["summary.json"]
     summary = json.loads(summary_bytes.decode("utf-8"))
     if summary_bytes != _json_bytes(summary):
         raise ValueError("live summary is not canonical JSON")
@@ -988,40 +1051,36 @@ def _validate_stage(
             chat=manifest.models.chat,
         )
         parsed_rows = _validate_v2_per_case_rows(
-            stage / "per_case.jsonl",
+            files["per_case.jsonl"],
             manifest,
         )
         _validate_v2_summary(summary, manifest, parsed_rows)
     elif isinstance(manifest, LiveSecurityRunManifestV2):
         parsed_rows = _validate_v2_per_case_rows(
-            stage / "per_case.jsonl",
+            files["per_case.jsonl"],
             manifest,
         )
         _validate_v2_summary(summary, manifest, parsed_rows)
     else:
-        for line in (
-            (stage / "per_case.jsonl").read_text(encoding="utf-8").splitlines()
-        ):
+        for line in files["per_case.jsonl"].decode("utf-8").splitlines():
             json.loads(line)
     for name, evidence in manifest.artifacts.items():
-        artifact = stage / name
         if (
-            artifact.stat().st_size != evidence.bytes
-            or _sha256(artifact) != evidence.sha256
+            len(files[name]) != evidence.bytes
+            or hashlib.sha256(files[name]).hexdigest() != evidence.sha256
         ):
             raise ValueError(f"live artifact evidence mismatch: {name}")
-    checksum_rows = (stage / "checksums.sha256").read_text(
-        encoding="utf-8"
-    ).splitlines()
+    checksum_rows = files["checksums.sha256"].decode("utf-8").splitlines()
     expected_rows = [
-        f"{_sha256(stage / name)}  {name}" for name in _CHECKSUM_CONTENT_NAMES
+        f"{hashlib.sha256(files[name]).hexdigest()}  {name}"
+        for name in _CHECKSUM_CONTENT_NAMES
     ]
     if checksum_rows != expected_rows:
         raise ValueError("live checksum file does not match artifacts")
     parsed = type(manifest).model_validate_json(
         manifest_bytes
         if manifest_bytes is not None
-        else (stage / "manifest.json").read_bytes()
+        else files["manifest.json"]
     )
     if parsed != manifest:
         raise ValueError("live manifest did not round-trip")
@@ -1030,15 +1089,27 @@ def _validate_stage(
 def load_verified_live_security_run_snapshot(
     run_dir: Path,
 ) -> VerifiedLiveSecurityRunSnapshot:
-    run_dir = _validated_trusted_directory(
+    run_dir, directory_identities = _validated_trusted_directory(
         Path(run_dir),
         "live security run directory",
     )
-    manifest_path = run_dir / "manifest.json"
-    manifest_bytes, manifest_identity = _read_regular_file_snapshot(
-        manifest_path,
-        "live security manifest",
-    )
+    expected = {*_ARTIFACT_NAMES, "manifest.json"}
+    try:
+        names = {path.name for path in run_dir.iterdir()}
+    except OSError as exc:
+        raise ValueError("live security run cannot be listed") from exc
+    if names != expected:
+        raise ValueError("live security run has an unexpected artifact set")
+    artifacts: dict[str, bytes] = {}
+    identities: dict[str, _FileIdentity] = {}
+    for name in sorted(expected):
+        payload, identity = _read_regular_file_snapshot(
+            run_dir / name,
+            f"live security artifact {name}",
+        )
+        artifacts[name] = payload
+        identities[name] = identity
+    manifest_bytes = artifacts["manifest.json"]
     payload = json.loads(manifest_bytes)
     if not isinstance(payload, dict):
         raise ValueError("live security manifest must be a JSON object")
@@ -1059,15 +1130,22 @@ def load_verified_live_security_run_snapshot(
     manifest = manifest_type.model_validate_json(manifest_bytes)
     if run_dir.name != manifest.run_id:
         raise ValueError("live security run directory name contradicts manifest")
-    _validate_stage(run_dir, manifest, manifest_bytes=manifest_bytes)
+    _validate_stage(
+        run_dir,
+        manifest,
+        manifest_bytes=manifest_bytes,
+        artifact_bytes=artifacts,
+    )
     snapshot = VerifiedLiveSecurityRunSnapshot(
         run_dir=run_dir,
         manifest=manifest,
         manifest_bytes=manifest_bytes,
         manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
-        _manifest_identity=manifest_identity,
+        _artifacts=MappingProxyType(dict(artifacts)),
+        _artifact_identities=MappingProxyType(dict(identities)),
+        _directory_identities=directory_identities,
     )
-    snapshot.assert_manifest_unchanged()
+    snapshot.assert_unchanged()
     return snapshot
 
 
@@ -1079,37 +1157,75 @@ def _read_regular_file_snapshot(
     path: Path,
     label: str,
 ) -> tuple[bytes, _FileIdentity]:
+    descriptor = -1
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
     try:
-        before = path.lstat()
-        if _is_redirecting_path(before) or not stat.S_ISREG(before.st_mode):
+        path_before = path.lstat()
+        if _is_redirecting_path(path_before) or not stat.S_ISREG(path_before.st_mode):
             raise ValueError(f"{label} must be a regular non-symlink file")
-        payload = path.read_bytes()
-        after = path.lstat()
+        descriptor = os.open(path, flags)
+        descriptor_before = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(descriptor_before.st_mode)
+            or _file_identity(descriptor_before) != _file_identity(path_before)
+        ):
+            raise ValueError(f"{label} identity changed before descriptor read")
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        descriptor_after = os.fstat(descriptor)
+        path_after = path.lstat()
+    except ValueError:
+        raise
     except OSError as exc:
         raise ValueError(f"{label} must be a regular non-symlink file") from exc
-    identity = _file_identity(before)
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    identity = _file_identity(path_before)
+    payload = b"".join(chunks)
     if (
-        _is_redirecting_path(after)
-        or not stat.S_ISREG(after.st_mode)
-        or _file_identity(after) != identity
-        or len(payload) != before.st_size
+        _is_redirecting_path(path_after)
+        or not stat.S_ISREG(path_after.st_mode)
+        or _file_identity(descriptor_before) != identity
+        or _file_identity(descriptor_after) != identity
+        or _file_identity(path_after) != identity
+        or len(payload) != path_before.st_size
     ):
-        raise ValueError(f"{label} changed during snapshot read")
+        raise ValueError(f"{label} identity changed during descriptor read")
     return payload, identity
 
 
-def _validated_trusted_directory(path: Path, label: str) -> Path:
+def _validated_trusted_directory(
+    path: Path,
+    label: str,
+) -> tuple[Path, tuple[tuple[Path, _DirectoryIdentity], ...]]:
+    lexical = Path(os.path.abspath(os.fspath(path)))
+    chain = tuple(reversed((lexical, *lexical.parents)))
+    identities: list[tuple[Path, _DirectoryIdentity]] = []
     try:
-        observed = path.lstat()
+        for current in chain:
+            observed = current.lstat()
+            if _is_redirecting_path(observed):
+                if current == lexical:
+                    raise ValueError(
+                        f"{label} cannot be a symlink or redirecting reparse point"
+                    )
+                raise ValueError(
+                    f"{label} has a redirecting lexical path component"
+                )
+            if not stat.S_ISDIR(observed.st_mode):
+                raise FileNotFoundError(f"{label} not found: {path}")
+            identities.append((current, _directory_identity(observed)))
+    except ValueError:
+        raise
     except OSError as exc:
         raise FileNotFoundError(f"{label} not found: {path}") from exc
-    if _is_redirecting_path(observed):
-        raise ValueError(
-            f"{label} cannot be a symlink or redirecting reparse point"
-        )
-    if not stat.S_ISDIR(observed.st_mode):
-        raise FileNotFoundError(f"{label} not found: {path}")
-    return path.resolve()
+    return lexical, tuple(identities)
 
 
 def _validated_fixed_regular_path(
@@ -1147,6 +1263,15 @@ def _file_identity(value) -> _FileIdentity:
         value.st_size,
         value.st_mtime_ns,
         value.st_ctime_ns,
+    )
+
+
+def _directory_identity(value) -> _DirectoryIdentity:
+    return (
+        value.st_dev,
+        value.st_ino,
+        stat.S_IFMT(value.st_mode),
+        getattr(value, "st_file_attributes", 0),
     )
 
 

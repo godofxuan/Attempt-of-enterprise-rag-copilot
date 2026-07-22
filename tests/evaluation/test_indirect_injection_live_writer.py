@@ -500,9 +500,10 @@ def test_v3_verifier_rejects_valid_identity_contradictions(
     value: str,
 ) -> None:
     bundle, built, result = writer_v3_inputs
+    manifest = _manifest_v3(bundle, built, result)
     target = publish_live_security_run(
         tmp_path / "runs",
-        _manifest_v3(bundle, built, result),
+        manifest,
         result,
         paired_evidence="safe",
         commands="safe",
@@ -527,9 +528,10 @@ def test_v3_verifier_rejects_altered_artifact_bytes(
     writer_v3_inputs,
 ) -> None:
     bundle, built, result = writer_v3_inputs
+    manifest = _manifest_v3(bundle, built, result)
     target = publish_live_security_run(
         tmp_path / "runs",
-        _manifest_v3(bundle, built, result),
+        manifest,
         result,
         paired_evidence="safe",
         commands="safe",
@@ -564,6 +566,54 @@ def test_v3_verifier_rejects_self_consistent_contradictory_summary(
     _rewrite_v3_integrity_metadata(target)
 
     with pytest.raises(ValueError, match="summary"):
+        live_writer.verify_live_security_run(target)
+
+
+def test_v3_verifier_rejects_protocol_complete_generation_system_error_rows(
+    tmp_path: Path,
+    writer_v3_inputs,
+) -> None:
+    bundle, built, result = writer_v3_inputs
+    manifest = _manifest_v3(bundle, built, result)
+    target = publish_live_security_run(
+        tmp_path / "runs",
+        manifest,
+        result,
+        paired_evidence="safe",
+        commands="safe",
+        test_output="safe",
+        forbidden_texts=_forbidden_texts(bundle),
+    )
+    rows_path = target / "per_case.jsonl"
+    rows = rows_path.read_text(encoding="utf-8").splitlines()
+    first = json.loads(rows[0])
+    first["security"]["answer_mode"] = "system"
+    rows[0] = json.dumps(first, ensure_ascii=False, sort_keys=True)
+    rows_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    summary_path = target / "summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    off_security, on_security, off_live, _ = live_writer._validate_v2_per_case_rows(
+        rows_path.read_bytes(),
+        manifest,
+    )
+    off_security_summary = live_writer._mode_result("off", off_security).summary
+    on_security_summary = live_writer._mode_result("on", on_security).summary
+    summary["guard_off_live"] = live_writer._summarize_live_mode(
+        "off",
+        off_live,
+        off_security,
+    ).model_dump(mode="json")
+    summary["guard_off_security"] = off_security_summary.model_dump(mode="json")
+    summary["guard_on_security"] = on_security_summary.model_dump(mode="json")
+    summary["deterministic_threshold_diagnostic"] = live_writer._build_behavior_gate(
+        manifest.split,
+        off_security_summary,
+        on_security_summary,
+    ).model_dump(mode="json")
+    summary_path.write_bytes(live_writer._json_bytes(summary))
+    _rewrite_v3_integrity_metadata(target)
+
+    with pytest.raises(ValueError, match="observation"):
         live_writer.verify_live_security_run(target)
 
 

@@ -20,10 +20,11 @@
 - The existing `scripts.eval_indirect_injection_live` parser must not expose `--chat-model`, `--embedding-model`, `--force`, or a Guard override.
 - Do not change production Guard, retrieval, Agent, prompts, frozen test data, holdout data, or historical immutable run artifacts.
 - Do not tune timeouts, attempts, rules, labels, or prompts after seeing either real-model result.
-- Private `security_runs/` and `cross_model_runs/` remain ignored; only the allowlisted public package is tracked.
+- Private `security_runs/`, including `security_runs/cross_model_matrices/`, remains ignored; only the allowlisted public package is tracked.
 - Public evidence excludes questions, retrieved text, prompts, answers, canaries, raw source IDs, absolute paths, credentials, environment variables, and private run locations.
 - Any post-run change to bound evaluator/writer/verifier/plan/Guard/retrieval/Agent bytes requires new run IDs; never rerun the three IDs above.
 - Use RED/GREEN TDD, explicit-path staging, per-task spec/quality review, final whole-branch review, exact-HEAD local gates, and exact-SHA GitHub CI.
+- The evaluator acquires a standard-library no-wait OS-backed exclusive lock keyed by normalized local Ollama origin before preflight, Git/identity reads, index build, model work, and matrix/publication. Keep the manual no-other-Ollama-client check for non-cooperating external clients.
 
 ## File Structure
 
@@ -43,7 +44,7 @@
 - Create `scripts/verify_indirect_injection_cross_model.py`.
 - Create `scripts/export_indirect_injection_cross_model_public.py`.
 - Create `scripts/verify_indirect_injection_cross_model_public.py`.
-- Generate ignored `cross_model_runs/r2-s4-cross-model-dev-20260722-01/`.
+- Generate ignored `security_runs/cross_model_matrices/r2-s4-cross-model-dev-20260722-01/`.
 - Generate tracked `data/v2/public/r2_s4_cross_model/`.
 
 ### Tests and documentation
@@ -538,11 +539,11 @@ production traffic         NOT RUN
 - [ ] **Step 2: Run focused and full pre-run gates**
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_live_runner.py tests\evaluation\test_indirect_injection_live_writer.py tests\evaluation\test_indirect_injection_live_cli.py tests\evaluation\test_indirect_injection_cross_model.py tests\evaluation\test_indirect_injection_cross_model_cli.py tests\evaluation\test_indirect_injection_cross_model_writer.py tests\evaluation\test_indirect_injection_cross_model_public.py tests\test_public_repository.py
+.\.venv\Scripts\python.exe -m pytest -q tests\evaluation\test_indirect_injection_live_runner.py tests\evaluation\test_indirect_injection_live_writer.py tests\evaluation\test_indirect_injection_live_snapshot_hardening.py tests\evaluation\test_indirect_injection_live_cli.py tests\evaluation\test_indirect_injection_cross_model.py tests\evaluation\test_indirect_injection_cross_model_cli.py tests\evaluation\test_indirect_injection_cross_model_writer.py tests\evaluation\test_indirect_injection_cross_model_public.py tests\test_public_repository.py
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe -m compileall -q app scripts streamlit_app tests
 .\.venv\Scripts\python.exe -m pip check
-.\.venv\Scripts\python.exe -m scripts.audit_public_repo --scope tracked
+.\.venv\Scripts\python.exe -m scripts.audit_public_repo
 ```
 
 Also run the R1 frozen hash verifier plus R2-S1 and R2-S3 public/private/source
@@ -555,8 +556,11 @@ valid findings with TDD, repeat reviews, then rerun all pre-run gates.
 
 - [ ] **Step 4: Commit protocol and any reviewed fixes**
 
-Stage only named files and commit. Confirm `git status --short` is empty and
-record the exact clean run HEAD in the engineering journal.
+Stage only named files and commit. After the commit, confirm `git status --short`
+is empty and write the exact clean run HEAD, gate outputs, and timestamp to the
+ignored `.superpowers/sdd/r2-s4-pre-run-gates.md`. Do not edit a tracked journal
+to record the commit that contains that edit. Immutable component manifests and
+the final public `common_git` are the authoritative run-HEAD evidence.
 
 ---
 
@@ -565,7 +569,7 @@ record the exact clean run HEAD in the engineering journal.
 **Files:**
 - Generate ignored: `security_runs/r2-s4-qwen25-dev-20260722-01/`
 - Generate ignored: `security_runs/r2-s4-qwen3-dev-20260722-01/`
-- Generate ignored: `cross_model_runs/r2-s4-cross-model-dev-20260722-01/`
+- Generate ignored: `security_runs/cross_model_matrices/r2-s4-cross-model-dev-20260722-01/`
 
 **Interfaces:**
 - Consumes the clean exact HEAD and checked-in plan.
@@ -575,7 +579,17 @@ record the exact clean run HEAD in the engineering journal.
 
 Run `ollama list` and `/api/tags`; require the three full digests from Global
 Constraints. Confirm no target run directory exists, no concurrent evaluator
-owns Ollama, and the worktree is clean.
+owns Ollama, and the worktree is clean. Before any Ollama identity, embedding,
+smoke, or chat call, classify each component output together with its auxiliary
+index target. If the output is absent but its index target exists, classify it
+as `ORPHAN_AUXILIARY_INDEX`, fail closed, and make no model-side call. Do not
+delete or reuse the index. Preserve it for diagnosis and admit only a reviewed
+canonical plan with new `-02` component and matrix IDs after TDD and re-review.
+
+The controller lock is the cooperating-evaluator exclusion mechanism. The
+manual operator check still matters for non-cooperating external Ollama clients;
+the run is supported only when the same local endpoint is not being used outside
+the locked evaluator.
 
 - [ ] **Step 2: Run the matrix once**
 
@@ -584,15 +598,22 @@ owns Ollama, and the worktree is clean.
 ```
 
 Do not change parameters or rerun an existing ID after seeing output. A process
-failure is diagnosed from logs and immutable/staging state; only code fixes
-approved by review may use new `-02` IDs.
+failure is diagnosed from logs and immutable/staging state. An orphan auxiliary
+index is not a resumable `-01` state: retain it, record the recovery
+classification, and move to reviewed `-02` IDs. Only code/protocol fixes approved
+by review may create that new canonical plan.
+
+A structurally valid immutable V3 component with status `FAILED` remains typed
+private evidence. It may be compared to produce a private `INCONCLUSIVE` matrix,
+but it is not successful-component reuse, cannot support a release/public-
+evidence success, and makes the evaluator return nonzero.
 
 - [ ] **Step 3: Verify all private artifacts independently**
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_live_run security_runs\r2-s4-qwen25-dev-20260722-01
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_live_run security_runs\r2-s4-qwen3-dev-20260722-01
-.\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_cross_model cross_model_runs\r2-s4-cross-model-dev-20260722-01
+.\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_cross_model security_runs\cross_model_matrices\r2-s4-cross-model-dev-20260722-01
 ```
 
 Record exact manifest hashes, statuses, metrics, latency, model calls, errors,
@@ -621,12 +642,37 @@ egress, decision, duration, and any failure diagnosis in the journal.
 - [ ] **Step 1: Export and verify the public package**
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.export_indirect_injection_cross_model_public cross_model_runs\r2-s4-cross-model-dev-20260722-01 data\v2\public\r2_s4_cross_model
+.\.venv\Scripts\python.exe -m scripts.export_indirect_injection_cross_model_public security_runs\cross_model_matrices\r2-s4-cross-model-dev-20260722-01 data\v2\public\r2_s4_cross_model
 .\.venv\Scripts\python.exe -m scripts.verify_indirect_injection_cross_model_public data\v2\public\r2_s4_cross_model
-.\.venv\Scripts\python.exe data\v2\public\r2_s4_cross_model\verify.py data\v2\public\r2_s4_cross_model
 ```
 
-Copy only the eight files to a clean temporary directory and rerun `verify.py`.
+This export is allowed only for complete, release-eligible source evidence; a
+private `INCONCLUSIVE` matrix sourced from a valid `FAILED` V3 component cannot
+be presented as successful public evidence.
+
+Then copy exactly the eight files outside the repository and run the packaged
+standard-library verifier with an empty `PYTHONPATH`, isolated mode, and a
+working directory outside the repository:
+
+```powershell
+$python = (Resolve-Path .\.venv\Scripts\python.exe).Path
+$isolated = Join-Path $env:TEMP 'r2-s4-cross-model-public-verify-01'
+if (Test-Path -LiteralPath $isolated) { throw "isolated verification target already exists: $isolated" }
+Copy-Item -LiteralPath data\v2\public\r2_s4_cross_model -Destination $isolated -Recurse
+$savedPythonPath = $env:PYTHONPATH
+try {
+    $env:PYTHONPATH = ''
+    Push-Location $env:TEMP
+    & $python -I (Join-Path $isolated 'verify.py') $isolated
+    if ($LASTEXITCODE -ne 0) { throw "isolated packaged verifier failed with exit $LASTEXITCODE" }
+} finally {
+    Pop-Location
+    $env:PYTHONPATH = $savedPythonPath
+}
+```
+
+Acceptance requires both the repository-trusted verifier and this copied,
+repository-independent verifier to exit `0` and recompute the same result.
 
 - [ ] **Step 2: Document exact observed results**
 
@@ -676,9 +722,11 @@ runs are unchanged and tracked/staged public bytes are identical.
 - [ ] **Step 3: Commit final reviewed state with explicit paths**
 
 Run `git diff --check`, `git diff --cached --check`, and confirm the worktree is
-clean. Record final exact SHA in `PROJECT_STATUS.md` and the handoff only if the
-commit does not itself make those statements stale; otherwise record delivery
-identity after push in the engineering journal.
+clean. Do not write a commit's own exact SHA into a tracked file. Record the
+post-commit exact SHA and gate outputs in ignored
+`.superpowers/sdd/r2-s4-pre-run-gates.md`; use immutable component manifests and
+public `common_git` as run identity, and use the remote branch/Actions SHA as
+delivery identity. Any later tracked edit invalidates the earlier gate record.
 
 - [ ] **Step 4: Push only the approved exact SHA and verify remote CI**
 
