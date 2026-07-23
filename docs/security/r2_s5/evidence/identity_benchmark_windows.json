@@ -1,0 +1,37 @@
+{
+  "algorithm": "RS256",
+  "environment": {
+    "executable_bits": "64",
+    "implementation": "CPython",
+    "machine": "AMD64",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.11.9"
+  },
+  "iterations": 1000,
+  "latency_ms": {
+    "max": 0.3601,
+    "min": 0.0511,
+    "p50": 0.0546,
+    "p95": 0.0904,
+    "p99": 0.1433
+  },
+  "method": {
+    "clock": "time.perf_counter_ns",
+    "execution": "single_process_serial",
+    "scope": "warm_verifier_only"
+  },
+  "provenance": {
+    "input_mode": "ephemeral_managed_identity",
+    "source_sha256": {
+      "app/security/identity.py": "b74d7a9294a141742a796c8062071282d06b32990432e5523b0b2737397b7506",
+      "app/security/identity_benchmark.py": "e867173e4f247051ae8bf633c0679d2657c963de25553617f69573924331922e",
+      "scripts/benchmark_identity_verification.py": "70e895793b97d3f3982ff9b2df4d1e173d85f652cb452b88d77b1ae601b4ffd9"
+    }
+  },
+  "recorded_at_utc": "2026-07-23T12:47:17Z",
+  "run_id": "identity-benchmark-20260723T124717Z-668f464566bb",
+  "schema_version": "identity-verification-benchmark-v2",
+  "target_met": true,
+  "target_p95_ms": 10.0,
+  "warmup_iterations": 50
+}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import re
@@ -37,6 +38,8 @@ _REQUIRED_SECURITY_CORPUS_SOURCES = (
 _SENSITIVE_PUBLIC_EVIDENCE_PREFIXES = (
     "data/v2/public/r2_s1_d7/",
     "data/v2/public/r2_s3_exposure/",
+    "data/v2/public/r2_s4_cross_model/",
+    "docs/security/r2_s5/evidence/",
 )
 _PUBLIC_CASE_ID_ALLOWED_PREFIXES = ("data/v2/public/r2_s1_d7/",)
 _PUBLIC_PNG_DIMENSIONS = {
@@ -44,18 +47,6 @@ _PUBLIC_PNG_DIMENSIONS = {
     "docs/assets/trace.png": (1440, 1000),
     "docs/assets/evaluation.png": (1440, 1000),
 }
-_PUBLIC_TEXT_SURFACES = frozenset(
-    {
-        "README.md",
-        "PROJECT_STATUS.md",
-        "data/v2/public/demo_snapshot.json",
-        "docs/architecture.md",
-        "docs/known_limitations.md",
-        "docs/demo_runbook.md",
-        "docs/industrialization_backlog.md",
-        "docs/assets/README.md",
-    }
-)
 _FORBIDDEN_PREFIXES = (
     "data/generated/",
     "data/v2/generated/",
@@ -85,6 +76,14 @@ _TOKEN_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9]{20,}\b"),
     re.compile(r"\bghp_[A-Za-z0-9]{30,}\b"),
     re.compile(r"\bgithub_pat_[A-Za-z0-9_]{40,}\b"),
+    re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b"),
+    re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b"),
+    re.compile(r"\bglpat-[A-Za-z0-9_-]{20,}\b"),
+    re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"),
+    re.compile(
+        r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\."
+        r"[A-Za-z0-9_-]{20,}\b"
+    ),
 )
 _PRIVATE_KEY_BYTES_PATTERN = re.compile(
     rb"-----BEGIN (?:RSA |OPENSSH |EC |DSA |PGP )?PRIVATE KEY-----"
@@ -93,6 +92,14 @@ _TOKEN_BYTES_PATTERNS = (
     re.compile(rb"\bsk-[A-Za-z0-9]{20,}\b"),
     re.compile(rb"\bghp_[A-Za-z0-9]{30,}\b"),
     re.compile(rb"\bgithub_pat_[A-Za-z0-9_]{40,}\b"),
+    re.compile(rb"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b"),
+    re.compile(rb"\bxox[baprs]-[A-Za-z0-9-]{10,}\b"),
+    re.compile(rb"\bglpat-[A-Za-z0-9_-]{20,}\b"),
+    re.compile(rb"\bAIza[0-9A-Za-z_-]{35}\b"),
+    re.compile(
+        rb"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\."
+        rb"[A-Za-z0-9_-]{20,}\b"
+    ),
 )
 _EMAIL_PATTERN = re.compile(
     r"(?<![A-Za-z0-9._%+-])"
@@ -113,25 +120,64 @@ _PRIVATE_RUNTIME_REFERENCE_PATTERN = re.compile(
     r"(?:indexes(?:_v2)?|parsed_docs|eval_outputs|eval_runs|load_runs|logs))"
     r"(?:[\\/]|$)"
 )
-_CREDENTIAL_ASSIGNMENT_PATTERN = re.compile(
-    r"(?i)\b(?P<key>api[_-]?key|access[_-]?token|secret|password|authorization)"
-    r"\b\s*[:=]\s*[\"']?(?P<value>[^\s\"',;]{4,})"
+_CREDENTIAL_NAME_EXPRESSION = (
+    r"aws[_-]?secret[_-]?access[_-]?key|"
+    r"aws[_-]?session[_-]?token|"
+    r"client[_-]?secret|consumer[_-]?secret|"
+    r"secret[_-]?access[_-]?key|secret[_-]?key|private[_-]?key|"
+    r"refresh[_-]?token|bearer[_-]?token|auth[_-]?token|"
+    r"api[_-]?key|access[_-]?(?:key|token)|"
+    r"password|passwd|pwd|authorization|secret|token"
 )
-_SAFE_CREDENTIAL_VALUE_MARKERS = (
-    "dummy",
-    "example",
-    "fake",
-    "never-show",
-    "not-real",
-    "placeholder",
-    "redacted",
-    "should-not-be-public",
-    "test",
+_CREDENTIAL_NAME_PATTERN = re.compile(
+    rf"(?ix)^(?:{_CREDENTIAL_NAME_EXPRESSION})$"
+)
+_CREDENTIAL_ASSIGNMENT_PATTERN = re.compile(
+    rf"(?ix)\b(?P<key>{_CREDENTIAL_NAME_EXPRESSION})"
+    r"\b\s*[:=]\s*(?:"
+    r"\"(?P<double_quoted>[^\"\r\n]*)\"|"
+    r"'(?P<single_quoted>[^'\r\n]*)'|"
+    r"(?P<bare>[^\s\"',;]{4,})"
+    r")"
+)
+_SAFE_CREDENTIAL_VALUE_PATTERN = re.compile(
+    r"(?ix)^(?:bearer\s+)?(?:"
+    r"(?:attacker|operator|user)-token|"
+    r"(?:dummy|example|fake|not-real|placeholder|redacted|"
+    r"should-not-be-public)(?:[-_/.:][a-z0-9_.:/-]+)?|"
+    r"never-(?:expose|show)(?:[-_/.:][a-z0-9_.:/-]+)?|"
+    r"test(?:[-_/.:][a-z0-9_.:/-]+)?|"
+    r"sk-test-[a-z0-9]+|"
+    r"[a-z0-9]+_test_(?:private_)?key_[a-z0-9]+"
+    r")$"
+)
+_EXPLICIT_DYNAMIC_CREDENTIAL_PATTERN = re.compile(
+    r"(?ix)^(?:"
+    r"(?:bearer\s+)?\$(?:[A-Za-z_][A-Za-z0-9_]*|"
+    r"\{[A-Za-z_][A-Za-z0-9_]*\})|"
+    r"<[A-Za-z_][A-Za-z0-9_.:-]*>|"
+    r"\{[A-Za-z_][A-Za-z0-9_.:-]*\}"
+    r")$"
 )
 _SYSTEM_PROMPT_FRAGMENTS = (
     "You are a grounded enterprise knowledge-base answer generator operating ",
     "你是企业知识库 RAG 的证据充分性判定器。",
     "你是企业知识库助手。",
+)
+_SCANNER_RULE_DEFINITION_NAMES = frozenset(
+    {
+        "_ALLOWED_RUNTIME_MARKERS",
+        "_CREDENTIAL_ASSIGNMENT_PATTERN",
+        "_CREDENTIAL_NAME_EXPRESSION",
+        "_CREDENTIAL_NAME_PATTERN",
+        "_ENVIRONMENT_REFERENCE_PATTERN",
+        "_FORBIDDEN_PREFIXES",
+        "_POSIX_USER_PATH_PATTERN",
+        "_PRIVATE_RUNTIME_REFERENCE_PATTERN",
+        "_EXPLICIT_DYNAMIC_CREDENTIAL_PATTERN",
+        "_SAFE_CREDENTIAL_VALUE_PATTERN",
+        "_SYSTEM_PROMPT_FRAGMENTS",
+    }
 )
 
 
@@ -370,9 +416,6 @@ def _audit_one(
                 )
             )
 
-    is_sensitive_public_evidence = relative.startswith(
-        _SENSITIVE_PUBLIC_EVIDENCE_PREFIXES
-    )
     is_seeded_test_fixture = relative.startswith("tests/")
     requires_portable_paths = not is_seeded_test_fixture
     if requires_portable_paths and text is not None:
@@ -386,35 +429,23 @@ def _audit_one(
                     detail="machine-specific absolute path detected",
                 )
             )
-    generic_credential_surface = (
-        not is_sensitive_public_evidence
-        and not is_seeded_test_fixture
-        and not relative.startswith(("docs/", ".superpowers/"))
-    ) or relative in _PUBLIC_TEXT_SURFACES
-    if (
-        generic_credential_surface
-        and text is not None
-        and _contains_unsafe_credential_assignment(text)
-    ):
-        findings.append(
-            AuditFinding(
-                code="credential_assignment",
-                path=relative,
-                detail="literal credential-like assignment detected",
-            )
+    if text is not None:
+        strong_scan_text = _text_for_strong_scan(relative, text)
+        sensitive_evidence = relative.startswith(
+            _SENSITIVE_PUBLIC_EVIDENCE_PREFIXES
         )
-    if is_sensitive_public_evidence and text is not None:
         include_case_ids = not relative.startswith(
             _PUBLIC_CASE_ID_ALLOWED_PREFIXES
         )
         findings.extend(
-            _public_sensitive_evidence_findings(
+            _strong_public_text_findings(
                 relative,
-                text,
+                strong_scan_text,
                 frozen_security_values=frozen_security_values.values(
                     include_case_ids=include_case_ids
                 ),
                 local_identity_values=local_identity_values,
+                sensitive_evidence=sensitive_evidence,
             )
         )
     if path.suffix.casefold() == ".md" and text is not None:
@@ -499,29 +530,239 @@ def _contains_non_example_email(text: str) -> bool:
     return False
 
 
-def _contains_unsafe_credential_assignment(text: str) -> bool:
+def _contains_unsafe_credential_assignment(
+    text: str,
+    *,
+    python_source: bool,
+) -> bool:
+    if python_source:
+        return _python_contains_unsafe_credential_assignment(text)
+    return _text_contains_unsafe_credential_assignment(text)
+
+
+def _text_contains_unsafe_credential_assignment(text: str) -> bool:
     for match in _CREDENTIAL_ASSIGNMENT_PATTERN.finditer(text):
-        value = match.group("value").strip().casefold()
-        if value == "ollama" or any(
-            marker in value for marker in _SAFE_CREDENTIAL_VALUE_MARKERS
-        ):
-            continue
-        if value.startswith(
+        raw_value = next(
             (
-                "$",
-                "<",
-                "config.",
-                "env.",
-                "os.",
-                "self.",
-                "settings.",
-            )
+                match.group(name)
+                for name in ("double_quoted", "single_quoted", "bare")
+                if match.group(name) is not None
+            ),
+            "",
+        )
+        if (
+            match.group("bare") is not None
+            and _bare_credential_reference_is_safe(raw_value)
         ):
             continue
-        if set(value) <= {"*", "x"}:
+        if _credential_value_is_safe(raw_value):
             continue
         return True
     return False
+
+
+def _python_contains_unsafe_credential_assignment(text: str) -> bool:
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return _text_contains_unsafe_credential_assignment(text)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if _text_contains_unsafe_credential_assignment(node.value):
+                return True
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
+            targets = (
+                node.targets
+                if isinstance(node, ast.Assign)
+                else [node.target]
+            )
+            value = _literal_credential_value(node.value)
+            if value is not None and any(
+                _is_credential_target(target)
+                for target in targets
+            ) and not _credential_value_is_safe(value):
+                return True
+        if isinstance(node, ast.keyword) and node.arg is not None:
+            value = _literal_credential_value(node.value)
+            if (
+                _CREDENTIAL_NAME_PATTERN.fullmatch(node.arg)
+                and value is not None
+                and not _credential_value_is_safe(value)
+            ):
+                return True
+        if isinstance(node, ast.Dict):
+            for key_node, value_node in zip(node.keys, node.values):
+                key = _literal_credential_value(key_node)
+                value = _literal_credential_value(value_node)
+                if (
+                    isinstance(key, str)
+                    and _CREDENTIAL_NAME_PATTERN.fullmatch(key)
+                    and value is not None
+                    and not _credential_value_is_safe(value)
+                ):
+                    return True
+    return False
+
+
+def _is_credential_target(node: ast.AST) -> bool:
+    if isinstance(node, ast.Name):
+        return _CREDENTIAL_NAME_PATTERN.fullmatch(node.id) is not None
+    if isinstance(node, ast.Attribute):
+        return _CREDENTIAL_NAME_PATTERN.fullmatch(node.attr) is not None
+    if isinstance(node, ast.Subscript):
+        key = _literal_credential_value(node.slice)
+        return (
+            isinstance(key, str)
+            and _CREDENTIAL_NAME_PATTERN.fullmatch(key) is not None
+        )
+    if isinstance(node, (ast.Tuple, ast.List)):
+        return any(_is_credential_target(item) for item in node.elts)
+    return False
+
+
+def _literal_credential_value(node: ast.AST | None) -> str | None:
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, str):
+            return node.value
+        if isinstance(node.value, bytes):
+            try:
+                return node.value.decode("ascii")
+            except UnicodeDecodeError:
+                return None
+    return None
+
+
+def _credential_value_is_safe(raw_value: str) -> bool:
+    value = raw_value.strip().casefold()
+    if not value:
+        return True
+    candidate = value
+    for left, right in (("`", "`"), ("[", "]"), ("<", ">")):
+        if candidate.startswith(left) and candidate.endswith(right):
+            candidate = candidate[1:-1].strip()
+            break
+    candidate = candidate.rstrip("`")
+    if value == "ollama" or _SAFE_CREDENTIAL_VALUE_PATTERN.fullmatch(candidate):
+        return True
+    if value in {"bearer", "bearer jwt", "bearer <jwt>"}:
+        return True
+    if value.strip("`").isdigit():
+        return True
+    if _EXPLICIT_DYNAMIC_CREDENTIAL_PATTERN.fullmatch(value):
+        return True
+    if value.startswith(
+        (
+            "config.",
+            "env.",
+            "os.",
+            "self.",
+            "settings.",
+        )
+    ):
+        return True
+    if set(value) <= {"*", "x"}:
+        return True
+    return False
+
+
+def _bare_credential_reference_is_safe(raw_value: str) -> bool:
+    value = raw_value.strip().casefold()
+    if _EXPLICIT_DYNAMIC_CREDENTIAL_PATTERN.fullmatch(value):
+        return True
+    if value.startswith(
+        (
+            "config.",
+            "env.",
+            "os.",
+            "self.",
+            "settings.",
+            "bind_request_context(",
+        )
+    ):
+        return True
+    return re.fullmatch(
+        r"[a-z_][a-z0-9_.]*(?:_token|_secret|_key)",
+        value,
+    ) is not None
+
+
+def _text_for_strong_scan(relative: str, text: str) -> str:
+    if relative == "scripts/audit_public_repo.py":
+        return _mask_scanner_rule_definitions(text)
+    return text
+
+
+def _mask_scanner_rule_definitions(text: str) -> str:
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return text
+    nodes: list[ast.AST] = []
+    for statement in tree.body:
+        if isinstance(statement, ast.Assign):
+            names = {
+                target.id
+                for target in statement.targets
+                if isinstance(target, ast.Name)
+            }
+            if names & _SCANNER_RULE_DEFINITION_NAMES:
+                nodes.append(statement.value)
+        elif (
+            isinstance(statement, ast.AnnAssign)
+            and isinstance(statement.target, ast.Name)
+            and statement.target.id in _SCANNER_RULE_DEFINITION_NAMES
+            and statement.value is not None
+        ):
+            nodes.append(statement.value)
+    for function in (
+        node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_local_identity_values"
+    ):
+        nodes.extend(
+            node
+            for node in ast.walk(function)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        )
+    return _mask_ast_source_ranges(text, nodes)
+
+
+def _mask_ast_source_ranges(text: str, nodes: Iterable[ast.AST]) -> str:
+    lines = text.splitlines(keepends=True)
+    starts: list[int] = []
+    offset = 0
+    for line in lines:
+        starts.append(offset)
+        offset += len(line)
+    masked = list(text)
+    for node in nodes:
+        if not all(
+            hasattr(node, attribute)
+            for attribute in ("lineno", "col_offset", "end_lineno", "end_col_offset")
+        ):
+            continue
+        start_line = int(node.lineno) - 1
+        end_line = int(node.end_lineno) - 1
+        if not (0 <= start_line < len(lines) and 0 <= end_line < len(lines)):
+            continue
+        start = starts[start_line] + _utf8_column_to_character(
+            lines[start_line],
+            int(node.col_offset),
+        )
+        end = starts[end_line] + _utf8_column_to_character(
+            lines[end_line],
+            int(node.end_col_offset),
+        )
+        for index in range(start, min(end, len(masked))):
+            if masked[index] not in "\r\n":
+                masked[index] = " "
+    return "".join(masked)
+
+
+def _utf8_column_to_character(line: str, byte_column: int) -> int:
+    return len(line.encode("utf-8")[:byte_column].decode("utf-8"))
 
 
 def _load_frozen_security_values(
@@ -726,48 +967,54 @@ def _local_identity_values() -> tuple[str, ...]:
     return tuple(sorted(values))
 
 
-def _public_sensitive_evidence_findings(
+def _strong_public_text_findings(
     relative: str,
     text: str,
     *,
     frozen_security_values: tuple[str, ...],
     local_identity_values: tuple[str, ...],
+    sensitive_evidence: bool,
 ) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
     normalized = unicodedata.normalize("NFKC", text).casefold()
     checks = (
         (
             "credential_assignment",
-            _CREDENTIAL_ASSIGNMENT_PATTERN.search(text) is not None,
-            "credential-like assignment detected in sensitive public evidence",
+            _contains_unsafe_credential_assignment(
+                text,
+                python_source=relative.casefold().endswith(".py"),
+            ),
+            "literal credential-like assignment detected",
         ),
         (
             "environment_reference",
-            _ENVIRONMENT_REFERENCE_PATTERN.search(text) is not None,
-            "machine environment or proxy variable detected in sensitive "
-            "public evidence",
+            sensitive_evidence
+            and _ENVIRONMENT_REFERENCE_PATTERN.search(text) is not None,
+            "machine environment or proxy variable detected",
         ),
         (
             "private_runtime_reference",
-            _PRIVATE_RUNTIME_REFERENCE_PATTERN.search(text) is not None,
-            "private runtime path detected in sensitive public evidence",
+            sensitive_evidence
+            and _PRIVATE_RUNTIME_REFERENCE_PATTERN.search(text) is not None,
+            "private runtime path detected",
         ),
         (
             "system_prompt_fragment",
-            any(
+            sensitive_evidence
+            and any(
                 unicodedata.normalize("NFKC", value).casefold() in normalized
                 for value in _SYSTEM_PROMPT_FRAGMENTS
             ),
-            "system-prompt fragment detected in sensitive public evidence",
+            "system-prompt fragment detected",
         ),
         (
             "frozen_security_content",
-            any(
+            sensitive_evidence
+            and any(
                 unicodedata.normalize("NFKC", value).casefold() in normalized
                 for value in frozen_security_values
             ),
-            "frozen question, canary, or fixture content detected in sensitive "
-            "public evidence",
+            "frozen question, canary, or fixture content detected",
         ),
         (
             "local_identity",
@@ -779,7 +1026,7 @@ def _public_sensitive_evidence_findings(
                 is not None
                 for value in local_identity_values
             ),
-            "local user identity detected in sensitive public evidence",
+            "local user identity detected",
         ),
     )
     for code, matched, detail in checks:

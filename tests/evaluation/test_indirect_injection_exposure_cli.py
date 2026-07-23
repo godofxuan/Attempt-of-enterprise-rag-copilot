@@ -24,6 +24,12 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def test_safe_display_path_redacts_repository_private_root() -> None:
+    private_path = eval_cli.BASE_DIR / ".private" / "local-run" / "source"
+
+    assert eval_cli._safe_display_path(private_path) == "<external>/source"
+
+
 def _valid_argv(
     source_run: Path,
     security_data_root: Path,

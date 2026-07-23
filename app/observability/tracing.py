@@ -19,6 +19,7 @@ SpanName = Literal[
     "feedback.persist",
     "readiness.database",
     "readiness.index",
+    "readiness.identity",
     "readiness.models",
     "readiness.retrieved_guard",
 ]
@@ -29,6 +30,7 @@ SPAN_NAMES = {
     "feedback.persist",
     "readiness.database",
     "readiness.index",
+    "readiness.identity",
     "readiness.models",
     "readiness.retrieved_guard",
 }

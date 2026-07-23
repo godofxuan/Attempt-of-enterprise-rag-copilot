@@ -222,7 +222,9 @@ def test_deterministic_as_of_filter_overrides_fallback_filter() -> None:
 def test_fallback_exception_degrades_to_deterministic_analysis() -> None:
     class BrokenFallback:
         def analyze(self, question: str, user: UserContext):
-            raise RuntimeError("model endpoint leaked password=secret")
+            raise RuntimeError(
+                "model endpoint leaked password=test-fixture-secret"
+            )
 
     analysis = RuleFirstQueryAnalyzer(fallback=BrokenFallback()).analyze(
         "请比较相关政策",

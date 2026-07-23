@@ -1,6 +1,30 @@
 # Known Limitations
 
-最后更新：2026-07-22
+## R2-S5 identity status correction
+
+Rows below that describe caller-supplied `UserContext` or absent token
+verification are historical and superseded. The repository now verifies
+short-lived RS256 JWTs against a pinned local JWKS snapshot, derives Agent
+identity server-side, separates user/operator credentials, and protects
+observability with `rag.operator`.
+
+The remaining limitation is narrower but important: this is a local,
+reproducible identity simulator, not enterprise IAM. It has no SSO, federation,
+remote JWKS refresh, revocation service, MFA, SCIM, HR lifecycle, policy-admin
+workflow, durable authorization audit, HSM/KMS custody, or production incident
+response. The API loads key material at process construction, so rotation is an
+explicit stage/restart/activate/overlap/retire/restart operation. Production admission requires a real
+issuer and independent integration, tenant-isolation, revocation, operations,
+and penetration evidence.
+
+The local activation probe is plain HTTP to an exact numeric loopback origin.
+It proves that the responding local API snapshot accepts the pending key under
+the trusted-host demo assumption; it does not authenticate the server against
+another malicious process on the same host. Manifest and journal SHA-256
+bindings detect non-coordinated corruption, not a process that already has the
+same account's identity-directory write authority.
+
+最后更新：2026-07-23
 
 本文使用三个状态：`FAILED` 表示已运行且未通过；`NOT RUN` 表示没有满足协议的 fixture/依赖或实验；“未实现”表示代码能力不存在。`NOT RUN` 不能写成通过。
 
@@ -8,20 +32,21 @@
 
 | Area | Current state | Consequence | Admission condition |
 |---|---|---|---|
-| Identity | `UserContext` 由浏览器/调用方声明，只做 schema 和 policy 验证 | 本地演示可以验证 ACL 逻辑，但不能证明真实用户身份 | 由可信 OIDC/IAM gateway 签发身份，并加入 token/tenant/group integration tests |
+| Identity legacy baseline | R2-S5 之前由调用方声明 `UserContext`；当前已由本地 JWT/JWKS 边界取代 | 仅用于解释为什么 R2-S5 必须先修 authority source，不能描述当前路由 | 当前限制见下方 Authentication/authorization 行 |
 | Data realism | 72/600 文档和 52 个 eval cases 全部 synthetic | 指标证明工程 contract，不代表真实企业分布或生产泛化 | 法务批准的去标识 pilot corpus、数据治理记录和独立 held-out evaluation |
 | Live quality | 当前 canonical live dev 为 23/24 | 一个 system-runtime failure 被保留；不能报告 100% | 先定位/复现失败，再在新冻结 split 上验证，而不是改写旧 artifact |
 | Indirect document injection | D1-D7, V1-V5, S2-1, R2-S3, and R2-S4 Task 8 are complete with observations; R2-S4 public package `data/v2/public/r2_s4_cross_model` is `VERIFIED / 8 FILES`; decision `CONSISTENT_OBSERVATION` on the same visible synthetic dev cohort; `release_pass=false` | The result supports only this narrow comparison: 12 decision safety/utility observations matched for frozen Qwen2.5/Qwen3 on visible synthetic dev data; 3 operational counts matched; 2 latency metrics differed. It is not production safety evidence and not cross-model generalization. Public proof scope intentionally omits private input/nonce/candidate-order hashes and aligns only by ordinal/public-safe fields | Independent holdout, semantic judge calibration, human double review, production traffic, real IdP, and deployment remain `NOT RUN`; any broader claim requires those gates |
 | Reranker | `NOT RUN` (`no_admitted_reranker`) | 不能声称 cross-encoder/reranker 改善过排序 | 固定候选模型、license/资源预算与 latency gate；在 frozen test 上做隔离消融 |
 | Human review | `NOT RUN`；50 行、8 个人工判断列保持空白 | 自动 claim/citation/required-fact checks 不能替代语义和可用性评分 | 本人按冻结 rubric 完成 review；若用于正式质量结论，再增加第二 reviewer、分歧仲裁和 agreement 记录 |
-| Authentication/authorization | 只有本地 ACL policy，没有 SSO、token verification、policy admin 或 audit identity | 不能公网暴露为企业服务 | IAM、server-derived claims、deny-by-default policy store、admin/change audit |
+| Authentication/authorization | 本地 RS256 JWT/JWKS、server-derived Principal、operator route role 和文档 ACL 已实现；身份源仍是本地模拟，不是真实 IdP | Streamlit/API 只允许本机演示；不能声称已接 SSO、revocation、SCIM 或企业 policy admin | 接真实 OIDC discovery/JWKS cache、HTTPS、secret manager、tenant-scoped operator policy 和 change audit |
 | Index updates | immutable rebuild + activate；没有 incremental upsert/delete | 文档变化需要新 run，不能承诺低延迟同步 | 定义 document tombstone/version contract、idempotency、rollback 和 consistency tests |
 | Observability | bounded in-memory traces/metrics | 重启丢失，不能跨进程关联或长期查询 | OpenTelemetry SDK/collector、durable backend、retention/redaction/access policy |
 | Deployment | 本地 Windows + Ollama，未提供 production container/orchestrator | 没有证明 Linux image、network policy、resource limits 或 rolling deploy | Reproducible image/SBOM、health probes、secret injection、staging load and rollback |
-| Remote CI | 历史 feature-branch commits `9607e55` 的 [Ubuntu run](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 与 `9fcb304` 的 [Ubuntu run](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29682474913) 已通过 | 各自只证明对应 commit 的 deterministic CI，均不覆盖当前 R2-S4 candidate exact HEAD；没有证明 branch protection、merge、deployment 或 production runtime | 为当前精确 SHA 取得新的 remote CI，再把 workflow 设为受保护分支 required check，并增加可复现 image、SBOM 与 staging gates |
+| Supply chain | direct requirements、Python/pip 和 Actions revision 已固定；transitive wheel hashes 与 SBOM 未固定 | 同版本解析器减少漂移，但不能证明安装闭包逐字节相同或依赖来源完整 | 生成带 hash 的跨平台 lock、保存 SBOM/provenance，并在隔离构建器验证 |
+| Remote CI | 历史 feature-branch commits `9607e55` 的 [Ubuntu run](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 与 `9fcb304` 的 [Ubuntu run](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29682474913) 已通过；当前 workflow 已准备 Ubuntu/Windows matrix，但精确 R2-S5 SHA 尚未运行 | 历史结果不覆盖当前 candidate；workflow 配置本身也不等于远端两个 job 已通过，更不证明 branch protection、merge、deployment 或 production runtime | 推送当前精确 SHA，取得两个 matrix job 的成功 URL，再设置 required checks 并补镜像/SBOM/staging gates |
 | Scale | demo index 64 chunks；benchmark 不是生产 load | FAISS/in-memory BM25 结论不能外推到 5,000+ 活跃文档与并发租户 | 规模/并发/更新率达到预设阈值后重新 profile，再决定 vector DB/caching |
 | Model robustness | direct unsafe rule-first probe 只有 4 条 | 编码、多语言、间接和新型绕过仍可能通过 | 扩展 adversarial taxonomy、人工红队、版本化 model/prompt regression |
-| Feedback | 仅保存 question/response SHA-256、helpful、request ID 和时间 | 无法直接读取正文调试；也没有用户级去重或分析平台 | 在隐私评审后建立受控 failure sampling，而不是默认保存全文 |
+| Feedback | 保存 actor/question/answer 的 deterministic keyed HMAC、request IDs、helpful 和 binding version；服务端回执绑定原回答；同 actor/target/content 幂等更新 | 无法从数据库恢复正文，但持有数据库的人仍能观察同一 key 下 digest 相等关系与重复模式；尚无分析平台、保留期策略或受控 failure sampling | 若 equality linkability 不可接受，改用受约束的随机化记录标识/独立分析域；经隐私评审后再增加采样、retention/access policy，不默认保存全文 |
 | Availability | 单进程、单 active index、单本地 Ollama | 没有 HA、队列、backpressure 或多副本一致性 | 明确 SLO/RTO/RPO 后再设计 replicas、queue 和 failover |
 | Agent scope | 单 controller、固定工具 allowlist、无长期记忆/checkpoint | 不能称通用 autonomous/multi-Agent platform | 只有出现跨会话恢复或独立角色协作的真实需求与 eval 时才准入 |
 
@@ -39,7 +64,7 @@
 
 已经验证的是：固定 direct unsafe prompts 在 query analysis 后、retrieval 前 source-free 拒绝；ACL 测试不暴露 forbidden docs；错误/trace 不回显已知敏感字段；默认 V2 `search/find/open` 在 Controller 前执行确定性 admission，raw execution 被拒绝，已隔离内容不进入 generation/source/context budget。
 
-尚未证明的是：任意 prompt injection 都会失败、真实 Qwen 在未知攻击或其他模型上的成功率、system prompt 永不泄露、显式 compatibility app 中的 legacy `/chat`/`/agent/chat` 受到 V2 Guard 保护、浏览器声明身份可信、或该服务适合公网/多租户生产。D6 fake generator 只证明确定性传播；D7 与 S2-1 都只观察到固定本地 BGE-M3/Qwen 配置下的可见 synthetic 数据。S2-1 的 `15/15` 是“已到达 Guard 后”的条件 detector 指标，不覆盖 13 个 unreached attack units；R2-S3 虽观察到相关 case downstream exposure `0/13`，但不能把 diagnostic depth-2 total coverage 改写成 live end-to-end `28/28`，也不能把 `NO_CURRENT_BYPASS_OBSERVED` 写成 release pass。
+尚未证明的是：任意 prompt injection 都会失败、真实 Qwen 在未知攻击或其他模型上的成功率、system prompt 永不泄露、浏览器声明身份可信、或该服务适合公网/多租户生产。legacy `/chat`、`/agent/chat` 和 `/ingest` 已从可部署 app 与生产 factory 移除，不属于当前 HTTP 攻击面。D6 fake generator 只证明确定性传播；D7 与 S2-1 都只观察到固定本地 BGE-M3/Qwen 配置下的可见 synthetic 数据。S2-1 的 `15/15` 是“已到达 Guard 后”的条件 detector 指标，不覆盖 13 个 unreached attack units；R2-S3 虽观察到相关 case downstream exposure `0/13`，但不能把 diagnostic depth-2 total coverage 改写成 live end-to-end `28/28`，也不能把 `NO_CURRENT_BYPASS_OBSERVED` 写成 release pass。
 
 完整威胁与控制映射见 [Security Threat Model](security_threat_model.md)。
 
@@ -48,7 +73,7 @@
 - README 与 UI 必须显示 live `23/24`，不能四舍五入为 100%。
 - indirect document injection 必须分层显示：D4 guarded V2 data flow、D5 prompt/public observability、D6 deterministic frozen OFF/ON gate 已完成；D7 fixed-order 与 S2-1 counterbalanced local BGE-M3/Qwen paired runs 均为 `COMPLETED WITH OBSERVATIONS`；R2-S3 measurement-only ablation 为 `COMPLETE`，但 source live run 和 production Guard/retrieval/Agent 未改，counterfactual coverage 仅诊断。R2-S4 cross-model dev observation is COMPLETE WITH OBSERVATIONS, but independent package, independent holdout, semantic judge calibration, human double review, production traffic, real IdP, deployment, human red team, and optional reranker remain `NOT RUN`。
 - `526 passed` 是 E5 入口、`569 passed` 是 E6 收口、`574 passed` 是 E7 自动化本地门禁；它们是不同 commit 候选的历史计数，不能相加。
-- 远端 CI 声明必须同时给出 run URL 和 commit；当前可核验的 `9607e55` 与 `9fcb304` 均为历史 feature-branch 证据，不覆盖当前 R2-S4 candidate exact HEAD。
+- 远端 CI 声明必须同时给出 run URL 和 commit；当前可核验的 `9607e55` 与 `9fcb304` 均为历史 feature-branch 证据，不覆盖当前 R2-S5 candidate exact HEAD。
 - E7 已逐条处理 claims matrix；只能使用 `approved` 原句或 `narrowed` 后的措辞，不能删掉 synthetic、deterministic/local、样本数和 `NOT RUN` 边界。
 
 下一阶段准入项与优先级见 [Industrialization Backlog](industrialization_backlog.md)。

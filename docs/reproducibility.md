@@ -1,6 +1,58 @@
 # Reproducibility Guide
 
-最后更新：2026-07-17
+## R2-S5 local identity reproduction
+
+Identity artifacts are intentionally absent from a public clone. Recreate them
+locally, then restart the API because JWKS and HMAC material are immutable
+process snapshots:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.manage_demo_identity init --force
+.\.venv\Scripts\python.exe -m scripts.manage_demo_identity status
+.\.venv\Scripts\python.exe -m scripts.benchmark_identity_verification `
+  --ephemeral-demo --out security_runs\r2_s5\identity_benchmark.json
+```
+
+`--ephemeral-demo` is the preferred evidence mode: it creates managed keys and
+tokens in a temporary directory and cannot rotate the real demo identity.
+The benchmark always writes its immutable result first, then exits `0` only
+when `target_met=true`; a missed p95 target exits `1`. The checked-in evidence
+also records source SHA-256 values, and a repository test rejects stale or
+failing benchmark evidence.
+`rotate` stages a pending public key while leaving all current client tokens
+unchanged. Restart the API, then run
+`activate --kid <pending-kid> --api-base-url http://127.0.0.1:8000`; activation
+publishes new tokens only after the restarted `/identity/me` proves it accepts
+that exact key. Keep the old key for the overlap window, then
+`retire --kid <old-kid>` and restart once more. The lifecycle tests reproduce
+old-snapshot rejection, restarted-snapshot activation, cancellation, overlap,
+retirement, and crash recovery without model dependencies.
+
+`activate` persists `retire_not_before` for the old key using the maximum
+900-second demo-token lifetime plus the maximum allowed verifier clock skew
+(120 seconds), regardless of the current 30-second default. This remains safe
+if the API skew is raised after activation. `status` prints that non-secret
+epoch; normal retirement fails before it. Early compromise response requires both
+`--emergency-revoke` and the exact
+`--confirm-emergency-revoke RETIRE_ACTIVE_TOKENS_NOW` phrase, and records an
+auditable emergency event in the manifest and `status` output.
+
+For a load run, set only file sources or only raw sources, never both:
+
+```powershell
+$env:RAG_BEARER_TOKEN_FILE = '.private\identity\load_user_token.txt'
+$env:RAG_OPERATOR_BEARER_TOKEN_FILE = '.private\identity\operator_token.txt'
+.\.venv\Scripts\python.exe -m scripts.load_profile `
+  --base-url http://127.0.0.1:8000 --profile demo
+```
+
+GitHub CI does not receive identity secrets and does not run live identity,
+Ollama, uvicorn, Streamlit, or timing benchmarks. It validates deterministic
+identity/JWKS/API/client/lifecycle contracts with generated test keys. The
+tracked local benchmark is sanitized environment evidence, not a shared-runner
+latency promise.
+
+最后更新：2026-07-23
 
 ## 1. 两类可复现性
 
@@ -32,7 +84,7 @@ indexed chunks             64
 Historical run base HEAD   7aec4b950e012d3f24b8e1877d6391201e9b8f90
 ```
 
-`requirements.txt` 精确固定 15 个直接依赖。它比无版本 requirements 稳定，但不是带 transitive wheel hash 的完整 lockfile。更严格供应链控制留给后续阶段。
+`requirements.txt` 精确固定 17 个直接依赖。它比无版本 requirements 稳定，但不是带 transitive wheel hash 的完整 lockfile。更严格供应链控制留给后续阶段。
 
 ## 3. 新环境安装
 
@@ -62,9 +114,13 @@ py -3.11 -m venv .venv
 E5 stage entry    526 passed, 3 warnings
 E6 final          569 passed, 3 warnings
 E7 final local    574 passed, 3 warnings
+R2-S5 pre-third-review 1835 passed, 20 skipped, 3 warnings (historical HOLD input)
 ```
 
-E7 比 E6 增加 trace idempotency、两个反向 conflict-priority 案例和全 Markdown 绝对路径审计。3 条 warning 均来自 FAISS SWIG deprecation；完整全量测试不依赖正在运行的 Ollama。
+E7 比 E6 增加 trace idempotency、两个反向 conflict-priority 案例和全 Markdown
+绝对路径审计。R2-S5 的 `1835` 在第三轮复审后不再是最终 gate，必须在全部
+Important 修复后重跑。3 条 warning 均来自 FAISS SWIG deprecation；完整全量
+测试不依赖正在运行的 Ollama。
 
 pytest 使用 `--import-mode=importlib`，避免不同目录同名 `test_metrics.py` 被当成同一个顶层模块。旧的 repository-shared `--basetemp=data/eval_outputs/pytest_tmp` 已移除，因此并行 pytest 不再互删同一目录。
 
@@ -242,7 +298,7 @@ foreach ($name in @('summary.json', 'details.csv')) {
 
 ### pytest TEMP ACL
 
-E5 移除 shared basetemp 后，本机遗留 `%TEMP%\pytest-of-xuan` 曾关闭 ACL 继承，造成所有 `tmp_path` setup WinError 5。确认路径确实位于用户 TEMP 后恢复继承，full suite 恢复。不要把这种本机 ACL 修复放进 CI 或业务代码。
+E5 移除 shared basetemp 后，本机遗留 `%TEMP%\pytest-of-<local-user>` 曾关闭 ACL 继承，造成所有 `tmp_path` setup WinError 5。确认路径确实位于用户 TEMP 后恢复继承，full suite 恢复。不要把这种本机 ACL 修复放进 CI 或业务代码。
 
 ### Git checkout 的 LF/CRLF
 

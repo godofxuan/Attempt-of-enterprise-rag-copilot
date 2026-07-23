@@ -1,6 +1,53 @@
 # Enterprise Agentic RAG Architecture
 
-最后更新：2026-07-17
+## R2-S5 trusted identity boundary
+
+The runtime no longer accepts caller-owned `UserContext` in the HTTP body.
+The authoritative request path is:
+
+```mermaid
+sequenceDiagram
+    participant C as Streamlit or local caller
+    participant M as Request + identity middleware
+    participant J as Immutable local JWKS snapshot
+    participant A as Agent runner
+    participant P as Access policy
+
+    C->>M: Bearer JWT + question/top_k
+    M->>M: Reject duplicate header and parse strict compact JWS
+    M->>J: Select bounded ASCII kid
+    J-->>M: Pinned RS256 public key
+    M->>M: Verify signature, issuer, scalar audience, type, time, claims
+    M->>M: Build immutable Principal
+    M->>A: question + server-derived UserContext
+    Note over M,A: service roles are removed before Agent state
+    A->>P: tenant + region + groups
+    P-->>A: authorized evidence only
+```
+
+The trust split is deliberate:
+
+- `.private/identity/private-*.pem` signs short-lived local demo tokens and is
+  read only by the lifecycle CLI, never by FastAPI or Streamlit;
+- FastAPI loads only `jwks.json` and the independent feedback HMAC key at
+  process construction, so rotation stages a key, restarts the API, proves the
+  pending key through `/identity/me`, and only then publishes new client tokens;
+- `Principal.roles` authorizes service routes, while Agent `UserContext.roles`
+  is always empty;
+- chat/feedback/identity require a user token; metrics/trace require the global
+  deployment role `rag.operator`; health and API schema remain public;
+- authentication middleware runs before FastAPI body parsing, so an invalid
+  token plus malformed body deterministically returns 401 without invoking
+  retrieval, models, feedback writes, or Agent traces.
+- chat issues a feedback receipt bound to the verified actor, target request,
+  and keyed question/answer digests; persistence keeps one latest rating per
+  actor/target and stores no raw content.
+
+The local issuer proves boundary mechanics and lifecycle behavior. It is not a
+production IdP and does not implement SSO, remote JWKS refresh, revocation,
+MFA, or identity governance.
+
+最后更新：2026-07-23
 
 本文描述当前 R1 本地实现。它解释代码中的数据流、控制流和信任边界；计划中的 R2 能力见 [Industrialization Backlog](industrialization_backlog.md)。
 
@@ -19,7 +66,7 @@ flowchart TB
     end
 
     subgraph Runtime["Online request boundary"]
-        Caller["Caller + claimed UserContext"] --> MW["Request context middleware"]
+        Caller["Authenticated caller"] --> MW["Request + identity middleware"]
         MW --> QA["Rule-first query analyzer"]
         QA --> CTL["Bounded Agent controller"]
         CTL --> Tools["search / find / open"]
@@ -32,7 +79,7 @@ flowchart TB
         GEN --> CIT["Claim citation verifier"]
         CIT --> MW
         MW --> OBS["Safe traces + aggregate metrics"]
-        MW --> FB["Hash-only feedback metadata"]
+        MW --> FB["Receipt-bound keyed feedback metadata"]
     end
 
     subgraph Evidence["Evaluation boundary"]
@@ -211,7 +258,12 @@ admitted records -> bounded JSON serialization
 GuardedV2ToolExecution -> strict aggregate-only Agent trace projection
 ```
 
-The default `create_app()` now owns a fixed secure route profile: `/agent/v2/chat` is registered while legacy `/chat`, `/agent/chat`, and HTTP `/ingest` are absent. Historical regression must explicitly construct `create_compatibility_app()`; no request field or environment switch changes the secure profile. Default container construction validates the detector policy, and readiness exposes only `retrieved_guard=ready|error`.
+The deployable `create_app()` owns one fixed secure route profile:
+`/agent/v2/chat` is registered while legacy `/chat`, `/agent/chat`, and HTTP
+`/ingest` are absent. R2-S5 removed the compatibility factory from the
+production module, so a wrapper cannot re-enable the unauthenticated historical
+routes. Default container construction validates the detector policy, and
+readiness exposes only bounded aggregate resource state.
 
 This claim remains limited to `/agent/v2/chat` and its in-process `search/find/open` registry. D5 proves deterministic composition, escaping, route, trace and lifecycle contracts; it does not provide the D6 attack success rate, false-positive rate, or live-model evidence.
 

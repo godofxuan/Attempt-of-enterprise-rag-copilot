@@ -6,7 +6,6 @@ import streamlit as st
 from pydantic import ValidationError
 
 from app.domain.evidence import AnswerResponse
-from app.domain.queries import UserContext
 from streamlit_app.api_client import UiApiError
 from streamlit_app.demo_cases import DemoCase, load_demo_cases
 from streamlit_app.shell import (
@@ -22,15 +21,6 @@ from streamlit_app.view_models import (
     mode_label,
     source_rows,
 )
-
-
-def _csv_values(value: str, *, required: bool = True) -> list[str]:
-    values = list(
-        dict.fromkeys(item.strip() for item in value.split(",") if item.strip())
-    )
-    if required and not values:
-        return []
-    return values
 
 
 def _clear_result_state() -> None:
@@ -60,6 +50,7 @@ input_mode = st.segmented_control(
 
 selected_case: DemoCase | None = None
 expected_mode: str | None = None
+persona_id: str | None = None
 if input_mode == "Demo" and demo_cases:
     case_ids = [case.provenance_id for case in demo_cases]
     current = st.session_state.selected_demo
@@ -85,7 +76,7 @@ if input_mode == "Demo" and demo_cases:
         disabled=True,
         key=f"demo_{selected_case.provenance_id}",
     )
-    user = selected_case.user
+    persona_id = selected_case.user.user_id
     expected_mode = selected_case.expected_mode
 else:
     question = st.text_area(
@@ -95,33 +86,16 @@ else:
         height=118,
         placeholder="Ask about a policy, process, or cross-document requirement.",
     )
-    identity_columns = st.columns(3)
-    user_id = identity_columns[0].text_input(
-        "User ID",
-        value="demo-user",
-        on_change=_clear_result_state,
+    persona_ids = list(
+        dict.fromkeys(case.user.user_id for case in demo_cases)
     )
-    tenant_id = identity_columns[1].text_input(
-        "Tenant",
-        value="starbridge-cn",
+    persona_id = st.selectbox(
+        "Persona",
+        persona_ids,
+        format_func=lambda value: value.replace("-", " ").title(),
         on_change=_clear_result_state,
-    )
-    region = identity_columns[2].text_input(
-        "Region",
-        value="cn",
-        on_change=_clear_result_state,
-    )
-    groups_value = st.text_input(
-        "Groups",
-        value="all_employees",
-        on_change=_clear_result_state,
-    )
-    roles_value = st.text_input(
-        "Roles",
-        value="",
-        on_change=_clear_result_state,
-    )
-    user = None
+        disabled=not persona_ids,
+    ) if persona_ids else None
 
 top_k = st.slider(
     "Retrieval depth",
@@ -162,22 +136,17 @@ if run_agent:
     if not question.strip():
         st.warning("A question is required.")
     else:
-        if input_mode == "Custom":
-            try:
-                user = UserContext(
-                    user_id=user_id,
-                    tenant_id=tenant_id,
-                    region=region,
-                    groups=_csv_values(groups_value),
-                    roles=_csv_values(roles_value, required=False),
-                )
-            except ValidationError:
-                st.error("The identity context is invalid.")
-        if user is not None:
+        if persona_id is None:
+            st.error("A demo persona is required.")
+        else:
             started = time.perf_counter()
             try:
                 with st.spinner("Running Agent"):
-                    result = get_client().ask(question, user, int(top_k))
+                    result = get_client().ask(
+                        question,
+                        persona_id=persona_id,
+                        top_k=int(top_k),
+                    )
                 st.session_state.last_latency_ms = (
                     time.perf_counter() - started
                 ) * 1000
@@ -186,7 +155,11 @@ if run_agent:
                 )
                 st.session_state.last_question = question
                 st.session_state.last_request_id = result.request_id
+                st.session_state.last_feedback_receipt = (
+                    result.feedback_receipt
+                )
                 st.session_state.last_expected_mode = expected_mode
+                st.session_state.last_persona_id = persona_id
                 st.session_state.trace_lookup_id = result.request_id
                 st.session_state.trace_view_request_id = result.request_id
                 try:
@@ -242,26 +215,35 @@ if isinstance(payload, dict):
             st.dataframe(sources, hide_index=True, width="stretch")
 
         st.subheader("Feedback")
+        feedback_available = bool(
+            st.session_state.last_feedback_receipt
+        )
         feedback_columns = st.columns(2)
         helpful = feedback_columns[0].button(
             "Helpful",
             icon=":material/thumb_up:",
             key="feedback_helpful",
             width="stretch",
+            disabled=not feedback_available,
         )
         not_helpful = feedback_columns[1].button(
             "Not helpful",
             icon=":material/thumb_down:",
             key="feedback_not_helpful",
             width="stretch",
+            disabled=not feedback_available,
         )
         if helpful or not_helpful:
             try:
                 get_client().feedback(
+                    persona_id=st.session_state.last_persona_id,
+                    target_request_id=st.session_state.last_request_id,
                     question=st.session_state.last_question,
                     answer=response.answer,
                     helpful=helpful,
+                    receipt=st.session_state.last_feedback_receipt,
                 )
+                st.session_state.last_feedback_receipt = ""
                 st.success("Feedback recorded")
             except UiApiError as exc:
                 st.error(str(exc))

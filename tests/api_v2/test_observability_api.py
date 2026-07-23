@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.domain.evidence import AnswerResponse
 from app.main import create_app
-from tests.api_v2.helpers import make_container
+from tests.api_v2.helpers import OPERATOR_HEADERS, USER_HEADERS, make_container
 
 
 USER = {
@@ -34,11 +34,14 @@ def test_metrics_and_trace_api_expose_only_safe_request_metadata(monkeypatch) ->
 
     response = client.post(
         "/agent/v2/chat",
-        headers={"X-Request-ID": "req-observe"},
-        json={"question": question, "user_context": USER},
+        headers={**USER_HEADERS, "X-Request-ID": "req-observe"},
+        json={"question": question},
     )
-    trace = client.get("/observability/traces/req-observe")
-    metrics = client.get("/observability/metrics")
+    trace = client.get(
+        "/observability/traces/req-observe",
+        headers=OPERATOR_HEADERS,
+    )
+    metrics = client.get("/observability/metrics", headers=OPERATOR_HEADERS)
 
     assert response.status_code == 200
     assert trace.status_code == 200
@@ -77,16 +80,16 @@ def test_trace_lookup_does_not_overwrite_target_when_request_id_is_reused(
 
     response = client.post(
         "/agent/v2/chat",
-        headers={"X-Request-ID": "req-repeat"},
-        json={"question": "What is the policy?", "user_context": USER},
+        headers={**USER_HEADERS, "X-Request-ID": "req-repeat"},
+        json={"question": "What is the policy?"},
     )
     first = client.get(
         "/observability/traces/req-repeat",
-        headers={"X-Request-ID": "req-repeat"},
+        headers={**OPERATOR_HEADERS, "X-Request-ID": "req-repeat"},
     )
     second = client.get(
         "/observability/traces/req-repeat",
-        headers={"X-Request-ID": "req-repeat"},
+        headers={**OPERATOR_HEADERS, "X-Request-ID": "req-repeat"},
     )
 
     assert response.status_code == first.status_code == second.status_code == 200
@@ -107,7 +110,7 @@ def test_trace_lookup_does_not_overwrite_target_when_request_id_is_reused(
 def test_unknown_trace_returns_unified_safe_404() -> None:
     response = TestClient(create_app(make_container())).get(
         "/observability/traces/missing-id",
-        headers={"X-Request-ID": "req-lookup"},
+        headers={**OPERATOR_HEADERS, "X-Request-ID": "req-lookup"},
     )
 
     assert response.status_code == 404

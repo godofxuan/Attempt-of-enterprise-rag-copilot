@@ -1,348 +1,195 @@
-# Enterprise RAG Copilot API
+# Enterprise Agentic RAG API
 
-最后更新：2026-07-17
+最后更新：2026-07-23。唯一部署入口是 `app.main:app`，默认地址是
+`http://127.0.0.1:8000`。
 
-实现入口：`app/main.py`。默认地址：`http://127.0.0.1:8000`。
+本文只描述当前可执行合同。R2-S5 之前由请求体提交 `user_context` 的示例已经
+退休；`/ingest`、`/chat`、`/agent/chat` 及其 compatibility factory 不再存在于
+生产模块。
 
 ## 1. 启动
 
-开发：
+先生成 Git 忽略的本地身份材料，再启动 API：
 
 ```powershell
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
-```
-
-测量或演示：
-
-```powershell
+.\.venv\Scripts\python.exe -m scripts.manage_demo_identity init --force
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-应用使用 FastAPI lifespan。启动时初始化数据库并检查 active V2 index 和 Ollama model 列表；依赖失败不会杀死进程，而会使 readiness 返回 503。
+这是本地可复现身份源，不是真实 OIDC/SSO。不要把 `.private/identity`、bearer
+token 或私钥提交到 Git。
 
-## 2. 通用 request ID
+## 2. 路由与权限
 
-客户端可以传：
-
-```http
-X-Request-ID: client.req-123
-```
-
-只接受 1-64 位 `[A-Za-z0-9._-]`。不合法或缺失时服务生成 32 位 UUID hex。每个响应都带 `X-Request-ID`；V2 answer 的 `trace.request_id` 和错误体 `error.request_id` 使用同一值。
-
-## 3. 统一错误
-
-422、显式 API 错误和未处理异常都返回：
-
-```json
-{
-  "error": {
-    "code": "request_validation_failed",
-    "message": "Request validation failed.",
-    "request_id": "client.req-123",
-    "retryable": false
-  }
-}
-```
-
-错误不会回显 invalid input、exception string、模型响应 body、本机 URL/path 或 prompt。常见 code：
-
-| HTTP | code | 说明 |
-|---:|---|---|
-| 404 | `not_found` | 未注册资源 |
-| 404 | `trace_not_found` | request trace 不在当前有界内存中 |
-| 422 | `request_validation_failed` | JSON/schema 不合法 |
-| 500 | `internal_error` | 未处理服务异常，公开信息已脱敏 |
-
-## 4. GET /health/live
-
-只检查进程能否响应，不访问数据库、index 或 Ollama。
-
-```json
-{"status":"alive"}
-```
-
-依赖异常时仍返回 200。这适合 liveness，不适合判断是否能回答问题。
-
-## 5. GET /health/ready
-
-检查并按 TTL 缓存三个依赖：
-
-- `database`：SQLite schema + `SELECT 1`；
-- `index`：active V2 pointer、manifest/artifact 和 snapshot load；
-- `models`：Ollama `/api/tags` 中存在配置的 embedding/chat model。
-- `retrieved_guard`：detector policy、ruleset provenance 和 fail-closed probe 可用；只公开 `ready|error`。
-
-全部通过时 200：
-
-```json
-{
-  "status": "ready",
-  "checks": {
-    "database": "ok",
-    "index": "ok",
-    "models": "ok"
-  },
-  "retrieved_guard": "ready",
-  "index": {
-    "run_id": "20260716T135632Z_7aec4b9_live_bge_m3_fixed",
-    "chunk_count": 64,
-    "embedding_model": "bge-m3",
-    "embedding_dimension": 1024,
-    "build_duration_ms": 0,
-    "index_size_bytes": 0
-  },
-  "checked_at_utc": "2026-07-17T00:00:00Z"
-}
-```
-
-任一失败时 503，dependency check 为 `error` 或 `retrieved_guard` 为 `error`，`index` 为 null。响应不包含异常文本、路径、规则正文或 ruleset digest。
-
-## 6. GET /health
-
-兼容旧客户端，行为等同 liveness：
-
-```json
-{"status":"ok"}
-```
-
-响应带：
-
-```http
-Deprecation: true
-```
-
-新代码应改用 `/health/live` 或 `/health/ready`。
-
-## 7. POST /agent/v2/chat
-
-当前企业 Agentic RAG 主接口。调用方必须显式提供 `UserContext`：
-
-```json
-{
-  "question": "当前制度每周最多允许远程办公几天？",
-  "user_context": {
-    "user_id": "employee-1",
-    "tenant_id": "starbridge-cn",
-    "region": "cn",
-    "groups": ["all_employees"],
-    "roles": []
-  },
-  "top_k": 5
-}
-```
-
-约束：
-
-| 字段 | 约束 |
-|---|---|
-| `question` | 1-2000 字符 |
-| `user_id`/`tenant_id` | 1-200 字符 |
-| `region` | 1-100 字符 |
-| `groups` | 1-50 个不重复非空值 |
-| `roles` | 0-50 个不重复值 |
-| `top_k` | null 或 1-20 |
-| extra fields | 拒绝 |
-
-回答示意：
-
-```json
-{
-  "mode": "answered",
-  "answer": "当前制度每周最多允许远程办公 3 天。",
-  "claims": [
-    {
-      "claim_id": "claim-1",
-      "text": "当前制度每周最多允许远程办公 3 天。",
-      "critical": true,
-      "cited_chunk_ids": ["visible-chunk-id"]
-    }
-  ],
-  "citations": [
-    {
-      "claim_id": "claim-1",
-      "cited_chunk_ids": ["visible-chunk-id"],
-      "citation_present": true,
-      "references_visible_evidence": true,
-      "lexical_support": 1.0,
-      "supported": true,
-      "unsupported_reason": null
-    }
-  ],
-  "sources": [
-    {
-      "doc_id": "authorized-doc-id",
-      "source_path": "authorized-source",
-      "section_path": ["远程办公"],
-      "chunk_id": "visible-chunk-id",
-      "preview": "..."
-    }
-  ],
-  "warnings": [],
-  "stop_reason": "completed",
-  "trace": {
-    "intent": "fact",
-    "analysis_source": "rules",
-    "required_aspect_count": 1,
-    "steps": [],
-    "budget": {},
-    "generation_attempts": 1,
-    "request_id": "client.req-123"
-  }
-}
-```
-
-`mode`：
-
-| mode | 含义 | sources |
+| Method | Path | Access |
 |---|---|---|
-| `answered` | 证据完整、生成和 citation 验证通过 | 至少 1 |
-| `not_found` | 可见证据不能支持命题 | 0 |
-| `permission` | 请求资源对该身份不可用 | 0 |
-| `unsafe` | 安全策略在检索前拒绝 | 0 |
-| `budget` | 工具/context/deadline 预算耗尽 | 0 |
-| `system` | 内部工具或结构化生成安全失败 | 0 |
+| `GET` | `/health`, `/health/live`, `/health/ready` | public |
+| `GET` | `/docs`, `/redoc`, `/openapi.json` | public |
+| `POST` | `/agent/v2/chat` | valid user bearer |
+| `POST` | `/feedback` | valid user bearer + answer receipt |
+| `GET` | `/identity/me` | valid user bearer |
+| `GET` | `/observability/metrics` | `rag.operator` |
+| `GET` | `/observability/traces/{request_id}` | `rag.operator` |
 
-重要：当前 `UserContext` 是本地 R1 的策略输入，不是真实认证。公网部署不能信任客户端自行填写 tenant/group。
+路由策略是 public-by-exception：只有表中明确公开的 health/schema 路由无需身份。
+未登记的新路径默认先要求 user bearer；验证通过后才由 FastAPI 决定是否 404。
+这防止新增业务接口时忘记同步认证 allowlist。
 
-## 8. POST /feedback
+## 3. 认证与错误语义
+
+受保护请求必须带：
+
+```http
+Authorization: Bearer <JWT>
+```
+
+服务端固定验证 RS256、`typ=at+jwt`、`kid`、issuer、单值 audience、签名、时间
+窗口和严格 claim 类型，再生成内部 `Principal`。客户端不能在 body 中声明
+tenant、region、groups 或 roles。
+
+| Status | Code | Meaning |
+|---:|---|---|
+| 400 | `invalid_content_length`, `invalid_request_body` | 重复/冲突/非数字长度，或非法 ASGI body framing |
+| 401 | `authentication_required`, `invalid_token` | 缺失或无效 bearer；带 `WWW-Authenticate: Bearer` |
+| 403 | `insufficient_role`, `invalid_feedback_binding` | 身份有效但权限或回执不满足 |
+| 408 | `request_body_timeout` | 认证后未在 5 秒总窗口内接收完整 body |
+| 413 | `request_body_too_large` | 认证后 body 超过 128 KiB 或 256 个 ASGI 消息 |
+| 422 | `request_validation_failed` | JSON/schema 不符合合同 |
+| 503 | `identity_unavailable`, `service_not_ready` | 身份材料或运行依赖不可用，可重试 |
+
+认证发生在 body 缓冲和 JSON 解析之前。认证成功后，中间件同时限制 128 KiB
+总字节、256 个 ASGI 消息和 5 秒总读取时间。重复 `Content-Length`、
+`Content-Length` 与 `Transfer-Encoding` 并存、非数字/不可表示长度及非法 ASGI
+body framing 返回安全的 400/413；实际 chunked body 超限、零字节分片洪泛或
+慢速 body 也都在 Pydantic、数据库、检索和 Agent 之前拒绝。错误正文、日志和
+trace 不回显 token、claims 或用户输入。
+
+## 4. Chat
 
 请求：
 
 ```json
 {
-  "question": "当前制度每周最多允许远程办公几天？",
-  "answer": "3 天。",
-  "helpful": true
+  "question": "What is the current remote-work policy?",
+  "top_k": 5
 }
 ```
 
-响应：
-
-```json
-{"status":"ok"}
-```
-
-新数据写入 SQLite `feedback_events`：
-
-```text
-request_id
-question_sha256
-answer_sha256
-helpful
-created_at
-```
-
-不保存 question/answer 明文。旧 `feedback` 表仅为历史兼容保留，新 API 不再写入。SHA256 不是加密，也不保证低熵文本不可枚举。
-
-## 9. GET /observability/metrics
-
-返回进程期低基数聚合：
-
-```json
-{
-  "requests": {
-    "in_flight": 0,
-    "total": 10,
-    "errors": 1,
-    "by_route": {
-      "POST /agent/v2/chat": {
-        "status": {"2xx": 9, "5xx": 1},
-        "latency_ms": {
-          "count": 10,
-          "sample_count": 10,
-          "sum": 12000.0,
-          "p50": 1000.0,
-          "p95": 2500.0
-        }
-      }
-    }
-  },
-  "models": {"calls": 20, "retries": 1, "errors": 0},
-  "process": {"rss_bytes": 159088640}
-}
-```
-
-未知 path 归一化为 `__unmatched__`。没有 question、identity、doc 或 model body。
-
-## 10. GET /observability/traces/{request_id}
-
-返回最近有界内存中的安全 request trace：
-
-```json
-{
-  "request_id": "client.req-123",
-  "method": "POST",
-  "route": "/agent/v2/chat",
-  "status_code": 200,
-  "duration_ms": 1234.5,
-  "outcome": "answered",
-  "model_calls": 2,
-  "model_retries": 0,
-  "model_errors": 0,
-  "spans": [
-    {"name": "model.embed", "status": "ok", "duration_ms": 150.0},
-    {"name": "model.chat", "status": "ok", "duration_ms": 800.0},
-    {"name": "agent.run", "status": "ok", "duration_ms": 1200.0}
-  ]
-}
-```
-
-默认只保留最近 200 条，重启清空。当前无认证，只能本机使用，不能直接暴露公网。
-
-## 11. Legacy endpoints
-
-默认 `app.main:app` 不注册以下接口。它们只由显式 `create_compatibility_app()` 为本地历史回归注册，不是企业 V2 主路径：
-
-- `POST /ingest`：重建 legacy index；
-- `POST /chat`：legacy RAG；
-- `POST /agent/chat`：legacy adaptive Agent。
-
-compatibility app 中它们仍经过 request ID middleware 和统一 500 脱敏，不返回 `str(exc)`，但不具有 D4/D5 V2 retrieved-content boundary。V2 active index 生命周期使用独立 E2 CLI，不应依靠 legacy `/ingest` 更新。普通请求、query parameter 或环境变量不能把 secure app 切换到 compatibility profile。
-
-## 12. Timeout 和 retry
-
-默认：
-
-```text
-API request deadline              15s
-model request timeout             12s
-model transport attempts          max 2
-retry backoff                     100ms
-structured generation attempts    max 2
-readiness probe timeout           2s
-readiness TTL                     5s
-```
-
-只重试 timeout/connection 和 HTTP 429/502/503/504。普通 4xx 不重试。结构化生成的第二次 attempt 只修复 JSON/Pydantic/source-ID shape，不把网络错误再重复一层。
-
-Python 无法安全强杀已经进入第三方 native code 的线程，因此这里的边界是 socket timeout、monotonic Agent deadline 和有界循环，不声称任意 blocking 调用都能硬取消。
-
-## 13. PowerShell 最小 smoke
+PowerShell smoke：
 
 ```powershell
 $base = 'http://127.0.0.1:8000'
-Invoke-RestMethod "$base/health/live"
-Invoke-RestMethod "$base/health/ready"
-
+$userToken = (Get-Content .private\identity\load_user_token.txt -Raw).Trim()
+$headers = @{
+  Authorization = "Bearer $userToken"
+  'X-Request-ID' = 'manual.identity-smoke-1'
+}
 $body = @{
-  question = '当前制度每周最多允许远程办公几天？'
-  user_context = @{
-    user_id = 'employee-1'
-    tenant_id = 'starbridge-cn'
-    region = 'cn'
-    groups = @('all_employees')
-    roles = @()
-  }
+  question = 'What is the current remote-work policy?'
   top_k = 5
-} | ConvertTo-Json -Depth 6
+} | ConvertTo-Json
 
-Invoke-RestMethod `
-  -Method Post `
+$response = Invoke-WebRequest -Method Post `
   -Uri "$base/agent/v2/chat" `
-  -Headers @{ 'X-Request-ID' = 'manual.smoke-1' } `
-  -ContentType 'application/json; charset=utf-8' `
+  -Headers $headers `
+  -ContentType 'application/json' `
   -Body $body
+$answer = $response.Content | ConvertFrom-Json
+$receipt = $response.Headers['X-Feedback-Receipt']
 ```
 
-更完整的安全、观测和复现边界见 `docs/security_threat_model.md`、`docs/observability.md`、`docs/reproducibility.md`。
+响应是 `AnswerResponse`，核心字段为：
+
+- `mode`: `answered`, `partial`, `not_found`, `permission`, `unsafe`,
+  `system`, `budget`, `security_filtered`;
+- `answer`: 最终回答或有界拒答；
+- `claims`, `citations`, `sources`: 证据与引用；
+- `warnings`, `stop_reason`;
+- `trace`: 已脱敏的 Agent 轨迹。
+
+成功响应头 `X-Feedback-Receipt` 是服务端 HMAC，绑定 verified actor、当前回答的
+request ID 和精确 question/answer keyed digests。
+
+## 5. Feedback
+
+请求使用与 chat 相同的 user bearer：
+
+```json
+{
+  "target_request_id": "manual.identity-smoke-1",
+  "question": "What is the current remote-work policy?",
+  "answer": "Use the exact answer returned by chat.",
+  "helpful": true,
+  "receipt": "64 lowercase hexadecimal characters"
+}
+```
+
+服务端先验证 receipt，再保存：
+
+- submission request ID 与 target request ID；
+- actor、question、answer 的 secret-keyed HMAC；
+- `helpful` 与 binding version。
+
+数据库不保存 bearer、原始 subject/claims、原始 question/answer，也不使用可离线
+枚举的裸内容 SHA-256。同一 actor/target/content 的重试原子更新最新 rating；
+复用 request ID 但内容不同会保留为不同记录。
+
+## 6. Identity And Operator Routes
+
+`GET /identity/me` 是唯一有意公开给已认证调用者的身份映射，返回固定字段：
+
+```json
+{
+  "subject": "employee-one",
+  "tenant_id": "tenant-one",
+  "region": "cn",
+  "groups": ["employees"],
+  "roles": [],
+  "issuer": "https://identity.localhost/",
+  "audience": "enterprise-rag-api",
+  "key_id": "demo-key-id"
+}
+```
+
+实际 persona 值取决于本地身份 bundle。`rag.operator` 只授权 metrics/trace；
+服务角色在转换成 Agent `UserContext` 时被移除，不能扩大文档 ACL。
+
+operator smoke：
+
+```powershell
+$operatorToken = (Get-Content .private\identity\operator_token.txt -Raw).Trim()
+$operatorHeaders = @{ Authorization = "Bearer $operatorToken" }
+Invoke-RestMethod -Headers $operatorHeaders `
+  -Uri 'http://127.0.0.1:8000/observability/metrics'
+```
+
+## 7. Health And Readiness
+
+- `/health/live` 只说明进程和 HTTP loop 可响应；
+- `/health/ready` 返回最近一次受控资源探针快照；
+- protected business route 只读取该快照，不在请求线程触发模型冷加载；
+- index、数据库、identity、retrieved-content Guard 或模型合同失败时返回 503。
+
+模型深探针使用生产实际端点和 active index 合同；它与轻量公开 health 分离。
+readiness 不是业务质量分数，也不保证真实 IdP、外部网络或生产 SLO。
+
+## 8. Request ID
+
+调用者可传 `X-Request-ID`，格式为 1-64 个
+`A-Z a-z 0-9 . _ -`。值非法或缺失时，服务端生成新的安全 ID。
+请求 ID 用于低敏 trace、日志关联和 feedback target，但不是身份或 answer 的唯一
+主键，不能单独证明内容一致。
+
+## 9. Retired Interfaces
+
+以下接口在当前 app 中不存在：
+
+```text
+POST /ingest
+POST /chat
+POST /agent/chat
+```
+
+索引更新使用 E2 的版本化 build/activate CLI；固定 RAG 与旧 Agent 只保留在历史
+评测代码和文档中。生产包不再导出 `create_compatibility_app()`，因此不能通过
+包装模块把无认证历史路由重新绑定到 LAN 或公网。

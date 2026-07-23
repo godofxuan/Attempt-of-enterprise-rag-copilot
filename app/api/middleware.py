@@ -123,6 +123,9 @@ def _request_id(scope) -> str:
 
 
 def _route_template(scope) -> str:
+    state_template = scope.get("state", {}).get("route_template")
+    if isinstance(state_template, str) and state_template:
+        return state_template
     route = scope.get("route")
     path = getattr(route, "path", None)
     return path if isinstance(path, str) and path else "__unmatched__"

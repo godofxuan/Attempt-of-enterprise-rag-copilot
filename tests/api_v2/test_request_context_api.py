@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.domain.evidence import AnswerResponse
 from app.main import create_app
 from app.runtime.request_context import current_request_context
-from tests.api_v2.helpers import make_container
+from tests.api_v2.helpers import USER_HEADERS, make_container
 
 
 VALID_USER = {
@@ -32,8 +32,8 @@ def test_request_id_header_matches_v2_trace_and_context_is_reset(monkeypatch) ->
     app = create_app(make_container())
     response = TestClient(app).post(
         "/agent/v2/chat",
-        headers={"X-Request-ID": "client.req-123"},
-        json={"question": "What is the policy?", "user_context": VALID_USER},
+        headers={**USER_HEADERS, "X-Request-ID": "client.req-123"},
+        json={"question": "What is the policy?"},
     )
 
     assert response.status_code == 200
@@ -55,8 +55,8 @@ def test_invalid_attacker_controlled_request_id_is_replaced(monkeypatch) -> None
     secret_id = "password=never-show/../../vault"
     response = TestClient(create_app(make_container())).post(
         "/agent/v2/chat",
-        headers={"X-Request-ID": secret_id},
-        json={"question": "What is the policy?", "user_context": VALID_USER},
+        headers={**USER_HEADERS, "X-Request-ID": secret_id},
+        json={"question": "What is the policy?"},
     )
 
     request_id = response.headers["x-request-id"]

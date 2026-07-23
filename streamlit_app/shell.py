@@ -7,18 +7,27 @@ from typing import Any
 import streamlit as st
 
 from streamlit_app.api_client import EnterpriseRagClient, UiApiError
+from app.security.token_source import (
+    BearerTokenFileSource,
+    PersonaTokenBundleSource,
+    ensure_distinct_persona_operator_token_sources,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_API_BASE_URL = "http://127.0.0.1:8000"
+PERSONA_TOKEN_BUNDLE = PROJECT_ROOT / ".private" / "identity" / "persona_tokens.json"
+OPERATOR_TOKEN_FILE = PROJECT_ROOT / ".private" / "identity" / "operator_token.txt"
 _SESSION_DEFAULTS: dict[str, Any] = {
     "selected_demo": "fact_hr_remote_2026_notice",
     "last_answer": None,
     "last_request_id": "",
+    "last_feedback_receipt": "",
     "last_http_trace": None,
     "last_latency_ms": None,
     "last_question": "",
     "last_expected_mode": None,
+    "last_persona_id": "",
     "trace_lookup_id": "",
     "trace_view_request_id": "",
     "readiness_status": None,
@@ -35,10 +44,12 @@ def clear_answer_state(state: Any) -> None:
     for key, value in {
         "last_answer": None,
         "last_request_id": "",
+        "last_feedback_receipt": "",
         "last_http_trace": None,
         "last_latency_ms": None,
         "last_question": "",
         "last_expected_mode": None,
+        "last_persona_id": "",
         "trace_lookup_id": "",
         "trace_view_request_id": "",
     }.items():
@@ -47,14 +58,24 @@ def clear_answer_state(state: Any) -> None:
 
 @st.cache_resource(show_spinner=False)
 def _cached_client(base_url: str) -> EnterpriseRagClient:
-    return EnterpriseRagClient(base_url, timeout_seconds=30.0)
+    persona_tokens = PersonaTokenBundleSource(PERSONA_TOKEN_BUNDLE)
+    operator_token = BearerTokenFileSource(OPERATOR_TOKEN_FILE)
+    ensure_distinct_persona_operator_token_sources(
+        persona_tokens,
+        operator_token,
+    )
+    return EnterpriseRagClient(
+        base_url,
+        timeout_seconds=30.0,
+        persona_tokens=persona_tokens,
+        operator_token=operator_token,
+    )
 
 
 def get_client() -> EnterpriseRagClient:
-    return _cached_client(
-        os.environ.get("RAG_API_BASE_URL", DEFAULT_API_BASE_URL).strip()
-        or DEFAULT_API_BASE_URL
-    )
+    configured = os.environ.get("RAG_API_BASE_URL")
+    base_url = DEFAULT_API_BASE_URL if configured is None else configured
+    return _cached_client(base_url)
 
 
 def render_sidebar() -> None:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.config import Settings
 from app.observability.metrics import MetricsRegistry
@@ -9,6 +9,12 @@ from app.runtime.resources import (
     ReadinessSnapshot,
     ReadyIndexInfo,
     ServiceContainer,
+)
+from app.security.identity import (
+    AuthenticationFailure,
+    FeedbackActorHasher,
+    IdentityVerifier,
+    Principal,
 )
 
 
@@ -21,9 +27,40 @@ ROUTES = {
     "/chat",
     "/ingest",
     "/feedback",
+    "/identity/me",
     "/observability/metrics",
     "/observability/traces/{request_id}",
 }
+
+USER_HEADERS = {"Authorization": "Bearer user-token"}
+OPERATOR_HEADERS = {"Authorization": "Bearer operator-token"}
+
+
+class StaticIdentityVerifier:
+    def ready(self) -> None:
+        return None
+
+    def verify_bearer(self, authorization: str | None) -> Principal:
+        if authorization is None:
+            raise AuthenticationFailure("authentication_required")
+        if authorization not in {
+            USER_HEADERS["Authorization"],
+            OPERATOR_HEADERS["Authorization"],
+        }:
+            raise AuthenticationFailure("invalid_token")
+        now = datetime.now(timezone.utc)
+        return Principal(
+            subject="operator-one" if "operator" in authorization else "employee-one",
+            tenant_id="tenant-one",
+            region="cn",
+            groups=["employees"],
+            roles=["rag.operator"] if "operator" in authorization else [],
+            issuer="https://identity.localhost/",
+            audience="enterprise-rag-api",
+            key_id="test-key-1",
+            issued_at=now,
+            expires_at=now + timedelta(minutes=5),
+        )
 
 
 class FakeResources:
@@ -48,7 +85,7 @@ class FakeResources:
 def ready_snapshot() -> ReadinessSnapshot:
     return ReadinessSnapshot(
         status="ready",
-        checks={"database": "ok", "index": "ok", "models": "ok"},
+        checks={"database": "ok", "index": "ok", "models": "ok", "identity": "ok"},
         retrieved_guard="ready",
         index=ReadyIndexInfo(
             run_id="test-index",
@@ -65,7 +102,7 @@ def ready_snapshot() -> ReadinessSnapshot:
 def not_ready_snapshot() -> ReadinessSnapshot:
     return ReadinessSnapshot(
         status="not_ready",
-        checks={"database": "ok", "index": "error", "models": "ok"},
+        checks={"database": "ok", "index": "error", "models": "ok", "identity": "ok"},
         retrieved_guard="ready",
         index=None,
         checked_at_utc=datetime(2026, 7, 17, tzinfo=timezone.utc),
@@ -76,6 +113,7 @@ def make_container(
     *,
     resources: FakeResources | None = None,
     trace_buffer_size: int = 20,
+    identity_verifier: IdentityVerifier | None = None,
 ) -> ServiceContainer:
     settings = Settings(
         _env_file=None,
@@ -91,4 +129,6 @@ def make_container(
             memory_provider=lambda: 123_456,
         ),
         traces=InMemoryTraceStore(max_records=trace_buffer_size),
+        identity_verifier=identity_verifier or StaticIdentityVerifier(),
+        feedback_actor_hasher=FeedbackActorHasher(_key=b"test-feedback-key" * 2),
     )

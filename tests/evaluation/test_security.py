@@ -171,7 +171,9 @@ def test_case_security_rejects_forbidden_visible_or_answer_source_without_echo()
 def test_trace_scan_rejects_sensitive_keys_values_and_unredacted_secret() -> None:
     assert trace_is_redacted({"steps": [], "doc_id": "hidden-doc"}) is False
     assert trace_is_redacted({"note": "hidden-doc"}, forbidden_values=["hidden-doc"]) is False
-    assert trace_is_redacted({"note": "password=plain-secret"}) is False
+    assert trace_is_redacted(
+        {"note": "password=test-fixture-plain-secret"}
+    ) is False
     assert trace_is_redacted({"note": "password=[REDACTED]"}) is True
 
 

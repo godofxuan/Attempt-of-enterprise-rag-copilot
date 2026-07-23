@@ -366,7 +366,7 @@ tracked/staged at D0      clean
 pre-existing untracked    .superpowers/ browser companion only
 ```
 
-D0 当时发现 raw `SearchResult/FindResult/OpenResult` 直接进入 `Controller.observe`、pipeline 在 Guard 前裁成 top-k。D2 用 `5 failed / 3 passed` 记录该历史红色基线；D3 实现 standalone Guard；D4 已把默认 V2 路径改成 capped ranked pool -> admission -> guarded execution -> admitted-only state；D5 增加 nonce/JSON prompt envelope、aggregate-only public trace、secure default route profile 和 Guard startup/readiness validation。legacy `/chat` 和 `/agent/chat` 只存在于显式 compatibility app，不在 V2 security claim 内。
+D0 当时发现 raw `SearchResult/FindResult/OpenResult` 直接进入 `Controller.observe`、pipeline 在 Guard 前裁成 top-k。D2 用 `5 failed / 3 passed` 记录该历史红色基线；D3 实现 standalone Guard；D4 已把默认 V2 路径改成 capped ranked pool -> admission -> guarded execution -> admitted-only state；D5 增加 nonce/JSON prompt envelope、aggregate-only public trace、secure default route profile 和 Guard startup/readiness validation。D5 当时仍把 legacy `/chat` 和 `/agent/chat` 留在显式 compatibility app；R2-S5 最终复核后已从生产模块删除该 factory。
 
 D1 已冻结以下文档：
 
@@ -687,3 +687,73 @@ deployment                 NOT RUN
 Only admitted next implementation: R2-S5 Trusted Identity Boundary. Rank 2:
 reproducible minimal Linux deploy/rollback. Rank 3: durable privacy-bounded
 telemetry. These are queued in order and are not parallel approvals.
+
+## 22. R2-S5 current handoff
+
+This section supersedes the “only admitted next implementation” line above.
+R2-S5 Trusted Identity Boundary is implemented. Its pre-third-review local
+whole-tree gate was invalidated by a `HOLD` review; all recorded Important
+findings have since been repaired and the local gate has been regenerated.
+
+Implemented data flow:
+
+```text
+Bearer JWT
+-> strict RS256 + pinned managed JWKS
+-> server Principal
+-> service-role authorization
+-> role-stripped Agent UserContext
+-> existing tenant/region/group ACL
+```
+
+Additional industrial boundaries:
+
+- authentication precedes request-body parsing and denied work has zero
+  Agent/feedback side effects;
+- metrics and trace require the exact operator role;
+- feedback requires a server HMAC receipt over actor, target request, and keyed
+  question/answer digests, then atomically upserts one latest
+  actor/target/content row;
+- plaintext feedback migration keeps a durable erasure marker until VACUUM and
+  WAL checkpoint both complete;
+- managed local identity uses manifest commit, semantic journal recovery,
+  stage/restart/activate/overlap/retire rotation, owner/mode/DACL/hardlink
+  checks, POSIX root-identity binding, and write-through publication;
+- Streamlit and API credentials are loopback-only and split across
+  public/persona/operator cookie-rejecting sessions;
+- readiness initialization is separated from request-time snapshot reads, and
+  model readiness performs finite dimension-matched embed plus production
+  `/api/chat` probes under one background deadline.
+
+Pre-third-review historical evidence, not a current release gate:
+
+```text
+historical full pytest          1835 passed / 20 skipped / 3 known warnings
+frozen identity matrix          20/20; 14 denials; 0 denied effects/leaks
+matrix definition SHA-256       fe5fdddd9cd4d067930b971ca0658a22deb63778723c31597df7f7fab70b4e2f
+fresh/public result SHA-256      94125e66d1ac4b2c32562d623b6351a10cfa021ecd7d760dbc4eb89a3a0b1e66
+public repository audit         515 candidates / 0 findings
+ephemeral verifier benchmark    1000 iterations; p95 0.0957 ms
+```
+
+Third review found `0 Critical / 10 Important / 4 Minor` and set `HOLD`.
+Important fixes now include removal of the compatibility app, public-by-
+exception authentication, a 128 KiB authenticated body cap, background
+dimension-matched embed/chat readiness, strict SQLite helpful migration,
+broader public audit rules, one current API contract, Ubuntu/Windows CI, and
+manifest-v3 enforced key overlap with exact-confirmation emergency audit.
+Latest focused evidence includes new framing/audit RED-GREEN `14`, broader
+boundary/audit/redaction `127`, lifecycle/CLI `40/2`, benchmark contract `4`,
+public audit `515/0`, source-bound matrix `20/20`, and verifier p95
+`0.0904 ms`. The current matrix artifact SHA-256 is
+`2ec62b6e8eda35531b43a67263cec16dc42fb07e207ec2b43d22d1cfb6227c12`.
+The repaired whole tree passes
+`1906 / 20 skipped / 3 known warnings`; compileall, `pip check`, and diff check
+also pass.
+
+The benchmark is verifier-only. The identity source is local synthetic
+RSA/JWKS, not real OIDC/SSO/IAM. Final independent security and engineering
+reviews both report `0 Critical / 0 Important / RELEASE`. Pending delivery
+evidence at this checkpoint is commit/push and exact-SHA Ubuntu/Windows GitHub
+Actions. No model run or immutable R2-S1/S2/S3/S4 artifact should be rerun or
+overwritten for this stage.

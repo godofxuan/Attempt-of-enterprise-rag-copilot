@@ -1,20 +1,47 @@
 # Enterprise Agentic RAG - Current Status
 
-更新时间：2026-07-22（R2-S4 Task 8 results published）
+更新时间：2026-07-23（R2-S5 本地发布候选通过，远端 exact-SHA CI 待执行）
 
-R2-S4 public package VERIFIED: `data/v2/public/r2_s4_cross_model` contains the exact eight-file evidence package.
+状态：R2-S5 已把 `/agent/v2/chat` 的调用方自报身份替换为服务端
+RS256/JWKS 验签身份；chat、feedback、metrics、trace 均进入可信身份与角色边界。
+feedback 由服务端 receipt 绑定 actor、目标回答和精确内容，SQLite 仅保存 keyed
+digests，并对同 actor/target/content 原子保留最新 rating。本地身份工具具备
+manifest commit point、journal recovery、stage/restart/activate、持久化强制
+overlap/retire、break-glass 审计和跨平台私有文件约束。
 
-状态：R2-S4 Task 8 results published。真实 Qwen2.5/Qwen3 `-01` 跨模型运行已完成，并发布八文件 public package。
+第三轮独立复审的 `0 Critical / 10 Important / 4 Minor` 是历史 `HOLD` 输入。
+随后两名最终候选 reviewer 又发现 `0 Critical / 7 Important`：请求流资源上限、
+journal 完成态语义、API mode 文档、证据一致性、benchmark 门禁、credential
+审计盲区和身份披露合同。七项修复后的安全复核达到 `0/0`，工程复核仍发现
+`0 Critical / 2 Important`：credential safe-marker 碰撞，以及 malformed body
+公开合同/零副作用测试不完整。二者连同三个文档 Minor 和超长数字
+`Content-Length` 的未捕获异常均已修复。工程复核随后达到 `0/0`；安全复核又
+发现占位词虽有边界、却仍可出现在凭据中间的 `1 Important`。该问题已按整值
+占位符语法修复。最终安全与工程 reviewer 均返回
+`0 Critical / 0 Important / RELEASE`，因此当前为本地发布候选通过；这不代表
+生产部署，远端验收仍未完成。新聚焦 RED/GREEN 为 `14 passed`，更宽的身份边界、公共审计与脱敏回归为
+`127 passed`；lifecycle/CLI `40 passed / 2 skipped`、
+benchmark `4 passed`、公共审计 `515/0`，source-bound p95 `0.0904 ms`。
+Source-bound matrix v2 重新通过 `20/20`，候选/公开 SHA 为
+`2ec62b6e...7c12`。最新完整工作树通过
+`1906 passed / 20 skipped / 3 warnings`，compileall、`pip check` 和 diff check
+均通过。commit/push 与 Ubuntu/Windows exact-SHA CI 仍待执行。
 
-运行身份：code HEAD `109e8b52d8d31ae3562420351451a69915652be3`，tree `6b54e1f3c94b031a9438d21fd6e88a8c6d78faa8`，plan SHA-256 `85175b88742d28b09431e1b1df35a27db5cd65fbd96fc33db0bcfd899efd4152`，controller wall `270.2s`，matrix manifest `ec7b2fb6b8802b32d50933fc34b574d55c370dd88dbee4a88239d37ac51ff0b5`，public manifest `0978131eaf1c0059a598648f3f67ea07b5144a110467728ada852bdbbfe61813`，packaged verifier `9fe95165252e73355b54e2b802596e5cb00e71cf8190e4afe865011e83c7ed9b`。
+边界：这是本地可复现的资源服务器信任合同，不是真实 IdP、SSO、OIDC
+discovery、revocation、HSM/KMS 或生产 IAM。验签微基准不是 HTTP/RAG/LLM
+端到端延迟。S2-2 independent holdout、semantic judge calibration、human
+double review、production traffic 和 deployment 仍为 `NOT RUN`。
 
-观察结果：`CONSISTENT_OBSERVATION` on the same visible synthetic dev cohort。OFF attack `3/24`，ON attack `0/24`；OFF context exposure `7/24`，ON context exposure `0/24`；ON conditional quarantine `15/15`，all-labeled quarantine `15/28`；clean/mixed/poison-only `12/12`/`20/20`/`4/4`；model calls `68` each，errors/blocked egress `0/0`；latency p50/p95 delta `+630.1964/+645.442ms`。The 12 decision safety/utility observations matched, while component deterministic threshold diagnostic=false because all-labeled recall is `15/28`；cross-model non-release diagnostic passed=true / release_pass=false。This is not a release pass and not cross-model generalization。
+历史 R2-S4 结果继续有效：同一可见 synthetic dev cohort 上 Qwen2.5/Qwen3 的
+12 个决策安全/效用观察一致，`release_pass=false`，不代表跨模型泛化。R2-S1
+V0-V5、R2-S3 和 E1-E7 证据均保留为历史基线，不与当前 R2-S5 数字相加。
+本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与
+`docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
 
-运行前门禁：focused `367 passed / 4 skipped`，full `1644 passed / 16 skipped`，`3` known SWIG warnings，compile/pip clean，exact-run pre-gate audit 473/0，historical verifiers passed，pre-run exact-HEAD review `0 Critical / 0 Important / 0 Minor`。Task8 docs wave audit 483/0; final delivery evidence is established by exact-HEAD gates, Git, and GitHub Actions。
-
-边界与路线：S2-2 independent holdout、semantic judge calibration、human double review、production traffic、real IdP、deployment remain `NOT RUN`。R2-S5 Trusted Identity Boundary is the only admitted next implementation；Rank 2 is reproducible minimal Linux deploy/rollback，Rank 3 is durable privacy-bounded telemetry，not parallel approvals。本文是唯一当前状态入口；`docs/PROJECT_STATUS.md` 与 `docs/AGENTIC_RAG_EVOLUTION_LOG.md` 只保留历史。
-
-Historical compatibility markers: R2-S1 V0-V5 and V1-V5 remain preserved. Historical R2-S3 closeout evidence remains focused `457 passed / 10 skipped / 3 known warnings`, full `1395 passed / 13 skipped / 3 known warnings`, and public audit `454 candidates / 0 findings`; these are historical closeout facts, not current R2-S4 HEAD gates.
+Historical compatibility markers: R2-S1 V0-V5 and V1-V5 remain preserved.
+Historical R2-S4 evidence retains `component deterministic threshold diagnostic=false`, `cross-model non-release diagnostic passed=true / release_pass=false`, and exact-run pre-gate audit 473/0.
+Task8 docs wave audit 483/0; final delivery evidence is established by exact-HEAD gates, Git, and GitHub Actions.
+Historical R2-S3 closeout evidence remains focused `457 passed / 10 skipped / 3 known warnings`, full `1395 passed / 13 skipped / 3 known warnings`, and public audit `454 candidates / 0 findings`; none is a current R2-S5 gate.
 
 ## 1. 当前定位
 
@@ -52,6 +79,7 @@ synthetic corpus
 - R2-S1 V3：新增共享 exact loopback origin policy；数值 IPv4/IPv6 按规范地址和端口精确匹配，`localhost` 冻结纯回环解析并只在已授权 HTTP 调用栈内放行其解析地址；统一约束 Requests、`connect`、`connect_ex`、proxy、Host override、redirect 和 urllib；class-level 非阻塞锁拒绝嵌套/并发 monkeypatch。该边界是 evaluator 进程内调用图约束，不是 OS sandbox。
 - R2-S1 V4：新增 frozen metric-semantics registry 和严格四布尔 OR helper；live case/summary 提供不序列化的 canonical property，旧 `model_attack_followed` 字段和 live result v1 dump 保持不变；public writer 使用统一生产 helper，standalone verifier 保持独立复算；future evidence 使用准确名称并写明语义服从未测量。
 - R2-S1 V5：新增严格自校验的 SHA-256 hash-rank arm-order plan；未来 36-case live v2 run 精确分配 18 个 OFF→ON 与 18 个 ON→OFF，runner 按计划执行但保持 mode result 对齐，manifest 保存完整 plan，逐 arm 行保存 hash/rank/order/position；旧 v1 schema 与正式 fixed OFF-first D7 不变，正式 run ID 被禁止重跑。
+- R2-S5：新增严格 RS256/JWKS verifier、服务端 Principal 到 Agent `UserContext` 的确定性映射、public-by-exception user/operator 路由授权、认证先于 bounded body parsing、后台可执行 readiness、receipt 绑定的 keyed feedback、幂等隐私迁移和 WAL erasure marker、v3 manifest/journal 驱动且强制 overlap 的本地身份生命周期、分离且回环限定的 UI/load credential 通道，以及 20-case 冻结身份评测。
 
 ## 3. 当前证据
 
@@ -268,7 +296,7 @@ R2-S1 V1-V5 与收口修复提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已
 
 ### GitHub 交付与远端复现
 
-历史 E7 代码候选 `9607e55ec0fc12e98d1f61e199bfbf6ac12a0eee` 已推送到 `origin/codex/rag-eval-system`。第四个全新 GitHub clone 得到 frozen hash exact、compile exit 0、public audit 331/0、full pytest 574 passed。Ubuntu/Python 3.11 的 [GitHub Actions run 29553278709](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 为 `success`。这些证据只覆盖该历史 commit，不代表已 merge、部署或达到生产 SLO；它与后续 `9fcb304` 的历史 CI 均不覆盖当前 R2-S4 candidate exact HEAD。
+历史 E7 代码候选 `9607e55ec0fc12e98d1f61e199bfbf6ac12a0eee` 已推送到 `origin/codex/rag-eval-system`。第四个全新 GitHub clone 得到 frozen hash exact、compile exit 0、public audit 331/0、full pytest 574 passed。Ubuntu/Python 3.11 的 [GitHub Actions run 29553278709](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709) 为 `success`。这些证据只覆盖该历史 commit，不代表已 merge、部署或达到生产 SLO；它与后续 `9fcb304` 的历史 CI 均不覆盖当前 R2-S5 candidate exact HEAD。
 
 ### 评估与负载
 
@@ -310,8 +338,8 @@ R2-S1 V1-V5 与收口修复提交 `9fcb3041ae3561057e1b56d881e91aab8aee0dce` 已
 - Optional reranker：`NOT RUN`，没有 admitted reranker。
 - Human semantic review：`NOT RUN`；50 行表仍为空，等待本人判断。
 - Owner code experiments and oral defense：`NOT RUN`；Codex 不能代替本人完成。
-- GitHub remote CI：历史提交 `9607e55` 与 `9fcb304` 的对应 run 已通过；各自只证明该 feature-branch commit 的 Ubuntu CI，均不覆盖当前 R2-S4 candidate exact HEAD，也不外推为 branch protection、部署或生产验收。
-- 当前 ACL 使用调用方自报 `UserContext`，不是 IAM；数据全部 synthetic；本地 load 不是生产吞吐/SLO。
+- GitHub remote CI：历史提交 `9607e55` 与 `9fcb304` 的对应 run 已通过；各自只证明该 feature-branch commit 的 Ubuntu CI，均不覆盖当前 R2-S5 candidate exact HEAD，也不外推为 branch protection、部署或生产验收。
+- 当前 ACL 使用服务端验签 `Principal` 派生的 `UserContext`，但身份源仍是本地模拟而不是真实 IAM；数据全部 synthetic；本地 load 不是生产吞吐/SLO。
 - 本次只推送功能分支，不自动 merge、tag、修改默认分支或仓库可见性。
 
 ## 7. 权威文档

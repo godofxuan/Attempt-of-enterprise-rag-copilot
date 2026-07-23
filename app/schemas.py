@@ -2,9 +2,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.domain.queries import UserContext
-
-
 class HealthResponse(BaseModel):
     status: Literal["ok"]
 
@@ -28,7 +25,6 @@ class AgentV2ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     question: str = Field(..., min_length=1, max_length=2000)
-    user_context: UserContext
     top_k: int | None = Field(default=None, ge=1, le=20)
 
 
@@ -47,10 +43,29 @@ class ChatResponse(BaseModel):
 class FeedbackRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    target_request_id: str = Field(
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9._-]+$",
+    )
     question: str = Field(min_length=1, max_length=2000)
     answer: str = Field(min_length=1, max_length=20_000)
     helpful: bool
+    receipt: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 class FeedbackResponse(BaseModel):
     status: Literal["ok"]
+
+
+class IdentityResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    subject: str
+    tenant_id: str
+    region: str
+    groups: list[str]
+    roles: list[str]
+    issuer: str
+    audience: str
+    key_id: str

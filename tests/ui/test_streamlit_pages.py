@@ -24,6 +24,7 @@ def test_ask_page_renders_offline_and_initializes_session_contract() -> None:
         "selected_demo",
         "last_answer",
         "last_request_id",
+        "last_feedback_receipt",
         "last_http_trace",
         "last_latency_ms",
     ]:
@@ -31,29 +32,40 @@ def test_ask_page_renders_offline_and_initializes_session_contract() -> None:
     assert any(button.label == "Run Agent" for button in app.button)
 
 
-def test_custom_identity_validation_stays_local_and_does_not_crash() -> None:
+def test_custom_mode_uses_a_fixed_persona_and_has_no_editable_identity() -> None:
     app = _run(ASK_PAGE)
-    app.session_state.last_answer = {"mode": "answered"}
-    app.session_state.last_request_id = "stale-request"
-    app.session_state.last_http_trace = {"request_id": "stale-request"}
     app.button_group[0].set_value("Custom").run()
-    next(item for item in app.text_area if item.label == "Question").set_value(
-        "What is the current policy?"
-    )
-    next(item for item in app.text_input if item.label == "Groups").set_value("")
-    next(item for item in app.button if item.label == "Run Agent").click().run()
 
     assert not app.exception
-    assert any("identity context is invalid" in item.value for item in app.error)
-    assert app.session_state.last_answer is None
-    assert app.session_state.last_request_id == ""
-    assert app.session_state.last_http_trace is None
+    labels = [item.label for item in app.text_input]
+    assert "User ID" not in labels
+    assert "Tenant" not in labels
+    assert "Groups" not in labels
+    assert "Roles" not in labels
+    assert any(item.label == "Persona" for item in app.selectbox)
+
+
+def test_streamlit_sources_never_store_or_read_private_keys_or_tokens_in_state() -> None:
+    sources = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (ROOT / "streamlit_app").rglob("*.py")
+    )
+
+    assert "private_key" not in sources
+    assert "last_token" not in sources
+    assert "session_state.token" not in sources
+    assert "user_context" not in (ASK_PAGE.read_text(encoding="utf-8"))
+    shell = (ROOT / "streamlit_app" / "shell.py").read_text(encoding="utf-8")
+    assert '"persona_tokens.json"' in shell
+    assert '"operator_token.txt"' in shell
+    assert "RAG_BEARER_TOKEN" not in shell
 
 
 def test_ask_input_change_clears_previous_result_state() -> None:
     app = _run(ASK_PAGE)
     app.session_state.last_answer = {"mode": "answered"}
     app.session_state.last_request_id = "stale-request"
+    app.session_state.last_feedback_receipt = "a" * 64
     app.session_state.last_http_trace = {"request_id": "stale-request"}
     app.session_state.last_latency_ms = 100.0
 
@@ -62,6 +74,7 @@ def test_ask_input_change_clears_previous_result_state() -> None:
     assert not app.exception
     assert app.session_state.last_answer is None
     assert app.session_state.last_request_id == ""
+    assert app.session_state.last_feedback_receipt == ""
     assert app.session_state.last_http_trace is None
     assert app.session_state.last_latency_ms is None
 
@@ -196,6 +209,7 @@ def test_navigation_and_css_source_contract() -> None:
     assert 'backgroundColor = "#F5F7F6"' in theme
     assert 'secondaryBackgroundColor = "#EDF2EF"' in theme
     assert 'textColor = "#17211E"' in theme
+    assert 'address = "127.0.0.1"' in theme
 
 
 def test_navigation_entrypoint_renders_default_page_offline() -> None:

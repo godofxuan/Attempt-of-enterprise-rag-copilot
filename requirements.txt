@@ -5,6 +5,8 @@ requests==2.33.1
 pydantic==2.13.2
 pydantic-settings==2.14.0
 python-dotenv==1.2.2
+PyJWT==2.13.0
+cryptography==49.0.0
 openai==2.32.0
 faiss-cpu==1.13.2
 rank-bm25==0.2.2

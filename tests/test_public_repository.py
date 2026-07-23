@@ -99,6 +99,7 @@ def test_audit_rejects_private_paths_credentials_large_files_and_bad_links(
         ),
         "openai.txt": "sk-" + "a" * 32,
         "github.txt": "ghp_" + "b" * 36,
+        "jwt.txt": "eyJ" + "a" * 12 + "." + "b" * 20 + "." + "c" * 32,
         "tests/safe.txt": (
             "password=never-show\nsecurity@example.invalid\n"
         ),
@@ -128,6 +129,7 @@ def test_audit_rejects_private_paths_credentials_large_files_and_bad_links(
     assert ("private_key", "key.pem") in findings
     assert ("credential_token", "openai.txt") in findings
     assert ("credential_token", "github.txt") in findings
+    assert ("credential_token", "jwt.txt") in findings
     assert ("non_example_email", "README.md") in findings
     assert ("absolute_user_path", "README.md") in findings
     assert ("missing_local_link", "README.md") in findings
@@ -442,11 +444,13 @@ def test_audit_scans_runtime_text_for_paths_and_literal_credentials(
 ) -> None:
     from scripts.audit_public_repo import audit_repository
 
+    credential = "RealLooking" + "SecretValue42"
     runtime = tmp_path / "app" / "leaky_config.py"
     runtime.parent.mkdir(parents=True)
     runtime.write_text(
         'cache_path = "C:\\Users\\alice\\private\\cache"\n'
-        'password = "RealLookingSecretValue42"\n',
+        + "pass"
+        + f'word = "{credential}"\n',
         encoding="utf-8",
     )
     safe = tmp_path / "app" / "safe_config.py"
@@ -464,6 +468,268 @@ def test_audit_scans_runtime_text_for_paths_and_literal_credentials(
     assert ("absolute_user_path", "app/leaky_config.py") in findings
     assert ("credential_assignment", "app/leaky_config.py") in findings
     assert not any(path == "app/safe_config.py" for _, path in findings)
+
+
+def test_audit_strong_scans_ordinary_security_docs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    dataset = (
+        tmp_path / "data" / "v2" / "security" / "indirect_injection_test_v1.json"
+    )
+    dataset_payload = json.loads(dataset.read_text(encoding="utf-8"))
+    dataset_payload["cases"][0]["question"] = "FROZEN_R2_S5_QUESTION"
+    dataset.write_text(json.dumps(dataset_payload), encoding="utf-8")
+
+    credential = "Production" + "Secret42"
+    service_key = "Live" + "ServiceKey42"
+    docs = {
+        "docs/security/r2_s5/password.md": "pass" + f"word={credential}\n",
+        "docs/security/r2_s5/api-key.md": "api_" + f"key: {service_key}\n",
+        "docs/security/r2_s5/identity.md": "local owner slice5-owner\n",
+        "docs/security/r2_s5/evidence/runtime.md": (
+            "evidence: security_runs/r2_s5/private/result.json\n"
+        ),
+        "docs/security/r2_s5/evidence/frozen.md": "FROZEN_R2_S5_QUESTION\n",
+    }
+    for relative, content in docs.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    monkeypatch.setenv("USERNAME", "slice5-owner")
+
+    report = audit_repository(tmp_path, candidate_files=docs)
+    findings = {(item.code, item.path) for item in report.findings}
+
+    assert (
+        "credential_assignment",
+        "docs/security/r2_s5/password.md",
+    ) in findings
+    assert (
+        "credential_assignment",
+        "docs/security/r2_s5/api-key.md",
+    ) in findings
+    assert ("local_identity", "docs/security/r2_s5/identity.md") in findings
+    assert (
+        "private_runtime_reference",
+        "docs/security/r2_s5/evidence/runtime.md",
+    ) in findings
+    assert (
+        "frozen_security_content",
+        "docs/security/r2_s5/evidence/frozen.md",
+    ) in findings
+
+
+def test_audit_strong_scan_allows_safe_credential_placeholders(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    relative = "docs/security/r2_s5/safe-examples.md"
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "password=<redacted>\n"
+        "api_key=placeholder\n"
+        "access_token=settings.access_token\n"
+        "secret=********\n",
+        encoding="utf-8",
+    )
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+
+    assert not any(
+        item.code == "credential_assignment" and item.path == relative
+        for item in report.findings
+    )
+
+
+def test_audit_strong_scans_ordinary_test_sources(tmp_path: Path) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    relative = "tests/ordinary_module.py"
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "pass" + "word = " + repr("ProductionSecret42") + "\n",
+        encoding="utf-8",
+    )
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+
+    assert ("credential_assignment", relative) in {
+        (item.code, item.path) for item in report.findings
+    }
+
+
+def test_audit_only_masks_structured_scanner_rule_definitions(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    relative = "scripts/audit_public_repo.py"
+    source = (
+        "_PRIVATE_RUNTIME_REFERENCE_PATTERN = "
+        "re.compile(r'security_runs/private')\n"
+        "_POSIX_USER_PATH_PATTERN = re.compile(r'/home/example')\n"
+        "def _local_identity_values():\n"
+        "    return os.environ.get('USERPROFILE')\n"
+    )
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    path.write_text(source, encoding="utf-8")
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+
+    assert not any(
+        item.code in {"credential_assignment", "private_runtime_reference"}
+        and item.path == relative
+        for item in report.findings
+    )
+
+
+def test_audit_does_not_mask_credentials_inside_auditor_test_functions(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    relative = "tests/test_public_repository.py"
+    credential = "Production" + "Secret42"
+    leaked_assignment = "client_" + f"secret={credential}"
+    source = (
+        "def test_fixture():\n"
+        f"    payload = {leaked_assignment!r}\n"
+        "    audit_repository(root, candidate_files=[payload])\n"
+    )
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    path.write_text(source, encoding="utf-8")
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+
+    assert ("credential_assignment", relative) in {
+        (item.code, item.path) for item in report.findings
+    }
+
+
+@pytest.mark.parametrize(
+    "credential_name",
+    [
+        "client_secret",
+        "AWS_SECRET_ACCESS_KEY",
+        "secret_access_key",
+        "refresh_token",
+        "token",
+    ],
+)
+def test_audit_detects_common_credential_assignment_names(
+    tmp_path: Path,
+    credential_name: str,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    relative = "config/leaked.env"
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    credential = "Live" + "CredentialValue42"
+    path.write_text(f"{credential_name}={credential}\n", encoding="utf-8")
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+
+    assert ("credential_assignment", relative) in {
+        (item.code, item.path) for item in report.findings
+    }
+
+
+@pytest.mark.parametrize(
+    "credential_parts",
+    [
+        ("la", "test", "-production-value"),
+        ("P@", "$$", "w0rdSecret42"),
+        ("real", "(value)", "with-secret"),
+        ("prod-", "test", "-LiveCredentialValue42"),
+        ("real-", "redacted", "-LiveCredentialValue42"),
+    ],
+)
+def test_audit_safe_marker_substrings_do_not_hide_literal_credentials(
+    tmp_path: Path,
+    credential_parts: tuple[str, ...],
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    relative = "config/collision.py"
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    credential = "".join(credential_parts)
+    path.write_text(f"client_secret = {credential!r}\n", encoding="utf-8")
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+
+    assert ("credential_assignment", relative) in {
+        (item.code, item.path) for item in report.findings
+    }
+
+
+def test_api_docs_publish_authenticated_body_framing_errors() -> None:
+    api_docs = (ROOT / "docs" / "api.md").read_text(encoding="utf-8")
+
+    assert (
+        "| 400 | `invalid_content_length`, `invalid_request_body` |"
+        in api_docs
+    )
+    assert "重复 `Content-Length`" in api_docs
+    assert "`Content-Length` 与 `Transfer-Encoding` 并存" in api_docs
+    assert "非法 ASGI body framing" in api_docs
+
+
+def test_audit_detects_aws_access_key_id_shape(tmp_path: Path) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    relative = "config/aws.env"
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    access_key_id = "AKIA" + ("A" * 16)
+    path.write_text(access_key_id + "\n", encoding="utf-8")
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+
+    assert ("credential_token", relative) in {
+        (item.code, item.path) for item in report.findings
+    }
+
+
+def test_audit_fixture_mask_does_not_hide_high_confidence_tokens(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    relative = "tests/test_public_repository.py"
+    token = "ghp_" + "a" * 36
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "def test_fixture():\n"
+        f"    payload = {token!r}\n"
+        "    audit_repository(root, candidate_files=[payload])\n",
+        encoding="utf-8",
+    )
+
+    report = audit_repository(tmp_path, candidate_files=[relative])
+
+    assert ("credential_token", relative) in {
+        (item.code, item.path) for item in report.findings
+    }
 
 
 def test_audit_scans_d7_public_evidence_for_private_runtime_and_frozen_content(
@@ -491,7 +757,8 @@ def test_audit_scans_d7_public_evidence_for_private_runtime_and_frozen_content(
         "C:\\Users\\alice\\private\\run\n"
         "HTTP_PROXY=http://proxy.invalid\n"
         "security_runs/private-live-run\n"
-        "password=should-not-be-public\n"
+        "pass"
+        f"word={'Production' + 'Secret42'}\n"
         "你是企业知识库助手。\n"
         "local owner alice\n",
         encoding="utf-8",
@@ -626,7 +893,18 @@ def test_readme_is_a_current_evidence_first_entrypoint() -> None:
         1,
     )[0]
     commands = re.findall(r"```powershell\n([^\n]+)\n```", quick_start)
-    assert len(commands) == 3
+    assert commands == [
+        r".\.venv\Scripts\python.exe -m scripts.manage_demo_identity init --force",
+        r".\.venv\Scripts\python.exe -m pytest -q",
+        (
+            r".\.venv\Scripts\python.exe -m uvicorn app.main:app "
+            r"--host 127.0.0.1 --port 8000"
+        ),
+        (
+            r".\.venv\Scripts\python.exe -m streamlit run streamlit_app/ui.py "
+            r"--server.address 127.0.0.1 --server.port 8501"
+        ),
+    ]
     assert "synthetic" in readme.casefold()
     assert "526 passed" in readme
     assert "574 passed" in readme
@@ -640,13 +918,13 @@ def test_root_status_is_the_only_current_status_entrypoint() -> None:
         encoding="utf-8"
     )
 
-    assert "更新时间：2026-07-22" in status
-    assert "状态：R2-S4" in status
+    assert "更新时间：2026-07-23" in status
+    assert "R2-S5 本地发布候选通过，远端 exact-SHA CI 待执行" in status
+    assert "状态：R2-S5" in status
     assert "526 passed" in status
     assert "574 passed" in status
     assert "109 passed" not in status
-    assert "R2-S4 Task 8 results published" in status
-    assert "R2-S4 public package VERIFIED" in status
+    assert "历史 R2-S4 结果继续有效" in status
     assert "CONSISTENT_OBSERVATION" in status
     assert "release_pass=false" in status
     assert "actual tracked R2-S4 public package NOT CREATED" not in status
@@ -1666,7 +1944,7 @@ def test_r2_s4_backlog_remote_ci_claims_are_exact_head_scoped() -> None:
     assert "- current R2-S4 exact HEAD remote CI passed;" in backlog
 
 
-def test_remote_ci_history_is_not_presented_as_current_r2_s4_evidence() -> None:
+def test_remote_ci_history_is_not_presented_as_current_r2_s5_evidence() -> None:
     status = (ROOT / "PROJECT_STATUS.md").read_text(encoding="utf-8")
     limitations = (ROOT / "docs" / "known_limitations.md").read_text(
         encoding="utf-8"
@@ -1675,7 +1953,7 @@ def test_remote_ci_history_is_not_presented_as_current_r2_s4_evidence() -> None:
     for content in (status, limitations):
         assert "9607e55" in content
         assert "9fcb304" in content
-        assert "不覆盖当前 R2-S4 candidate exact HEAD" in content
+        assert "不覆盖当前 R2-S5 candidate exact HEAD" in content
     assert "历史 E7 代码候选 `9607e55" in status
     assert "当前功能分支候选" not in status
 

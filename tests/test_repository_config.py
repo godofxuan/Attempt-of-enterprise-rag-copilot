@@ -24,6 +24,8 @@ EXPECTED_REQUIREMENTS = {
     "pytest==9.0.3",
     "pypdf==6.14.2",
     "python-docx==1.2.0",
+    "PyJWT==2.13.0",
+    "cryptography==49.0.0",
 }
 
 
@@ -58,10 +60,12 @@ def test_ci_is_read_only_deterministic_and_does_not_call_live_services() -> None
     for required in [
         "permissions:",
         "contents: read",
-        "actions/checkout@v6",
-        "actions/setup-python@v6",
-        "python-version: \"3.11\"",
+        "os: [ubuntu-latest, windows-latest]",
+        "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+        "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+        "python-version: \"3.11.9\"",
         "cache: pip",
+        "python -m pip install pip==26.0.1",
         "python -m pip install -r requirements.txt",
         "python -m pip check",
         "python -m compileall -q app scripts streamlit_app tests",

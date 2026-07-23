@@ -4,23 +4,31 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 import shutil
 import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from http.cookiejar import Cookie, DefaultCookiePolicy
 from pathlib import Path
 from statistics import fmean
-from typing import Any, Callable, Mapping, Protocol
-from urllib.parse import urlparse
+from typing import Any, Callable, Literal, Mapping, Protocol
+from urllib.parse import urlsplit
 
 import requests
 
 from app.observability.metrics import nearest_rank_percentile
 from app.runtime.resources import ReadinessSnapshot
+from app.security.identity import IdentityConfigurationError
+from app.security.token_source import (
+    BearerTokenSource,
+    ensure_distinct_bearer_token_sources,
+    resolve_single_token_source,
+)
 
 
 DETAIL_FIELDS = (
@@ -44,16 +52,11 @@ RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 
 DEMO_PAYLOAD = {
     "question": "当前制度每周最多允许远程办公几天？",
-    "user_context": {
-        "user_id": "load-demo-employee",
-        "tenant_id": "starbridge-cn",
-        "region": "cn",
-        "groups": ["all_employees"],
-        "roles": [],
-    },
     "top_k": 5,
 }
 PROFILE_PAYLOADS = {"demo": DEMO_PAYLOAD}
+IdentityChannel = Literal["public", "persona", "operator"]
+IDENTITY_CHANNELS = frozenset({"public", "persona", "operator"})
 
 
 class ResponseLike(Protocol):
@@ -63,7 +66,10 @@ class ResponseLike(Protocol):
     def json(self) -> Any: ...
 
 
-HttpCall = Callable[[str, str, dict | None, float], ResponseLike]
+HttpCall = Callable[
+    [str, str, dict | None, float, dict[str, str], IdentityChannel],
+    ResponseLike,
+]
 
 
 class LoadProfileError(RuntimeError):
@@ -79,6 +85,8 @@ class LoadProfileConfig:
     run_id: str
     out_dir: Path
     timeout_seconds: float
+    user_token_source: BearerTokenSource = field(repr=False)
+    operator_token_source: BearerTokenSource = field(repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "base_url", normalize_base_url(self.base_url))
@@ -133,29 +141,71 @@ class RequestsHttpClient:
         url: str,
         payload: dict | None,
         timeout: float,
+        headers: dict[str, str],
+        identity_channel: IdentityChannel,
     ) -> requests.Response:
-        session = getattr(self._local, "session", None)
+        if identity_channel not in IDENTITY_CHANNELS:
+            raise ValueError("unknown identity channel")
+        sessions = getattr(self._local, "sessions", None)
+        if sessions is None:
+            sessions = {}
+            self._local.sessions = sessions
+        session = sessions.get(identity_channel)
         if session is None:
-            session = requests.Session()
-            session.trust_env = False
-            self._local.session = session
+            session = _new_cookie_free_session()
+            sessions[identity_channel] = session
         return session.request(
             method,
             url,
             json=payload,
+            headers=headers,
             timeout=timeout,
+            allow_redirects=False,
         )
 
 
 def normalize_base_url(value: str) -> str:
-    parsed = urlparse(value.strip())
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise ValueError("base URL must be an absolute HTTP URL")
-    if parsed.username or parsed.password or parsed.query or parsed.fragment:
-        raise ValueError("base URL cannot contain credentials, query, or fragment")
-    if parsed.path not in {"", "/"}:
-        raise ValueError("base URL cannot contain a path")
-    return f"{parsed.scheme}://{parsed.netloc}"
+    candidate = value.strip()
+    if candidate != value:
+        raise ValueError("base URL must be canonical")
+    parsed = urlsplit(candidate)
+    try:
+        port = parsed.port
+    except ValueError:
+        raise ValueError("base URL is invalid") from None
+    if (
+        parsed.scheme != "http"
+        or parsed.hostname != "127.0.0.1"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {"", "/"}
+    ):
+        raise ValueError("base URL must be a numeric IPv4 loopback origin")
+    expected_netloc = "127.0.0.1" if port is None else f"127.0.0.1:{port}"
+    if parsed.netloc != expected_netloc:
+        raise ValueError("base URL must be canonical")
+    return f"http://{expected_netloc}"
+
+
+def resolve_environment_token_sources(
+    environ: Mapping[str, str],
+) -> tuple[BearerTokenSource, BearerTokenSource]:
+    user = resolve_single_token_source(
+        token=environ.get("RAG_BEARER_TOKEN"),
+        token_file=_optional_path(environ.get("RAG_BEARER_TOKEN_FILE")),
+    )
+    operator = resolve_single_token_source(
+        token=environ.get("RAG_OPERATOR_BEARER_TOKEN"),
+        token_file=_optional_path(environ.get("RAG_OPERATOR_BEARER_TOKEN_FILE")),
+    )
+    ensure_distinct_bearer_token_sources(user, operator)
+    return user, operator
+
+
+def _optional_path(value: str | None) -> Path | None:
+    return Path(value) if value is not None else None
 
 
 def parse_concurrency(value: str) -> tuple[int, ...]:
@@ -221,6 +271,7 @@ def run_load_profile(
             config,
             call,
             payload,
+            config.user_token_source,
             phase="cold",
             sequence=1,
             concurrency=1,
@@ -233,6 +284,7 @@ def run_load_profile(
             config,
             call,
             payload,
+            config.user_token_source,
             concurrency=level,
             first_sequence=next_sequence,
             clock=clock,
@@ -265,6 +317,7 @@ def _run_warm_level(
     config: LoadProfileConfig,
     call: HttpCall,
     payload: dict,
+    token_source: BearerTokenSource,
     *,
     concurrency: int,
     first_sequence: int,
@@ -277,6 +330,7 @@ def _run_warm_level(
                 config,
                 call,
                 payload,
+                token_source,
                 phase="warm",
                 sequence=first_sequence + offset,
                 concurrency=concurrency,
@@ -294,6 +348,7 @@ def _measure_request(
     config: LoadProfileConfig,
     call: HttpCall,
     payload: dict,
+    token_source: BearerTokenSource,
     *,
     phase: str,
     sequence: int,
@@ -312,6 +367,8 @@ def _measure_request(
             f"{config.base_url}/agent/v2/chat",
             payload,
             config.timeout_seconds,
+            _authorization(token_source),
+            "persona",
         )
         status_code = int(response.status_code)
         request_id = _safe_request_id(response.headers)
@@ -350,6 +407,8 @@ def _require_liveness(config: LoadProfileConfig, call: HttpCall) -> dict[str, An
             f"{config.base_url}/health/live",
             None,
             config.timeout_seconds,
+            {},
+            "public",
         )
         body = _safe_json(response)
         if response.status_code != 200 or body.get("status") != "alive":
@@ -368,6 +427,8 @@ def _require_readiness(config: LoadProfileConfig, call: HttpCall) -> dict[str, A
             f"{config.base_url}/health/ready",
             None,
             config.timeout_seconds,
+            {},
+            "public",
         )
         snapshot = ReadinessSnapshot.model_validate(_safe_json(response))
         if response.status_code != 200 or snapshot.status != "ready":
@@ -386,6 +447,8 @@ def _read_metrics(config: LoadProfileConfig, call: HttpCall) -> dict[str, Any]:
             f"{config.base_url}/observability/metrics",
             None,
             config.timeout_seconds,
+            _authorization(config.operator_token_source),
+            "operator",
         )
         if response.status_code != 200:
             raise LoadProfileError("metrics snapshot failed")
@@ -394,6 +457,27 @@ def _read_metrics(config: LoadProfileConfig, call: HttpCall) -> dict[str, Any]:
         raise
     except Exception as exc:
         raise LoadProfileError("metrics snapshot failed") from exc
+
+
+def _authorization(source: BearerTokenSource) -> dict[str, str]:
+    return {"Authorization": f"Bearer {source.get_token()}"}
+
+
+class _RejectAllCookies(DefaultCookiePolicy):
+    def set_ok(self, cookie: Cookie, request: Any) -> bool:
+        return False
+
+    def return_ok(self, cookie: Cookie, request: Any) -> bool:
+        return False
+
+
+def _new_cookie_free_session() -> requests.Session:
+    session = requests.Session()
+    session.trust_env = False
+    cookies = requests.cookies.RequestsCookieJar()
+    cookies.set_policy(_RejectAllCookies())
+    session.cookies = cookies
+    return session
 
 
 def _safe_metrics(payload: Any) -> dict[str, Any]:
@@ -598,6 +682,9 @@ def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        user_token_source, operator_token_source = (
+            resolve_environment_token_sources(os.environ)
+        )
         config = LoadProfileConfig(
             base_url=args.base_url,
             profile=args.profile,
@@ -606,9 +693,16 @@ def main(argv: list[str] | None = None) -> None:
             run_id=args.run_id or default_run_id(),
             out_dir=args.out_dir,
             timeout_seconds=args.timeout_seconds,
+            user_token_source=user_token_source,
+            operator_token_source=operator_token_source,
         )
         target = run_load_profile(config)
-    except (ValueError, FileExistsError, LoadProfileError) as exc:
+    except (
+        ValueError,
+        FileExistsError,
+        IdentityConfigurationError,
+        LoadProfileError,
+    ) as exc:
         parser.error(str(exc))
     print(target)
 
@@ -621,8 +715,10 @@ __all__ = [
     "DETAIL_FIELDS",
     "LoadProfileConfig",
     "LoadProfileError",
+    "RequestsHttpClient",
     "build_parser",
     "parse_concurrency",
     "percentile",
+    "resolve_environment_token_sources",
     "run_load_profile",
 ]

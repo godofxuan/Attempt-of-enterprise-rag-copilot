@@ -92,7 +92,7 @@ def test_trace_span_records_safe_error_status_without_exception_text() -> None:
     try:
         with pytest.raises(RuntimeError, match="secret"):
             with trace_span("agent.run", clock_ms=lambda: next(times)):
-                raise RuntimeError("password=secret-path")
+                raise RuntimeError("password=test-fixture-secret-path")
         context = current_request_context()
         assert context is not None
         assert context.spans == [

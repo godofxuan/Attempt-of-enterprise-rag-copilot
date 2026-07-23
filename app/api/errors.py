@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -37,12 +38,14 @@ class ApiError(RuntimeError):
         code: str,
         message: str,
         retryable: bool = False,
+        headers: Mapping[str, str] | None = None,
     ) -> None:
         super().__init__(code)
         self.status_code = status_code
         self.code = code
         self.safe_message = message
         self.retryable = retryable
+        self.headers = dict(headers or {})
 
 
 def error_payload(
@@ -80,6 +83,7 @@ def _response(
     code: str,
     message: str,
     retryable: bool = False,
+    headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     request.state.error_code = code
     request.state.outcome = code
@@ -91,6 +95,7 @@ def _response(
             request_id=_request_id(request),
             retryable=retryable,
         ),
+        headers=headers,
     )
 
 
@@ -101,6 +106,7 @@ async def _api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
         code=exc.code,
         message=exc.safe_message,
         retryable=exc.retryable,
+        headers=exc.headers,
     )
 
 
@@ -132,6 +138,7 @@ async def _http_error_handler(
         status_code=exc.status_code,
         code="http_error",
         message="The request could not be completed.",
+        headers=exc.headers,
     )
 
 

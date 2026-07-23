@@ -1,0 +1,26 @@
+{
+  "schema_version": "trusted-identity-matrix-v1",
+  "matrix_id": "r2-s5-trusted-identity-api-v1",
+  "cases": [
+    {"case_id":"public_liveness","method":"GET","path":"/health/live","credential":"none","body_kind":"none","expected_status":200,"expected_code":null,"expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"public_readiness","method":"GET","path":"/health/ready","credential":"none","body_kind":"none","expected_status":200,"expected_code":null,"expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"chat_missing_token","method":"POST","path":"/agent/v2/chat","credential":"none","body_kind":"chat_valid","expected_status":401,"expected_code":"authentication_required","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"chat_invalid_token","method":"POST","path":"/agent/v2/chat","credential":"invalid","body_kind":"chat_valid","expected_status":401,"expected_code":"invalid_token","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"chat_duplicate_authorization","method":"POST","path":"/agent/v2/chat","credential":"duplicate","body_kind":"chat_valid","expected_status":401,"expected_code":"invalid_token","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"chat_bad_token_bad_body","method":"POST","path":"/agent/v2/chat","credential":"invalid","body_kind":"chat_invalid_and_override","expected_status":401,"expected_code":"invalid_token","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"chat_verified_user","method":"POST","path":"/agent/v2/chat","credential":"user","body_kind":"chat_valid","expected_status":200,"expected_code":null,"expected_agent_calls":1,"expected_feedback_writes":0},
+    {"case_id":"chat_body_identity_override","method":"POST","path":"/agent/v2/chat","credential":"user","body_kind":"chat_identity_override","expected_status":422,"expected_code":"request_validation_failed","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"chat_invalid_top_k","method":"POST","path":"/agent/v2/chat","credential":"user","body_kind":"chat_invalid_top_k","expected_status":422,"expected_code":"request_validation_failed","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"identity_me_user","method":"GET","path":"/identity/me","credential":"user","body_kind":"none","expected_status":200,"expected_code":null,"expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"metrics_user_forbidden","method":"GET","path":"/observability/metrics","credential":"user","body_kind":"none","expected_status":403,"expected_code":"insufficient_role","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"metrics_operator_allowed","method":"GET","path":"/observability/metrics","credential":"operator","body_kind":"none","expected_status":200,"expected_code":null,"expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"trace_user_forbidden","method":"GET","path":"/observability/traces/missing","credential":"user","body_kind":"none","expected_status":403,"expected_code":"insufficient_role","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"trace_operator_reaches_lookup","method":"GET","path":"/observability/traces/missing","credential":"operator","body_kind":"none","expected_status":404,"expected_code":"trace_not_found","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"feedback_missing_token","method":"POST","path":"/feedback","credential":"none","body_kind":"feedback_valid","expected_status":401,"expected_code":"authentication_required","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"feedback_verified_user","method":"POST","path":"/feedback","credential":"user","body_kind":"feedback_valid","expected_status":200,"expected_code":null,"expected_agent_calls":0,"expected_feedback_writes":1},
+    {"case_id":"feedback_missing_receipt","method":"POST","path":"/feedback","credential":"user","body_kind":"feedback_missing_receipt","expected_status":422,"expected_code":"request_validation_failed","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"feedback_tampered_receipt","method":"POST","path":"/feedback","credential":"user","body_kind":"feedback_tampered_receipt","expected_status":403,"expected_code":"invalid_feedback_binding","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"feedback_modified_answer","method":"POST","path":"/feedback","credential":"user","body_kind":"feedback_modified_answer","expected_status":403,"expected_code":"invalid_feedback_binding","expected_agent_calls":0,"expected_feedback_writes":0},
+    {"case_id":"chat_identity_unavailable","method":"POST","path":"/agent/v2/chat","credential":"unavailable","body_kind":"chat_valid","expected_status":503,"expected_code":"identity_unavailable","expected_agent_calls":0,"expected_feedback_writes":0}
+  ]
+}

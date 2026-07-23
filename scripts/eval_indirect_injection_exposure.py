@@ -201,9 +201,12 @@ def _commands(args: argparse.Namespace) -> str:
 def _safe_display_path(value: Path) -> str:
     resolved = value.resolve()
     try:
-        return resolved.relative_to(BASE_DIR).as_posix()
+        relative = resolved.relative_to(BASE_DIR)
     except ValueError:
         return f"<external>/{resolved.name}"
+    if relative.parts and relative.parts[0].casefold() == ".private":
+        return f"<external>/{resolved.name}"
+    return relative.as_posix()
 
 
 def _test_output(result) -> str:

@@ -14,9 +14,14 @@ This repository implements that workflow locally with synthetic enterprise data.
 
 ```mermaid
 flowchart LR
-    U["User + claimed context"] --> UI["Streamlit Ask"]
+    U["Authenticated demo persona"] --> UI["Streamlit Ask"]
+    IDP["Local RSA issuer"] --> JWKS["Pinned public JWKS snapshot"]
+    IDP --> U
     UI --> API["FastAPI /agent/v2/chat"]
-    API --> Q["Rule-first query analysis"]
+    JWKS --> API
+    API --> P["Verified Principal"]
+    P --> Q
+    Q["Rule-first query analysis"]
     Q --> C["Bounded controller"]
     C --> T["Typed search / find / open"]
     T --> ACL["Tenant + region + group filter"]
@@ -77,7 +82,10 @@ The result is a bounded Agentic workflow, not an open-ended autonomous agent. Th
   with bounded Unicode, Base64, markup, role, secret, egress, adjacent-split,
   quarantine, and same-pool clean-candidate recovery checks.
 - Claim-level citation verification against visible evidence.
-- Request IDs, safe errors, liveness/readiness, bounded in-memory traces, metrics, model retry counters, and hash-only feedback persistence.
+- Request IDs, safe errors, liveness/readiness, bounded in-memory traces, metrics, model retry counters, and receipt-bound keyed feedback persistence.
+- A trusted identity boundary with fixed RS256/JWKS verification, server-derived
+  tenant/region/group context, deployment-wide operator authorization, keyed
+  feedback pseudonyms, and reproducible local key rotation.
 - Retrieval, response, Agent, security, ablation, and local load evaluation.
 - Offline-renderable Ask, Trace, and Evaluation pages with typed API/view boundaries.
 
@@ -110,6 +118,7 @@ These values describe specific local artifacts; they are not production accuracy
 | R2-S2 S2-2 holdout freeze infrastructure | `28` holdout contract/tamper/CLI tests; stage-entry full suite `954 passed` | Strict local package schema, coverage admission, Git/code baseline binding, immutable manifest, offline verification, and raw-package leak prevention; independent package and holdout result are `NOT RUN` |
 | R2-S3 measurement-only exposure ablation | accepted v2 run `r2-s3-dev-exposure-20260721-04`; actual/replay reach `15/28`, conditional quarantine `15/15`, rank-2 unreached downstream exposure `0/13`; diagnostic search reach depth 1/2/4 `6/26`, `22/26`, `26/26`; final local full `1395 passed`, 13 skipped (platform-dependent symlink/junction variants unavailable on this host) | Source run and production Guard/retrieval/Agent unchanged; [eight-file public evidence](data/v2/public/r2_s3_exposure/README.md) verifies `NO_CURRENT_BYPASS_OBSERVED`; private/public manifest schemas are v2; audit `454/0`; push is allowed only after fixed-HEAD reviews and local gates pass, while actual delivery/CI state is established by Git and GitHub Actions; independent holdout and semantic judge are `NOT RUN`; cross-model replication is NOT RUN at R2-S3 cutoff |
 | R2-S4 cross-model dev observation | [R2-S4 Results](docs/security/r2_s4/01_results.md): `CONSISTENT_OBSERVATION` on the same visible synthetic dev cohort; OFF attack `3/24`, ON `0/24`; OFF context exposure `7/24`, ON `0/24`; ON conditional quarantine `15/15`, all-labeled `15/28`; clean/mixed/poison-only `12/12`, `20/20`, `4/4`; component deterministic threshold diagnostic=false | [R2-S4 public evidence](data/v2/public/r2_s4_cross_model/README.md) is an eight-file package; run HEAD `109e8b52d8d31ae3562420351451a69915652be3`; 12 decision safety/utility observations matched, but this is not a release pass and not cross-model generalization; cross-model non-release diagnostic passed=true / release_pass=false; independent holdout, semantic judge calibration, human double review, and production traffic remain `NOT RUN` |
+| R2-S5 trusted identity candidate | final independent security and engineering reviews both report `0 Critical / 0 Important / RELEASE`; current local disposition is `PASS`, while commit/push and exact-SHA CI remain remote acceptance | Local synthetic RS256/JWKS authority, server-derived ACL context, public-by-exception authorization, 128 KiB/256-message/5-second body limits, strict malformed-framing rejection, whole-value credential audit, receipt-bound feedback, executable readiness, crash-safe lifecycle and source-bound evidence; new RED/GREEN `14`, broader boundary/audit/redaction `127`, lifecycle/CLI `40/2`, benchmark tests `4`, public audit `515/0`, p95 `0.0904 ms`, source-bound matrix `20/20`, full `1906/20/3`; compileall/pip/diff checks and two-reviewer gate pass; commit/push/exact-SHA CI pending |
 | E7 final-code load rc02 | `31/31` requests | One Windows machine; warm p95 was 1.115 s / 4.244 s / 8.218 s at concurrency 1 / 5 / 10 |
 | E7 workflow ablation rc02 | fixed RAG `0.8571` vs bounded Agentic `1.0000` outcome accuracy | 28-case deterministic synthetic test; Agentic used 47 vs 28 tool calls |
 
@@ -127,7 +136,14 @@ R2-S4 then compared frozen Qwen2.5 and Qwen3 local models on the same visible sy
 
 ## Quick Start
 
-Complete the one-time environment, corpus, model, and index setup in the [Demo Runbook](docs/demo_runbook.md), then use these three commands in separate terminals where applicable.
+Complete the one-time environment, corpus, model, and index setup in the [Demo Runbook](docs/demo_runbook.md), then use these four commands in order and in separate terminals where applicable.
+
+Create ignored local identity artifacts before starting the API. Tokens expire
+after 15 minutes; rerun with `--force` before a new demo session.
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.manage_demo_identity init --force
+```
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
@@ -141,7 +157,7 @@ Complete the one-time environment, corpus, model, and index setup in the [Demo R
 .\.venv\Scripts\python.exe -m streamlit run streamlit_app/ui.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-Open `http://127.0.0.1:8501`. Use liveness to confirm the process exists and readiness to confirm the database, active index, local models, and retrieved-content Guard are usable.
+Open `http://127.0.0.1:8501`. Use liveness to confirm the process exists and readiness to confirm the database, active index, local models, trusted identity material, and retrieved-content Guard are usable.
 
 ## Synthetic Data
 
@@ -151,7 +167,10 @@ The generator derives documents and evaluation labels from a checked-in fact mod
 
 ## Limitations
 
-- Browser-supplied `UserContext` is validated but not authenticated by real IAM.
+- R2-S5 uses a reproducible local RSA/JWKS identity source, not a production IdP.
+  It demonstrates the trusted boundary, token validation, route authorization,
+  rotation, and client handling, but does not claim SSO, remote JWKS refresh,
+  revocation, MFA, SCIM, or production IAM integration.
 - The corpus and evaluation set are synthetic and small; the live result is a development run, not a generalization estimate.
 - R2-S1 has a frozen [retrieved-content threat model](docs/security/r2_s1/00_scope_and_threat_model.md), historical D2 RED evidence, D3-D5 enforcement, a D6 deterministic paired gate, one fixed OFF-first D7 local observation, and V1-V5 audit hardening. R2-S2 S2-1 then ran a new counterbalanced BGE-M3/Qwen dev replication: OFF raw/user-boundary signal `3/24`, ON `0/24`, and ON conditional quarantine `15/15`, but all-labeled quarantine only `15/28` because 13 attack units never reached Guard. R2-S3 measured those 13 as runtime rank-2 candidates with observed downstream exposure `0/13`; its depth-2/4 coverage is diagnostic-only and production Guard/retrieval/Agent remain unchanged. R2-S4 observed 12 decision safety/utility observations matched for Qwen2.5 and Qwen3 on the same visible synthetic dev cohort; 3 operational counts matched; 2 latency metrics differed; `release_pass=false`; this is not cross-model generalization. These visible synthetic runs do not measure general semantic attack following. V3 is a Python evaluator call-graph egress guard rather than an OS sandbox. S2-2 holdout freezing code exists, while an independent package, one-shot holdout run, blind review, semantic judge calibration, human double review, production traffic, and manual red team remain `NOT RUN`.
 - The optional reranker is `NOT RUN`; current ablation does not justify adding one blindly.
@@ -191,6 +210,9 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 - [R2-S3 Exposure Ablation Results](docs/security/r2_s3/01_results.md)
 - [R2-S3 Engineering Journal](docs/security/r2_s3/02_engineering_journal.md)
 - [R2-S4 Cross-Model Results](docs/security/r2_s4/01_results.md)
+- [R2-S5 Trusted Identity Engineering Journal](docs/security/r2_s5/01_engineering_journal.md)
+- [R2-S5 Implementation and Interview Guide](docs/security/r2_s5/02_implementation_and_interview_guide.md)
+- [R2-S5 Trusted Identity Results](docs/security/r2_s5/03_results.md)
 - [R2 Industrialization Execution Plan](docs/roadmap/r2_industrialization_execution_plan.md)
 - [Observability and Load Evidence](docs/observability.md)
 - [Reproducibility Guide](docs/reproducibility.md)

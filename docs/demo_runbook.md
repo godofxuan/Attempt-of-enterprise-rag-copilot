@@ -1,6 +1,94 @@
 # Demo Runbook
 
-最后更新：2026-07-17
+## R2-S5 identity setup (run before the historical steps below)
+
+All commands run from the repository root. The generated files are ignored by
+Git and remain under `.private/identity`.
+
+```powershell
+# Create a fresh 15-minute persona bundle, operator credential, HMAC key,
+# private signing key, and public JWKS snapshot.
+.\.venv\Scripts\python.exe -m scripts.manage_demo_identity init --force
+
+# Confirm only non-secret keyring metadata is printed.
+.\.venv\Scripts\python.exe -m scripts.manage_demo_identity status
+
+# Start only the secure application on numeric loopback.
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+Start Streamlit in another terminal. It reads the ignored persona bundle for
+Ask/Feedback and the separate operator token for Trace. It never loads the
+private signing key.
+
+```powershell
+.\.venv\Scripts\python.exe -m streamlit run streamlit_app/ui.py `
+  --server.address 127.0.0.1 --server.port 8501
+```
+
+For the load profile, configure two file-backed credentials. The script
+rejects missing, duplicate, or ambiguous raw-token/file sources, disables
+environment proxies, refuses redirects, and writes no token to artifacts.
+
+```powershell
+$env:RAG_BEARER_TOKEN_FILE = '.private\identity\load_user_token.txt'
+$env:RAG_OPERATOR_BEARER_TOKEN_FILE = '.private\identity\operator_token.txt'
+.\.venv\Scripts\python.exe -m scripts.load_profile `
+  --base-url http://127.0.0.1:8000 --profile demo
+```
+
+Rotation is a staged handoff because the API loads an immutable JWKS snapshot:
+
+```powershell
+# Stage a pending public key. Existing persona/operator tokens remain unchanged.
+.\.venv\Scripts\python.exe -m scripts.manage_demo_identity rotate
+
+# Restart the API so its immutable snapshot contains old + pending public keys.
+# Read pending_kid from the rotate/status JSON, then prove that snapshot before
+# publishing any new client token.
+.\.venv\Scripts\python.exe -m scripts.manage_demo_identity activate `
+  --kid <pending-kid> --api-base-url http://127.0.0.1:8000
+
+# Read retire_not_before from status. Normal retirement fails before that epoch.
+.\.venv\Scripts\python.exe -m scripts.manage_demo_identity status
+.\.venv\Scripts\python.exe -m scripts.manage_demo_identity retire --kid <old-kid>
+# Restart once more and run valid/new plus invalid/retired token smoke tests.
+```
+
+After `rotate`, `pending_kid` is non-null and `restart_required=true`; the old
+API and old token files continue working. `activate` refuses to change token
+files unless `/identity/me` accepts a short pending-key probe and returns the
+same `key_id`. A successful activation clears `pending_kid` and does not need
+another immediate restart because the restarted snapshot already contains both
+keys. Never delete a journal or manifest manually; run `status` so bounded
+recovery can finish.
+
+Activation persists a conservative old-key window: the maximum permitted
+900-second demo-token lifetime plus the maximum allowed verifier clock skew
+(120 seconds). It intentionally does not use the current 30-second default,
+because the API setting may be raised after activation. Do not estimate it from
+when the shell command started; use `status.retirement_not_before`. A
+compromised old key can be revoked early only with the explicit, audited
+break-glass form:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.manage_demo_identity retire `
+  --kid <old-kid> `
+  --emergency-revoke `
+  --confirm-emergency-revoke RETIRE_ACTIVE_TOKENS_NOW
+```
+
+This records the emergency retirement and removes the old key from the next
+API snapshot. The currently running immutable verifier can still accept that
+key, so restart the API before treating still-live old tokens as invalid.
+`status.emergency_revocation_count` is incremented for audit.
+
+The production module no longer exports `create_compatibility_app`; legacy
+`/ingest`, `/chat`, and `/agent/chat` cannot be restored by a deployment flag
+or wrapper. Historical comparisons run below the HTTP layer and are not a
+rollback path.
+
+最后更新：2026-07-23
 
 用途：从一个新 PowerShell 终端准备并演示当前 R1 Enterprise Agentic RAG。所有命令都从仓库根目录运行。服务使用前台进程，演示后明确停止；不要使用 `--reload` 做性能或截图验收。
 
@@ -143,8 +231,17 @@ Ask 完成后切到 Trace：核对 request ID、intent、stop reason、evidence 
 ## 9. Direct API smoke request
 
 ```powershell
-$body = @{ question = "当前远程办公需要提前多久申请？"; user_context = @{ user_id = "demo-user"; tenant_id = "starbridge-cn"; region = "cn"; groups = @("all_employees"); roles = @() }; top_k = 5 } | ConvertTo-Json -Depth 5
-Invoke-RestMethod -Uri http://127.0.0.1:8000/agent/v2/chat -Method Post -ContentType "application/json" -Headers @{ "X-Request-ID" = "demo.smoke-001" } -Body $body
+$userToken = (Get-Content .private\identity\load_user_token.txt -Raw).Trim()
+$headers = @{
+  Authorization = "Bearer $userToken"
+  "X-Request-ID" = "demo.smoke-001"
+}
+$body = @{
+  question = "当前远程办公需要提前多久申请？"
+  top_k = 5
+} | ConvertTo-Json
+Invoke-RestMethod -Uri http://127.0.0.1:8000/agent/v2/chat -Method Post `
+  -ContentType "application/json" -Headers $headers -Body $body
 ```
 
 响应 header `X-Request-ID` 应与 body `trace.request_id` 相同。

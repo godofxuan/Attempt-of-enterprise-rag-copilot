@@ -449,4 +449,5 @@ Stop before E5. Require exact command:
 批准E4，执行E5安全、服务与可观测性
 ```
 
-Suggested future commit after separate authorization: `eval: add layered enterprise benchmark and ablation reports`.
+Suggested future commit after separate approval is
+`eval: add layered enterprise benchmark and ablation reports`.

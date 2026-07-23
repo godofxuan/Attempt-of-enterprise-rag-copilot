@@ -244,7 +244,9 @@ def test_deadline_is_checked_centrally_before_first_tool() -> None:
 def test_tool_system_error_stops_without_retrying_legacy_path() -> None:
     controller = V2AgentController(clock_ms=lambda: 0.0)
     navigator = RecordingNavigator(
-        search_error=RuntimeError("legacy path must not run password=secret")
+        search_error=RuntimeError(
+            "legacy path must not run password=test-fixture-secret"
+        )
     )
     registry = V2ToolRegistry(navigator, clock_ms=lambda: 0.0)
     state = controller.initialize(fact_analysis(), USER)

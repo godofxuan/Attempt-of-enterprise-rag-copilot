@@ -1020,7 +1020,11 @@ def test_export_rejects_every_seeded_private_content_class(
     candidate = fixture.candidates[0]
     unit_id = next(value for value in candidate.unit_bindings() if value)
     source_id = candidate.document_id
-    username = os.environ.get("USERNAME") or os.environ.get("USER") or "xuan"
+    username = (
+        os.environ.get("USERNAME")
+        or os.environ.get("USER")
+        or "local-user"
+    )
     seeded = {
         "question": case.question,
         "answer_or_fixture_fact": fact_text,
@@ -1039,7 +1043,7 @@ def test_export_rejects_every_seeded_private_content_class(
         "current_username": f"local-user={username}",
         "security_run_path": "security_runs/private-r2s4/run.json",
         "cross_model_path": "cross_model_runs/private-r2s4/summary.json",
-        "credential_assignment": "api_key=R2S4_PRIVATE_KEY_0123456789",
+        "credential_assignment": "api_key=R2S4_TEST_PRIVATE_KEY_0123456789",
         "credential_token": "ghp_" + "R2S4PRIVATE012345678901234567890123456789",
     }
     original = public_exporter._build_public_package_bytes
@@ -1063,7 +1067,7 @@ def test_export_rejects_every_seeded_private_content_class(
         '{"tenant_id":"tenant-r2s4-json-private"}',
         '{"user_id":"user-r2s4-json-private"}',
         '{"group_ids":"group-r2s4-json-private"}',
-        '{"password":"R2S4_JSON_PRIVATE_PASSWORD"}',
+        '{"password":"R2S4_TEST_JSON_PRIVATE_PASSWORD"}',
     ],
 )
 def test_privacy_scanner_rejects_standard_json_identity_and_credentials(

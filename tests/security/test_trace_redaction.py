@@ -54,7 +54,10 @@ def test_redaction_replaces_explicit_denied_values_inside_safe_strings() -> None
 
 
 def test_trace_text_masks_common_password_token_and_api_key_forms() -> None:
-    value = "password=hunter2 token: abc123 api_key=sk-secret normal=value"
+    value = (
+        "password=test-hunter2 token: test-abc123 "
+        "api_key=test-sk-secret normal=value"
+    )
 
     redacted = redact_trace_text(value)
 

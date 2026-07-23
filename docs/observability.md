@@ -1,5 +1,22 @@
 # E5 Observability and Load Evidence
 
+## R2-S5 authorization boundary
+
+Metrics and trace lookup require a valid bearer token with the global
+deployment role `rag.operator`. Chat and feedback use a separate user token.
+Denied 401/403 requests may increment aggregate route/status/latency metrics and
+create one low-sensitivity HTTP trace with zero model counters and no spans;
+they never create an Agent trace or expose tokens, claims, questions, evidence,
+documents, or citations. `GET /identity/me` is the only intentional identity
+disclosure endpoint.
+
+The load profiler uses independent user and operator token providers. File
+sources are reread for every request, raw-token and file sources are mutually
+exclusive, the local client accepts only canonical numeric IPv4 loopback,
+`trust_env` is disabled, and redirects are refused. Tokens are marked
+non-representable in configuration objects and are not written to manifests,
+summaries, or per-request CSV rows.
+
 最后更新：2026-07-17
 
 ## 1. 目标与边界
@@ -98,7 +115,8 @@ readiness.models
 GET /observability/traces/{request_id}
 ```
 
-未知 ID 返回统一 `trace_not_found` 404。该 endpoint 当前无认证，只能本机使用。
+该 endpoint 要求带 `rag.operator` 的有效 bearer；普通 user 返回 403，缺失或无效
+bearer 返回 401。认证通过但目标不存在时返回统一 `trace_not_found` 404。
 
 ## 5. Metrics
 

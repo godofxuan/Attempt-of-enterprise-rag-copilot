@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.main import create_app, create_compatibility_app
-from tests.api_v2.helpers import make_container
+from app.main import create_app
+from tests.api_v2.helpers import USER_HEADERS, make_container
 
 
 def test_validation_error_is_generic_and_does_not_echo_invalid_input() -> None:
-    secret = "PROJECT_NIGHTFALL_password=never-show"
+    secret = "PROJECT_NIGHTFALL_password=" + "never-show"
     response = TestClient(create_app(make_container())).post(
         "/agent/v2/chat",
-        headers={"X-Request-ID": "req-validation"},
-        json={"question": secret},
+        headers={**USER_HEADERS, "X-Request-ID": "req-validation"},
+        json={"question": "Policy?", "attacker_secret": secret},
     )
 
     assert response.status_code == 422
@@ -30,18 +30,18 @@ def test_unhandled_endpoint_error_is_generic_and_log_does_not_contain_secret(
     monkeypatch,
     caplog,
 ) -> None:
-    secret = "D:/vault/secret.index password=never-show"
+    secret = "D:/vault/secret.index password=" + "never-show"
 
     def fail(*args, **kwargs):
         raise RuntimeError(secret)
 
-    monkeypatch.setattr("app.main.run_agent_chat", fail)
+    monkeypatch.setattr("app.main.run_agent_v2_chat", fail)
     response = TestClient(
-        create_compatibility_app(make_container()),
+        create_app(make_container()),
         raise_server_exceptions=False,
     ).post(
-        "/agent/chat",
-        headers={"X-Request-ID": "req-error"},
+        "/agent/v2/chat",
+        headers={**USER_HEADERS, "X-Request-ID": "req-error"},
         json={"question": "safe question", "top_k": 3},
     )
 

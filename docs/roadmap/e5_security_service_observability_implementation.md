@@ -131,7 +131,7 @@ structured generation 新增 3 个 RED：constructor 不接受 `max_attempts`。
 
 第一次 full pytest 出现同名收集冲突：`tests/evaluation/test_metrics.py` 和 `tests/observability/test_metrics.py` 在 pytest 默认 prepend 模式下都叫 `test_metrics`。新增 RED 后在 `pytest.ini` 设置 `--import-mode=importlib`，按路径隔离模块名。
 
-第二次 full pytest 是 `417 passed, 108 errors`；108 个错误全部在 `tmp_path` setup，根因是 Windows `%TEMP%/pytest-of-xuan` ACL 关闭继承且缺少当前用户显式访问规则，不是业务测试失败。确认目录位于用户 TEMP、无项目 pytest 进程后，只对该 pytest 专用目录恢复继承并授权当前用户；处理 1、失败 0。重跑得到 `525 passed, 3 warnings in 14.69s`。剩余均为 FAISS SWIG deprecation，不再有 FastAPI `on_event` warning。
+第二次 full pytest 是 `417 passed, 108 errors`；108 个错误全部在 `tmp_path` setup，根因是 Windows `%TEMP%/pytest-of-<local-user>` ACL 关闭继承且缺少当前用户显式访问规则，不是业务测试失败。确认目录位于用户 TEMP、无项目 pytest 进程后，只对该 pytest 专用目录恢复继承并授权当前用户；处理 1、失败 0。重跑得到 `525 passed, 3 warnings in 14.69s`。剩余均为 FAISS SWIG deprecation，不再有 FastAPI `on_event` warning。
 
 当前断点：`E5-C08` live smoke/load、文档和最终门禁。
 

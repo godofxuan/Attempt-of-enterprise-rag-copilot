@@ -250,7 +250,11 @@ class _SlowPipeline:
     ("exception", "code", "retryable"),
     [
         (ValueError("bad vector at D:/secret/model.bin"), "invalid_args", False),
-        (RuntimeError("database password=secret"), "system", True),
+        (
+            RuntimeError("database password=test-fixture-secret"),
+            "system",
+            True,
+        ),
     ],
 )
 def test_search_maps_exceptions_to_safe_tool_errors(
