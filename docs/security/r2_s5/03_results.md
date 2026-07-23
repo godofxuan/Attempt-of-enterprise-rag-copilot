@@ -3,8 +3,12 @@
 状态：工程复核的两个 Important 和安全复核最后一个 delimiter-separated safe
 marker Important 均已修复。最终独立安全与工程 reviewer 都返回
 `0 Critical / 0 Important / RELEASE`；新的聚焦回归、冻结评测和本地整树门禁
-已通过，因此本地发布候选为 `PASS`。commit/push 与 exact-SHA Ubuntu/Windows
-CI 尚未完成，不能声称远端验收或生产部署通过。
+已通过，因此实现曾进入本地发布候选。精确提交 `d753df3` 的
+exact-SHA Ubuntu/Windows CI #17 随后失败并阻止发布；三项失败均已修复且
+本地重验通过。随后发现的目录 TOCTOU、错误对象权限副作用、FIFO 阻塞和
+Windows owner/handle 生命周期问题也已修复，最终限定复审为
+`0 Critical / 0 Important / 0 Minor / RELEASE`；replacement CI 尚未执行，
+不能声称远端验收或生产部署通过。
 
 ## 1. 解决的不是“有没有 ACL”，而是“ACL 相信谁”
 
@@ -32,6 +36,7 @@ Bearer JWT
 | `app/main.py` / `app/schemas.py` | 删除 body identity；从 Principal 派生 UserContext；保护 feedback/metrics/trace | 消除调用者自报身份和未认证运维接口 |
 | `app/runtime/resources.py` | ServiceContainer 持有 verifier/hasher；readiness 增加 identity 和模型执行探针 | 缺 key 或模型无法实际加载时实例继续 liveness，但不应接业务流量 |
 | `app/security/demo_identity.py` | init/rotate/activate/retire/status、短期 persona/user/operator token | 提供无重启窗口断流的分阶段本地身份生命周期，而不是硬编码测试 token |
+| `app/security/private_fs.py` | held directory、原生 handle/descriptor 身份验证、ACL/mode 加固和严格 owner 策略 | 把权限副作用绑定到已经验证并保持打开的对象，拒绝路径替换和不可信 owner |
 | `app/security/token_source.py` | 静态/文件/persona token source，每次请求重读文件 | 轮换后客户端无需把 token 放进 UI session state |
 | `streamlit_app/api_client.py` / `scripts/load_profile.py` | 数值 loopback、禁代理、禁重定向、user/operator credential 分离 | 防止 bearer 被 URL、代理或 redirect 带离本地 API |
 | `app/db.py` | feedback actor HMAC、目标 request ID、旧明文迁移/drop/VACUUM | 数据库不保存原 subject、token、问题或回答正文 |
@@ -68,9 +73,9 @@ matrix release_pass          true
 
 公开结果只包含 case ID、预期/实际决策和有界计数；测试会从冻结矩阵重新执行并与
 公开 JSON 精确比较。新鲜候选结果与公开证据的文件 SHA-256 均为
-`2ec62b6e8eda35531b43a67263cec16dc42fb07e207ec2b43d22d1cfb6227c12`。
+`0258f8c28c363c785751ef64330db5444f75e6169b5b263430dee7049b790829`。
 结果 schema v2 还记录
-`trusted-identity-contract-947bc529798ebcf6` 和十个 evaluator/API/identity/
+`trusted-identity-contract-7c183871488a6519` 和 11 个 evaluator/API/identity/
 persistence/runner 源码 SHA；不加入时间戳，因此同一源码可跨平台精确重算。
 这里的 `release_pass` 只表示该 20-case matrix 通过，不等于
 生产发布或真实 IdP 验收。
@@ -170,12 +175,14 @@ lifecycle / CLI                    40 passed, 2 platform skips
 benchmark contract                 4 passed
 public repository audit            515 candidates, 0 findings
 source-bound verifier benchmark    1000 iterations, p95 0.0904 ms, target met
-fresh matrix                       20/20, SHA-256 2ec62b6e...7c12
-full pytest                        1906 passed, 20 skipped, 3 warnings
+CI #17 exact SHA                   d753df3; Ubuntu 1 fail; Windows 5 fail
+CI repair affected contracts      151 passed, 4 platform skips
+fresh matrix                       20/20, SHA-256 0258f8c2...0829
+full pytest                        1918 passed, 22 skipped, 3 warnings
 compileall / pip check / diff      PASS / CLEAN / PASS
-independent 0/0 re-review          PASS; two reviewers
+post-CI scoped re-review           0C / 0I / 0M / RELEASE
 ```
 
-跳过项来自平台条件；warning 是既有 FAISS/SWIG `DeprecationWarning`。当前完整
-回归耗时 `166.65s`。提交 SHA、独立复核结论和 exact-SHA 双平台 CI 必须在复核、
-提交与推送后补记，不能由聚焦结果或历史数字替代。
+跳过项来自平台条件；warning 是既有 FAISS/SWIG `DeprecationWarning`。修复后
+完整回归耗时 `178.57s`。CI #17 是正式失败证据，不会被删除；新的提交 SHA
+和 replacement exact-SHA 双平台 CI 必须在推送后补记。

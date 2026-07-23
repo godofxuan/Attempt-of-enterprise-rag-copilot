@@ -1,7 +1,10 @@
 # R2-S5 Trusted Identity Boundary 实现与面试指南
 
-状态：实现、最终全量复跑、冻结矩阵、性能基准和整仓审计已完成；独立安全
-复核正在收口，commit/push 与 exact-SHA Ubuntu/Windows CI 仍待发布后补证据。
+状态：实现、独立复核、本地全量、冻结矩阵、性能基准和整仓审计已完成。
+精确提交 `d753df3` 的 Ubuntu/Windows CI #17 暴露三项跨平台问题；修复和本地
+重验已通过。后续两轮 TOCTOU/handle 复核提出的问题也已修复，最终限定复审为
+`0 Critical / 0 Important / 0 Minor / RELEASE`；新的 repair commit 与
+exact-SHA CI 尚待发布验收。
 
 这份文档面向第一次系统学习 JWT、JWKS、认证和授权边界的读者。它不只
 列出“加了哪些技术”，而是解释原问题、信任如何流动、每个文件承担什么
@@ -374,6 +377,49 @@ API 允许的最大 clock skew 120 秒”写入 v3 manifest。它故意不使用
 密钥泄露时可使用 break-glass 参数，但 Python API 和 CLI 都要求精确确认短语
 `RETIRE_ACTIVE_TOKENS_NOW`，并把 key ID/撤销时间写入非秘密审计字段。
 
+### 10.3 初学者理解：路径名不等于文件对象
+
+把文件路径想成“地址”，把磁盘中的文件或目录想成“实际房间”。程序检查
+`<private-root>/identity` 时，确认的是这个地址在检查瞬间指向哪个对象；另一个进程
+可能随后把原目录移走，再把不同目录换到同一地址。路径字符串没有变化，但
+路径指向的对象已经变化。
+
+这类“检查时是 A，使用时已变成 B”的问题叫 TOCTOU（Time Of Check To Time
+Of Use，检查时间与使用时间之间的竞争）。只做下面的前后检查仍不够：
+
+```text
+检查路径指向对象 A
+攻击者把路径换成对象 B
+按路径修改权限，实际修改了 B
+再次检查并发现不一致
+```
+
+最后一步虽然发现了错误，但对象 B 的权限已经被改过，副作用无法自动撤销。
+因此安全边界必须尽量对“已经检查并保持打开的对象”执行操作：
+
+```text
+路径 -> 打开对象 -> 得到 handle/descriptor -> 验证对象身份
+                                      -> 通过同一 handle/descriptor 修改权限
+```
+
+- Windows 的 `handle` 是操作系统给已打开对象的引用。本项目通过原生 handle
+  读取文件 ID 和 ACL，并调用 `SetSecurityInfo(handle, ...)` 修改该对象；
+- POSIX 的 file descriptor（文件描述符，简称 fd）承担相同角色。本项目使用
+  `dir_fd` 相对目录打开成员，并调用 `fchmod(fd, ...)`，而不是再次按名字找文件；
+- `HeldPrivateDirectory` 保存这类已打开引用，让验证、读取和权限加固位于同一个
+  对象边界内；
+- prepare 阶段捕获 `(st_dev, st_ino)`，进入 `_identity_lock()` 后立即与 held
+  object 再比较，从而封闭 prepare 到 lock 之间的替换窗口。
+
+为什么 POSIX 打开成员时还要 `O_NONBLOCK`？因为攻击者可能把普通文件换成
+FIFO（命名管道）。普通方式打开 FIFO 可能一直等待另一端连接，程序甚至来不及
+执行“这不是普通文件”的检查。`O_NONBLOCK` 让打开动作不会在这里无限等待，
+随后立即 `fstat(fd)`，只有 regular file 才允许读取。
+
+Windows owner 策略也不是“看到权限不对就强行接管”。当前只接受当前用户或
+LocalSystem 所有的私有材料；其他 owner 一律失败关闭，并且在拒绝前不调用
+`SetSecurityInfo`。这比隐式夺取所有权更符合本地可复现身份源的最小权限边界。
+
 ## 11. 安全 token 来源
 
 `app/security/token_source.py` 把“怎样得到 token”抽象成 provider：
@@ -538,10 +584,10 @@ credential 或临时路径。
 当前 benchmark contract     4 passed
 当前 public audit           515 candidates, 0 findings
 当前 benchmark              p95 0.0904 ms, target met
-当前 matrix v2              20/20, 2ec62b6e...7c12
-当前 full pytest            1906 passed, 20 skipped, 3 warnings
+当前 matrix v2              20/20, 0258f8c2...0829
+当前 full pytest            1918 passed, 22 skipped, 3 warnings
 当前 compile/pip/diff       PASS / CLEAN / PASS
-最终独立复核/远端 CI        0C/0I PASS / 待执行
+最终独立复核/远端 CI        0C/0I PASS / #17 FAIL，修复后重跑待执行
 ```
 
 后续独立复审用 `HOLD` 作废了 `1835`、旧 matrix 和旧 benchmark 的“最终”
@@ -697,8 +743,10 @@ framing/audit RED-GREEN `14`、更宽 boundary/audit/redaction `127`、
 lifecycle/CLI `40/2`、benchmark contract `4` 均通过，公开审计是 `515/0`，
 source-bound benchmark p95 是 `0.0904 ms`；
 source-bound matrix 已重新通过 `20/20`，完整工作树通过
-`1906 passed / 20 skipped / 3 warnings`，compileall、依赖完整性和 diff check
-也通过。下一步由独立复核与 exact-SHA Ubuntu/Windows CI 绑定到同一个提交。
+`1918 passed / 22 skipped / 3 warnings`。首次 exact-SHA CI 没有被忽略：
+它发现 Windows 短路径别名和无仓库 `.venv` 两个本机默认环境未覆盖的问题，
+以及一条 Linux/Windows 共现的错误消息契约问题。修复后 matrix provenance
+已重建，下一步由新的 exact-SHA Ubuntu/Windows CI 绑定到 repair commit。
 这种证据纪律比挑一组好看的旧数字更重要，也仍不能替代真实 IdP、生产流量或
 owner review。
 
@@ -719,15 +767,16 @@ credential 传播控制、客户端 origin 限制、public audit、性能证据�
 
 ## 19. 远端验收后需要补写什么
 
-本地门禁已经基于真实命令补齐。提交推送后仍需补充：
+本地门禁和失败修复已经基于真实命令补齐。repair commit 推送后仍需补充：
 
 1. 独立 whole-diff review 的 Critical/Important/Minor 最终结论；
 2. commit SHA、GitHub 分支、Actions URL 和 exact-SHA CI 结果；
-3. 若 Ubuntu CI 暴露 POSIX 专属失败，记录 RED、修复和新的精确 SHA，不得沿用
-   旧本地结果冒充通过。
+3. GitHub Actions #17 的失败提交 `d753df3`、run URL、两个 job 结果，以及
+   replacement run 的最终结论；不得把失败运行或旧本地结果冒充通过。
 
 当前最准确的一句话是：
 
-> R2-S5 已实现可信本地 JWT/JWKS 身份边界，通过 1906 条整树回归、20 条冻结
-> 身份评测和 515 文件候选公开审计；它仍是本地可复现工业化样例，不是真实
+> R2-S5 已实现可信本地 JWT/JWKS 身份边界，通过 1918 条整树回归和 20 条冻结
+> 身份评测；GitHub CI #17 暴露的三项跨平台问题已经修复，但 replacement
+> exact-SHA CI 尚未通过，因此它仍是待远端验收的本地工业化样例，不是真实
 > IdP 或生产部署认证。

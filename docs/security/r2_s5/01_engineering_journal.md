@@ -1,6 +1,6 @@
 # R2-S5 Trusted Identity Boundary Engineering Journal
 
-Status: local implementation and release gates complete; exact-SHA remote CI pending
+Status: exact-SHA CI #17 failed; repair is locally green; replacement CI pending
 
 Started: 2026-07-22
 
@@ -2397,4 +2397,530 @@ deployment success. The ordered remaining work is:
 
 ```text
 stage -> inspect -> commit -> push -> exact-SHA Ubuntu/Windows Actions
+```
+
+## 65. Exact-SHA CI #17 failure and cross-platform repair
+
+The reviewed tree was committed as
+`d753df3915dd78ef930a10ea1e8324e994ed5b91` and pushed to
+`codex/rag-eval-system`. [GitHub Actions run
+30012887739](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30012887739)
+executed that exact SHA on both configured runners. Dependency installation,
+`pip check`, compilation, and the frozen evaluation hash gate all passed before
+pytest. The deterministic test step then stopped release:
+
+```text
+Ubuntu  job 89225269836   1 failed / 1910 passed / 15 skipped / 4 warnings
+Windows job 89225269319   5 failed / 1918 passed / 3 skipped / 4 warnings
+run conclusion            failure
+```
+
+The public check annotations exposed the complete Ubuntu failure but only a
+warning line for Windows. The unauthenticated log archive endpoint returned
+HTTP 403 and the logged-out Actions page required sign-in to display logs. The
+existing Git Credential Manager credential was therefore used for one
+read-only API download into ignored `.tmp/ci17`; the credential value was
+neither printed nor persisted by the diagnostic command.
+
+### 65.1 Shared assertion-contract failure
+
+Both runners rejected a real redirecting ancestor as intended, but the test
+expected `directory is unsafe` while `validate_private_path_ancestors`
+correctly raised `identity private path is unsafe`. This was not an allow
+bypass. The regression now asserts the actual ancestor-path error contract.
+
+### 65.2 Windows DOS 8.3 alias false rejection
+
+The ephemeral benchmark and two matrix recomputation tests used a temporary
+directory whose lexical spelling contained a DOS 8.3 runner-profile alias.
+`Path.resolve()` returned the equivalent long spelling. The previous check
+compared normalized strings and rejected the same directory object.
+
+The implementation now keeps all existing `lstat`, symlink/reparse, ancestor,
+owner/ACL, handle-lock, and directory-identity checks, but compares the
+lexical and resolved paths with `os.path.samefile`. Two deterministic tests
+prove both sides of the contract:
+
+- a different spelling of the same directory object is accepted;
+- a genuinely different resolved directory object is rejected.
+
+The RED run for the equivalent-spelling test failed with
+`IdentityConfigurationError`. After the change, the benchmark and both matrix
+tests that failed on the GitHub Windows runner pass locally.
+
+### 65.3 CI interpreter-layout assumption
+
+The executable R2-S3 isolated-verifier documentation assumed
+`.venv/Scripts/python.exe`. Developer workstations use that layout, while
+`actions/setup-python` puts Python on PATH and does not create a repository
+venv. Both documented PowerShell blocks now prefer the repository venv when
+present and otherwise select the first PATH `python` application.
+
+The first fallback implementation revealed another local portability issue:
+`Get-Command` returned several Python applications and PowerShell concatenated
+their paths into one invalid command. Adding `Select-Object -First 1` made the
+selection deterministic. The test deliberately rewrites the venv candidate to
+a missing path and prepends the current interpreter directory to PATH, so the
+CI fallback branch is exercised on every Windows test run.
+
+### 65.4 Source-bound evidence regeneration
+
+`app/security/demo_identity.py` is one of the ten files bound into the trusted
+identity result. The path fix therefore invalidated the previous
+`2ec62b6e...7c12` artifact even though all 20 behavioral outcomes remained
+unchanged. The immutable evaluator generated a new candidate; a no-index diff
+showed only the expected lifecycle source hash and derived contract ID changed.
+The candidate was then mechanically promoted to public evidence:
+
+```text
+cases / failed             20 / 0
+denied effects / leaks     0 / 0
+release_pass               true (matrix scope only)
+contract                   trusted-identity-contract-382abc9b1a8de344
+demo_identity.py SHA-256   a1dd9bec7e48c76a0cf86f3cd59fc0909fe782394a6293ad56fdc15ea0bb6a8b
+artifact SHA-256           1fcf0b0468be193d30133e11dc15a98c1539133b21c738798860d0ac9423869c
+```
+
+### 65.5 Local repair gates
+
+```text
+initial RED slice                 2 failed / 1 skipped
+focused post-fix slice            9 passed / 1 skipped
+identity/lifecycle/public group   137 passed / 2 skipped / 3 warnings
+full pytest                       1908 passed / 20 skipped / 3 warnings
+full pytest elapsed               153.11 seconds
+```
+
+The post-summary Windows cleanup warnings still concern old
+permission-hardened pytest garbage directories and do not change the zero exit
+status. This repair is not released yet. The next gate is a new commit, push,
+and Ubuntu/Windows Actions run bound to that exact replacement SHA.
+
+### 65.6 Public-audit failure caused by diagnostic residue
+
+The first post-documentation public audit returned `544 candidates / 27
+findings`. Twenty-six findings came from the downloaded raw CI logs under
+`.tmp/ci17`; the remaining finding was the complete machine-specific runner
+path quoted in this journal. The scanner intentionally does not trust a file
+merely because it is temporary or ignored.
+
+The raw diagnostic directory created in Section 65 was removed after the
+failure facts had been reduced into this low-sensitivity record. The journal
+now describes the DOS 8.3 condition without retaining a machine path. No audit
+rule or safe-marker grammar was relaxed. The repeated repository audit
+returned:
+
+```text
+public candidates   515
+findings               0
+```
+
+## 66. Post-CI review: bind directory identity across resolution and hardening
+
+The first CI repair used `os.path.samefile(root, resolved)`. A post-repair
+independent review correctly returned `HOLD` with `0 Critical / 2 Important /
+3 Minor`. The review did not find a demonstrated bypass in the released
+commit; it found that the proposed repair and its regression test did not prove
+the intended object-identity contract strongly enough.
+
+### 66.1 Why the first `samefile` repair was incomplete
+
+The old sequence was conceptually:
+
+```text
+1. lstat(root) and reject symlink/reparse metadata
+2. resolve(root)
+3. samefile(root, resolved)
+```
+
+If `root` was replaced after step 1 but before step 2, both arguments in step 3
+could observe the replacement object. The comparison would be true, even
+though the object checked in step 1 was no longer the object being accepted.
+This is a time-of-check/time-of-use gap. It is different from the Windows 8.3
+alias problem: aliases are two names for one object and must be accepted;
+replacement is one name changing to a different object and must be rejected.
+
+The first test also mocked `samefile` to return true. That proved only that the
+branch used `samefile`; it did not prove that an actual DOS 8.3 path alias was
+accepted by the Windows filesystem.
+
+### 66.2 RED tests before the stronger implementation
+
+Two tests replaced the synthetic proof:
+
+- `test_identity_directory_accepts_a_real_windows_short_path_alias` calls
+  `GetShortPathNameW`, requires `os.path.samefile(short_path, long_path)`, and
+  passes the real alias into `_validate_identity_directory`;
+- `test_identity_directory_rejects_replacement_during_resolution` renames the
+  original directory out of the path and a replacement directory into the path
+  exactly when `Path.resolve()` is called.
+
+Against the first repair, the real alias test passed but the replacement test
+failed because no `IdentityConfigurationError` was raised:
+
+```text
+real Windows short-path alias     PASS
+directory replacement race       FAIL
+review disposition                HOLD
+```
+
+This RED result was useful: the Windows compatibility fix was real, but its
+security invariant was incomplete.
+
+### 66.3 Production implementation
+
+`app/security/demo_identity.py::_validate_identity_directory` now binds three
+filesystem observations:
+
+```text
+before            = root.lstat()
+resolved          = root.resolve(strict=True)
+resolved_metadata = resolved.stat()
+after             = root.lstat()
+
+samestat(before, resolved_metadata) must be true
+samestat(resolved_metadata, after)  must be true
+```
+
+Each observation must also be a directory and must not be a symlink or reparse
+point. Resolution/stat failure and any identity mismatch fail closed with
+`IdentityConfigurationError`. On success, the helper returns `(st_dev,
+st_ino)` rather than only returning `None`.
+
+The callers use that identity for a second boundary:
+
+```text
+validate and capture object identity
+apply private-directory permission hardening
+validate again
+require the post-hardening identity to equal the captured identity
+```
+
+This is implemented in both `_prepare_directory` and
+`_prepare_status_directory`. It prevents permission hardening from silently
+continuing on a directory object different from the one originally accepted.
+The existing ancestor checks, active-directory handle binding, entry
+`lstat`/`fstat` checks, lock, atomic replacement, and private file hardening
+remain in place.
+
+### 66.4 Documentation-verifier and wording drift fixes
+
+The review's three Minor findings were also closed:
+
+1. `tests/test_public_repository.py` now requires the exact PowerShell
+   interpreter bootstrap to occur twice, so the export and isolated-verifier
+   blocks cannot drift independently.
+2. The executable test still removes the repository-venv branch and exercises
+   the PATH fallback with the running interpreter's directory.
+3. The plan now says the CI run failed and the release was blocked as designed;
+   it no longer implies that the failure itself was designed.
+4. README classifies the roots as one assertion-contract failure and two
+   portability failures instead of calling all three portability failures.
+
+### 66.5 Source-bound evidence v3
+
+The stronger lifecycle implementation changed one of the ten source files
+bound by the trusted-identity matrix. A fresh candidate was generated at a new
+path and compared against the Section 65 artifact. The only JSON differences
+were the expected `app/security/demo_identity.py` SHA-256 and the derived
+evaluation contract ID. All case outcomes and aggregate values remained
+identical.
+
+```text
+schema                     trusted-identity-evaluation-v2
+cases / passed / failed    20 / 20 / 0
+denied cases               14
+denied side-effect errors   0
+credential leaks            0
+release_pass               true (matrix scope only)
+contract                   trusted-identity-contract-2e8f8081657a2e14
+demo_identity.py SHA-256   f8f07459bf22435a13b29a72aa94586dcd92002b737837a96a2d5b23f8368f71
+candidate/public SHA-256   a2b9afb0aa35a5f69119b088b58963fc44168a7d8c77594886d03c03aa29782b
+```
+
+Candidate and public hashes were checked separately and are byte-identical.
+The frozen evaluation regression passes against the promoted public artifact.
+
+### 66.6 Local gates after the stronger repair
+
+```text
+focused alias/race/docs                 3 passed
+focused CI-failure slice                5 passed / 1 platform skip
+trusted-identity evaluation             6 passed
+affected lifecycle/benchmark/public   137 passed / 2 platform skips
+full pytest                           1908 passed / 20 skipped / 3 warnings
+full pytest elapsed                    151.22 seconds
+compileall                              PASS
+pip check                               CLEAN
+public repository audit                 515 candidates / 0 findings
+git diff --check                        PASS
+```
+
+The three suite warnings remain the known FAISS/SWIG deprecation warnings.
+Windows pytest may additionally report post-summary cleanup warnings for old
+permission-hardened temporary directories; these do not change pytest's zero
+exit status. Post-repair independent re-review and replacement exact-SHA
+Ubuntu/Windows Actions are still mandatory before remote acceptance.
+
+## 67. Final post-CI hardening: bind side effects to filesystem objects
+
+Section 66 closed the path-resolution race, but it did not yet prove that every
+later side effect targeted the same filesystem object. Two additional scoped
+reviews were therefore treated as release gates rather than advisory comments:
+
+```text
+review after the first CI repair       0 Critical / 2 Important / 3 Minor / HOLD
+review after initial handle refactor   0 Critical / 2 Important / 3 Minor / HOLD
+final scoped re-review                 0 Critical / 0 Important / 0 Minor / RELEASE
+```
+
+The two `HOLD` results are not contradictory with earlier green tests. They
+show that the tests covered the decisions already implemented, while the
+reviewers found security invariants that had not yet been represented by a
+test.
+
+### 67.1 Why `samestat` detection alone was not enough
+
+The Section 66 implementation compared:
+
+```text
+lstat(path) -> stat(resolved path) -> lstat(path)
+```
+
+with `os.path.samestat`. This correctly distinguishes:
+
+- two names for the same object, such as a real Windows DOS 8.3 alias; and
+- one name that was changed to point at another object during resolution.
+
+However, a successful comparison is still only an observation at one moment.
+The next operation was name-based permission hardening:
+
+```text
+validate object A through path P
+attacker replaces P so it names object B
+chmod(P) or SetNamedSecurityInfo(P) changes object B
+```
+
+Failing after the permission call would detect the race, but it would not undo
+the unauthorized side effect on object B. This is the important distinction:
+postcondition checking can detect a wrong-object write; it cannot make that
+write harmless.
+
+There was a second window between `_prepare_directory()` and
+`_identity_lock()`. The prepare step returned a path but did not carry the
+accepted object identity into the lock boundary. A replacement in that gap
+could therefore cause a later lifecycle operation to lock and modify a
+different directory.
+
+### 67.2 RED tests that represented the missing contracts
+
+The next tests were written before the production refactor:
+
+1. create a real Windows short-path alias with `GetShortPathNameW`, resolve it
+   to the long path, and prove both names identify the same object;
+2. replace the directory exactly while `Path.resolve()` runs;
+3. replace the directory after prepare but before `_identity_lock()` for both
+   rotate and status;
+4. prove permission hardening never changes the replacement object;
+5. on Windows, replace the path after obtaining a handle and require
+   `SetSecurityInfo` to operate on the original handle;
+6. on POSIX, replace the path after obtaining a descriptor and require
+   `fchmod` to operate on the original descriptor.
+
+Against the old implementation, the focused run produced:
+
+```text
+3 failed / 1 platform skip
+```
+
+The failures were expected RED evidence. The platform skip means the current
+machine could not execute the other operating system's native primitive; it
+does not mean that contract was omitted from the suite.
+
+### 67.3 Object-bound implementation
+
+`app/security/private_fs.py` now exposes a `HeldPrivateDirectory` value. It
+contains the already-open POSIX directory descriptor or Windows directory
+handle and the native identity required to compare the path with that held
+object.
+
+The lifecycle data flow is now:
+
+```text
+prepare directory
+  -> validate path and capture expected (device, inode) identity
+  -> enter _identity_lock(expected_identity)
+  -> open and hold the accepted directory object
+  -> compare held identity with prepare-time expected identity
+  -> validate active snapshot through the held directory
+  -> harden entries through held handles/descriptors
+  -> acquire bounded lifecycle lock
+  -> recover journal and execute operation
+```
+
+All five production lifecycle entrypoints carry the expected identity from
+prepare into `_identity_lock()`. No lifecycle write, permission repair, or
+journal recovery is allowed before the comparison succeeds.
+
+On POSIX:
+
+- the directory is opened once and retained as a descriptor;
+- entries are opened relative to that descriptor with `dir_fd`;
+- `O_NOFOLLOW` rejects a final symlink and `O_NONBLOCK` prevents a FIFO from
+  blocking the verifier;
+- `fstat` checks the already-open entry is a regular file before reading;
+- `fchmod(fd, 0o600)` changes the held file, not whatever a path name may later
+  reference;
+- the held directory descriptor receives mode `0o700`.
+
+On Windows:
+
+- the root and each child are opened as native filesystem handles;
+- `FILE_ID_INFO`/handle metadata bind the handle to the expected object;
+- ACL inspection is performed on the handle;
+- `SetSecurityInfo(handle, ...)` applies the DACL to the held object;
+- every native handle is closed in `finally`, including failure paths.
+
+This changes the safety argument from "check the name before and after a
+write" to "perform the write through the object already checked."
+
+### 67.4 Follow-up review findings and fixes
+
+The first handle-based version received another
+`0 Critical / 2 Important / 3 Minor / HOLD`.
+
+The first Important finding concerned the active manifest snapshot on POSIX.
+Opening a FIFO without `O_NONBLOCK` can wait forever before code gets a chance
+to reject its file type. The open flags now include `O_NONBLOCK`, and the code
+performs `fstat` plus a regular-file check before the first `os.read`.
+
+The second Important finding concerned Windows ownership. The initial ACL
+repair path implied that it could repair a file owned by an untrusted
+principal, but its handle rights and threat model did not justify silently
+taking ownership. The final policy is deliberately conservative:
+
+```text
+accepted owner    current Windows user or LocalSystem
+untrusted owner   fail closed with PrivatePathError
+ownership repair  not attempted
+```
+
+Both name-based validation used outside the held lifecycle and handle-based
+hardening enforce the same owner rule. An untrusted owner is rejected before
+`SetSecurityInfo` can run.
+
+The related Minor resource-lifetime finding was also fixed. Four Windows ACL
+inspection/update paths now acquire the process token inside a `try/finally`
+region that also covers `_windows_system_sid()`. If SID construction raises,
+the token handle is still closed. Parameterized regression tests prove all
+four cleanup paths.
+
+### 67.5 Why these Windows APIs were selected
+
+Microsoft's `SetSecurityInfo` contract updates the security information of an
+object identified by a handle:
+
+https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-setsecurityinfo
+
+Microsoft's security-descriptor guidance distinguishes handle-based
+`GetSecurityInfo`/`SetSecurityInfo` from name-based operations and recommends
+the handle form when the object is already identified by a handle:
+
+https://learn.microsoft.com/en-us/windows/win32/secauthz/security-descriptor-operations
+
+The stable Windows identity is derived from handle information, including
+`FILE_ID_INFO` semantics:
+
+https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_id_info
+
+These references informed the primitive selection. They do not by themselves
+prove this implementation; the platform-specific race and cleanup tests are
+the executable evidence.
+
+### 67.6 Source-bound evidence expanded to eleven files
+
+The review also found an evidence-provenance gap: the matrix bound
+`demo_identity.py`, but did not bind the lower-level `private_fs.py` module
+that now enforces the filesystem security contract.
+
+`TRUSTED_IDENTITY_SOURCE_FILES` therefore contains eleven explicit paths,
+including `app/security/private_fs.py`. A regression test asserts the exact
+eleven-file set so that a future refactor cannot silently drop a security
+dependency from the evidence contract.
+
+The final fresh candidate, promoted public artifact, and bound source values
+are:
+
+```text
+schema                       trusted-identity-evaluation-v2
+cases / passed / failed      20 / 20 / 0
+denied cases                 14
+denied side-effect errors     0
+credential leaks              0
+release_pass                 true (matrix scope only)
+contract                     trusted-identity-contract-7c183871488a6519
+demo_identity.py SHA-256     fc62d3889d618e7be516ced0993a84e65f3f169b6b6e29086574c056d096f776
+private_fs.py SHA-256        5c39fc9cf9ff627023ff0edc081874a69e051407adc63b9608ac91770b119ea7
+candidate/public SHA-256     0258f8c28c363c785751ef64330db5444f75e6169b5b263430dee7049b790829
+```
+
+The following artifacts remain useful historical evidence but are superseded
+as release evidence because later security-source changes altered the bound
+contract:
+
+```text
+ci17_fix.json       1fcf0b0468be193d30133e11dc15a98c1539133b21c738798860d0ac9423869c
+ci17_fix_v2.json    a2b9afb0aa35a5f69119b088b58963fc44168a7d8c77594886d03c03aa29782b
+ci17_fix_v3.json    7d0c06319e6f8b56739365129381e21d1e2c39bb660476837005b5e8924e54a8
+ci17_fix_v4.json    ccffb8ad937437769b89881ac492697d200453512ec3abf4b9d68ce96d3eca81
+```
+
+Sections 65 and 66 intentionally retain their contemporaneous hashes and test
+counts. This section records why those values are no longer the current
+release candidate.
+
+### 67.7 Final local verification
+
+The first audit after adding the beginner guide returned
+`515 candidates / 1 finding`. The example used a drive-letter absolute path,
+which correctly matched the machine-path disclosure rule. The example was
+replaced with the lexical placeholder `<private-root>/identity`; the scanner
+and its allowlist were not weakened.
+
+```text
+lifecycle and private-fs tests          47 passed / 4 platform skips
+affected identity/security contracts   151 passed / 4 platform skips
+trusted-identity matrix                 20 passed / 20 total
+full pytest                           1918 passed / 22 skipped / 3 warnings
+full pytest elapsed                    178.57 seconds
+compileall                              PASS
+pip check                               CLEAN
+public repository audit                 515 candidates / 0 findings
+git diff --check                        PASS
+final scoped re-review                  0C / 0I / 0M / RELEASE
+```
+
+The three warnings are the known FAISS/SWIG deprecation warnings. The final
+review disposition applies to the scoped post-CI hardening diff; it does not
+replace the required exact-SHA Ubuntu/Windows workflow.
+
+### 67.8 Residual risk and current release state
+
+Prepare-to-lock binding uses `(st_dev, st_ino)` on the current platform and
+does not continuously retain the prepare-time handle across the public
+entrypoint boundary. An extreme ABA event in which the filesystem reuses the
+same identity value could evade that comparison. The practical likelihood is
+reduced by private ancestor ownership/permission checks, rejection of
+symlink/reparse components, the very short boundary, and the held-object
+checks inside the lock, but the implementation does not claim the event is
+impossible.
+
+The current state is therefore:
+
+```text
+local implementation and scoped review   complete
+final public matrix v5                    complete
+replacement repair commit                pending
+replacement exact-SHA Ubuntu/Windows CI  pending
+remote release acceptance                not yet claimed
 ```

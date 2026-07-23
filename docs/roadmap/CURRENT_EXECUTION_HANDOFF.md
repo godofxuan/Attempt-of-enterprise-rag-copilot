@@ -746,14 +746,18 @@ Latest focused evidence includes new framing/audit RED-GREEN `14`, broader
 boundary/audit/redaction `127`, lifecycle/CLI `40/2`, benchmark contract `4`,
 public audit `515/0`, source-bound matrix `20/20`, and verifier p95
 `0.0904 ms`. The current matrix artifact SHA-256 is
-`2ec62b6e8eda35531b43a67263cec16dc42fb07e207ec2b43d22d1cfb6227c12`.
+`0258f8c28c363c785751ef64330db5444f75e6169b5b263430dee7049b790829`.
 The repaired whole tree passes
-`1906 / 20 skipped / 3 known warnings`; compileall, `pip check`, and diff check
-also pass.
+`1918 / 22 skipped / 3 known warnings`.
 
 The benchmark is verifier-only. The identity source is local synthetic
 RSA/JWKS, not real OIDC/SSO/IAM. Final independent security and engineering
-reviews both report `0 Critical / 0 Important / RELEASE`. Pending delivery
-evidence at this checkpoint is commit/push and exact-SHA Ubuntu/Windows GitHub
-Actions. No model run or immutable R2-S1/S2/S3/S4 artifact should be rerun or
-overwritten for this stage.
+reviews before CI both reported `0 Critical / 0 Important / RELEASE`. Exact-SHA run #17 on
+commit `d753df3` failed on one shared assertion-contract issue, a Windows DOS
+8.3 path-alias false rejection, and a Windows repository-venv assumption. The
+post-CI review then found path-object and permission-side-effect TOCTOU gaps.
+The final handle/descriptor-bound repair passes the affected
+`151 / 4 skipped` group locally and its scoped re-review reports `0/0/0
+RELEASE`. The replacement commit and exact-SHA Ubuntu/Windows Actions remain
+mandatory. No model run or immutable R2-S1/S2/S3/S4 artifact should be rerun
+or overwritten for this stage.

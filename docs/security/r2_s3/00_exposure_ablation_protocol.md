@@ -244,7 +244,15 @@ this and the subsequent verification blocks in the same PowerShell session:
 
 ```powershell
 $repo = (Get-Location).Path
-$python = (Resolve-Path -LiteralPath (Join-Path $repo '.venv\Scripts\python.exe')).Path
+$venvPython = Join-Path $repo '.venv\Scripts\python.exe'
+if (Test-Path -LiteralPath $venvPython -PathType Leaf) {
+  $python = (Resolve-Path -LiteralPath $venvPython).Path
+} else {
+  $python = (
+    Get-Command python -CommandType Application -ErrorAction Stop |
+      Select-Object -First 1
+  ).Source
+}
 $stagingRoot = Join-Path $repo (
   '.tmp_r2_s3_public_' + [guid]::NewGuid().ToString('D')
 )
@@ -274,7 +282,15 @@ fresh isolated directory, copy the exact eight-file allowlist, and run:
 <!-- isolated-verifier-powershell:start -->
 ```powershell
 $repo = (Get-Location).Path
-$python = (Resolve-Path -LiteralPath (Join-Path $repo '.venv\Scripts\python.exe')).Path
+$venvPython = Join-Path $repo '.venv\Scripts\python.exe'
+if (Test-Path -LiteralPath $venvPython -PathType Leaf) {
+  $python = (Resolve-Path -LiteralPath $venvPython).Path
+} else {
+  $python = (
+    Get-Command python -CommandType Application -ErrorAction Stop |
+      Select-Object -First 1
+  ).Source
+}
 $source = $stagedPackage
 if (-not $source -or -not (Test-Path -LiteralPath $source -PathType Container)) {
   throw 'staged public package is unavailable in this PowerShell session'

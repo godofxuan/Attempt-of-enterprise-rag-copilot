@@ -44,6 +44,7 @@ TRUSTED_IDENTITY_SOURCE_FILES = (
     "app/schemas.py",
     "app/security/demo_identity.py",
     "app/security/identity.py",
+    "app/security/private_fs.py",
     "app/security/token_source.py",
     "scripts/eval_trusted_identity.py",
 )

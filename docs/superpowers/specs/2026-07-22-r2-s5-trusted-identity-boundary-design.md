@@ -1,7 +1,8 @@
 # R2-S5 Trusted Identity Boundary Design
 
 Status: approved; implementation and local release gates complete on
-2026-07-23; commit/push and exact-SHA Ubuntu/Windows CI acceptance pending
+2026-07-23; exact-SHA CI #17 failed, repair is locally green, and replacement
+Ubuntu/Windows CI acceptance is pending
 
 Selected option: self-contained local RSA JWT/JWKS identity source
 
@@ -517,10 +518,12 @@ source-bound benchmark run
 `identity-benchmark-20260723T124717Z-668f464566bb` reports 1,000 warm
 verifications at p95 0.0904 ms and the current public audit reports 515/0.
 The fresh source-bound matrix passes `20/20`, the repaired whole tree passes
-`1,906 / 20 skipped / 3 known warnings`, and both independent reviewers report
-zero Critical/Important. Commit SHA and exact-SHA Ubuntu/Windows CI remain
-mandatory for remote acceptance. Even a complete gate establishes the local
-contract, not a production IdP or deployment certification.
+`1,918 / 22 skipped / 3 known warnings`; post-CI scoped re-review reports
+zero Critical/Important/Minor. Exact-SHA CI #17 rejected commit `d753df3`;
+the original three failures and later TOCTOU/handle findings are repaired and
+pass the affected local contract group. A replacement commit and exact-SHA Ubuntu/Windows CI remain mandatory
+for remote acceptance. Even a complete gate establishes the local contract,
+not a production IdP or deployment certification.
 
 ## 17. Claims boundary
 

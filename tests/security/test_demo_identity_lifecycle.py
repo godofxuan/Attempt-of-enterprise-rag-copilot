@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import base64
+import ctypes
 import json
 import multiprocessing
 import os
+import shutil
+from contextlib import contextmanager
+from ctypes import wintypes
 from pathlib import Path
 
 import pytest
 
-from app.security import demo_identity
+from app.security import demo_identity, private_fs
 from app.security.demo_identity import (
     demo_identity_status,
     initialize_demo_identity,
@@ -703,6 +707,408 @@ def test_demo_identity_rejects_manifest_private_key_path_escape(tmp_path: Path) 
     assert outside.read_bytes() == b"must-survive"
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows short paths are unavailable")
+def test_identity_directory_accepts_a_real_windows_short_path_alias(
+    tmp_path: Path,
+) -> None:
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    def path_spelling(function_name: str, value: Path) -> Path:
+        function = getattr(kernel32, function_name)
+        function.argtypes = [
+            wintypes.LPCWSTR,
+            wintypes.LPWSTR,
+            wintypes.DWORD,
+        ]
+        function.restype = wintypes.DWORD
+        buffer = ctypes.create_unicode_buffer(32_768)
+        written = int(function(str(value), buffer, len(buffer)))
+        if written <= 0 or written >= len(buffer):
+            pytest.skip(f"{function_name} failed")
+        return Path(buffer.value)
+
+    initial_short_path = path_spelling("GetShortPathNameW", tmp_path)
+    long_path = initial_short_path.resolve(strict=True)
+    short_path = path_spelling("GetShortPathNameW", long_path)
+    if os.path.normcase(str(short_path)) == os.path.normcase(str(long_path)):
+        pytest.skip("this volume does not expose a distinct 8.3 alias")
+
+    assert os.path.samefile(short_path, long_path)
+
+    demo_identity._validate_identity_directory(short_path)
+
+
+def test_identity_directory_rejects_replacement_during_resolution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_directory = tmp_path.parent / f"{tmp_path.name}-original"
+    replacement_directory = tmp_path.parent / f"{tmp_path.name}-replacement"
+    replacement_directory.mkdir()
+    real_resolve = Path.resolve
+    replaced = False
+
+    def resolve_after_replacement(
+        path: Path,
+        strict: bool = False,
+    ) -> Path:
+        nonlocal replaced
+        if path == tmp_path and not replaced:
+            tmp_path.rename(original_directory)
+            replacement_directory.rename(tmp_path)
+            replaced = True
+        return real_resolve(path, strict=strict)
+
+    monkeypatch.setattr(Path, "resolve", resolve_after_replacement)
+
+    with pytest.raises(IdentityConfigurationError, match="directory is unsafe"):
+        demo_identity._validate_identity_directory(tmp_path)
+
+    assert replaced is True
+    assert original_directory.is_dir()
+    assert tmp_path.is_dir()
+
+
+def test_held_directory_hardening_never_touches_a_replacement(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "identity"
+    root.mkdir()
+    (root / "original.txt").write_text("original", encoding="ascii")
+    replacement = tmp_path / "replacement"
+    replacement.mkdir()
+    replacement_marker = replacement / "replacement.txt"
+    replacement_marker.write_text("replacement", encoding="ascii")
+    if os.name != "nt":
+        os.chmod(replacement, 0o777)
+        os.chmod(replacement_marker, 0o666)
+        replacement_mode = replacement.stat().st_mode & 0o777
+        marker_mode = replacement_marker.stat().st_mode & 0o777
+    displaced = tmp_path / "displaced"
+
+    with private_fs.hold_private_directory(root) as held:
+        expected_identity = private_fs.capture_private_directory_identity(
+            root,
+            held,
+        )
+        replacement_succeeded = False
+        try:
+            root.rename(displaced)
+            replacement.rename(root)
+            replacement_succeeded = True
+        except OSError:
+            pass
+
+        if replacement_succeeded:
+            with pytest.raises(private_fs.PrivatePathError):
+                private_fs.harden_held_private_directory(
+                    root,
+                    held,
+                    expected_identity=expected_identity,
+                )
+        else:
+            private_fs.harden_held_private_directory(
+                root,
+                held,
+                expected_identity=expected_identity,
+            )
+
+    marker = (
+        root / "replacement.txt"
+        if replacement_succeeded
+        else replacement / "replacement.txt"
+    )
+    assert marker.read_text(encoding="ascii") == "replacement"
+    if os.name != "nt":
+        assert marker.parent.stat().st_mode & 0o777 == replacement_mode
+        assert marker.stat().st_mode & 0o777 == marker_mode
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows handle ACL semantics")
+def test_windows_held_acl_targets_handle_after_path_replacement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "identity"
+    root.mkdir()
+    replacement = tmp_path / "replacement"
+    replacement.mkdir()
+    marker = replacement / "replacement.txt"
+    marker.write_text("replacement", encoding="ascii")
+    replacement_was_private = (
+        private_fs.private_directory_permissions_are_secure(replacement)
+    )
+    displaced = tmp_path / "displaced"
+    original_set_acl = private_fs._set_windows_private_acl_handle
+    replaced = False
+    root_handle: int | None = None
+    observed_handles: list[int] = []
+
+    def replace_then_set_acl(handle: int, *, directory: bool) -> None:
+        nonlocal replaced
+        observed_handles.append(handle)
+        if not replaced:
+            root.rename(displaced)
+            replacement.rename(root)
+            replaced = True
+        original_set_acl(handle, directory=directory)
+
+    monkeypatch.setattr(
+        private_fs,
+        "_set_windows_private_acl_handle",
+        replace_then_set_acl,
+    )
+
+    with private_fs.hold_private_directory(root) as held:
+        root_handle = held.windows_handle
+        expected_identity = private_fs.capture_private_directory_identity(
+            root,
+            held,
+        )
+        with pytest.raises(private_fs.PrivatePathError):
+            private_fs.harden_held_private_directory(
+                root,
+                held,
+                expected_identity=expected_identity,
+            )
+
+    assert replaced is True
+    assert root_handle is not None
+    assert observed_handles[0] == root_handle
+    replacement_marker = root / marker.name
+    assert replacement_marker.read_text(encoding="ascii") == "replacement"
+    assert (
+        private_fs.private_directory_permissions_are_secure(root)
+        is replacement_was_private
+    )
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows owner policy")
+def test_windows_handle_acl_rejects_untrusted_owner_without_setting_security(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "identity"
+    root.mkdir()
+    library = private_fs._windows_advapi32()
+    set_security_calls: list[int] = []
+    original_set_security = library.SetSecurityInfo
+
+    def record_set_security(handle, *args):
+        set_security_calls.append(int(handle))
+        return original_set_security(handle, *args)
+
+    monkeypatch.setattr(private_fs, "_windows_advapi32", lambda: library)
+    monkeypatch.setattr(
+        private_fs,
+        "_windows_handle_owner_is_trusted",
+        lambda *args, **kwargs: False,
+    )
+    monkeypatch.setattr(library, "SetSecurityInfo", record_set_security)
+
+    with private_fs.hold_private_directory(root) as held:
+        assert held.windows_handle is not None
+        with pytest.raises(private_fs.PrivatePathError, match="owner is unsafe"):
+            private_fs._set_windows_private_acl_handle(
+                held.windows_handle,
+                directory=True,
+            )
+
+    assert set_security_calls == []
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows token handle lifecycle")
+@pytest.mark.parametrize(
+    "operation",
+    ["set_handle", "check_handle", "set_path", "check_path"],
+)
+def test_windows_acl_closes_token_when_system_sid_initialization_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+) -> None:
+    closed: list[int] = []
+
+    class Kernel32:
+        def CloseHandle(self, handle: int) -> int:
+            closed.append(int(handle))
+            return 1
+
+    def fail_system_sid(_advapi32):
+        raise private_fs.PrivatePathError("injected system SID failure")
+
+    monkeypatch.setattr(private_fs, "_windows_advapi32", lambda: object())
+    monkeypatch.setattr(
+        private_fs,
+        "_windows_current_user_sid",
+        lambda _advapi32: (object(), 987, object()),
+    )
+    monkeypatch.setattr(private_fs, "_windows_system_sid", fail_system_sid)
+    monkeypatch.setattr(private_fs, "_windows_kernel32", Kernel32)
+
+    with pytest.raises(private_fs.PrivatePathError, match="system SID"):
+        if operation == "set_handle":
+            private_fs._set_windows_private_acl_handle(123, directory=True)
+        elif operation == "check_handle":
+            private_fs._windows_handle_acl_is_private(
+                123,
+                require_protected=True,
+            )
+        elif operation == "set_path":
+            private_fs._set_windows_private_acl(Path("identity"), directory=True)
+        else:
+            private_fs._windows_acl_is_private(
+                Path("identity"),
+                require_protected=True,
+            )
+
+    assert closed == [987]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX descriptor chmod semantics")
+def test_posix_held_chmod_targets_descriptor_after_path_replacement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "identity"
+    root.mkdir(mode=0o755)
+    replacement = tmp_path / "replacement"
+    replacement.mkdir(mode=0o777)
+    marker = replacement / "replacement.txt"
+    marker.write_text("replacement", encoding="ascii")
+    os.chmod(replacement, 0o777)
+    os.chmod(marker, 0o666)
+    replacement_mode = replacement.stat().st_mode & 0o777
+    marker_mode = marker.stat().st_mode & 0o777
+    displaced = tmp_path / "displaced"
+    original_fchmod = private_fs.os.fchmod
+    replaced = False
+
+    def replace_then_fchmod(descriptor: int, mode: int) -> None:
+        nonlocal replaced
+        if not replaced:
+            root.rename(displaced)
+            replacement.rename(root)
+            replaced = True
+        original_fchmod(descriptor, mode)
+
+    monkeypatch.setattr(private_fs.os, "fchmod", replace_then_fchmod)
+
+    with private_fs.hold_private_directory(root) as held:
+        expected_identity = private_fs.capture_private_directory_identity(
+            root,
+            held,
+        )
+        with pytest.raises(private_fs.PrivatePathError):
+            private_fs.harden_held_private_directory(
+                root,
+                held,
+                expected_identity=expected_identity,
+            )
+
+    assert replaced is True
+    replacement_marker = root / marker.name
+    assert replacement_marker.read_text(encoding="ascii") == "replacement"
+    assert root.stat().st_mode & 0o777 == replacement_mode
+    assert replacement_marker.stat().st_mode & 0o777 == marker_mode
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX nonblocking FIFO contract")
+def test_active_snapshot_rejects_fifo_descriptor_before_reading(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "identity_manifest.json"
+    target.write_text("regular", encoding="ascii")
+    path_metadata = target.lstat()
+    read_descriptor, write_descriptor = os.pipe()
+
+    def open_fifo_descriptor(
+        _path: Path,
+        flags: int,
+        mode: int = 0o600,
+    ) -> int:
+        _ = mode
+        assert flags & os.O_NONBLOCK
+        return os.dup(read_descriptor)
+
+    def forbid_read(_descriptor: int, _size: int) -> bytes:
+        raise AssertionError("FIFO descriptor must be rejected before read")
+
+    monkeypatch.setattr(
+        demo_identity,
+        "_active_entry_metadata",
+        lambda _path: path_metadata,
+    )
+    monkeypatch.setattr(
+        demo_identity,
+        "_open_active_entry",
+        open_fifo_descriptor,
+    )
+    monkeypatch.setattr(demo_identity.os, "read", forbid_read)
+
+    try:
+        with pytest.raises(
+            IdentityConfigurationError,
+            match="must be a regular file",
+        ):
+            demo_identity._read_active_private_file_snapshot(
+                target,
+                max_bytes=128,
+            )
+    finally:
+        os.close(read_descriptor)
+        os.close(write_descriptor)
+
+
+@pytest.mark.parametrize("operation", ["rotate", "status"])
+def test_identity_rejects_replacement_between_prepare_and_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+) -> None:
+    initialize_demo_identity(
+        tmp_path,
+        issuer="https://identity.localhost/",
+        audience="enterprise-rag-api",
+        token_lifetime_seconds=900,
+    )
+    replacement = tmp_path.parent / f"{tmp_path.name}-replacement"
+    shutil.copytree(tmp_path, replacement)
+    private_fs.harden_private_directory(replacement)
+    replacement_before = {
+        entry.relative_to(replacement).as_posix(): entry.read_bytes()
+        for entry in replacement.rglob("*")
+        if entry.is_file()
+    }
+    displaced = tmp_path.parent / f"{tmp_path.name}-displaced"
+    original_lock = demo_identity._identity_lock
+
+    @contextmanager
+    def replace_before_lock(root: Path, **kwargs):
+        root.rename(displaced)
+        replacement.rename(root)
+        with original_lock(root, **kwargs):
+            yield
+
+    monkeypatch.setattr(demo_identity, "_identity_lock", replace_before_lock)
+
+    with pytest.raises(
+        IdentityConfigurationError,
+        match="identity directory changed before lock",
+    ):
+        if operation == "rotate":
+            rotate_demo_identity(tmp_path)
+        else:
+            demo_identity_status(tmp_path)
+
+    replacement_after = {
+        entry.relative_to(tmp_path).as_posix(): entry.read_bytes()
+        for entry in tmp_path.rglob("*")
+        if entry.is_file()
+    }
+    assert replacement_after == replacement_before
+
+
 def test_demo_identity_rejects_redirecting_ancestor_directory(tmp_path: Path) -> None:
     actual_parent = tmp_path / "actual"
     actual_parent.mkdir()
@@ -712,7 +1118,7 @@ def test_demo_identity_rejects_redirecting_ancestor_directory(tmp_path: Path) ->
     except OSError:
         pytest.skip("directory symlink creation is not available")
 
-    with pytest.raises(IdentityConfigurationError, match="directory is unsafe"):
+    with pytest.raises(IdentityConfigurationError, match="private path is unsafe"):
         initialize_demo_identity(
             redirecting_parent / "identity",
             issuer="https://identity.localhost/",

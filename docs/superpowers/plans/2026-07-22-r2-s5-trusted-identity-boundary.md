@@ -7,11 +7,12 @@ Method: vertical TDD slices
 Design: `docs/superpowers/specs/2026-07-22-r2-s5-trusted-identity-boundary-design.md`
 
 Progress snapshot, 2026-07-23: Tasks 1-9 are implemented and the local portion
-of Task 10 is complete. The frozen standalone evaluation matrix reports 20/20
-passing cases, the isolated benchmark remains below its local target, and the
-repaired full working tree reports 1,906 passing tests, 20 platform skips, and
-three known warnings. Two independent reviewers report zero
-Critical/Important. Commit/push and exact-SHA Ubuntu/Windows CI remain. This is
+of Task 10 is complete. Exact-SHA CI #17 rejected commit `d753df3`; the shared
+error-contract mismatch, Windows short-path alias false rejection, and
+repository-venv assumption are repaired. The frozen evaluation reports 20/20,
+the repaired full tree reports 1,918 passing tests, 22 platform skips, and
+three known warnings. Post-CI scoped re-review reports `0/0/0 RELEASE`.
+Replacement exact-SHA Ubuntu/Windows CI remains. This is
 not a production IdP result.
 
 ## Delivery rules
@@ -304,15 +305,15 @@ Implemented evidence: the frozen matrix hash is
 Its immutable evaluator reports 20/20 passing cases, 14 denied negative cases,
 zero denied side effects, and zero credential leaks. A fresh result and the
 checked-in public artifact are byte-identical with SHA-256
-`2ec62b6e8eda35531b43a67263cec16dc42fb07e207ec2b43d22d1cfb6227c12`.
-Evaluation schema v2 also binds a deterministic contract ID and ten source
+`0258f8c28c363c785751ef64330db5444f75e6169b5b263430dee7049b790829`.
+Evaluation schema v2 also binds a deterministic contract ID and eleven source
 SHA-256 values without adding cross-platform timestamps.
 The current source-bound local benchmark records 1,000 warm verifications at
 p95 0.0904 ms.
 
 ## Task 10: Documentation, review, and release gates
 
-Status: **LOCAL PASS; two-reviewer 0/0 complete, commit/push and exact-SHA CI pending**
+Status: **CI #17 FAILED; RELEASE WAS BLOCKED AS DESIGNED; repair is locally green and replacement exact-SHA CI is pending**
 
 Files:
 

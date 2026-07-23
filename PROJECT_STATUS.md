@@ -1,6 +1,6 @@
 # Enterprise Agentic RAG - Current Status
 
-更新时间：2026-07-23（R2-S5 本地发布候选通过，远端 exact-SHA CI 待执行）
+更新时间：2026-07-23（R2-S5 CI #17 失败已修复，本地重验通过，远端重跑待验）
 
 状态：R2-S5 已把 `/agent/v2/chat` 的调用方自报身份替换为服务端
 RS256/JWKS 验签身份；chat、feedback、metrics、trace 均进入可信身份与角色边界。
@@ -18,14 +18,23 @@ journal 完成态语义、API mode 文档、证据一致性、benchmark 门禁�
 `Content-Length` 的未捕获异常均已修复。工程复核随后达到 `0/0`；安全复核又
 发现占位词虽有边界、却仍可出现在凭据中间的 `1 Important`。该问题已按整值
 占位符语法修复。最终安全与工程 reviewer 均返回
-`0 Critical / 0 Important / RELEASE`，因此当前为本地发布候选通过；这不代表
-生产部署，远端验收仍未完成。新聚焦 RED/GREEN 为 `14 passed`，更宽的身份边界、公共审计与脱敏回归为
-`127 passed`；lifecycle/CLI `40 passed / 2 skipped`、
-benchmark `4 passed`、公共审计 `515/0`，source-bound p95 `0.0904 ms`。
-Source-bound matrix v2 重新通过 `20/20`，候选/公开 SHA 为
-`2ec62b6e...7c12`。最新完整工作树通过
-`1906 passed / 20 skipped / 3 warnings`，compileall、`pip check` 和 diff check
-均通过。commit/push 与 Ubuntu/Windows exact-SHA CI 仍待执行。
+`0 Critical / 0 Important / RELEASE`，因此实现曾进入本地发布候选；这不代表
+生产部署。精确提交 `d753df3` 的 GitHub Actions #17 随后按预期阻止发布：
+Ubuntu 为 `1 failed / 1910 passed / 15 skipped`，Windows 为
+`5 failed / 1918 passed / 3 skipped`。根因是错误消息断言与真实祖先路径错误
+不一致、Windows `RUNNER~1` 与长路径的同目录字符串误判，以及 CI 没有仓库内
+`.venv`。三项均已修复并补回归。新聚焦 RED/GREEN 为 `14 passed`，更宽的
+身份边界、公共审计与脱敏回归历史候选为 `127 passed`；本次受影响合同组为
+`151 passed / 4 skipped`。随后复审发现并阻断了目录 TOCTOU、错误对象权限
+副作用、POSIX FIFO 阻塞、Windows owner 策略和 token handle 清理问题；修复后
+限定复审为 `0 Critical / 0 Important / 0 Minor / RELEASE`。
+benchmark `4 passed`、公共审计基线 `515/0`，
+source-bound p95 `0.0904 ms`。Source-bound matrix v2 再次通过 `20/20`，
+候选/公开 SHA 为 `0258f8c2...0829`，合同 ID 为
+`trusted-identity-contract-7c183871488a6519`，并显式绑定
+`app/security/private_fs.py` 在内的 11 个 source。最新完整工作树通过
+`1918 passed / 22 skipped / 3 warnings`。修复提交、推送与新的
+Ubuntu/Windows exact-SHA CI 尚待完成。
 
 边界：这是本地可复现的资源服务器信任合同，不是真实 IdP、SSO、OIDC
 discovery、revocation、HSM/KMS 或生产 IAM。验签微基准不是 HTTP/RAG/LLM

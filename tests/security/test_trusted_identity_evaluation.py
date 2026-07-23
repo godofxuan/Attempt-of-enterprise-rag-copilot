@@ -32,6 +32,22 @@ PUBLIC_RESULT = (
 )
 
 
+def test_trusted_identity_source_contract_covers_the_filesystem_boundary() -> None:
+    assert TRUSTED_IDENTITY_SOURCE_FILES == (
+        "app/api/identity.py",
+        "app/db.py",
+        "app/evaluation/trusted_identity.py",
+        "app/main.py",
+        "app/runtime/resources.py",
+        "app/schemas.py",
+        "app/security/demo_identity.py",
+        "app/security/identity.py",
+        "app/security/private_fs.py",
+        "app/security/token_source.py",
+        "scripts/eval_trusted_identity.py",
+    )
+
+
 def test_frozen_trusted_identity_matrix_passes_without_side_effect_or_leak() -> None:
     result = evaluate_trusted_identity(MATRIX)
 

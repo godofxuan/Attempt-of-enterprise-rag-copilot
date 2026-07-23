@@ -28,15 +28,15 @@ from app.security.identity import (
     validate_private_path_ancestors,
 )
 from app.security.private_fs import (
+    HeldPrivateDirectory,
     PrivatePathError,
     capture_private_directory_identity,
-    harden_private_directory,
+    harden_held_private_directory,
     hold_private_directory,
     private_directory_identity_is_current,
     private_directory_permissions_are_secure,
     replace_private_file,
     sync_directory,
-    validate_private_directory_permissions,
 )
 
 
@@ -136,6 +136,7 @@ class DemoIdentityStatus:
 class _ActiveDirectoryBinding:
     root: Path
     descriptor: int | None
+    held: HeldPrivateDirectory
     identity: tuple[int, int]
 
 
@@ -147,9 +148,9 @@ def initialize_demo_identity(
     token_lifetime_seconds: int,
     force: bool = False,
 ) -> DemoIdentityStatus:
-    root = _prepare_directory(directory)
+    root, expected_identity = _prepare_directory(directory)
     _validate_lifetime(token_lifetime_seconds)
-    with _identity_lock(root):
+    with _identity_lock(root, expected_identity=expected_identity):
         _recover_pending_operation(root)
         manifest_path = root / _MANIFEST_FILE
         if manifest_path.exists() and not force:
@@ -198,8 +199,8 @@ def initialize_demo_identity(
 
 
 def rotate_demo_identity(directory: Path) -> DemoIdentityStatus:
-    root = _prepare_directory(directory)
-    with _identity_lock(root):
+    root, expected_identity = _prepare_directory(directory)
+    with _identity_lock(root, expected_identity=expected_identity):
         _recover_pending_operation(root)
         manifest = _load_manifest(root)
         if _pending_kid(manifest) is not None:
@@ -239,11 +240,11 @@ def activate_demo_identity(
     token_lifetime_seconds: int,
     snapshot_verifier: Callable[[str, str], bool],
 ) -> DemoIdentityStatus:
-    root = _prepare_directory(directory)
+    root, expected_identity = _prepare_directory(directory)
     _validate_lifetime(token_lifetime_seconds)
     if not callable(snapshot_verifier):
         raise TypeError("snapshot verifier must be callable")
-    with _identity_lock(root):
+    with _identity_lock(root, expected_identity=expected_identity):
         _recover_pending_operation(root)
         manifest = _load_manifest(root)
         pending_kid = _pending_kid(manifest)
@@ -282,7 +283,10 @@ def activate_demo_identity(
             manifest,
             private_key=private_key,
             token_lifetime_seconds=token_lifetime_seconds,
-            hmac_key=read_private_file_snapshot(root / _HMAC_FILE, max_bytes=256),
+            hmac_key=_read_identity_file_snapshot(
+                root / _HMAC_FILE,
+                max_bytes=256,
+            ),
         )
         _commit_operation(
             root,
@@ -319,8 +323,8 @@ def retire_demo_identity_key(
         raise ValueError(
             "emergency confirmation is only valid with emergency revocation"
         )
-    root = _prepare_directory(directory)
-    with _identity_lock(root):
+    root, expected_identity = _prepare_directory(directory)
+    with _identity_lock(root, expected_identity=expected_identity):
         _recover_pending_operation(root)
         manifest = _load_manifest(root)
         if kid == manifest["active_kid"]:
@@ -379,8 +383,12 @@ def retire_demo_identity_key(
 
 
 def demo_identity_status(directory: Path) -> DemoIdentityStatus:
-    root = _prepare_status_directory(directory)
-    with _identity_lock(root):
+    root, expected_identity = _prepare_status_directory(directory)
+    with _identity_lock(
+        root,
+        expected_identity=expected_identity,
+        require_valid_state=True,
+    ):
         recovered = _recover_pending_operation(root)
         upgraded: list[bool] = []
         manifest = _load_manifest(root, upgraded=upgraded)
@@ -472,7 +480,7 @@ def _load_private_key(
     matching = [item for item in manifest["keys"] if item["kid"] == kid]
     if len(matching) != 1:
         raise IdentityConfigurationError("identity private key is unavailable")
-    raw = read_private_file_snapshot(
+    raw = _read_identity_file_snapshot(
         root / str(matching[0]["private_key_file"]),
         max_bytes=32_768,
     )
@@ -522,7 +530,10 @@ def _load_manifest(
     *,
     upgraded: list[bool] | None = None,
 ) -> dict[str, Any]:
-    raw = read_private_file_snapshot(root / _MANIFEST_FILE, max_bytes=131_072)
+    raw = _read_identity_file_snapshot(
+        root / _MANIFEST_FILE,
+        max_bytes=131_072,
+    )
     try:
         manifest = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_object)
     except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
@@ -586,7 +597,7 @@ def _load_manifest(
             raise IdentityConfigurationError("demo identity manifest is invalid")
         if kid in key_ids:
             raise IdentityConfigurationError("demo identity manifest is invalid")
-        private_bytes = read_private_file_snapshot(
+        private_bytes = _read_identity_file_snapshot(
             root / private_key_file,
             max_bytes=32_768,
         )
@@ -678,7 +689,7 @@ def _upgrade_legacy_manifest(root: Path, manifest: dict[str, Any]) -> dict[str, 
         ):
             raise IdentityConfigurationError("demo identity manifest is invalid")
         observed_kids.add(kid)
-        private_bytes = read_private_file_snapshot(
+        private_bytes = _read_identity_file_snapshot(
             root / private_key_file,
             max_bytes=32_768,
         )
@@ -865,7 +876,7 @@ def _read_runtime_artifacts(root: Path) -> dict[str, bytes]:
         _HMAC_FILE: 256,
     }
     return {
-        name: read_private_file_snapshot(root / name, max_bytes=limits[name])
+        name: _read_identity_file_snapshot(root / name, max_bytes=limits[name])
         for name in _RUNTIME_ARTIFACT_FILES
     }
 
@@ -987,7 +998,10 @@ def _recover_pending_operation(root: Path) -> dict[str, Any] | None:
         return None
     except OSError:
         raise IdentityConfigurationError("identity operation journal is unavailable") from None
-    raw = read_private_file_snapshot(journal, max_bytes=_MAX_OPERATION_BYTES)
+    raw = _read_identity_file_snapshot(
+        journal,
+        max_bytes=_MAX_OPERATION_BYTES,
+    )
     try:
         payload = json.loads(raw.decode("ascii"), object_pairs_hook=_unique_object)
     except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
@@ -1432,7 +1446,10 @@ def _validate_staged_manifest(
             raise IdentityConfigurationError("staged manifest is invalid")
         private_bytes = writes.get(private_file)
         if private_bytes is None:
-            private_bytes = read_private_file_snapshot(root / private_file, max_bytes=32_768)
+            private_bytes = _read_identity_file_snapshot(
+                root / private_file,
+                max_bytes=32_768,
+            )
         if not secrets.compare_digest(hashlib.sha256(private_bytes).hexdigest(), digest):
             raise IdentityConfigurationError("staged manifest is invalid")
         try:
@@ -1482,7 +1499,10 @@ def _validate_staged_manifest(
 def _current_manifest_metadata(root: Path) -> dict[str, Any] | None:
     manifest_path = root / _MANIFEST_FILE
     try:
-        raw = read_private_file_snapshot(manifest_path, max_bytes=131_072)
+        raw = _read_identity_file_snapshot(
+            manifest_path,
+            max_bytes=131_072,
+        )
     except IdentityConfigurationError:
         if not manifest_path.exists():
             return None
@@ -1568,89 +1588,145 @@ def _unlink_private_key(root: Path, name: str) -> None:
 
 
 @contextmanager
-def _identity_lock(root: Path):
+def _identity_lock(
+    root: Path,
+    *,
+    expected_identity: tuple[int, int] | None = None,
+    require_valid_state: bool = False,
+):
     key = os.path.normcase(str(root))
     with _PROCESS_LOCKS_GUARD:
         process_lock = _PROCESS_LOCKS.setdefault(key, threading.RLock())
     with process_lock:
-        guard = None
-        guard_entered = False
+        guard = hold_private_directory(root)
         try:
-            guard = hold_private_directory(root)
-            directory_descriptor = guard.__enter__()
-            guard_entered = True
-            validate_private_directory_permissions(root)
-            directory_identity = capture_private_directory_identity(
-                root,
-                directory_descriptor,
-            )
+            held_directory = guard.__enter__()
         except PrivatePathError:
-            if guard is not None and guard_entered:
-                guard.__exit__(None, None, None)
             raise IdentityConfigurationError("identity directory is unsafe") from None
-        previous_directory_descriptor = getattr(_ACTIVE_DIRECTORY, "descriptor", None)
-        previous_directory_binding = getattr(_ACTIVE_DIRECTORY, "binding", None)
         try:
-            _ACTIVE_DIRECTORY.descriptor = directory_descriptor
-            _ACTIVE_DIRECTORY.binding = _ActiveDirectoryBinding(
-                root=root,
-                descriptor=directory_descriptor,
-                identity=directory_identity,
+            directory_descriptor = held_directory.descriptor
+            try:
+                directory_identity = capture_private_directory_identity(
+                    root,
+                    held_directory,
+                )
+            except PrivatePathError:
+                raise IdentityConfigurationError(
+                    "identity directory is unsafe"
+                ) from None
+            if (
+                expected_identity is not None
+                and directory_identity != expected_identity
+            ):
+                raise IdentityConfigurationError(
+                    "identity directory changed before lock"
+                )
+            previous_directory_descriptor = getattr(
+                _ACTIVE_DIRECTORY,
+                "descriptor",
+                None,
             )
-            lock_path = root / _LOCK_FILE
-            _assert_active_directory_target(lock_path)
-            validate_private_path_ancestors(lock_path)
-            create_flags = (
-                os.O_RDWR
-                | os.O_CREAT
-                | os.O_EXCL
-                | getattr(os, "O_BINARY", 0)
+            previous_directory_binding = getattr(
+                _ACTIVE_DIRECTORY,
+                "binding",
+                None,
             )
             try:
-                descriptor = _open_active_entry(
-                    lock_path,
-                    create_flags,
-                    0o600,
+                _ACTIVE_DIRECTORY.descriptor = directory_descriptor
+                _ACTIVE_DIRECTORY.binding = _ActiveDirectoryBinding(
+                    root=root,
+                    descriptor=directory_descriptor,
+                    held=held_directory,
+                    identity=directory_identity,
                 )
-            except FileExistsError:
-                metadata = _active_entry_metadata(lock_path)
-                if not _secure_regular_entry(metadata):
-                    raise IdentityConfigurationError("identity lock file is unsafe")
-                descriptor = _open_active_entry(
-                    lock_path,
-                    os.O_RDWR
-                    | getattr(os, "O_BINARY", 0)
-                    | getattr(os, "O_NOFOLLOW", 0),
-                )
-            try:
-                descriptor_metadata = os.fstat(descriptor)
-                path_metadata = _active_entry_metadata(lock_path)
                 if (
-                    not _secure_regular_entry(descriptor_metadata)
-                    or _is_reparse_point(path_metadata)
-                    or (descriptor_metadata.st_dev, descriptor_metadata.st_ino)
-                    != (path_metadata.st_dev, path_metadata.st_ino)
+                    require_valid_state
+                    and not _status_target_has_valid_identity_state(root)
                 ):
                     raise IdentityConfigurationError(
-                        "identity lock file is unsafe"
+                        "demo identity is unavailable"
                     )
-                if descriptor_metadata.st_size < 1:
-                    _assert_active_directory_target(lock_path)
-                    os.write(descriptor, b"\0")
-                    os.fsync(descriptor)
-                _lock_descriptor(descriptor)
                 try:
-                    _assert_active_directory_path(root)
-                    _validate_identity_directory(root)
-                    _cleanup_stale_temporary_files(root)
-                    yield
+                    harden_held_private_directory(
+                        root,
+                        held_directory,
+                        expected_identity=directory_identity,
+                    )
+                except PrivatePathError:
+                    if not _active_directory_path_is_current(root):
+                        raise IdentityConfigurationError(
+                            "identity directory changed while locked"
+                        ) from None
+                    raise IdentityConfigurationError(
+                        "identity private directory permissions are unsafe"
+                    ) from None
+                _assert_active_directory_path(root)
+                lock_path = root / _LOCK_FILE
+                _assert_active_directory_target(lock_path)
+                validate_private_path_ancestors(lock_path)
+                create_flags = (
+                    os.O_RDWR
+                    | os.O_CREAT
+                    | os.O_EXCL
+                    | getattr(os, "O_BINARY", 0)
+                )
+                try:
+                    descriptor = _open_active_entry(
+                        lock_path,
+                        create_flags,
+                        0o600,
+                    )
+                except FileExistsError:
+                    metadata = _active_entry_metadata(lock_path)
+                    if not _secure_regular_entry(metadata):
+                        raise IdentityConfigurationError(
+                            "identity lock file is unsafe"
+                        )
+                    descriptor = _open_active_entry(
+                        lock_path,
+                        os.O_RDWR
+                        | getattr(os, "O_BINARY", 0)
+                        | getattr(os, "O_NOFOLLOW", 0),
+                    )
+                try:
+                    descriptor_metadata = os.fstat(descriptor)
+                    path_metadata = _active_entry_metadata(lock_path)
+                    if (
+                        not _secure_regular_entry(descriptor_metadata)
+                        or _is_reparse_point(path_metadata)
+                        or (
+                            descriptor_metadata.st_dev,
+                            descriptor_metadata.st_ino,
+                        )
+                        != (path_metadata.st_dev, path_metadata.st_ino)
+                    ):
+                        raise IdentityConfigurationError(
+                            "identity lock file is unsafe"
+                        )
+                    if descriptor_metadata.st_size < 1:
+                        _assert_active_directory_target(lock_path)
+                        os.write(descriptor, b"\0")
+                        os.fsync(descriptor)
+                    _lock_descriptor(descriptor)
+                    try:
+                        _assert_active_directory_path(root)
+                        if (
+                            _validate_identity_directory(root)
+                            != directory_identity
+                        ):
+                            raise IdentityConfigurationError(
+                                "identity directory changed while locked"
+                            )
+                        _cleanup_stale_temporary_files(root)
+                        yield
+                    finally:
+                        _unlock_descriptor(descriptor)
                 finally:
-                    _unlock_descriptor(descriptor)
+                    os.close(descriptor)
             finally:
-                os.close(descriptor)
+                _ACTIVE_DIRECTORY.descriptor = previous_directory_descriptor
+                _ACTIVE_DIRECTORY.binding = previous_directory_binding
         finally:
-            _ACTIVE_DIRECTORY.descriptor = previous_directory_descriptor
-            _ACTIVE_DIRECTORY.binding = previous_directory_binding
             guard.__exit__(None, None, None)
 
 
@@ -1758,42 +1834,29 @@ def _atomic_write(path: Path, payload: bytes) -> None:
         )
 
 
-def _prepare_directory(directory: Path) -> Path:
+def _prepare_directory(directory: Path) -> tuple[Path, tuple[int, int]]:
     root = Path(os.path.abspath(directory))
     validate_private_path_ancestors(root, allow_missing=True)
     root.mkdir(parents=True, exist_ok=True)
     validate_private_path_ancestors(root)
-    _validate_identity_directory(root)
-    try:
-        harden_private_directory(root)
-    except PrivatePathError:
-        raise IdentityConfigurationError(
-            "identity private directory permissions are unsafe"
-        ) from None
-    return root
+    return root, _validate_identity_directory(root)
 
 
-def _prepare_status_directory(directory: Path) -> Path:
+def _prepare_status_directory(
+    directory: Path,
+) -> tuple[Path, tuple[int, int]]:
     root = Path(os.path.abspath(directory))
     validate_private_path_ancestors(root)
     try:
-        _validate_identity_directory(root)
+        directory_identity = _validate_identity_directory(root)
     except OSError:
         raise IdentityConfigurationError("demo identity is unavailable") from None
-    if not _status_target_has_valid_identity_state(root):
-        raise IdentityConfigurationError("demo identity is unavailable")
-    try:
-        harden_private_directory(root)
-    except PrivatePathError:
-        raise IdentityConfigurationError(
-            "identity private directory permissions are unsafe"
-        ) from None
-    return root
+    return root, directory_identity
 
 
 def _safe_existing_identity_marker(path: Path) -> bool:
     try:
-        metadata = path.lstat()
+        metadata = _active_entry_metadata(path)
     except FileNotFoundError:
         return False
     except OSError:
@@ -1821,7 +1884,7 @@ def _status_target_has_valid_identity_state(root: Path) -> bool:
     journal_present = _safe_existing_identity_marker(journal_path)
     if journal_present:
         try:
-            raw = read_private_file_snapshot(
+            raw = _read_identity_file_snapshot(
                 journal_path,
                 max_bytes=_MAX_OPERATION_BYTES,
             )
@@ -1849,17 +1912,32 @@ def _status_target_has_valid_identity_state(root: Path) -> bool:
     return False
 
 
-def _validate_identity_directory(root: Path) -> None:
-    metadata = root.lstat()
+def _validate_identity_directory(root: Path) -> tuple[int, int]:
+    before = root.lstat()
     if (
-        not stat.S_ISDIR(metadata.st_mode)
-        or stat.S_ISLNK(metadata.st_mode)
-        or _is_reparse_point(metadata)
+        not stat.S_ISDIR(before.st_mode)
+        or stat.S_ISLNK(before.st_mode)
+        or _is_reparse_point(before)
     ):
         raise IdentityConfigurationError("identity directory is unsafe")
-    resolved = root.resolve(strict=True)
-    if os.path.normcase(str(resolved)) != os.path.normcase(str(root)):
+    try:
+        resolved = root.resolve(strict=True)
+        resolved_metadata = resolved.stat()
+        after = root.lstat()
+    except OSError:
+        raise IdentityConfigurationError("identity directory is unsafe") from None
+    if (
+        not stat.S_ISDIR(resolved_metadata.st_mode)
+        or stat.S_ISLNK(resolved_metadata.st_mode)
+        or _is_reparse_point(resolved_metadata)
+        or not stat.S_ISDIR(after.st_mode)
+        or stat.S_ISLNK(after.st_mode)
+        or _is_reparse_point(after)
+        or not os.path.samestat(before, resolved_metadata)
+        or not os.path.samestat(resolved_metadata, after)
+    ):
         raise IdentityConfigurationError("identity directory is unsafe")
+    return before.st_dev, before.st_ino
 
 
 def _existing_private_files(root: Path) -> list[Path]:
@@ -1898,7 +1976,7 @@ def _active_directory_path_is_current(root: Path) -> bool:
         return False
     return private_directory_identity_is_current(
         binding.root,
-        binding.descriptor,
+        binding.held,
         binding.identity,
     )
 
@@ -1954,6 +2032,96 @@ def _open_active_entry(path: Path, flags: int, mode: int = 0o600) -> int:
     if descriptor is not None:
         return os.open(target.name, flags, mode, dir_fd=descriptor)
     return os.open(target, flags, mode)
+
+
+def _read_identity_file_snapshot(path: Path, *, max_bytes: int) -> bytes:
+    target = Path(path).absolute()
+    binding = getattr(_ACTIVE_DIRECTORY, "binding", None)
+    if isinstance(binding, _ActiveDirectoryBinding) and (
+        os.path.normcase(str(target.parent))
+        == os.path.normcase(str(binding.root))
+    ):
+        return _read_active_private_file_snapshot(target, max_bytes=max_bytes)
+    return read_private_file_snapshot(target, max_bytes=max_bytes)
+
+
+def _read_active_private_file_snapshot(
+    path: Path,
+    *,
+    max_bytes: int,
+) -> bytes:
+    target = Path(path)
+    try:
+        before_path = _active_entry_metadata(target)
+    except OSError:
+        raise IdentityConfigurationError(
+            "identity private file is unavailable"
+        ) from None
+    if not _secure_regular_entry(before_path):
+        raise IdentityConfigurationError(
+            "identity private file must be a regular file"
+        )
+    if before_path.st_size > max_bytes:
+        raise IdentityConfigurationError(
+            "identity private file exceeds the size limit"
+        )
+
+    flags = (
+        os.O_RDONLY
+        | getattr(os, "O_BINARY", 0)
+        | getattr(os, "O_NONBLOCK", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    try:
+        descriptor = _open_active_entry(target, flags)
+    except OSError:
+        raise IdentityConfigurationError(
+            "identity private file is unavailable"
+        ) from None
+    try:
+        before_descriptor = os.fstat(descriptor)
+        if not _secure_regular_entry(before_descriptor):
+            raise IdentityConfigurationError(
+                "identity private file must be a regular file"
+            )
+        chunks: list[bytes] = []
+        remaining = max_bytes + 1
+        while remaining > 0:
+            chunk = os.read(descriptor, min(65_536, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        after_descriptor = os.fstat(descriptor)
+    except OSError:
+        raise IdentityConfigurationError(
+            "identity private file is unavailable"
+        ) from None
+    finally:
+        os.close(descriptor)
+
+    raw = b"".join(chunks)
+    if len(raw) > max_bytes:
+        raise IdentityConfigurationError(
+            "identity private file exceeds the size limit"
+        )
+    try:
+        after_path = _active_entry_metadata(target)
+    except OSError:
+        raise IdentityConfigurationError(
+            "identity private file changed while loading"
+        ) from None
+    if not (
+        _secure_regular_entry(before_descriptor)
+        and _secure_regular_entry(after_descriptor)
+        and os.path.samestat(before_path, before_descriptor)
+        and os.path.samestat(before_descriptor, after_descriptor)
+        and os.path.samestat(after_descriptor, after_path)
+    ):
+        raise IdentityConfigurationError(
+            "identity private file changed while loading"
+        )
+    return raw
 
 
 def _replace_active_entry(source: Path, target: Path) -> None:

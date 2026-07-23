@@ -7,6 +7,7 @@ import re
 import shutil
 import stat
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -919,7 +920,7 @@ def test_root_status_is_the_only_current_status_entrypoint() -> None:
     )
 
     assert "更新时间：2026-07-23" in status
-    assert "R2-S5 本地发布候选通过，远端 exact-SHA CI 待执行" in status
+    assert "R2-S5 CI #17 失败已修复，本地重验通过，远端重跑待验" in status
     assert "状态：R2-S5" in status
     assert "526 passed" in status
     assert "574 passed" in status
@@ -1846,11 +1847,24 @@ def test_r2_s3_documented_isolated_verifier_sequence_executes(
         "scripts.verify_indirect_injection_exposure_public `\n"
         "  data\\v2\\public\\r2_s3_exposure"
     ) in post_replacement
+    interpreter_bootstrap = """$venvPython = Join-Path $repo '.venv\\Scripts\\python.exe'
+if (Test-Path -LiteralPath $venvPython -PathType Leaf) {
+  $python = (Resolve-Path -LiteralPath $venvPython).Path
+} else {
+  $python = (
+    Get-Command python -CommandType Application -ErrorAction Stop |
+      Select-Object -First 1
+  ).Source
+}"""
+    assert protocol.count(interpreter_bootstrap) == 2
     documented = protocol.split(start_marker, 1)[1].split(end_marker, 1)[0]
     match = re.search(r"```powershell\s*\n(.*?)\n```", documented, re.DOTALL)
     assert match is not None
     command = match.group(1)
-    assert command.index("$python = (Resolve-Path") < command.index(
+    assert "$venvPython = Join-Path $repo '.venv\\Scripts\\python.exe'" in command
+    assert "Get-Command python -CommandType Application -ErrorAction Stop" in command
+    assert "Select-Object -First 1" in command
+    assert command.index("$venvPython = Join-Path") < command.index(
         "Push-Location"
     )
 
@@ -1867,10 +1881,19 @@ def test_r2_s3_documented_isolated_verifier_sequence_executes(
         "$source = $stagedPackage",
         f"$source = '{powershell_path}'",
     )
+    command = command.replace(
+        "$venvPython = Join-Path $repo '.venv\\Scripts\\python.exe'",
+        "$venvPython = Join-Path $repo '.ci-missing-venv\\Scripts\\python.exe'",
+    )
 
     environment = os.environ.copy()
     environment["TEMP"] = str(tmp_path)
     environment["TMP"] = str(tmp_path)
+    environment["PATH"] = (
+        str(Path(sys.executable).parent)
+        + os.pathsep
+        + environment.get("PATH", "")
+    )
     completed = subprocess.run(
         [
             "powershell.exe",
