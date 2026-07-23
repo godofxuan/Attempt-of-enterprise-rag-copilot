@@ -920,7 +920,7 @@ def test_root_status_is_the_only_current_status_entrypoint() -> None:
     )
 
     assert "更新时间：2026-07-23" in status
-    assert "R2-S5 CI #17 失败已修复，本地重验通过，远端重跑待验" in status
+    assert "R2-S5 CI #17 失败已修复；exact-SHA CI #18 双平台通过" in status
     assert "状态：R2-S5" in status
     assert "526 passed" in status
     assert "574 passed" in status

@@ -1,8 +1,8 @@
 # R2-S5 Trusted Identity Boundary Design
 
 Status: approved; implementation and local release gates complete on
-2026-07-23; exact-SHA CI #17 failed, repair is locally green, and replacement
-Ubuntu/Windows CI acceptance is pending
+2026-07-23; exact-SHA CI #17 failed and blocked release; repair commit
+`1189253` passed replacement Ubuntu/Windows CI #18
 
 Selected option: self-contained local RSA JWT/JWKS identity source
 
@@ -507,7 +507,7 @@ contracts, and three Minor contracts. Their disposition is frozen as follows:
 | I-7 | HMAC actor and `target_request_id` | implemented; persistence and legacy SQLite migration tests passed |
 | I-8 | Bounded denied telemetry and no Agent/lookup side effects | implemented; 20-case evaluator reports zero denied side effects/leaks |
 | I-9 | Compatibility app is explicitly acknowledged and never a rollback target | production factory and legacy routes removed; historical evaluation remains below HTTP |
-| I-10 | Strict audience/operator config and dependency snapshots | implemented; local `pip check` clean, Ubuntu/Windows CI pending |
+| I-10 | Strict audience/operator config and dependency snapshots | implemented; local `pip check` clean and exact-SHA Ubuntu/Windows CI #18 passed |
 | M-1 | Performance target is a local artifact, not shared-CI timing | source-bound ephemeral benchmark; 1,000 warm p95 = 0.0904 ms |
 | M-2 | Keep public docs/OpenAPI as low-sensitivity schema | implemented; local public audit passed |
 | M-3 | Exclusive, bounded, freshly read, no-symlink token source | implemented; focused token-source/client tests passed |
@@ -521,9 +521,11 @@ The fresh source-bound matrix passes `20/20`, the repaired whole tree passes
 `1,918 / 22 skipped / 3 known warnings`; post-CI scoped re-review reports
 zero Critical/Important/Minor. Exact-SHA CI #17 rejected commit `d753df3`;
 the original three failures and later TOCTOU/handle findings are repaired and
-pass the affected local contract group. A replacement commit and exact-SHA Ubuntu/Windows CI remain mandatory
-for remote acceptance. Even a complete gate establishes the local contract,
-not a production IdP or deployment certification.
+pass the affected local contract group. Repair commit
+`11892531451750609f44138b7348f16b9b1316ff` passed exact-SHA Actions #18 on
+Ubuntu (`1918/22/4`) and Windows (`1935/5/4`), with public audit `515/0` on
+both. This establishes the local contract, not a production IdP or deployment
+certification.
 
 ## 17. Claims boundary
 

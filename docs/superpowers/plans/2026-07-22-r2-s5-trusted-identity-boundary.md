@@ -12,8 +12,8 @@ error-contract mismatch, Windows short-path alias false rejection, and
 repository-venv assumption are repaired. The frozen evaluation reports 20/20,
 the repaired full tree reports 1,918 passing tests, 22 platform skips, and
 three known warnings. Post-CI scoped re-review reports `0/0/0 RELEASE`.
-Replacement exact-SHA Ubuntu/Windows CI remains. This is
-not a production IdP result.
+Repair commit `11892531451750609f44138b7348f16b9b1316ff` passed exact-SHA
+Actions #18 on Ubuntu and Windows. This is not a production IdP result.
 
 ## Delivery rules
 
@@ -313,7 +313,7 @@ p95 0.0904 ms.
 
 ## Task 10: Documentation, review, and release gates
 
-Status: **CI #17 FAILED; RELEASE WAS BLOCKED AS DESIGNED; repair is locally green and replacement exact-SHA CI is pending**
+Status: **CI #17 FAILED AND BLOCKED RELEASE; REPAIR SHA `1189253` PASSED EXACT-SHA UBUNTU/WINDOWS CI #18**
 
 Files:
 
@@ -354,7 +354,7 @@ items. Every item is assigned above; none is silently accepted as complete:
 | I-7 HMAC actor and feedback target | 4/6 | implemented; migration/privacy tests pass |
 | I-8 observability/side-effect semantics | 5/6 | implemented; frozen evaluator reports zero denied side effects/leaks |
 | I-9 compatibility-app deployment restriction | 5/10 | explicit acknowledgement and deployment docs implemented |
-| I-10 strict config and dependency snapshots | 1 | implemented locally; Ubuntu/Windows CI pending |
+| I-10 strict config and dependency snapshots | 1 | implemented; exact-SHA Ubuntu/Windows CI #18 passed |
 | M-1 local-only timing evidence | 3/9 | source-bound ephemeral benchmark p95 0.0904 ms |
 | M-2 public docs/OpenAPI decision | 10 | API proof and public audit pass locally |
 | M-3 exclusive safe token source | 8 | implemented; focused tests pass |

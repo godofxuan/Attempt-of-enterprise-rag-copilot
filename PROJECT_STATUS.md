@@ -1,6 +1,6 @@
 # Enterprise Agentic RAG - Current Status
 
-更新时间：2026-07-23（R2-S5 CI #17 失败已修复，本地重验通过，远端重跑待验）
+更新时间：2026-07-23（R2-S5 CI #17 失败已修复；exact-SHA CI #18 双平台通过）
 
 状态：R2-S5 已把 `/agent/v2/chat` 的调用方自报身份替换为服务端
 RS256/JWKS 验签身份；chat、feedback、metrics、trace 均进入可信身份与角色边界。
@@ -33,8 +33,10 @@ source-bound p95 `0.0904 ms`。Source-bound matrix v2 再次通过 `20/20`，
 候选/公开 SHA 为 `0258f8c2...0829`，合同 ID 为
 `trusted-identity-contract-7c183871488a6519`，并显式绑定
 `app/security/private_fs.py` 在内的 11 个 source。最新完整工作树通过
-`1918 passed / 22 skipped / 3 warnings`。修复提交、推送与新的
-Ubuntu/Windows exact-SHA CI 尚待完成。
+`1918 passed / 22 skipped / 3 warnings`。修复提交
+`11892531451750609f44138b7348f16b9b1316ff` 的 GitHub Actions #18 已通过：
+Ubuntu 为 `1918 passed / 22 skipped / 4 warnings`，Windows 为
+`1935 passed / 5 skipped / 4 warnings`，两边公开审计均为 `515/0`。
 
 边界：这是本地可复现的资源服务器信任合同，不是真实 IdP、SSO、OIDC
 discovery、revocation、HSM/KMS 或生产 IAM。验签微基准不是 HTTP/RAG/LLM

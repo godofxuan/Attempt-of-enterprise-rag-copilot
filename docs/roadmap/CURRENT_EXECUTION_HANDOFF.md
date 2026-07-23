@@ -758,6 +758,11 @@ commit `d753df3` failed on one shared assertion-contract issue, a Windows DOS
 post-CI review then found path-object and permission-side-effect TOCTOU gaps.
 The final handle/descriptor-bound repair passes the affected
 `151 / 4 skipped` group locally and its scoped re-review reports `0/0/0
-RELEASE`. The replacement commit and exact-SHA Ubuntu/Windows Actions remain
-mandatory. No model run or immutable R2-S1/S2/S3/S4 artifact should be rerun
-or overwritten for this stage.
+RELEASE`. Repair commit `11892531451750609f44138b7348f16b9b1316ff`
+then passed exact-SHA Actions #18 on both platforms: Ubuntu
+`1918 / 22 skipped / 4 warnings`, Windows `1935 / 5 skipped / 4 warnings`,
+and public audit `515/0` on both. The run is
+https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30021508046.
+No model run or immutable R2-S1/S2/S3/S4 artifact was rerun or overwritten for
+this stage. This accepts the local reproducible identity contract, not a real
+IdP or production deployment.

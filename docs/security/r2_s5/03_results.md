@@ -7,8 +7,10 @@ marker Important 均已修复。最终独立安全与工程 reviewer 都返回
 exact-SHA Ubuntu/Windows CI #17 随后失败并阻止发布；三项失败均已修复且
 本地重验通过。随后发现的目录 TOCTOU、错误对象权限副作用、FIFO 阻塞和
 Windows owner/handle 生命周期问题也已修复，最终限定复审为
-`0 Critical / 0 Important / 0 Minor / RELEASE`；replacement CI 尚未执行，
-不能声称远端验收或生产部署通过。
+`0 Critical / 0 Important / 0 Minor / RELEASE`。修复提交
+`11892531451750609f44138b7348f16b9b1316ff` 的 exact-SHA Actions #18 已在
+Ubuntu 和 Windows 通过；这表示本地可复现合同完成远端验收，不表示真实 IdP
+或生产部署认证。
 
 ## 1. 解决的不是“有没有 ACL”，而是“ACL 相信谁”
 
@@ -181,8 +183,14 @@ fresh matrix                       20/20, SHA-256 0258f8c2...0829
 full pytest                        1918 passed, 22 skipped, 3 warnings
 compileall / pip check / diff      PASS / CLEAN / PASS
 post-CI scoped re-review           0C / 0I / 0M / RELEASE
+repair commit                      11892531451750609f44138b7348f16b9b1316ff
+Actions #18 Ubuntu                 1918 passed, 22 skipped, 4 warnings
+Actions #18 Windows                1935 passed, 5 skipped, 4 warnings
+Actions #18 public audit           515/0 on both platforms
 ```
 
 跳过项来自平台条件；warning 是既有 FAISS/SWIG `DeprecationWarning`。修复后
-完整回归耗时 `178.57s`。CI #17 是正式失败证据，不会被删除；新的提交 SHA
-和 replacement exact-SHA 双平台 CI 必须在推送后补记。
+完整回归耗时 `178.57s`。远端第四条 warning 是两个 runner 共有的
+Starlette/httpx deprecation warning。CI #17 是正式失败证据，不会被删除；
+[成功的 replacement run #18](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30021508046)
+与其并列保留。

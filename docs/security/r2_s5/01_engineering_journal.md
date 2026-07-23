@@ -1,6 +1,6 @@
 # R2-S5 Trusted Identity Boundary Engineering Journal
 
-Status: exact-SHA CI #17 failed; repair is locally green; replacement CI pending
+Status: exact-SHA CI #17 failed and blocked release; repair SHA passed CI #18
 
 Started: 2026-07-22
 
@@ -2920,7 +2920,46 @@ The current state is therefore:
 ```text
 local implementation and scoped review   complete
 final public matrix v5                    complete
-replacement repair commit                pending
-replacement exact-SHA Ubuntu/Windows CI  pending
-remote release acceptance                not yet claimed
+replacement repair commit                11892531451750609f44138b7348f16b9b1316ff
+replacement exact-SHA Ubuntu/Windows CI  complete
+local reproducible contract acceptance   complete
+production IdP/deployment acceptance     not claimed
 ```
+
+### 67.9 Exact-SHA GitHub Actions acceptance
+
+The reviewed tree was committed and pushed without changing the source-bound
+matrix after its final v5 generation:
+
+```text
+branch       codex/rag-eval-system
+commit       11892531451750609f44138b7348f16b9b1316ff
+run          30021508046 (Actions #18)
+run URL      https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30021508046
+conclusion   success
+```
+
+The run metadata was first matched by the complete `head_sha`; branch recency
+alone was not treated as proof. Both jobs then reached a terminal success:
+
+```text
+deterministic-ubuntu-latest   1918 passed / 22 skipped / 4 warnings / 77.70s
+deterministic-windows-latest  1935 passed / 5 skipped / 4 warnings / 131.06s
+Ubuntu public audit           515 candidates / 0 findings
+Windows public audit          515 candidates / 0 findings
+```
+
+The different pass/skip counts are expected platform selection: Windows runs
+its native handle/DACL and DOS 8.3 tests, while Ubuntu runs the POSIX
+descriptor/mode variants. Both jobs execute the same repository and workflow
+at the same commit. The fourth remote warning is the same Starlette/httpx
+deprecation warning on both runners; the other three are the known FAISS/SWIG
+deprecations. There were no failed tests.
+
+Anonymous run metadata was public, but GitHub returned HTTP 403 for anonymous
+raw job-log download. The summaries were therefore read through the existing
+Git Credential Manager session in memory; no credential or raw log was written
+to the repository. This remote acceptance proves the deterministic local
+trusted-identity contract on the two declared CI platforms. It still does not
+claim a real IdP integration, production IAM review, or deployment
+certification.

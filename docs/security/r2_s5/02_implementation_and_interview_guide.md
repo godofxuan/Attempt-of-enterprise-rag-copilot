@@ -3,8 +3,8 @@
 状态：实现、独立复核、本地全量、冻结矩阵、性能基准和整仓审计已完成。
 精确提交 `d753df3` 的 Ubuntu/Windows CI #17 暴露三项跨平台问题；修复和本地
 重验已通过。后续两轮 TOCTOU/handle 复核提出的问题也已修复，最终限定复审为
-`0 Critical / 0 Important / 0 Minor / RELEASE`；新的 repair commit 与
-exact-SHA CI 尚待发布验收。
+`0 Critical / 0 Important / 0 Minor / RELEASE`。修复提交 `1189253` 的
+exact-SHA GitHub Actions #18 已在 Ubuntu 和 Windows 双平台通过。
 
 这份文档面向第一次系统学习 JWT、JWKS、认证和授权边界的读者。它不只
 列出“加了哪些技术”，而是解释原问题、信任如何流动、每个文件承担什么
@@ -587,13 +587,14 @@ credential 或临时路径。
 当前 matrix v2              20/20, 0258f8c2...0829
 当前 full pytest            1918 passed, 22 skipped, 3 warnings
 当前 compile/pip/diff       PASS / CLEAN / PASS
-最终独立复核/远端 CI        0C/0I PASS / #17 FAIL，修复后重跑待执行
+最终独立复核/远端 CI        0C/0I/0M RELEASE / #18 Ubuntu+Windows PASS
 ```
 
 后续独立复审用 `HOLD` 作废了 `1835`、旧 matrix 和旧 benchmark 的“最终”
 标签；它们只能解释修复前状态。当前聚焦回归、`515/0` 和 source-bound
 benchmark 不能与历史数字相加。修复后的 matrix、完整工作树和双 reviewer
-`0 Critical / 0 Important` 已通过，但仍不能代替 exact-SHA 双平台 CI。
+`0 Critical / 0 Important` 已通过；exact-SHA #18 又证明同一提交在 Ubuntu
+和 Windows 上通过。这些证据仍不能代替真实 IdP、生产流量或部署验收。
 
 ## 16. 工业化价值，不只是技术堆叠
 
@@ -746,7 +747,8 @@ source-bound matrix 已重新通过 `20/20`，完整工作树通过
 `1918 passed / 22 skipped / 3 warnings`。首次 exact-SHA CI 没有被忽略：
 它发现 Windows 短路径别名和无仓库 `.venv` 两个本机默认环境未覆盖的问题，
 以及一条 Linux/Windows 共现的错误消息契约问题。修复后 matrix provenance
-已重建，下一步由新的 exact-SHA Ubuntu/Windows CI 绑定到 repair commit。
+已重建；repair commit `1189253` 的 Actions #18 随后在 Ubuntu
+`1918/22/4` 和 Windows `1935/5/4` 上通过，两边公开审计均为 `515/0`。
 这种证据纪律比挑一组好看的旧数字更重要，也仍不能替代真实 IdP、生产流量或
 owner review。
 
@@ -765,18 +767,22 @@ availability 策略、revocation/session/logout、secret manager 或 HSM、审�
 credential 传播控制、客户端 origin 限制、public audit、性能证据和发布门禁。
 这些决定关注部署、升级、故障、隐私和可验证性，而不仅是功能演示。
 
-## 19. 远端验收后需要补写什么
+## 19. 远端验收记录
 
-本地门禁和失败修复已经基于真实命令补齐。repair commit 推送后仍需补充：
+本地门禁、失败修复和远端证据均已按真实命令补齐：
 
-1. 独立 whole-diff review 的 Critical/Important/Minor 最终结论；
-2. commit SHA、GitHub 分支、Actions URL 和 exact-SHA CI 结果；
-3. GitHub Actions #17 的失败提交 `d753df3`、run URL、两个 job 结果，以及
-   replacement run 的最终结论；不得把失败运行或旧本地结果冒充通过。
+1. 最终限定复审：`0 Critical / 0 Important / 0 Minor / RELEASE`；
+2. repair commit：
+   `11892531451750609f44138b7348f16b9b1316ff`；
+3. [GitHub Actions #18](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30021508046)：
+   Ubuntu `1918 passed / 22 skipped / 4 warnings`，Windows
+   `1935 passed / 5 skipped / 4 warnings`，两边 audit `515/0`；
+4. GitHub Actions #17 的失败提交 `d753df3` 和失败结论仍保留在日志中，
+   没有被 replacement run 覆盖或冒充。
 
 当前最准确的一句话是：
 
 > R2-S5 已实现可信本地 JWT/JWKS 身份边界，通过 1918 条整树回归和 20 条冻结
-> 身份评测；GitHub CI #17 暴露的三项跨平台问题已经修复，但 replacement
-> exact-SHA CI 尚未通过，因此它仍是待远端验收的本地工业化样例，不是真实
-> IdP 或生产部署认证。
+> 身份评测；GitHub CI #17 暴露的问题已修复，精确修复提交又通过 #18 的
+> Ubuntu/Windows 双平台 CI。它是已验收的本地可复现工业化身份合同，不是真实
+> IdP 集成或生产部署认证。
