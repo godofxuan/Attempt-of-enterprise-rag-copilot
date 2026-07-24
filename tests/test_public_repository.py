@@ -919,9 +919,10 @@ def test_root_status_is_the_only_current_status_entrypoint() -> None:
         encoding="utf-8"
     )
 
-    assert "更新时间：2026-07-23" in status
-    assert "R2-S5 CI #17 失败已修复；exact-SHA CI #18 双平台通过" in status
-    assert "状态：R2-S5" in status
+    assert "更新时间：2026-07-24" in status
+    assert "R2-S6 versioned corpus expansion" in status
+    assert "当前状态：知识库默认 profile" in status
+    assert "20260724T024653Z_expanded_bge_m3_fixed" in status
     assert "526 passed" in status
     assert "574 passed" in status
     assert "109 passed" not in status
@@ -1081,7 +1082,7 @@ def test_r2_s4_task8_docs_publish_results_without_release_pass_claims() -> None:
     assert "## 20. R2-S3 measurement-only exposure ablation" in content["handoff"]
 
 
-def test_r2_industrialization_execution_plan_has_only_one_admitted_next_stage() -> None:
+def test_r2_industrialization_plan_tracks_one_current_stage_and_ordered_candidates() -> None:
     roadmap = (
         ROOT / "docs" / "roadmap" / "r2_industrialization_execution_plan.md"
     ).read_text(encoding="utf-8")
@@ -1089,9 +1090,12 @@ def test_r2_industrialization_execution_plan_has_only_one_admitted_next_stage() 
         encoding="utf-8"
     )
     for text in (roadmap, backlog):
-        assert "Only admitted next implementation: R2-S5 Trusted Identity Boundary" in text
-        assert "Rank 2: reproducible minimal Linux deploy/rollback" in text
-        assert "Rank 3: durable privacy-bounded telemetry" in text
+        assert (
+            "Current admitted implementation: "
+            "R2-S6 Versioned Corpus Expansion."
+        ) in text
+        assert "Next candidate: reproducible minimal Linux deploy/rollback" in text
+        assert "Later candidate: durable privacy-bounded telemetry" in text
         assert "not parallel approvals" in text
         for section in (
             "Trigger",

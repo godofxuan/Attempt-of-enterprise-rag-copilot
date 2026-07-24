@@ -5,13 +5,12 @@ from pathlib import Path
 
 from scripts import _bootstrap  # noqa: F401
 
-from app.corpus.artifacts import preview_corpus, write_corpus
-from app.corpus.generator import load_facts, load_profile
-
-
-ROOT = Path(__file__).resolve().parent.parent
-FACTS_PATH = ROOT / "data" / "v2" / "facts" / "company_facts_v1.json"
-CONFIG_DIR = ROOT / "data" / "v2" / "config"
+from app.corpus.artifacts import (
+    preview_corpus,
+    summarize_fact_inventory,
+    write_corpus,
+)
+from app.corpus.catalog import CORPUS_PROFILE_IDS, load_corpus_preset
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -20,8 +19,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--profile",
-        choices=("demo", "benchmark"),
-        default="demo",
+        choices=CORPUS_PROFILE_IDS,
+        default="expanded",
         help="Checked-in corpus profile to use.",
     )
     parser.add_argument(
@@ -59,8 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.force and args.dry_run:
         parser.error("--force cannot be combined with --dry-run")
 
-    facts = load_facts(FACTS_PATH)
-    profile = load_profile(CONFIG_DIR / f"{args.profile}.json")
+    facts, profile = load_corpus_preset(args.profile)
     seed = profile.seed if args.seed is None else args.seed
     try:
         if args.dry_run:
@@ -74,6 +72,7 @@ def main(argv: list[str] | None = None) -> int:
                 force=args.force,
             )
             summary = {
+                **summarize_fact_inventory(facts),
                 "profile_id": manifest.profile_id,
                 "seed": manifest.seed,
                 "document_count": manifest.document_count,

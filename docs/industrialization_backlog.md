@@ -1,6 +1,6 @@
 # Industrialization Backlog
 
-最后更新：2026-07-22
+最后更新：2026-07-24
 
 本文不是承诺清单。每个 R2 项必须由真实失败、规模或合规需求触发，并在进入实现前定义可复现基线、验收指标、回滚和成本边界。当前 R1 状态见 [Project Status](../PROJECT_STATUS.md)。
 
@@ -19,12 +19,13 @@
 
 | Priority | Capability | Trigger evidence | Required gate | Why not in R1 |
 |---|---|---|---|---|
-| P0 | R2-S5 Trusted Identity Boundary | `/agent/v2/chat` 仍接受 request body 中调用方自报的 `UserContext`；ACL 只能验证 policy data flow，不能证明 tenant/group 来自可信 issuer | pinned issuer/audience/algorithm JWT verification、server-derived Principal/UserContext、deny-before-retrieval/model、cross-tenant/key-rotation/zero-token-leak tests | 没有可信身份就不能把本地 ACL demo 暴露为企业多租户服务；这是 R2-S4 收口后的唯一 admitted next stage |
+| COMPLETE | R2-S5 Trusted Identity Boundary | 历史 trigger：`/agent/v2/chat` 接受 request body 中调用方自报的 `UserContext` | exact-SHA Ubuntu/Windows CI #18 passed after fail-closed review/repair | 本地 RS256/JWKS 合同已完成；真实 IdP 仍未实现 |
 | P0 | Independent indirect-injection validation | S2-1 counterbalanced real-model evidence is historical; R2-S4 dev matrix COMPLETE / CONSISTENT_OBSERVATION on the same visible synthetic dev cohort; external holdout/calibration/double review still NOT RUN | independent reviewer package、one-shot holdout、blind double review、agreement/adjudication、semantic judge calibration 和 zero unauthorized action gate | Guard、可审计协议、exposure attribution 与跨模型运行 machinery 已实现；缺的是尚未执行的外部有效性证据，不能把 infrastructure 或 `CONSISTENT_OBSERVATION` 当 release pass |
 | P0 | Human semantic review | 需要对外报告 response quality 或用于业务 pilot | Frozen rubric、blind double review、adjudication、agreement、claim/citation/omission severity | 自动 required-fact 与 lexical checks 不能替代语义可用性判断 |
 | P1 | Incremental upsert/delete | 文档更新频率使全量 rebuild 超过 agreed freshness window | Idempotent event contract、version/tombstone、partial failure recovery、active snapshot consistency、rollback | R1 immutable rebuild 更易审计，当前 72-doc demo 没有增量压力 |
 | P1 | Durable OpenTelemetry | 需要跨进程追踪、历史检索、告警或多副本 | OTel semantic conventions、collector/backend、sampling、redaction、retention、access control、trace-to-eval correlation | 当前 bounded memory 足以本地调试，直接加平台会先增加运维面 |
 | P1 | Reproducible deployment | 需要 staging/pilot 或非 Windows 环境 | Minimal image、non-root user、SBOM、pinned image/model versions、health probes、resource limits、secret injection、rollback drill | 本阶段只验证本机，不冒充 production deploy |
+| COMPLETE | R2-S6 Versioned corpus expansion | 72/600 profiles 只有 8 policies / 32 facts，600 档主要增加重复和支持材料而非知识宽度 | versioned facts、active-fact support coverage、quality CI、real index、frozen retrieval、rollback | 当前 expanded 为 20 policies / 104 facts / 240 docs；2,000-doc benchmark 完成解析干跑 |
 | P1 | Remote CI evidence for the current R2-S4 exact HEAD | fixed exact HEAD whole-branch synthesis approval and repository-owner push/PR authorization | Actual run URL for the exact SHA、deterministic suite、pip/compile/public audit、artifact retention、branch protection | Historical `9607e55` success does not establish remote-CI evidence for the current R2-S4 exact HEAD |
 | P2 | Vector service | Active corpus >=5,000 docs、multi-tenant QPS 或 update SLA 使 local FAISS lifecycle 不达标 | Same frozen retrieval/security suite、namespace isolation、backup/restore、p95/cost comparison、migration rollback | 先 profile；不能用“生产都用向量库”替代证据 |
 | P2 | Admitted reranker | Retrieval failure analysis 显示 candidate set 有 gold、排序错误占主导 | Fixed candidate model/license、frozen ablation、quality delta、p95/memory/model-call budget、fallback | Current optional row is `NOT RUN`; metadata/temporal pipeline already fixes known synthetic misses |
@@ -68,11 +69,17 @@ published the real two-model `-01` matrix as `CONSISTENT_OBSERVATION` on the
 same visible synthetic dev cohort with `release_pass=false`; this is not a
 release pass and not cross-model generalization.
 
-Only admitted next implementation: R2-S5 Trusted Identity Boundary.
+Current admitted implementation: R2-S6 Versioned Corpus Expansion.
 
-Rank 2: reproducible minimal Linux deploy/rollback.
+R2-S5 Trusted Identity Boundary is complete with exact-SHA dual-platform CI.
+The owner then admitted R2-S6 versioned corpus expansion. It is locally
+complete: `expanded` is the 240-document default over 104 facts, the real
+BGE-M3 index passed 48 dev and 56 frozen test cases, and the 2,000-document
+profile passed parser/dedup/chunk dry run.
 
-Rank 3: durable privacy-bounded telemetry.
+Next candidate: reproducible minimal Linux deploy/rollback.
+
+Later candidate: durable privacy-bounded telemetry.
 
 These are not parallel approvals. The trigger is already reproducible: the
 secure API trusts body-supplied `UserContext`.
@@ -90,7 +97,7 @@ human double review        NOT RUN
 production traffic         NOT RUN
 ```
 
-## 3.2 R2-S5 execution contract
+## 3.2 R2-S5 execution contract (complete local contract)
 
 ### Trigger
 
@@ -162,9 +169,10 @@ deferred until measured triggers and isolated gates exist.
 
 ### R2-B: Ordered lifecycle and operations
 
-1. Only admitted next implementation: R2-S5 Trusted Identity Boundary.
-2. Rank 2: reproducible minimal Linux deploy/rollback.
-3. Rank 3: durable privacy-bounded telemetry.
+1. R2-S5 Trusted Identity Boundary. `COMPLETE`
+2. R2-S6 Versioned Corpus Expansion. `LOCAL COMPLETE; REMOTE CI PENDING`
+3. Reproducible minimal Linux deploy/rollback. `NEXT CANDIDATE`
+4. Durable privacy-bounded telemetry.
 
 These are ordered gates, not parallel approvals.
 

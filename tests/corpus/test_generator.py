@@ -2,8 +2,11 @@ import json
 from collections import Counter
 from pathlib import Path
 
+import pytest
+
 from app.corpus.generator import generate_document_specs, load_facts, load_profile
 from app.corpus.renderers import render_document
+from app.corpus.schemas import CompanyFacts
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -128,3 +131,32 @@ def test_benchmark_profile_builds_600_logical_documents_without_io() -> None:
 
     assert len(documents) == 600
     assert len({document.doc_id for document in documents}) == 600
+
+
+def test_generator_supports_versions_with_one_atomic_fact() -> None:
+    facts = load_facts(
+        ROOT / "data" / "v2" / "facts" / "company_facts_v2.json"
+    )
+    payload = facts.model_dump(mode="json")
+    for policy in payload["policies"]:
+        for version in policy["versions"]:
+            version["facts"] = version["facts"][:1]
+    one_fact_facts = CompanyFacts.model_validate(payload)
+    profile = load_profile(CONFIG_DIR / "expanded.json")
+
+    documents = generate_document_specs(one_fact_facts, profile)
+
+    assert len(documents) == 240
+    assert all(document.fact_ids for document in documents)
+
+
+def test_expanded_profile_fails_when_support_coverage_cannot_fit() -> None:
+    facts = load_facts(
+        ROOT / "data" / "v2" / "facts" / "company_facts_v2.json"
+    )
+    profile = load_profile(CONFIG_DIR / "expanded.json").model_copy(
+        update={"document_count": 80}
+    )
+
+    with pytest.raises(ValueError, match="too little room"):
+        generate_document_specs(facts, profile)

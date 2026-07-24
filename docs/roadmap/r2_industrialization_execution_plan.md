@@ -1,6 +1,6 @@
 # R2 Industrialization Execution Plan
 
-Status: current after R2-S4 Task 8.
+Status: current during R2-S6 delivery.
 
 R2-S4 published a `CONSISTENT_OBSERVATION` across two frozen local chat models
 on the same visible synthetic dev cohort. That observation is useful evaluation
@@ -10,14 +10,65 @@ narrow.
 
 ## Priority
 
-Only admitted next implementation: R2-S5 Trusted Identity Boundary.
+Current admitted implementation: R2-S6 Versioned Corpus Expansion.
 
-Rank 2: reproducible minimal Linux deploy/rollback.
+Next candidate: reproducible minimal Linux deploy/rollback.
 
-Rank 3: durable privacy-bounded telemetry.
+Later candidate: durable privacy-bounded telemetry.
 
-These are not parallel approvals. R2-S5 must be designed and gated first because
-the serving API still trusts request-body identity.
+These are not parallel approvals. R2-S5 is complete with exact-SHA
+Ubuntu/Windows CI. The owner then admitted R2-S6 to address the measured gap
+between the historical 600-document volume profile and its 32-fact knowledge
+breadth. Linux deployment remains a candidate, not an automatically approved
+implementation.
+
+## R2-S6 Versioned Corpus Expansion
+
+### Trigger
+
+The historical 72/600-document profiles contain only 8 policies and 32 atomic
+facts. The 600-document profile mostly adds support and noise around the same
+facts, so document count overstates knowledge breadth.
+
+### User value
+
+The local copilot can answer and evaluate a wider set of enterprise policy
+domains while retaining deterministic authority, version, and ACL labels.
+
+### Minimal architecture
+
+Keep facts v1 immutable; add facts v2 and explicit expanded profiles; guarantee
+active-fact supporting coverage; run deterministic quality gates before
+immutable index build and activation.
+
+### Contracts
+
+The current profile contains 20 policies, 40 versions, 104 facts, 52 active
+facts, 12 departments, and 240 documents. The 2,000-document profile has the
+same fact breadth and is scale-only. Historical v1 outputs remain exact.
+
+### Local gates
+
+Corpus quality, v1 compatibility, parser/dedup/chunk dry run, real BGE-M3 index,
+48-case dev retrieval, 56-case frozen test retrieval, public evidence
+verification, full regression, audit, and exact-SHA dual-platform CI.
+
+### Security
+
+Operational ACL groups must be used, the explicit contractor fixture remains
+unauthorized, ACL filtering stays before retrieval output, and public evidence
+contains no raw generated documents or local paths.
+
+### Rollback
+
+Activate the previous immutable demo run ID and set the explicit profile to
+`demo`; do not overwrite facts v1 or old evidence.
+
+### Deferred tech-stacking
+
+Real connectors, vector DB migration, incremental indexing, Kubernetes,
+multi-Agent delegation, and LLM-authored gold data remain deferred until
+separate measured triggers and gates exist.
 
 ## R2-S5 Trusted Identity Boundary
 

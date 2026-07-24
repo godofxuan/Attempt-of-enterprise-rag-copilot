@@ -70,7 +70,9 @@ The result is a bounded Agentic workflow, not an open-ended autonomous agent. Th
 
 ## Features
 
-- Deterministic generation of 72-document demo and 600-document benchmark synthetic corpora.
+- Versioned deterministic corpora: historical 72/600-document v1 profiles,
+  plus a 240-document default and 2,000-document benchmark derived from 20
+  policies, 40 versions, and 104 atomic facts.
 - Parsers and normalized document records for mixed enterprise-style formats.
 - Immutable, validated index versions with an atomic active pointer.
 - BM25 + dense retrieval, reciprocal-rank fusion, metadata/temporal authority, diversity, and parent context.
@@ -95,6 +97,7 @@ These values describe specific local artifacts; they are not production accuracy
 
 | Evidence | Result | Boundary |
 |---|---:|---|
+| R2-S6 versioned corpus expansion | `expanded`: 240 source / 216 canonical / 216 BGE-M3 chunks; 20 policies, 40 versions, 104 facts, 52 active facts; live dev `48/48`, frozen test `56/56`, ACL leakage `0`, hit@1 and document-recall@3 `1.0`; local full `1929 passed / 22 skipped / 3 warnings`, audit `533/0` | [Standalone public evidence](data/v2/public/corpus_expansion_v2/README.md); synthetic same-fact-model regression, not real-enterprise generalization; old demo index remains rollback target |
 | E7 final local regression suite | `574 passed`, 3 known FAISS warnings | Automated code/data gate only; not owner review or production acceptance |
 | E7 GitHub Actions on `9607e55` | `success` on Ubuntu / Python 3.11 | [Verifiable run](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/29553278709); one feature-branch commit, not deployment acceptance |
 | E7 clean GitHub clone on `9607e55` | `574 passed`, frozen hash exact, audit `331/0` | New directory with ignored private/raw artifacts absent; uses the proved dependency environment |
@@ -171,7 +174,9 @@ The generator derives documents and evaluation labels from a checked-in fact mod
   It demonstrates the trusted boundary, token validation, route authorization,
   rotation, and client handling, but does not claim SSO, remote JWKS refresh,
   revocation, MFA, SCIM, or production IAM integration.
-- The corpus and evaluation set are synthetic and small; the live result is a development run, not a generalization estimate.
+- The current corpus is wider than v1 but remains synthetic: 20 policies, 104
+  facts, and templated supporting content. Its live result is a local
+  development regression, not an independent-domain generalization estimate.
 - R2-S1 has a frozen [retrieved-content threat model](docs/security/r2_s1/00_scope_and_threat_model.md), historical D2 RED evidence, D3-D5 enforcement, a D6 deterministic paired gate, one fixed OFF-first D7 local observation, and V1-V5 audit hardening. R2-S2 S2-1 then ran a new counterbalanced BGE-M3/Qwen dev replication: OFF raw/user-boundary signal `3/24`, ON `0/24`, and ON conditional quarantine `15/15`, but all-labeled quarantine only `15/28` because 13 attack units never reached Guard. R2-S3 measured those 13 as runtime rank-2 candidates with observed downstream exposure `0/13`; its depth-2/4 coverage is diagnostic-only and production Guard/retrieval/Agent remain unchanged. R2-S4 observed 12 decision safety/utility observations matched for Qwen2.5 and Qwen3 on the same visible synthetic dev cohort; 3 operational counts matched; 2 latency metrics differed; `release_pass=false`; this is not cross-model generalization. These visible synthetic runs do not measure general semantic attack following. V3 is a Python evaluator call-graph egress guard rather than an OS sandbox. S2-2 holdout freezing code exists, while an independent package, one-shot holdout run, blind review, semantic judge calibration, human double review, production traffic, and manual red team remain `NOT RUN`.
 - The optional reranker is `NOT RUN`; current ablation does not justify adding one blindly.
 - Traces and metrics are bounded in-memory local structures, not durable distributed observability.
@@ -217,6 +222,9 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 - [Observability and Load Evidence](docs/observability.md)
 - [Reproducibility Guide](docs/reproducibility.md)
 - [Data Card](docs/data_card.md)
+- [R2-S6 Corpus Expansion Design](docs/corpus/v2_expansion/00_design.md)
+- [R2-S6 Corpus Expansion Engineering Journal](docs/corpus/v2_expansion/01_engineering_journal.md)
+- [R2-S6 Corpus Expansion Results and Interview Guide](docs/corpus/v2_expansion/02_results_and_interview_guide.md)
 - [Known Limitations](docs/known_limitations.md)
 - [E7 Final Acceptance Journal](docs/roadmap/e7_final_acceptance_implementation.md)
 - [Industrialization Backlog](docs/industrialization_backlog.md)

@@ -22,7 +22,12 @@ class Settings(BaseSettings):
     parsed_docs_dir: Path = data_dir / "parsed_docs"
     indexes_dir: Path = data_dir / "indexes"
     v2_indexes_dir: Path = data_dir / "indexes_v2"
-    v2_corpus_profile: Literal["demo", "benchmark"] = "demo"
+    v2_corpus_profile: Literal[
+        "demo",
+        "benchmark",
+        "expanded",
+        "expanded_benchmark",
+    ] = "expanded"
     v2_chunker_mode: Literal["fixed", "heading", "parent_child"] = "fixed"
 
     llm_base_url: str = "http://localhost:11434/v1"

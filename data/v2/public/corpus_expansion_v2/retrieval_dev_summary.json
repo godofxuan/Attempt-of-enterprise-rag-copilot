@@ -1,0 +1,178 @@
+{
+  "case_count": 48,
+  "config": {
+    "bootstrap_iterations": 500,
+    "bootstrap_seed": 20260716,
+    "candidate_k": 20,
+    "runtime_variant": "active-v2-index-configured-models",
+    "top_k": 5
+  },
+  "mode": "live",
+  "producer": "enterprise_agentic_rag_v2",
+  "run_id": "corpus_expanded_fullfact_dev_live_20260724",
+  "schema_version": "enterprise_evaluation_result_v1",
+  "security_probes": [],
+  "split": "dev",
+  "suite": "retrieval",
+  "summary": {
+    "failed_case_count": 0,
+    "layers": {
+      "retrieval": {
+        "metrics": {
+          "acl_leakage_count": {
+            "mean": 0.0,
+            "n": 48,
+            "sum": 0.0
+          },
+          "authority_accuracy": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "context_chars": {
+            "mean": 526.125,
+            "n": 48,
+            "sum": 25254.0
+          },
+          "document_recall@1": {
+            "mean": 0.875,
+            "n": 32,
+            "sum": 28.0
+          },
+          "document_recall@3": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "document_recall@5": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "full_document_recall@1": {
+            "mean": 0.75,
+            "n": 32,
+            "sum": 24.0
+          },
+          "full_document_recall@3": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "full_document_recall@5": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "gold_document_count": {
+            "mean": 0.8333333333333334,
+            "n": 48,
+            "sum": 40.0
+          },
+          "hit@1": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "hit@3": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "hit@5": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "invalid_extra_documents@1": {
+            "mean": 0.0,
+            "n": 32,
+            "sum": 0.0
+          },
+          "invalid_extra_documents@3": {
+            "mean": 1.75,
+            "n": 32,
+            "sum": 56.0
+          },
+          "invalid_extra_documents@5": {
+            "mean": 3.625,
+            "n": 32,
+            "sum": 116.0
+          },
+          "latency_ms": {
+            "mean": 239.86248333324056,
+            "n": 48,
+            "sum": 11513.399199995547
+          },
+          "mrr": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "ndcg@1": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "ndcg@3": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "ndcg@5": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "precision@1": {
+            "mean": 1.0,
+            "n": 32,
+            "sum": 32.0
+          },
+          "precision@3": {
+            "mean": 0.41666666666666674,
+            "n": 32,
+            "sum": 13.333333333333336
+          },
+          "precision@5": {
+            "mean": 0.2500000000000001,
+            "n": 32,
+            "sum": 8.000000000000004
+          },
+          "visible_document_count": {
+            "mean": 4.041666666666667,
+            "n": 48,
+            "sum": 194.0
+          }
+        },
+        "pass_rate": {
+          "ci": {
+            "high": 1.0,
+            "iterations": 500,
+            "level": 0.95,
+            "low": 1.0,
+            "method": "percentile_bootstrap",
+            "seed": 20260716
+          },
+          "passed": 48,
+          "rate": 1.0,
+          "total": 48
+        }
+      }
+    },
+    "overall_case_pass": {
+      "ci": {
+        "high": 1.0,
+        "iterations": 500,
+        "level": 0.95,
+        "low": 1.0,
+        "method": "percentile_bootstrap",
+        "seed": 20260716
+      },
+      "passed": 48,
+      "rate": 1.0,
+      "total": 48
+    },
+    "primary_failure_counts": {}
+  }
+}

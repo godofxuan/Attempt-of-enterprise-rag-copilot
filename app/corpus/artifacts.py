@@ -27,6 +27,7 @@ from app.corpus.schemas import (
 
 
 GENERATOR_VERSION = "1.0.0"
+EXPANDED_GENERATOR_VERSION = "2.0.0"
 
 
 def _json_bytes(value) -> bytes:
@@ -35,7 +36,7 @@ def _json_bytes(value) -> bytes:
     ).encode("utf-8")
 
 
-def _model_hash(model: BaseModel) -> str:
+def canonical_model_sha256(model: BaseModel) -> str:
     canonical = json.dumps(
         model.model_dump(mode="json"),
         ensure_ascii=False,
@@ -43,6 +44,40 @@ def _model_hash(model: BaseModel) -> str:
         separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(canonical).hexdigest()
+
+
+def summarize_fact_inventory(facts: CompanyFacts) -> dict[str, str | int]:
+    versions = [
+        version
+        for policy in facts.policies
+        for version in policy.versions
+    ]
+    atomic_facts = [
+        fact
+        for version in versions
+        for fact in version.facts
+    ]
+    active_facts = [
+        fact
+        for policy in facts.policies
+        for fact in policy.active_version.facts
+    ]
+    return {
+        "facts_schema_version": facts.schema_version,
+        "policy_count": len(facts.policies),
+        "policy_version_count": len(versions),
+        "atomic_fact_count": len(atomic_facts),
+        "active_fact_count": len(active_facts),
+        "department_count": len(facts.departments),
+        "acl_group_count": len(facts.acl_groups),
+        "fixture_user_count": len(facts.users),
+    }
+
+
+def _generator_version(facts: CompanyFacts) -> str:
+    if facts.schema_version == "enterprise_facts_v2":
+        return EXPANDED_GENERATOR_VERSION
+    return GENERATOR_VERSION
 
 
 def load_manifest(path: Path) -> CorpusManifest:
@@ -96,11 +131,11 @@ def _build(
     manifest = CorpusManifest(
         schema_version="enterprise_corpus_manifest_v1",
         producer="enterprise_agentic_rag_v2",
-        generator_version=GENERATOR_VERSION,
+        generator_version=_generator_version(facts),
         profile_id=profile.profile_id,
         seed=seed,
-        facts_sha256=_model_hash(facts),
-        profile_sha256=_model_hash(profile),
+        facts_sha256=canonical_model_sha256(facts),
+        profile_sha256=canonical_model_sha256(profile),
         document_count=len(documents),
         counts_by_format=dict(sorted(Counter(doc.format for doc in documents).items())),
         counts_by_source_type=dict(
@@ -114,6 +149,33 @@ def _build(
     return manifest, rendered, dev_cases, test_cases
 
 
+def build_corpus_manifest(
+    facts: CompanyFacts,
+    profile: CorpusProfile,
+    *,
+    seed: int | None = None,
+) -> CorpusManifest:
+    effective_seed = profile.seed if seed is None else seed
+    manifest, _, _, _ = _build(facts, profile, effective_seed)
+    return manifest
+
+
+def validate_corpus_manifest_preset(
+    manifest: CorpusManifest,
+    facts: CompanyFacts,
+    profile: CorpusProfile,
+) -> None:
+    expected = build_corpus_manifest(
+        facts,
+        profile,
+        seed=manifest.seed,
+    )
+    if manifest != expected:
+        raise ValueError(
+            f"corpus manifest does not match preset {profile.profile_id!r}"
+        )
+
+
 def preview_corpus(
     facts: CompanyFacts,
     profile: CorpusProfile,
@@ -122,6 +184,7 @@ def preview_corpus(
     effective_seed = profile.seed if seed is None else seed
     manifest, _, dev_cases, test_cases = _build(facts, profile, effective_seed)
     return {
+        **summarize_fact_inventory(facts),
         "profile_id": profile.profile_id,
         "seed": effective_seed,
         "document_count": manifest.document_count,
@@ -346,7 +409,7 @@ def write_smoke_fixture(
     manifest = SmokeFixtureManifest(
         schema_version="enterprise_smoke_fixture_v1",
         producer="enterprise_agentic_rag_v2",
-        generator_version=GENERATOR_VERSION,
+        generator_version=full_manifest.generator_version,
         source_profile_id=profile.profile_id,
         seed=effective_seed,
         facts_sha256=full_manifest.facts_sha256,

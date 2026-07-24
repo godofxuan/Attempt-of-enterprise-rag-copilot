@@ -8,6 +8,9 @@ from pathlib import Path
 from scripts import _bootstrap  # noqa: F401
 
 from app.config import get_settings
+from app.corpus.artifacts import validate_corpus_manifest_preset
+from app.corpus.catalog import CORPUS_PROFILE_IDS, load_corpus_preset
+from app.corpus.schemas import CorpusManifest
 from app.domain.documents import DocumentParseError
 from app.indexing.builder import EmbedText, preview_build
 from app.indexing.store import (
@@ -35,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--profile",
-        choices=("demo", "benchmark"),
+        choices=CORPUS_PROFILE_IDS,
         help="Expected corpus profile; defaults to the v2 setting.",
     )
     parser.add_argument(
@@ -105,8 +108,7 @@ def _validate_output_root(path: Path) -> Path:
     return resolved
 
 
-def _source_profile(input_dir: Path) -> str:
-    manifest = load_source_manifest(Path(input_dir) / "manifest.json")
+def _source_profile(manifest) -> str:
     return getattr(manifest, "profile_id", None) or manifest.source_profile_id
 
 
@@ -156,11 +158,22 @@ def main(
 
         input_dir = Path(args.input_dir).resolve()
         profile = args.profile or settings.v2_corpus_profile
-        actual_profile = _source_profile(input_dir)
+        source_manifest = load_source_manifest(input_dir / "manifest.json")
+        actual_profile = _source_profile(source_manifest)
         if actual_profile != profile:
             raise ValueError(
                 f"corpus profile is {actual_profile!r}, expected {profile!r}"
             )
+        if not isinstance(source_manifest, CorpusManifest):
+            raise ValueError(
+                "index CLI requires a full generated corpus manifest"
+            )
+        preset_facts, preset_profile = load_corpus_preset(profile)
+        validate_corpus_manifest_preset(
+            source_manifest,
+            preset_facts,
+            preset_profile,
+        )
         mode = args.chunker or settings.v2_chunker_mode.replace("_", "-")
         chunker_config = _chunker_config(
             mode,

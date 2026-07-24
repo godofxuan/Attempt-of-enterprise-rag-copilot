@@ -42,6 +42,9 @@ jobs:
       - name: Verify frozen evaluation hash
         run: python -c "from pathlib import Path; from scripts.eval_enterprise_v2 import verify_frozen_test_hash; expected, actual = verify_frozen_test_hash(Path('data/v2/eval')); assert expected == actual; print(actual)"
 
+      - name: Verify expanded corpus quality
+        run: python -m scripts.eval_corpus_quality --profile expanded
+
       - name: Run deterministic tests
         env:
           PYTHONFAULTHANDLER: "1"

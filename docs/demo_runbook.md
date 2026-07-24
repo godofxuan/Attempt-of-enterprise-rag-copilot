@@ -131,21 +131,24 @@ ollama list
 
 `ollama list` 只证明模型存在，不证明模型可加载；readiness 会实际做模型依赖检查。
 
-## 3. Generate the synthetic demo corpus
+## 3. Generate the current synthetic corpus
 
-先做无写入验证：
+先执行知识覆盖门禁和无写入验证：
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.generate_enterprise_corpus --profile demo --seed 20260716 --dry-run
+.\.venv\Scripts\python.exe -m scripts.eval_corpus_quality --profile expanded
+.\.venv\Scripts\python.exe -m scripts.generate_enterprise_corpus --profile expanded --dry-run
 ```
 
-发布 72-document demo profile：
+发布当前 240-document expanded profile：
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.generate_enterprise_corpus --profile demo --seed 20260716 --output-dir data\generated\demo
+.\.venv\Scripts\python.exe -m scripts.generate_enterprise_corpus --profile expanded --output-dir data\v2\generated\expanded
 ```
 
 目标存在时生成器默认拒绝覆盖。只有目录带本生成器有效 manifest 且明确要重建时才使用 `--force`；不要手工删除未知目录来绕过 provenance 检查。
+
+历史 72-document `demo` profile 仍可用于兼容回归，但不再是默认知识库。
 
 ## 4. Build and activate the V2 index
 
@@ -153,19 +156,19 @@ ollama list
 
 ```powershell
 $utc = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
-$runId = "${utc}_local_demo"
+$runId = "${utc}_local_expanded"
 ```
 
 先 dry-run parser/governance/chunking：
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.build_indexes_v2 --input-dir data\generated\demo --output-dir data\indexes_v2 --profile demo --run-id $runId --chunker fixed --dry-run
+.\.venv\Scripts\python.exe -m scripts.build_indexes_v2 --input-dir data\v2\generated\expanded --profile expanded --chunker fixed --dry-run
 ```
 
 再调用真实 BGE-M3 构建并激活：
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.build_indexes_v2 --input-dir data\generated\demo --output-dir data\indexes_v2 --profile demo --run-id $runId --chunker fixed
+.\.venv\Scripts\python.exe -m scripts.build_indexes_v2 --input-dir data\v2\generated\expanded --output-dir data\indexes_v2 --profile expanded --run-id $runId --chunker fixed
 ```
 
 构建器写 staging、验证 artifact/hash/维度后再 promote；active pointer 只指向完整版本。不要在模型或维度变化后继续使用旧 active index。

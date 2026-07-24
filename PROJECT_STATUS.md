@@ -1,8 +1,19 @@
 # Enterprise Agentic RAG - Current Status
 
-更新时间：2026-07-23（R2-S5 CI #17 失败已修复；exact-SHA CI #18 双平台通过）
+更新时间：2026-07-24（R2-S6 versioned corpus expansion 本地验收完成；本阶段 exact-SHA CI 待推送后确认）
 
-状态：R2-S5 已把 `/agent/v2/chat` 的调用方自报身份替换为服务端
+当前状态：知识库默认 profile 已从 72-document `demo` 切换为
+240-document `expanded`。事实宽度从 8 policies / 16 versions / 32 facts
+扩展到 20 / 40 / 104，其中 52 条为 active facts，覆盖 12 个部门。真实
+BGE-M3 fixed index 已构建并激活为
+`20260724T024653Z_expanded_bge_m3_fixed`：240 source / 216 canonical /
+216 chunks。live dev 48/48、冻结 test 56/56 通过，ACL leakage 为 0，
+hit@1 和 document-recall@3 均为 1.0。2,000-document
+`expanded_benchmark` 已完成生成和 parser/dedup/chunk dry run，得到 1,225
+canonical chunks，但未嵌入或激活。公共证据位于
+`data/v2/public/corpus_expansion_v2/`。
+
+前一阶段 R2-S5 已把 `/agent/v2/chat` 的调用方自报身份替换为服务端
 RS256/JWKS 验签身份；chat、feedback、metrics、trace 均进入可信身份与角色边界。
 feedback 由服务端 receipt 绑定 actor、目标回答和精确内容，SQLite 仅保存 keyed
 digests，并对同 actor/target/content 原子保留最新 rating。本地身份工具具备
@@ -91,8 +102,34 @@ synthetic corpus
 - R2-S1 V4：新增 frozen metric-semantics registry 和严格四布尔 OR helper；live case/summary 提供不序列化的 canonical property，旧 `model_attack_followed` 字段和 live result v1 dump 保持不变；public writer 使用统一生产 helper，standalone verifier 保持独立复算；future evidence 使用准确名称并写明语义服从未测量。
 - R2-S1 V5：新增严格自校验的 SHA-256 hash-rank arm-order plan；未来 36-case live v2 run 精确分配 18 个 OFF→ON 与 18 个 ON→OFF，runner 按计划执行但保持 mode result 对齐，manifest 保存完整 plan，逐 arm 行保存 hash/rank/order/position；旧 v1 schema 与正式 fixed OFF-first D7 不变，正式 run ID 被禁止重跑。
 - R2-S5：新增严格 RS256/JWKS verifier、服务端 Principal 到 Agent `UserContext` 的确定性映射、public-by-exception user/operator 路由授权、认证先于 bounded body parsing、后台可执行 readiness、receipt 绑定的 keyed feedback、幂等隐私迁移和 WAL erasure marker、v3 manifest/journal 驱动且强制 overlap 的本地身份生命周期、分离且回环限定的 UI/load credential 通道，以及 20-case 冻结身份评测。
+- R2-S6：保留 facts v1 和历史 72/600 profiles，新增 facts v2、
+  `expanded/expanded_benchmark`、共享 profile catalog、active-fact
+  deterministic support/eval coverage、20 项 corpus quality gate、动态完整性问题
+  数量、索引 CLI/default 接入、Ubuntu/Windows CI 门禁和可篡改检测的公共证据
+  包；本地真实 BGE-M3 index 与 104-case dev/test retrieval regression 已通过。
 
 ## 3. 当前证据
+
+### R2-S6 当前知识库证据
+
+```text
+facts schema                         enterprise_facts_v2
+policies / versions / facts          20 / 40 / 104
+active facts / departments           52 / 12
+expanded source / canonical / chunks 240 / 216 / 216
+expanded benchmark parsed chunks     1,225
+live dev                             48/48; ACL leakage 0
+frozen test                          56/56; ACL leakage 0
+test hit@1 / document recall@3       1.0 / 1.0
+index manifest SHA-256               69b9fb7d3008467f65fb2920a621e9812cdb59c4919834819333e0e33b866507
+local full pytest                     1929 passed / 22 skipped / 3 warnings
+public repository audit               533 candidates / 0 findings
+```
+
+这组结果只证明当前 synthetic fact model、生成器、解析/去重/索引和本地
+retrieval contract。人工语义 review、真实企业语料、独立领域 holdout 和生产
+freshness/SLO 仍未完成。完整过程见
+[R2-S6 Engineering Journal](docs/corpus/v2_expansion/01_engineering_journal.md)。
 
 ### 历史阶段基线
 

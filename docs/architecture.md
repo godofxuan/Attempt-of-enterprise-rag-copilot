@@ -47,9 +47,11 @@ The local issuer proves boundary mechanics and lifecycle behavior. It is not a
 production IdP and does not implement SSO, remote JWKS refresh, revocation,
 MFA, or identity governance.
 
-最后更新：2026-07-23
+最后更新：2026-07-24
 
-本文描述当前 R1 本地实现。它解释代码中的数据流、控制流和信任边界；计划中的 R2 能力见 [Industrialization Backlog](industrialization_backlog.md)。
+本文描述当前 R2 本地实现。它解释代码中的数据流、控制流和信任边界；
+尚未准入或仍待外部验证的能力见
+[Industrialization Backlog](industrialization_backlog.md)。
 
 ## 1. 系统边界
 
@@ -95,7 +97,23 @@ flowchart TB
 
 ### 2.1 事实先于文档
 
-`data/v2/facts/company_facts_v1.json` 是 synthetic truth source。`scripts/generate_enterprise_corpus.py` 从事实、profile 和 seed 确定性派生制度、wiki、邮件、工单、会议与表格，并发布 manifest/hash。生成器不让 LLM 自由编写 gold data，因此版本冲突、ACL、authority 和 expected facts 可复算。
+事实源按版本而不是原地覆盖：
+
+- `company_facts_v1.json` 服务历史 `demo/benchmark` 和已冻结证据；
+- `company_facts_v2.json` 服务当前 `expanded/expanded_benchmark`；
+- `app/corpus/catalog.py` 是 profile 到 facts/config 的单一映射入口。
+
+`scripts/generate_enterprise_corpus.py` 从事实、profile 和 seed 确定性派生
+制度、wiki、邮件、工单、会议与表格，并发布 manifest/hash。生成器先为每个
+active fact 建立至少一个 supporting-content assignment，再填充随机噪声，因此
+覆盖是 contract，不是概率。生成器不让 LLM 自由编写 gold data，所以版本冲突、
+ACL、authority 和 expected facts 可复算。
+
+当前默认 `expanded` 为 20 policies / 40 versions / 104 facts / 240 source
+documents；2,000-document `expanded_benchmark` 只用于规模验证，不是默认
+运行库。`app/corpus/quality.py` 在索引前检查事实唯一性、active-fact 支持与
+评测覆盖、业务 ACL group 使用、来源/格式多样性和 eval split 完整性。CI 在
+Ubuntu/Windows 的完整测试前执行该门禁。
 
 ### 2.2 统一 DocumentRecord
 
@@ -110,6 +128,11 @@ flowchart TB
 `scripts/build_indexes_v2.py` 先在 staging 构建 BM25/FAISS 与 metadata artifacts，再验证 schema、维度、hash 和文件集合，最后 promote 到独立 run ID。active pointer 原子切换；已 active 的版本不能被 `--force` 静默覆盖。
 
 这解决“embedding model 改了但旧向量仍被加载”的典型问题：query embedding 维度、manifest 声明和 dense index 维度必须一致，否则 fail closed。
+
+2026-07-24 的当前本地 active version 是
+`20260724T024653Z_expanded_bge_m3_fixed`：240 个源文档经治理得到 216 个
+canonical documents/chunks，使用本地 BGE-M3 1024 维向量。旧 demo index
+仍作为不可变 rollback target 保存，切换 existing version 不需要重新嵌入。
 
 ## 3. 在线请求时序
 

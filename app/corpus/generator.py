@@ -220,6 +220,31 @@ def _clone_document(
     )
 
 
+def _expanded_coverage_documents(
+    facts: CompanyFacts,
+) -> list[tuple[PolicyFamily, SourceType, DocumentFormat, list[int]]]:
+    assignments: list[
+        tuple[PolicyFamily, SourceType, DocumentFormat, list[int]]
+    ] = []
+    for policy_index, policy in enumerate(facts.policies):
+        active = policy.active_version
+        required_documents = max(3, len(active.facts))
+        for local_index in range(required_documents):
+            assignments.append(
+                (
+                    policy,
+                    SOURCE_TYPE_ORDER[
+                        (policy_index + local_index) % len(SOURCE_TYPE_ORDER)
+                    ],
+                    FORMAT_ORDER[
+                        (policy_index * 3 + local_index) % len(FORMAT_ORDER)
+                    ],
+                    [local_index % len(active.facts)],
+                )
+            )
+    return assignments
+
+
 def generate_document_specs(
     facts: CompanyFacts,
     profile: CorpusProfile,
@@ -242,24 +267,42 @@ def generate_document_specs(
 
     supporting_count = base_count - len(authoritative)
     supporting: list[DocumentSpec] = []
+    coverage = (
+        _expanded_coverage_documents(facts)
+        if facts.schema_version == "enterprise_facts_v2"
+        else []
+    )
+    if len(coverage) > supporting_count:
+        raise ValueError(
+            "expanded corpus profile leaves too little room to cover every "
+            "policy with three supporting source types"
+        )
     for index in range(supporting_count):
-        policy = rng.choice(facts.policies)
-        version = policy.active_version
-        source_type = (
-            SOURCE_TYPE_ORDER[index]
-            if index < len(SOURCE_TYPE_ORDER)
-            else _weighted_choice(
-                rng, SOURCE_TYPE_ORDER, profile.source_type_weights
+        if index < len(coverage):
+            policy, source_type, document_format, fact_indexes = coverage[index]
+            version = policy.active_version
+        else:
+            policy = rng.choice(facts.policies)
+            version = policy.active_version
+            source_type = (
+                SOURCE_TYPE_ORDER[index]
+                if index < len(SOURCE_TYPE_ORDER)
+                else _weighted_choice(
+                    rng, SOURCE_TYPE_ORDER, profile.source_type_weights
+                )
             )
-        )
-        document_format = (
-            FORMAT_ORDER[index]
-            if index < len(FORMAT_ORDER)
-            else _weighted_choice(rng, FORMAT_ORDER, profile.format_weights)
-        )
-        fact_indexes = [rng.randrange(len(version.facts))]
-        if len(version.facts) > 1 and rng.random() < 0.4:
-            fact_indexes = list(range(len(version.facts)))
+            document_format = (
+                FORMAT_ORDER[index]
+                if index < len(FORMAT_ORDER)
+                else _weighted_choice(
+                    rng,
+                    FORMAT_ORDER,
+                    profile.format_weights,
+                )
+            )
+            fact_indexes = [rng.randrange(len(version.facts))]
+            if len(version.facts) > 1 and rng.random() < 0.4:
+                fact_indexes = list(range(len(version.facts)))
         supporting.append(
             _supporting_document(
                 doc_id=f"support_{index + 1:04d}",
@@ -321,18 +364,21 @@ def generate_document_specs(
         retired_versions = [
             version for version in policy.versions if version.status == "retired"
         ]
+        retired_version = rng.choice(retired_versions)
         stale.append(
             _supporting_document(
                 doc_id=f"stale_{index + 1:04d}",
                 policy=policy,
-                version=rng.choice(retired_versions),
+                version=retired_version,
                 source_type=_weighted_choice(
                     rng, SOURCE_TYPE_ORDER, profile.source_type_weights
                 ),
                 document_format=_weighted_choice(
                     rng, FORMAT_ORDER, profile.format_weights
                 ),
-                fact_indexes=[0, 1],
+                fact_indexes=list(
+                    range(min(2, len(retired_version.facts)))
+                ),
                 variant="stale",
             )
         )

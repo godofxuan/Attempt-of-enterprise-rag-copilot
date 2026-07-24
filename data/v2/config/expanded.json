@@ -1,0 +1,27 @@
+{
+  "schema_version": "enterprise_corpus_profile_v1",
+  "profile_id": "expanded",
+  "document_count": 240,
+  "seed": 20260724,
+  "format_weights": {
+    "md": 4,
+    "txt": 2,
+    "html": 2,
+    "csv": 1,
+    "jsonl": 1
+  },
+  "source_type_weights": {
+    "policy": 1,
+    "wiki": 2,
+    "email": 2,
+    "ticket": 2,
+    "meeting": 1,
+    "table": 1
+  },
+  "duplicate_ratio": 0.05,
+  "near_duplicate_ratio": 0.08,
+  "misfiled_ratio": 0.05,
+  "stale_ratio": 0.1,
+  "eval_dev_count": 48,
+  "eval_test_count": 56
+}

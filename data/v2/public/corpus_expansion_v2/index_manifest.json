@@ -1,0 +1,77 @@
+{
+  "artifacts": [
+    {
+      "byte_count": 95611,
+      "path": "bm25_tokens.pkl",
+      "sha256": "e743c6041d54a3b86df85657b2796a95acbc500b3112634f69da16aa3964e4f4"
+    },
+    {
+      "byte_count": 326682,
+      "path": "chunks.json",
+      "sha256": "28d6d7c3707ee3e36d71c7fc148c75a88eff01ff23ad3f7c34669732a404bf46"
+    },
+    {
+      "byte_count": 521261,
+      "path": "documents.json",
+      "sha256": "40740bae3bbfe700d6c6211793a25d7ad1164e9109d0c9b9173d115e6e21af05"
+    },
+    {
+      "byte_count": 884781,
+      "path": "faiss.index",
+      "sha256": "bdd98bb255f10c0e2b97a03ed789c25f4a9390a354ac8b0dd0521ab86c286e8c"
+    },
+    {
+      "byte_count": 3,
+      "path": "parents.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    }
+  ],
+  "bm25": {
+    "parameters": {
+      "b": 0.75,
+      "epsilon": 0.25,
+      "k1": 1.5
+    },
+    "tokenizer": "jieba"
+  },
+  "canonical_document_count": 216,
+  "chunk_count": 216,
+  "chunker_config": {
+    "child_size": 250,
+    "chunk_size": 500,
+    "mode": "fixed",
+    "overlap": 80,
+    "parent_size": 1000,
+    "table_rows_per_chunk": 5
+  },
+  "corpus_manifest_hash": "5d96338e4d637c207c381323fc6919f575983992e553a06f548a7e7e0fc24e57",
+  "duplicate_count": 24,
+  "duration_ms": 40700,
+  "embedding": {
+    "dimension": 1024,
+    "model": "bge-m3",
+    "normalization": "l2"
+  },
+  "faiss": {
+    "index_type": "IndexFlatIP",
+    "metric": "inner_product"
+  },
+  "finished_at": "2026-07-24T02:47:38.767080Z",
+  "index_version": "v2",
+  "indexed_chunk_count": 216,
+  "parent_chunk_count": 0,
+  "parser_versions": {
+    "csv": "1.0",
+    "html": "1.0",
+    "jsonl": "1.0",
+    "markdown": "1.0",
+    "text": "1.0"
+  },
+  "producer": "enterprise_agentic_rag_v2",
+  "profile_id": "expanded",
+  "run_id": "20260724T024653Z_expanded_bge_m3_fixed",
+  "schema_version": "enterprise_index_manifest_v1",
+  "source_document_count": 240,
+  "started_at": "2026-07-24T02:46:58.067476Z",
+  "table_chunk_count": 0
+}

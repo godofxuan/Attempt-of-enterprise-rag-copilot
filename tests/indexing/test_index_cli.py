@@ -85,6 +85,21 @@ def test_required_paths_fail_before_any_output(tmp_path: Path) -> None:
     assert not (tmp_path / "indexes-v2").exists()
 
 
+@pytest.mark.parametrize("profile", ["expanded", "expanded_benchmark"])
+def test_index_cli_accepts_expanded_corpus_profiles(profile: str) -> None:
+    args = build_indexes_v2.build_parser().parse_args(
+        [
+            "--input-dir",
+            "generated-corpus",
+            "--profile",
+            profile,
+            "--dry-run",
+        ]
+    )
+
+    assert args.profile == profile
+
+
 def test_dry_run_measures_without_embedding_or_writing(
     tmp_path: Path,
     corpus_dir: Path,
@@ -118,6 +133,38 @@ def test_dry_run_measures_without_embedding_or_writing(
     assert summary["written"] is False
     assert embedder.calls == []
     assert not output_dir.exists()
+
+
+def test_index_cli_rejects_a_corpus_manifest_that_is_not_from_its_preset(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    corpus = tmp_path / "drifted-corpus"
+    write_corpus(corpus, load_facts(FACTS), load_profile(PROFILE))
+    manifest_path = corpus / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["facts_sha256"] = "f" * 64
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+
+    exit_code = build_indexes_v2.main(
+        [
+            "--input-dir",
+            str(corpus),
+            "--profile",
+            "demo",
+            "--chunker",
+            "fixed",
+            "--dry-run",
+        ],
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "does not match preset" in captured.err
 
 
 @pytest.mark.parametrize(

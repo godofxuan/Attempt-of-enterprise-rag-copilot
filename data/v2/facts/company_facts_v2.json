@@ -1,0 +1,1434 @@
+{
+  "schema_version": "enterprise_facts_v2",
+  "company": "星桥科技（虚构）",
+  "tenants": [
+    "starbridge-cn"
+  ],
+  "regions": [
+    "cn"
+  ],
+  "departments": [
+    "hr",
+    "finance",
+    "security",
+    "customer_success",
+    "procurement",
+    "engineering",
+    "legal",
+    "it",
+    "data_governance",
+    "sales",
+    "facilities",
+    "compliance"
+  ],
+  "acl_groups": [
+    "all_employees",
+    "hr_confidential",
+    "finance_ops",
+    "security_ops",
+    "customer_success",
+    "procurement_ops",
+    "engineering",
+    "legal",
+    "audit_all",
+    "external_contractors",
+    "it_ops",
+    "data_stewards",
+    "sales_ops",
+    "facilities_ops",
+    "compliance_ops"
+  ],
+  "users": [
+    {
+      "user_id": "user_employee",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees"]
+    },
+    {
+      "user_id": "user_hr",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees", "hr_confidential"]
+    },
+    {
+      "user_id": "user_finance",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees", "finance_ops"]
+    },
+    {
+      "user_id": "user_security",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees", "security_ops"]
+    },
+    {
+      "user_id": "user_support",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees", "customer_success"]
+    },
+    {
+      "user_id": "user_procurement",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees", "procurement_ops"]
+    },
+    {
+      "user_id": "user_engineer",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees", "engineering"]
+    },
+    {
+      "user_id": "user_legal",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees", "legal"]
+    },
+    {
+      "user_id": "user_it",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees", "it_ops"]
+    },
+    {
+      "user_id": "user_data_steward",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees", "data_stewards"]
+    },
+    {
+      "user_id": "user_sales",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees", "sales_ops"]
+    },
+    {
+      "user_id": "user_facilities",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees", "facilities_ops"]
+    },
+    {
+      "user_id": "user_compliance",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["all_employees", "compliance_ops"]
+    },
+    {
+      "user_id": "user_contractor",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": ["external_contractors"]
+    },
+    {
+      "user_id": "user_auditor",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "groups": [
+        "all_employees",
+        "hr_confidential",
+        "finance_ops",
+        "security_ops",
+        "customer_success",
+        "procurement_ops",
+        "engineering",
+        "legal",
+        "audit_all",
+        "it_ops",
+        "data_stewards",
+        "sales_ops",
+        "facilities_ops",
+        "compliance_ops"
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "policy_id": "security_access",
+      "title": "特权访问管理制度",
+      "department": "security",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "security_access@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["security_ops"],
+          "facts": [
+            {
+              "fact_id": "security_access_2025_review",
+              "question": "2025 版特权账号多久复核一次？",
+              "answer": "每 90 天一次",
+              "statement": "2025 版制度要求特权账号每 90 天完成一次权限复核。"
+            },
+            {
+              "fact_id": "security_access_2025_emergency",
+              "question": "2025 版紧急特权授权最长保留多久？",
+              "answer": "24 小时",
+              "statement": "2025 版制度规定紧急特权授权最长保留 24 小时。"
+            },
+            {
+              "fact_id": "security_access_2025_mfa",
+              "question": "2025 版哪些访问必须启用多因素认证？",
+              "answer": "管理员账号和远程访问",
+              "statement": "2025 版制度要求管理员账号和远程访问启用多因素认证。"
+            }
+          ]
+        },
+        {
+          "version_id": "security_access@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "security_access@2025",
+          "acl_groups": ["security_ops"],
+          "facts": [
+            {
+              "fact_id": "security_access_2026_review",
+              "question": "当前特权账号多久复核一次？",
+              "answer": "每 30 天一次",
+              "statement": "当前制度要求特权账号每 30 天完成一次权限复核。"
+            },
+            {
+              "fact_id": "security_access_2026_emergency",
+              "question": "当前紧急特权授权最长保留多久？",
+              "answer": "8 小时",
+              "statement": "当前制度规定紧急特权授权最长保留 8 小时。"
+            },
+            {
+              "fact_id": "security_access_2026_mfa",
+              "question": "当前哪些访问必须启用多因素认证？",
+              "answer": "全部特权账号和远程访问",
+              "statement": "当前制度要求全部特权账号和远程访问启用多因素认证。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "it_change",
+      "title": "IT 变更管理制度",
+      "department": "it",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "it_change@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["it_ops"],
+          "facts": [
+            {
+              "fact_id": "it_change_2025_notice",
+              "question": "2025 版标准 IT 变更需要提前多久提交？",
+              "answer": "提前 2 个工作日",
+              "statement": "2025 版制度要求标准 IT 变更至少提前 2 个工作日提交。"
+            },
+            {
+              "fact_id": "it_change_2025_cab",
+              "question": "2025 版预计中断多久的变更需要 CAB 审批？",
+              "answer": "超过 30 分钟",
+              "statement": "2025 版制度规定预计服务中断超过 30 分钟的变更需要 CAB 审批。"
+            },
+            {
+              "fact_id": "it_change_2025_drill",
+              "question": "2025 版关键系统多久进行一次回滚演练？",
+              "answer": "每季度一次",
+              "statement": "2025 版制度要求关键系统每季度进行一次回滚演练。"
+            }
+          ]
+        },
+        {
+          "version_id": "it_change@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "it_change@2025",
+          "acl_groups": ["it_ops"],
+          "facts": [
+            {
+              "fact_id": "it_change_2026_notice",
+              "question": "当前标准 IT 变更需要提前多久提交？",
+              "answer": "提前 3 个工作日",
+              "statement": "当前制度要求标准 IT 变更至少提前 3 个工作日提交。"
+            },
+            {
+              "fact_id": "it_change_2026_cab",
+              "question": "当前预计中断多久的变更需要 CAB 审批？",
+              "answer": "超过 15 分钟",
+              "statement": "当前制度规定预计服务中断超过 15 分钟的变更需要 CAB 审批。"
+            },
+            {
+              "fact_id": "it_change_2026_drill",
+              "question": "当前关键系统多久进行一次回滚演练？",
+              "answer": "每月一次",
+              "statement": "当前制度要求关键系统每月进行一次回滚演练。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "data_retention",
+      "title": "数据保留与删除制度",
+      "department": "data_governance",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "data_retention@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["data_stewards"],
+          "facts": [
+            {
+              "fact_id": "data_retention_2025_audit",
+              "question": "2025 版安全审计日志保留多久？",
+              "answer": "180 天",
+              "statement": "2025 版制度要求安全审计日志保留 180 天。"
+            },
+            {
+              "fact_id": "data_retention_2025_ticket",
+              "question": "2025 版客户服务工单保留多久？",
+              "answer": "2 年",
+              "statement": "2025 版制度要求客户服务工单保留 2 年。"
+            },
+            {
+              "fact_id": "data_retention_2025_delete",
+              "question": "2025 版批准的数据删除请求需在多久内执行？",
+              "answer": "30 个自然日内",
+              "statement": "2025 版制度要求批准的数据删除请求在 30 个自然日内执行。"
+            }
+          ]
+        },
+        {
+          "version_id": "data_retention@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "data_retention@2025",
+          "acl_groups": ["data_stewards"],
+          "facts": [
+            {
+              "fact_id": "data_retention_2026_audit",
+              "question": "当前安全审计日志保留多久？",
+              "answer": "365 天",
+              "statement": "当前制度要求安全审计日志保留 365 天。"
+            },
+            {
+              "fact_id": "data_retention_2026_ticket",
+              "question": "当前客户服务工单保留多久？",
+              "answer": "3 年",
+              "statement": "当前制度要求客户服务工单保留 3 年。"
+            },
+            {
+              "fact_id": "data_retention_2026_delete",
+              "question": "当前批准的数据删除请求需在多久内执行？",
+              "answer": "15 个自然日内",
+              "statement": "当前制度要求批准的数据删除请求在 15 个自然日内执行。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "privacy_request",
+      "title": "个人信息权利请求制度",
+      "department": "compliance",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "privacy_request@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["compliance_ops"],
+          "facts": [
+            {
+              "fact_id": "privacy_request_2025_ack",
+              "question": "2025 版个人信息权利请求需在多久内确认受理？",
+              "answer": "5 个工作日内",
+              "statement": "2025 版制度要求个人信息权利请求在 5 个工作日内确认受理。"
+            },
+            {
+              "fact_id": "privacy_request_2025_complete",
+              "question": "2025 版个人信息权利请求需在多久内完成？",
+              "answer": "30 个自然日内",
+              "statement": "2025 版制度要求个人信息权利请求在 30 个自然日内完成。"
+            },
+            {
+              "fact_id": "privacy_request_2025_verify",
+              "question": "2025 版个人信息权利请求需要几项身份校验？",
+              "answer": "2 项",
+              "statement": "2025 版制度要求个人信息权利请求完成 2 项身份校验。"
+            }
+          ]
+        },
+        {
+          "version_id": "privacy_request@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "privacy_request@2025",
+          "acl_groups": ["compliance_ops"],
+          "facts": [
+            {
+              "fact_id": "privacy_request_2026_ack",
+              "question": "当前个人信息权利请求需在多久内确认受理？",
+              "answer": "3 个工作日内",
+              "statement": "当前制度要求个人信息权利请求在 3 个工作日内确认受理。"
+            },
+            {
+              "fact_id": "privacy_request_2026_complete",
+              "question": "当前个人信息权利请求需在多久内完成？",
+              "answer": "15 个工作日内",
+              "statement": "当前制度要求个人信息权利请求在 15 个工作日内完成。"
+            },
+            {
+              "fact_id": "privacy_request_2026_verify",
+              "question": "当前个人信息权利请求需要通过什么方式校验身份？",
+              "answer": "通过批准的身份核验流程",
+              "statement": "当前制度要求个人信息权利请求通过批准的身份核验流程完成校验。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "finance_invoice",
+      "title": "发票与付款制度",
+      "department": "finance",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "finance_invoice@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["finance_ops"],
+          "facts": [
+            {
+              "fact_id": "finance_invoice_2025_cutoff",
+              "question": "2025 版月度发票最晚在每月几日提交？",
+              "answer": "每月 20 日",
+              "statement": "2025 版制度要求月度发票最晚在每月 20 日提交。"
+            },
+            {
+              "fact_id": "finance_invoice_2025_approval",
+              "question": "2025 版单张发票达到多少金额需要财务经理复核？",
+              "answer": "20000 元",
+              "statement": "2025 版制度规定单张发票达到 20000 元需要财务经理复核。"
+            },
+            {
+              "fact_id": "finance_invoice_2025_payment",
+              "question": "2025 版常规付款安排在每周哪一天？",
+              "answer": "每周二",
+              "statement": "2025 版制度将常规付款安排在每周二。"
+            }
+          ]
+        },
+        {
+          "version_id": "finance_invoice@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "finance_invoice@2025",
+          "acl_groups": ["finance_ops"],
+          "facts": [
+            {
+              "fact_id": "finance_invoice_2026_cutoff",
+              "question": "当前月度发票最晚在每月几日提交？",
+              "answer": "每月 18 日",
+              "statement": "当前制度要求月度发票最晚在每月 18 日提交。"
+            },
+            {
+              "fact_id": "finance_invoice_2026_approval",
+              "question": "当前单张发票达到多少金额需要财务经理复核？",
+              "answer": "10000 元",
+              "statement": "当前制度规定单张发票达到 10000 元需要财务经理复核。"
+            },
+            {
+              "fact_id": "finance_invoice_2026_payment",
+              "question": "当前常规付款安排在每周哪几天？",
+              "answer": "每周一和周四",
+              "statement": "当前制度将常规付款安排在每周一和周四。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "sales_discount",
+      "title": "销售折扣审批制度",
+      "department": "sales",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "sales_discount@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["sales_ops"],
+          "facts": [
+            {
+              "fact_id": "sales_discount_2025_manager",
+              "question": "2025 版折扣超过多少需要销售经理审批？",
+              "answer": "10%",
+              "statement": "2025 版制度规定折扣超过 10% 需要销售经理审批。"
+            },
+            {
+              "fact_id": "sales_discount_2025_vp",
+              "question": "2025 版折扣超过多少需要销售副总裁审批？",
+              "answer": "20%",
+              "statement": "2025 版制度规定折扣超过 20% 需要销售副总裁审批。"
+            },
+            {
+              "fact_id": "sales_discount_2025_quote",
+              "question": "2025 版折扣报价有效期是多久？",
+              "answer": "30 个自然日",
+              "statement": "2025 版制度规定折扣报价有效期为 30 个自然日。"
+            }
+          ]
+        },
+        {
+          "version_id": "sales_discount@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "sales_discount@2025",
+          "acl_groups": ["sales_ops"],
+          "facts": [
+            {
+              "fact_id": "sales_discount_2026_manager",
+              "question": "当前折扣超过多少需要销售经理审批？",
+              "answer": "8%",
+              "statement": "当前制度规定折扣超过 8% 需要销售经理审批。"
+            },
+            {
+              "fact_id": "sales_discount_2026_vp",
+              "question": "当前折扣超过多少需要销售副总裁审批？",
+              "answer": "15%",
+              "statement": "当前制度规定折扣超过 15% 需要销售副总裁审批。"
+            },
+            {
+              "fact_id": "sales_discount_2026_quote",
+              "question": "当前折扣报价有效期是多久？",
+              "answer": "14 个自然日",
+              "statement": "当前制度规定折扣报价有效期为 14 个自然日。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "customer_escalation",
+      "title": "客户事件升级制度",
+      "department": "customer_success",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "customer_escalation@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["customer_success"],
+          "facts": [
+            {
+              "fact_id": "customer_escalation_2025_ack",
+              "question": "2025 版 P1 客户事件需在多久内首次响应？",
+              "answer": "30 分钟内",
+              "statement": "2025 版制度要求 P1 客户事件在 30 分钟内首次响应。"
+            },
+            {
+              "fact_id": "customer_escalation_2025_update",
+              "question": "2025 版 P1 客户事件多久更新一次进展？",
+              "answer": "每 2 小时一次",
+              "statement": "2025 版制度要求 P1 客户事件每 2 小时更新一次进展。"
+            },
+            {
+              "fact_id": "customer_escalation_2025_owner",
+              "question": "2025 版 P1 客户事件由谁负责协调？",
+              "answer": "值班经理",
+              "statement": "2025 版制度规定 P1 客户事件由值班经理负责协调。"
+            }
+          ]
+        },
+        {
+          "version_id": "customer_escalation@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "customer_escalation@2025",
+          "acl_groups": ["customer_success"],
+          "facts": [
+            {
+              "fact_id": "customer_escalation_2026_ack",
+              "question": "当前 P1 客户事件需在多久内首次响应？",
+              "answer": "15 分钟内",
+              "statement": "当前制度要求 P1 客户事件在 15 分钟内首次响应。"
+            },
+            {
+              "fact_id": "customer_escalation_2026_update",
+              "question": "当前 P1 客户事件多久更新一次进展？",
+              "answer": "每 1 小时一次",
+              "statement": "当前制度要求 P1 客户事件每 1 小时更新一次进展。"
+            },
+            {
+              "fact_id": "customer_escalation_2026_owner",
+              "question": "当前 P1 客户事件由谁负责协调？",
+              "answer": "事件指挥官",
+              "statement": "当前制度规定 P1 客户事件由事件指挥官负责协调。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "procurement_onboarding",
+      "title": "供应商准入制度",
+      "department": "procurement",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "procurement_onboarding@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["procurement_ops"],
+          "facts": [
+            {
+              "fact_id": "procurement_onboarding_2025_due",
+              "question": "2025 版预计年采购额达到多少需要增强尽调？",
+              "answer": "100000 元",
+              "statement": "2025 版制度规定预计年采购额达到 100000 元需要增强尽调。"
+            },
+            {
+              "fact_id": "procurement_onboarding_2025_screen",
+              "question": "2025 版供应商制裁筛查最晚何时完成？",
+              "answer": "合同签署前",
+              "statement": "2025 版制度要求供应商制裁筛查最晚在合同签署前完成。"
+            },
+            {
+              "fact_id": "procurement_onboarding_2025_review",
+              "question": "2025 版供应商准入多久复核一次？",
+              "answer": "每年一次",
+              "statement": "2025 版制度要求供应商准入每年复核一次。"
+            }
+          ]
+        },
+        {
+          "version_id": "procurement_onboarding@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "procurement_onboarding@2025",
+          "acl_groups": ["procurement_ops"],
+          "facts": [
+            {
+              "fact_id": "procurement_onboarding_2026_due",
+              "question": "当前预计年采购额达到多少需要增强尽调？",
+              "answer": "50000 元",
+              "statement": "当前制度规定预计年采购额达到 50000 元需要增强尽调。"
+            },
+            {
+              "fact_id": "procurement_onboarding_2026_screen",
+              "question": "当前供应商制裁筛查最晚何时完成？",
+              "answer": "进入候选名单前",
+              "statement": "当前制度要求供应商制裁筛查最晚在进入候选名单前完成。"
+            },
+            {
+              "fact_id": "procurement_onboarding_2026_review",
+              "question": "当前供应商准入多久复核一次？",
+              "answer": "每半年一次",
+              "statement": "当前制度要求供应商准入每半年复核一次。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "engineering_oncall",
+      "title": "工程值班制度",
+      "department": "engineering",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "engineering_oncall@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["engineering"],
+          "facts": [
+            {
+              "fact_id": "engineering_oncall_2025_ack",
+              "question": "2025 版 P1 告警需在多久内确认？",
+              "answer": "10 分钟内",
+              "statement": "2025 版制度要求 P1 告警在 10 分钟内确认。"
+            },
+            {
+              "fact_id": "engineering_oncall_2025_handover",
+              "question": "2025 版工作日值班交接时间是几点？",
+              "answer": "17:30",
+              "statement": "2025 版制度规定工作日值班交接时间为 17:30。"
+            },
+            {
+              "fact_id": "engineering_oncall_2025_postmortem",
+              "question": "2025 版 P1 事件需在多久内完成复盘？",
+              "answer": "5 个工作日内",
+              "statement": "2025 版制度要求 P1 事件在 5 个工作日内完成复盘。"
+            }
+          ]
+        },
+        {
+          "version_id": "engineering_oncall@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "engineering_oncall@2025",
+          "acl_groups": ["engineering"],
+          "facts": [
+            {
+              "fact_id": "engineering_oncall_2026_ack",
+              "question": "当前 P1 告警需在多久内确认？",
+              "answer": "5 分钟内",
+              "statement": "当前制度要求 P1 告警在 5 分钟内确认。"
+            },
+            {
+              "fact_id": "engineering_oncall_2026_handover",
+              "question": "当前工作日值班交接时间是几点？",
+              "answer": "17:00",
+              "statement": "当前制度规定工作日值班交接时间为 17:00。"
+            },
+            {
+              "fact_id": "engineering_oncall_2026_postmortem",
+              "question": "当前 P1 事件需在多久内完成复盘？",
+              "answer": "3 个工作日内",
+              "statement": "当前制度要求 P1 事件在 3 个工作日内完成复盘。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "facilities_visitor",
+      "title": "访客与办公区通行制度",
+      "department": "facilities",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "facilities_visitor@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["facilities_ops"],
+          "facts": [
+            {
+              "fact_id": "facilities_visitor_2025_register",
+              "question": "2025 版访客需提前多久登记？",
+              "answer": "提前 1 个工作日",
+              "statement": "2025 版制度要求访客至少提前 1 个工作日登记。"
+            },
+            {
+              "fact_id": "facilities_visitor_2025_badge",
+              "question": "2025 版访客证最晚几点归还？",
+              "answer": "当日 18:00 前",
+              "statement": "2025 版制度要求访客证最晚在当日 18:00 前归还。"
+            },
+            {
+              "fact_id": "facilities_visitor_2025_escort",
+              "question": "2025 版访客停留多久需要接待人全程陪同？",
+              "answer": "超过 2 小时",
+              "statement": "2025 版制度规定访客停留超过 2 小时需要接待人全程陪同。"
+            }
+          ]
+        },
+        {
+          "version_id": "facilities_visitor@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "facilities_visitor@2025",
+          "acl_groups": ["facilities_ops"],
+          "facts": [
+            {
+              "fact_id": "facilities_visitor_2026_register",
+              "question": "当前访客需提前多久登记？",
+              "answer": "提前 2 个工作日",
+              "statement": "当前制度要求访客至少提前 2 个工作日登记。"
+            },
+            {
+              "fact_id": "facilities_visitor_2026_badge",
+              "question": "当前访客证最晚何时归还？",
+              "answer": "离开办公区前",
+              "statement": "当前制度要求访客证在离开办公区前归还。"
+            },
+            {
+              "fact_id": "facilities_visitor_2026_escort",
+              "question": "当前访客进入受限区域时需要什么安排？",
+              "answer": "由接待人全程陪同",
+              "statement": "当前制度要求访客进入受限区域时由接待人全程陪同。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "hr_leave",
+      "title": "休假与请假制度",
+      "department": "hr",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "hr_leave@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["all_employees"],
+          "facts": [
+            {
+              "fact_id": "hr_leave_2025_notice",
+              "question": "2025 版连续年假需提前多久申请？",
+              "answer": "提前 3 个工作日",
+              "statement": "2025 版制度要求连续年假至少提前 3 个工作日申请。"
+            },
+            {
+              "fact_id": "hr_leave_2025_medical",
+              "question": "2025 版病假超过几天需要医疗证明？",
+              "answer": "超过 2 天",
+              "statement": "2025 版制度规定病假超过 2 天需要提交医疗证明。"
+            },
+            {
+              "fact_id": "hr_leave_2025_carry",
+              "question": "2025 版未使用年假最多结转几天？",
+              "answer": "3 天",
+              "statement": "2025 版制度允许未使用年假最多结转 3 天。"
+            }
+          ]
+        },
+        {
+          "version_id": "hr_leave@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "hr_leave@2025",
+          "acl_groups": ["all_employees"],
+          "facts": [
+            {
+              "fact_id": "hr_leave_2026_notice",
+              "question": "当前连续年假需提前多久申请？",
+              "answer": "提前 5 个工作日",
+              "statement": "当前制度要求连续年假至少提前 5 个工作日申请。"
+            },
+            {
+              "fact_id": "hr_leave_2026_medical",
+              "question": "当前病假超过几天需要医疗证明？",
+              "answer": "超过 1 天",
+              "statement": "当前制度规定病假超过 1 天需要提交医疗证明。"
+            },
+            {
+              "fact_id": "hr_leave_2026_carry",
+              "question": "当前未使用年假最多结转几天？",
+              "answer": "5 天",
+              "statement": "当前制度允许未使用年假最多结转 5 天。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "compliance_audit",
+      "title": "合规审计整改制度",
+      "department": "compliance",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "compliance_audit@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["compliance_ops", "audit_all"],
+          "facts": [
+            {
+              "fact_id": "compliance_audit_2025_retention",
+              "question": "2025 版合规审计证据至少保留多久？",
+              "answer": "3 年",
+              "statement": "2025 版制度要求合规审计证据至少保留 3 年。"
+            },
+            {
+              "fact_id": "compliance_audit_2025_critical",
+              "question": "2025 版重大审计发现需在多久内完成整改？",
+              "answer": "30 个自然日内",
+              "statement": "2025 版制度要求重大审计发现在 30 个自然日内完成整改。"
+            },
+            {
+              "fact_id": "compliance_audit_2025_update",
+              "question": "2025 版重大整改多久更新一次进展？",
+              "answer": "每周一次",
+              "statement": "2025 版制度要求重大整改每周更新一次进展。"
+            }
+          ]
+        },
+        {
+          "version_id": "compliance_audit@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "compliance_audit@2025",
+          "acl_groups": ["compliance_ops", "audit_all"],
+          "facts": [
+            {
+              "fact_id": "compliance_audit_2026_retention",
+              "question": "当前合规审计证据至少保留多久？",
+              "answer": "5 年",
+              "statement": "当前制度要求合规审计证据至少保留 5 年。"
+            },
+            {
+              "fact_id": "compliance_audit_2026_critical",
+              "question": "当前重大审计发现需在多久内完成整改？",
+              "answer": "15 个自然日内",
+              "statement": "当前制度要求重大审计发现在 15 个自然日内完成整改。"
+            },
+            {
+              "fact_id": "compliance_audit_2026_update",
+              "question": "当前重大整改多久更新一次进展？",
+              "answer": "每 3 个工作日一次",
+              "statement": "当前制度要求重大整改每 3 个工作日更新一次进展。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "hr_remote",
+      "title": "远程办公制度",
+      "department": "hr",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "hr_remote@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["all_employees"],
+          "facts": [
+            {
+              "fact_id": "hr_remote_2025_days",
+              "question": "2025 版制度每周最多允许远程办公几天？",
+              "answer": "2 天",
+              "statement": "2025 版制度规定每周最多远程办公 2 天。"
+            },
+            {
+              "fact_id": "hr_remote_2025_notice",
+              "question": "2025 版远程办公需要提前多久申请？",
+              "answer": "提前 1 个工作日",
+              "statement": "2025 版制度要求至少提前 1 个工作日提交远程办公申请。"
+            }
+          ]
+        },
+        {
+          "version_id": "hr_remote@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "hr_remote@2025",
+          "acl_groups": ["all_employees"],
+          "facts": [
+            {
+              "fact_id": "hr_remote_2026_days",
+              "question": "当前制度每周最多允许远程办公几天？",
+              "answer": "3 天",
+              "statement": "当前制度规定每周最多远程办公 3 天。"
+            },
+            {
+              "fact_id": "hr_remote_2026_notice",
+              "question": "当前远程办公需要提前多久申请？",
+              "answer": "提前 2 个工作日",
+              "statement": "当前制度要求至少提前 2 个工作日提交远程办公申请。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "finance_travel",
+      "title": "差旅报销制度",
+      "department": "finance",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "finance_travel@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["all_employees"],
+          "facts": [
+            {
+              "fact_id": "finance_travel_2025_hotel",
+              "question": "2025 版国内差旅住宿标准上限是多少？",
+              "answer": "每晚 600 元",
+              "statement": "2025 版制度规定国内差旅住宿标准上限为每晚 600 元。"
+            },
+            {
+              "fact_id": "finance_travel_2025_submit",
+              "question": "2025 版差旅结束后多少天内要提交报销？",
+              "answer": "10 个自然日内",
+              "statement": "2025 版制度要求差旅结束后 10 个自然日内提交报销。"
+            }
+          ]
+        },
+        {
+          "version_id": "finance_travel@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "finance_travel@2025",
+          "acl_groups": ["all_employees"],
+          "facts": [
+            {
+              "fact_id": "finance_travel_2026_hotel",
+              "question": "当前国内差旅住宿标准上限是多少？",
+              "answer": "每晚 800 元",
+              "statement": "当前制度规定国内差旅住宿标准上限为每晚 800 元。"
+            },
+            {
+              "fact_id": "finance_travel_2026_submit",
+              "question": "当前差旅结束后多少天内要提交报销？",
+              "answer": "7 个自然日内",
+              "statement": "当前制度要求差旅结束后 7 个自然日内提交报销。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "security_incident",
+      "title": "安全事件响应制度",
+      "department": "security",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "security_incident@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["security_ops"],
+          "facts": [
+            {
+              "fact_id": "security_incident_2025_p1",
+              "question": "2025 版 P1 安全事件需要在多久内上报？",
+              "answer": "30 分钟内",
+              "statement": "2025 版制度要求 P1 安全事件在 30 分钟内上报。"
+            },
+            {
+              "fact_id": "security_incident_2025_channel",
+              "question": "2025 版安全事件通过什么渠道上报？",
+              "answer": "发送邮件至 security@example.invalid",
+              "statement": "2025 版制度要求通过 security@example.invalid 邮箱上报安全事件。"
+            }
+          ]
+        },
+        {
+          "version_id": "security_incident@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "security_incident@2025",
+          "acl_groups": ["security_ops"],
+          "facts": [
+            {
+              "fact_id": "security_incident_2026_p1",
+              "question": "当前 P1 安全事件需要在多久内上报？",
+              "answer": "15 分钟内",
+              "statement": "当前制度要求 P1 安全事件在 15 分钟内上报。"
+            },
+            {
+              "fact_id": "security_incident_2026_channel",
+              "question": "当前安全事件通过什么渠道上报？",
+              "answer": "拨打内部热线 4000 并创建 SEC 工单",
+              "statement": "当前制度要求拨打内部热线 4000 并创建 SEC 工单上报安全事件。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "customer_refund",
+      "title": "客户退款制度",
+      "department": "customer_success",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "customer_refund@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["all_employees"],
+          "facts": [
+            {
+              "fact_id": "customer_refund_2025_window",
+              "question": "2025 版标准商品退款申请期限是多少？",
+              "answer": "签收后 7 天内",
+              "statement": "2025 版制度允许标准商品在签收后 7 天内申请退款。"
+            },
+            {
+              "fact_id": "customer_refund_2025_process",
+              "question": "2025 版退款审核通过后多久完成原路退回？",
+              "answer": "5 个工作日内",
+              "statement": "2025 版制度规定退款审核通过后 5 个工作日内完成原路退回。"
+            }
+          ]
+        },
+        {
+          "version_id": "customer_refund@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "customer_refund@2025",
+          "acl_groups": ["all_employees"],
+          "facts": [
+            {
+              "fact_id": "customer_refund_2026_window",
+              "question": "当前标准商品退款申请期限是多少？",
+              "answer": "签收后 14 天内",
+              "statement": "当前制度允许标准商品在签收后 14 天内申请退款。"
+            },
+            {
+              "fact_id": "customer_refund_2026_process",
+              "question": "当前退款审核通过后多久完成原路退回？",
+              "answer": "3 个工作日内",
+              "statement": "当前制度规定退款审核通过后 3 个工作日内完成原路退回。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "procurement_vendor",
+      "title": "供应商采购制度",
+      "department": "procurement",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "procurement_vendor@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["procurement_ops"],
+          "facts": [
+            {
+              "fact_id": "procurement_vendor_2025_threshold",
+              "question": "2025 版采购达到多少金额需要采购委员会审批？",
+              "answer": "100000 元",
+              "statement": "2025 版制度规定采购金额达到 100000 元需要采购委员会审批。"
+            },
+            {
+              "fact_id": "procurement_vendor_2025_quotes",
+              "question": "2025 版比价采购至少需要几家报价？",
+              "answer": "2 家",
+              "statement": "2025 版制度要求比价采购至少取得 2 家有效报价。"
+            }
+          ]
+        },
+        {
+          "version_id": "procurement_vendor@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "procurement_vendor@2025",
+          "acl_groups": ["procurement_ops"],
+          "facts": [
+            {
+              "fact_id": "procurement_vendor_2026_threshold",
+              "question": "当前采购达到多少金额需要采购委员会审批？",
+              "answer": "50000 元",
+              "statement": "当前制度规定采购金额达到 50000 元需要采购委员会审批。"
+            },
+            {
+              "fact_id": "procurement_vendor_2026_quotes",
+              "question": "当前比价采购至少需要几家报价？",
+              "answer": "3 家",
+              "statement": "当前制度要求比价采购至少取得 3 家有效报价。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "engineering_release",
+      "title": "生产发布制度",
+      "department": "engineering",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "engineering_release@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["engineering"],
+          "facts": [
+            {
+              "fact_id": "engineering_release_2025_freeze",
+              "question": "2025 版周五发布冻结时间是几点？",
+              "answer": "周五 18:00",
+              "statement": "2025 版制度规定周五 18:00 后进入常规发布冻结。"
+            },
+            {
+              "fact_id": "engineering_release_2025_rollback",
+              "question": "2025 版严重故障的回滚目标时间是多少？",
+              "answer": "60 分钟内",
+              "statement": "2025 版制度要求严重故障在 60 分钟内完成回滚。"
+            }
+          ]
+        },
+        {
+          "version_id": "engineering_release@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "engineering_release@2025",
+          "acl_groups": ["engineering"],
+          "facts": [
+            {
+              "fact_id": "engineering_release_2026_freeze",
+              "question": "当前周五发布冻结时间是几点？",
+              "answer": "周五 16:00",
+              "statement": "当前制度规定周五 16:00 后进入常规发布冻结。"
+            },
+            {
+              "fact_id": "engineering_release_2026_rollback",
+              "question": "当前严重故障的回滚目标时间是多少？",
+              "answer": "30 分钟内",
+              "statement": "当前制度要求严重故障在 30 分钟内完成回滚。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "hr_compensation",
+      "title": "薪酬评审制度",
+      "department": "hr",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "hr_compensation@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["hr_confidential"],
+          "facts": [
+            {
+              "fact_id": "hr_compensation_2025_month",
+              "question": "2025 版年度薪酬评审在几月进行？",
+              "answer": "3 月",
+              "statement": "2025 版制度规定年度薪酬评审在 3 月进行。"
+            },
+            {
+              "fact_id": "hr_compensation_2025_bonus",
+              "question": "2025 版获得目标奖金需要达到什么绩效等级？",
+              "answer": "B+ 及以上",
+              "statement": "2025 版制度规定绩效达到 B+ 及以上可获得目标奖金。"
+            }
+          ]
+        },
+        {
+          "version_id": "hr_compensation@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "hr_compensation@2025",
+          "acl_groups": ["hr_confidential"],
+          "facts": [
+            {
+              "fact_id": "hr_compensation_2026_month",
+              "question": "当前年度薪酬评审在几月进行？",
+              "answer": "4 月",
+              "statement": "当前制度规定年度薪酬评审在 4 月进行。"
+            },
+            {
+              "fact_id": "hr_compensation_2026_bonus",
+              "question": "当前获得目标奖金需要达到什么绩效等级？",
+              "answer": "A- 及以上",
+              "statement": "当前制度规定绩效达到 A- 及以上可获得目标奖金。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policy_id": "legal_contract",
+      "title": "重大合同审查制度",
+      "department": "legal",
+      "tenant": "starbridge-cn",
+      "region": "cn",
+      "versions": [
+        {
+          "version_id": "legal_contract@2025",
+          "version": "2025.1",
+          "status": "retired",
+          "effective_from": "2025-01-01",
+          "effective_to": "2026-01-01",
+          "authority": 100,
+          "supersedes": null,
+          "acl_groups": ["legal"],
+          "facts": [
+            {
+              "fact_id": "legal_contract_2025_threshold",
+              "question": "2025 版合同金额达到多少需要总法律顾问复核？",
+              "answer": "500000 元",
+              "statement": "2025 版制度规定合同金额达到 500000 元需要总法律顾问复核。"
+            },
+            {
+              "fact_id": "legal_contract_2025_retention",
+              "question": "2025 版已签合同至少保存多少年？",
+              "answer": "5 年",
+              "statement": "2025 版制度要求已签合同至少保存 5 年。"
+            }
+          ]
+        },
+        {
+          "version_id": "legal_contract@2026",
+          "version": "2026.1",
+          "status": "active",
+          "effective_from": "2026-01-01",
+          "effective_to": null,
+          "authority": 100,
+          "supersedes": "legal_contract@2025",
+          "acl_groups": ["legal"],
+          "facts": [
+            {
+              "fact_id": "legal_contract_2026_threshold",
+              "question": "当前合同金额达到多少需要总法律顾问复核？",
+              "answer": "200000 元",
+              "statement": "当前制度规定合同金额达到 200000 元需要总法律顾问复核。"
+            },
+            {
+              "fact_id": "legal_contract_2026_retention",
+              "question": "当前已签合同至少保存多少年？",
+              "answer": "7 年",
+              "statement": "当前制度要求已签合同至少保存 7 年。"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

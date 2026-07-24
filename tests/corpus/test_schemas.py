@@ -120,6 +120,17 @@ def test_company_facts_rejects_overlapping_successive_versions() -> None:
         CompanyFacts.model_validate(payload)
 
 
+def test_company_facts_rejects_policy_without_a_retired_version() -> None:
+    payload = valid_facts_payload()
+    payload["policies"][0]["versions"] = [
+        payload["policies"][0]["versions"][1]
+    ]
+    payload["policies"][0]["versions"][0]["supersedes"] = None
+
+    with pytest.raises(ValidationError, match="retired version"):
+        CompanyFacts.model_validate(payload)
+
+
 def test_profile_rejects_ratios_that_consume_the_whole_corpus() -> None:
     payload = {
         "schema_version": "enterprise_corpus_profile_v1",

@@ -83,6 +83,8 @@ class PolicyFamily(StrictModel):
         active_versions = [version for version in self.versions if version.status == "active"]
         if len(active_versions) != 1:
             raise ValueError("each policy must have exactly one active version")
+        if not any(version.status == "retired" for version in self.versions):
+            raise ValueError("each policy must have at least one retired version")
 
         known = set(version_ids)
         parent_by_version = {
@@ -134,7 +136,7 @@ class UserFixture(StrictModel):
 
 
 class CompanyFacts(StrictModel):
-    schema_version: Literal["enterprise_facts_v1"]
+    schema_version: Literal["enterprise_facts_v1", "enterprise_facts_v2"]
     company: str = Field(min_length=1)
     tenants: list[str] = Field(min_length=1)
     regions: list[str] = Field(min_length=1)

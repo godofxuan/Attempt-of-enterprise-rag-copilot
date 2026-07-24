@@ -32,7 +32,7 @@ def test_v2_config_is_separate_from_legacy_defaults() -> None:
     assert settings.indexes_dir == BASE_DIR / "data" / "indexes"
     assert settings.v2_indexes_dir == BASE_DIR / "data" / "indexes_v2"
     assert settings.v2_indexes_dir != settings.indexes_dir
-    assert settings.v2_corpus_profile == "demo"
+    assert settings.v2_corpus_profile == "expanded"
     assert settings.v2_chunker_mode == "fixed"
 
 

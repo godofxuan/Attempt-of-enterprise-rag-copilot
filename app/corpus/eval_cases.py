@@ -26,6 +26,15 @@ TASK_ORDER: tuple[TaskType, ...] = (
 )
 
 
+def _item_count_label(count: int) -> str:
+    labels = {
+        1: "一项",
+        2: "两项",
+        3: "三项",
+    }
+    return labels.get(count, f"{count} 项")
+
+
 def _context(user: UserFixture) -> EvalUserContext:
     return EvalUserContext.model_validate(user.model_dump(mode="json"))
 
@@ -140,10 +149,14 @@ def _completeness_cases(
         active = policy.active_version
         document = authoritative[active.version_id]
         user = _authorized_user(facts, document)
+        item_count = _item_count_label(len(active.facts))
         cases.append(
             EvalCase(
                 case_id=f"complete_{policy.policy_id}",
-                question=f"请完整列出《{policy.title}》当前版本的两项关键要求。",
+                question=(
+                    f"请完整列出《{policy.title}》当前版本的"
+                    f"{item_count}关键要求。"
+                ),
                 task_type="completeness",
                 answer_mode="answered",
                 user_context=_context(user),
@@ -279,8 +292,25 @@ def build_eval_splits(
             f"{available_count} exist"
         )
 
+    minimum_task_counts = {task: 1 for task in TASK_ORDER}
+    if facts.schema_version == "enterprise_facts_v2":
+        minimum_task_counts["completeness"] = len(
+            by_task["completeness"]
+        )
     while sum(len(cases) for cases in by_task.values()) > required_count:
-        largest_task = max(TASK_ORDER, key=lambda task: len(by_task[task]))
+        eligible_tasks = [
+            task
+            for task in TASK_ORDER
+            if len(by_task[task]) > minimum_task_counts[task]
+        ]
+        if not eligible_tasks:
+            raise ValueError(
+                "profile eval counts cannot preserve required task coverage"
+            )
+        largest_task = max(
+            eligible_tasks,
+            key=lambda task: len(by_task[task]),
+        )
         by_task[largest_task].pop()
 
     dev_counts = {task: len(by_task[task]) // 2 for task in TASK_ORDER}
