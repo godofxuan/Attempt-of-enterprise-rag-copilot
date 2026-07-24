@@ -771,8 +771,8 @@ IdP or production deployment.
 
 This section supersedes the earlier statement that deployment was the immediate
 next implementation. The owner redirected the active task to knowledge-base
-content and scale. R2-S6 is locally implemented and accepted; exact-SHA remote
-CI remains pending until the branch is pushed.
+content and scale. R2-S6 is implemented, locally accepted, pushed, and accepted
+by exact-SHA Ubuntu/Windows CI.
 
 Current versioned corpus contract:
 
@@ -815,6 +815,7 @@ frozen test               56/56; hit@1 1.0; recall@3 1.0; ACL leakage 0
 rollback run              20260716T135632Z_7aec4b9_live_bge_m3_fixed
 local full pytest         1939 passed / 22 skipped / 3 warnings
 public audit              534 candidates / 0 findings
+remote CI run             30064875678 / Ubuntu success / Windows success
 ```
 
 The 2,000-document profile was not embedded because it has the same fact
@@ -829,6 +830,12 @@ canonical hashes, corpus/index manifests, frozen dataset hashes, and live
 summary hashes. The original run manifests recorded dirty head `e657beaf`;
 the baseline is explicitly a post-run reviewed snapshot, not rewritten run
 provenance.
+
+Evidence commit `6c419b13ce5751943403a7e2c031de1d3acbc08e` passed GitHub Actions
+run #20 on Ubuntu job `89393769125` and Windows job `89393769131`:
+https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30064875678.
+The public API exposed exact conclusions but not job logs, so this handoff does
+not invent platform-specific pytest counts.
 
 Before any next implementation:
 

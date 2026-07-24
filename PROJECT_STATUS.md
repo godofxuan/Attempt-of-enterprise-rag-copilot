@@ -1,6 +1,6 @@
 # Enterprise Agentic RAG - Current Status
 
-更新时间：2026-07-24（R2-S6 versioned corpus expansion 本地验收完成；本阶段 exact-SHA CI 待推送后确认）
+更新时间：2026-07-24（R2-S6 versioned corpus expansion 已完成本地验收、推送及 exact-SHA Ubuntu/Windows CI）
 
 当前状态：知识库默认 profile 已从 72-document `demo` 切换为
 240-document `expanded`。事实宽度从 8 policies / 16 versions / 32 facts
@@ -124,6 +124,7 @@ test hit@1 / document recall@3       1.0 / 1.0
 index manifest SHA-256               69b9fb7d3008467f65fb2920a621e9812cdb59c4919834819333e0e33b866507
 local full pytest                     1939 passed / 22 skipped / 3 warnings
 public repository audit               534 candidates / 0 findings
+remote CI run                         30064875678 / Ubuntu success / Windows success
 ```
 
 这组结果只证明当前 synthetic fact model、生成器、解析/去重/索引和本地

@@ -483,8 +483,25 @@ git diff --check             passed; one CRLF-to-LF notice for .env.example
 ```
 
 The three warnings are the existing FAISS SWIG deprecation warnings. They are
-not corpus failures. Remote exact-SHA Ubuntu/Windows results must be appended
-after the commit is pushed; local results cannot stand in for CI.
+not corpus failures.
+
+Exact-SHA GitHub Actions run #20 accepted evidence commit
+`6c419b13ce5751943403a7e2c031de1d3acbc08e`:
+
+```text
+run                    30064875678 / success
+Ubuntu job             89393769125 / success
+Windows job            89393769131 / success
+expanded quality gate  success on both platforms
+```
+
+Run URL:
+https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30064875678
+
+The unauthenticated GitHub API exposes job conclusions but not job logs or
+pytest text, so no platform-specific pass count is inferred here. Local
+`1939/22/3` and remote job success are intentionally recorded as different
+evidence types.
 
 ## 15. Independent review and evidence-chain hardening
 
