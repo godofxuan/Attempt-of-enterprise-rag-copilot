@@ -277,6 +277,16 @@ def _read_regular_file_snapshot(path: Path, label: str) -> bytes:
         or len(payload) != before.st_size
     ):
         raise ValueError(f"{label} changed during snapshot read")
+    # NTFS may expose stale timestamps for rapid same-size rewrites.
+    confirmed_payload = path.read_bytes()
+    confirmed = path.lstat()
+    if (
+        _is_redirecting_path(confirmed)
+        or not stat.S_ISREG(confirmed.st_mode)
+        or _file_identity(after) != _file_identity(confirmed)
+        or confirmed_payload != payload
+    ):
+        raise ValueError(f"{label} changed during snapshot read")
     return payload
 
 

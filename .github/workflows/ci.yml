@@ -61,7 +61,7 @@ jobs:
             echo "::group::Last pytest output"
             tail -n 80 pytest.log
             echo "::endgroup::"
-            message="$(tail -n 40 pytest.log | tr '\n' ' ' | cut -c1-4000)"
+            message="$(tail -n 40 pytest.log | tr -d '\r' | tr '\n' ' ' | cut -c1-4000)"
             echo "::error title=pytest crash context::$message"
           fi
 

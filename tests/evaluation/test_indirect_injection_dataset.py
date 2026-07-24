@@ -197,6 +197,52 @@ def test_loader_rejects_source_mutation_during_snapshot_read(
     "artifact_name",
     ("test_dataset", "test_fixtures", "test_freeze_manifest"),
 )
+def test_loader_rejects_same_size_mutation_with_stale_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    artifact_name: str,
+) -> None:
+    output = tmp_path / "security"
+    paths = build_v1_bundle(
+        output,
+        frozen_at_utc=FROZEN_AT,
+        freeze_git_head=FREEZE_HEAD,
+    )
+    target = paths[artifact_name]
+    original = target.read_bytes()
+    mutated = original.replace(b'  "', b' \t"', 1)
+    assert mutated != original
+    assert len(mutated) == len(original)
+    stale_metadata = target.lstat()
+    real_lstat = Path.lstat
+    real_read_bytes = Path.read_bytes
+    real_write_bytes = Path.write_bytes
+    changed = False
+
+    def stale_target_lstat(path: Path):
+        if path == target:
+            return stale_metadata
+        return real_lstat(path)
+
+    def read_then_mutate(path: Path) -> bytes:
+        nonlocal changed
+        payload = real_read_bytes(path)
+        if path == target and not changed:
+            changed = True
+            real_write_bytes(path, mutated)
+        return payload
+
+    monkeypatch.setattr(Path, "lstat", stale_target_lstat)
+    monkeypatch.setattr(Path, "read_bytes", read_then_mutate)
+
+    with pytest.raises(ValueError, match="changed during snapshot read"):
+        load_security_bundle(output, "test")
+
+
+@pytest.mark.parametrize(
+    "artifact_name",
+    ("test_dataset", "test_fixtures", "test_freeze_manifest"),
+)
 def test_loader_rejects_symlinked_bundle_sources(
     tmp_path: Path,
     artifact_name: str,
