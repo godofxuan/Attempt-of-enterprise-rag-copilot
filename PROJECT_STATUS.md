@@ -122,9 +122,9 @@ live dev                             48/48; ACL leakage 0
 frozen test                          56/56; ACL leakage 0
 test hit@1 / document recall@3       1.0 / 1.0
 index manifest SHA-256               69b9fb7d3008467f65fb2920a621e9812cdb59c4919834819333e0e33b866507
-local full pytest                     1939 passed / 22 skipped / 3 warnings
+local full pytest                     1942 passed / 22 skipped / 3 warnings
 public repository audit               534 candidates / 0 findings
-remote CI run                         30064875678 / Ubuntu success / Windows success
+remote CI run                         30065782695 / Ubuntu success / Windows success
 ```
 
 这组结果只证明当前 synthetic fact model、生成器、解析/去重/索引和本地

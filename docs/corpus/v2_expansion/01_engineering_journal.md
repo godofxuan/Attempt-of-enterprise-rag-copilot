@@ -541,7 +541,78 @@ file was rewritten as UTF-8 without BOM through the repository patch path;
 the verifier and all five evidence tests then passed. This was an artifact
 encoding failure, not a retrieval regression.
 
-## 16. Deferred work
+## 16. Final Windows CI incident and repair
+
+The docs-only finalization commit `1ce0e82ee5e98a532cc1768b757935e8280c232e`
+triggered run #21. Ubuntu succeeded, but Windows failed during deterministic
+pytest:
+
+```text
+run                    30065121633 / failure
+Ubuntu job             89394450687 / success
+Windows job            89394450669 / failure
+failed step            Run deterministic tests
+```
+
+The only published failure-context line was
+`original = target.read_bytes()`. That line was not enough to identify the
+exception: the workflow replaced line-feed characters but left Windows
+carriage returns in `pytest.log`, so the GitHub workflow annotation stopped at
+the first CR.
+
+The first feedback loops deliberately avoided guessing:
+
+```text
+target mutation test loop     50 passes / 150 parameter executions
+whole dataset test file loop  20 passes
+```
+
+Those results rejected a simple repeatable read failure and an intra-file
+ordering failure. Inspection then identified a weaker invariant in
+`_read_regular_file_snapshot`: it read bytes once and detected concurrent
+changes only through file identity, size, and timestamps. A rapid same-size
+rewrite can be visible in content while Windows or a network filesystem still
+reports stale metadata.
+
+A new deterministic test freezes `lstat()` metadata, rewrites the artifact to
+different bytes of the same length after the first read, and covers dataset,
+fixture, and freeze-manifest artifacts. Before the fix it produced:
+
+```text
+3 failed: DID NOT RAISE ValueError
+```
+
+The production fix keeps the existing redirect/regular-file/identity checks
+and adds a second byte read after metadata validation. A byte difference or a
+second metadata change fails closed with `changed during snapshot read`. This
+double read is limited to the small frozen security-evaluation bundle; it is
+not used to ingest or index every knowledge-base document. The workflow also
+now removes `\r` before flattening pytest failure context.
+
+Post-fix evidence:
+
+```text
+original + stale-metadata focused tests  6 passed
+evaluation layer                         979 passed / 16 skipped / 3 warnings
+full pytest                              1942 passed / 22 skipped / 3 warnings
+compileall                               passed
+pip check                                no broken requirements
+public repository audit                  534 candidates / 0 findings
+```
+
+Repair commit `9bdc14ea07599b96c3b3e53dccf73df24dded73d` passed exact-SHA
+GitHub Actions run #22:
+
+```text
+run                    30065782695 / success
+Ubuntu job             89396343564 / success
+Windows job            89396343566 / success
+```
+
+Run URL:
+https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30065782695
+
+## 17. Deferred work
 
 - human review of generated prose and answer usefulness;
 - real enterprise document connectors and legal/privacy approval;

@@ -813,9 +813,9 @@ expanded benchmark dryrun 2000 source / 1225 canonical / 1225 chunks
 live dev                  48/48; hit@1 1.0; recall@3 1.0; ACL leakage 0
 frozen test               56/56; hit@1 1.0; recall@3 1.0; ACL leakage 0
 rollback run              20260716T135632Z_7aec4b9_live_bge_m3_fixed
-local full pytest         1939 passed / 22 skipped / 3 warnings
+local full pytest         1942 passed / 22 skipped / 3 warnings
 public audit              534 candidates / 0 findings
-remote CI run             30064875678 / Ubuntu success / Windows success
+remote CI run             30065782695 / Ubuntu success / Windows success
 ```
 
 The 2,000-document profile was not embedded because it has the same fact
@@ -836,6 +836,20 @@ run #20 on Ubuntu job `89393769125` and Windows job `89393769131`:
 https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30064875678.
 The public API exposed exact conclusions but not job logs, so this handoff does
 not invent platform-specific pytest counts.
+
+The subsequent docs-only commit `1ce0e82` exposed a real Windows-specific
+snapshot-read weakness: Ubuntu passed, while Windows failed the deterministic
+suite in run `30065121633`. The failure annotation was also truncated because
+CRLF carriage returns survived the workflow's newline normalization.
+
+A deterministic RED test then simulated stale metadata plus a same-size byte
+rewrite and failed all three dataset/fixture/freeze-manifest variants. Commit
+`9bdc14ea07599b96c3b3e53dccf73df24dded73d` fixes the frozen-bundle loader by
+confirming content with a second read after metadata validation and strips
+carriage returns from CI failure annotations. Local evaluation passed
+`979/16/3`; the full tree passed `1942/22/3`. Exact-SHA run #22 passed Ubuntu
+job `89396343564` and Windows job `89396343566`:
+https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30065782695.
 
 Before any next implementation:
 
