@@ -1,0 +1,65 @@
+{
+  "corpus": {
+    "document_count": 240,
+    "generator_version": "2.0.0",
+    "manifest_sha256": "5d96338e4d637c207c381323fc6919f575983992e553a06f548a7e7e0fc24e57"
+  },
+  "evaluation": {
+    "dev": {
+      "artifact": "retrieval_dev_summary.json",
+      "case_count": 48,
+      "dataset_path": "data/v2/generated/expanded/eval/dev.json",
+      "dataset_sha256": "aabcd796f76001b2b3b8a3e37d5f8f388a7aaf069a1330c0ac0779da35db5cab",
+      "run_id": "corpus_expanded_fullfact_dev_live_20260724",
+      "summary_sha256": "fa089ee94e85e0dbb986718d2c9809b6f1920f72ac1c7d818d40ebd26710f846"
+    },
+    "test": {
+      "artifact": "retrieval_test_summary.json",
+      "case_count": 56,
+      "dataset_path": "data/v2/generated/expanded/eval/test.json",
+      "dataset_sha256": "d4c516fcaa9e8dac6474bde69d13f2e95bf9ae4562e91b3fd8d5e90f8ef18c76",
+      "run_id": "corpus_expanded_fullfact_test_live_20260724",
+      "summary_sha256": "db817c18d8a8d12b60698b38acaffcb215b392989db3958066b7def590b439aa"
+    }
+  },
+  "facts": {
+    "canonical_sha256": "761fd6d2400721bcd669bc3417b4c1d3322d4f179cd584737044805e914c34b1",
+    "file_sha256": "5d72a8310f19be2b94f2d55b065c4ae4f68394e8091839f80ed95834eadec474",
+    "path": "data/v2/facts/company_facts_v2.json",
+    "schema_version": "enterprise_facts_v2"
+  },
+  "index": {
+    "artifact": "index_manifest.json",
+    "canonical_document_count": 216,
+    "chunker_mode": "fixed",
+    "corpus_manifest_sha256": "5d96338e4d637c207c381323fc6919f575983992e553a06f548a7e7e0fc24e57",
+    "embedding_dimension": 1024,
+    "embedding_model": "bge-m3",
+    "manifest_sha256": "69b9fb7d3008467f65fb2920a621e9812cdb59c4919834819333e0e33b866507",
+    "run_id": "20260724T024653Z_expanded_bge_m3_fixed",
+    "source_document_count": 240
+  },
+  "producer": "enterprise_agentic_rag_v2",
+  "profile": {
+    "canonical_sha256": "8bfe9da8f5dd063f971ef55ddcc9fbc8fb669c958f113df6fe91fc7311ad2787",
+    "document_count": 240,
+    "file_sha256": "a5a1842245dd3ef234a0b63caf34ecbb17624ecc5783680fc8d74de76af01d3d",
+    "id": "expanded",
+    "path": "data/v2/config/expanded.json",
+    "seed": 20260724
+  },
+  "profile_id": "expanded",
+  "quality": {
+    "artifact": "quality.json",
+    "corpus_artifact_validated": true,
+    "corpus_manifest_sha256": "5d96338e4d637c207c381323fc6919f575983992e553a06f548a7e7e0fc24e57",
+    "sha256": "01ab592adb534b5f958017bf50e8ea9dcc5bd54cdec08ba182f1ff6caa4f75f9"
+  },
+  "run_provenance": {
+    "captured_git_dirty": true,
+    "captured_git_head": "e657beaf7d184409b2d7574c974733cbd7233f4e",
+    "implementation_snapshot_relation": "post_run_reviewed_snapshot"
+  },
+  "schema_version": "enterprise_corpus_expansion_public_evidence_v1",
+  "source_git_commit": "184913e5e504b150d3959ae541cc808544ac379e"
+}

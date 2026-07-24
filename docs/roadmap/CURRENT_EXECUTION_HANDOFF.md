@@ -813,13 +813,22 @@ expanded benchmark dryrun 2000 source / 1225 canonical / 1225 chunks
 live dev                  48/48; hit@1 1.0; recall@3 1.0; ACL leakage 0
 frozen test               56/56; hit@1 1.0; recall@3 1.0; ACL leakage 0
 rollback run              20260716T135632Z_7aec4b9_live_bge_m3_fixed
-local full pytest         1929 passed / 22 skipped / 3 warnings
-public audit              533 candidates / 0 findings
+local full pytest         1939 passed / 22 skipped / 3 warnings
+public audit              534 candidates / 0 findings
 ```
 
 The 2,000-document profile was not embedded because it has the same fact
 breadth as `expanded`; it is a parser/dedup/index scale profile. Do not claim
 the live results are real-enterprise or independent-domain accuracy.
+
+Implementation baseline commit
+`184913e5e504b150d3959ae541cc808544ac379e` freezes the reviewed generator,
+facts, profiles, gates, tests, and preliminary evidence. The follow-up
+evidence commit adds an exact manifest binding that commit to facts/profile
+canonical hashes, corpus/index manifests, frozen dataset hashes, and live
+summary hashes. The original run manifests recorded dirty head `e657beaf`;
+the baseline is explicitly a post-run reviewed snapshot, not rewritten run
+provenance.
 
 Before any next implementation:
 

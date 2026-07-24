@@ -193,4 +193,9 @@ Chinese count label from the actual fact count while preserving v1 bytes.
 - No real connector, OCR-heavy corpus, production traffic, or freshness SLA
   was tested.
 - Human semantic review is not complete.
-- Checksums protect evidence integrity but are not a third-party signature.
+- The evidence manifest binds the implementation snapshot, facts, profile,
+  corpus, index, frozen datasets, and summaries; checksums are still not a
+  third-party signature.
+- The live run was captured from a dirty worktree. Commit `184913e` is the
+  reviewed post-run snapshot, not a claim that the run started from that clean
+  checkout.

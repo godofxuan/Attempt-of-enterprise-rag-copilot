@@ -19,6 +19,8 @@ raw model responses, credentials, or local filesystem paths.
 ## Files
 
 - `quality.json`: deterministic corpus breadth and quality gates.
+- `manifest.json`: exact code, facts, profile, corpus, index, dataset, and
+  evaluation hash bindings.
 - `index_manifest.json`: immutable local index build manifest.
 - `retrieval_dev_summary.json`: live BGE-M3 retrieval result on dev.
 - `retrieval_test_summary.json`: live BGE-M3 retrieval result on frozen test.
@@ -39,8 +41,19 @@ Expected output:
 {"profile_id": "expanded", "verified": true}
 ```
 
-The checksums detect accidental or unreviewed artifact changes. They are not a
-third-party signature and do not independently prove that the local run
-occurred. The checked-in generator, facts, profile, tests, CI gate, index
-manifest, and frozen evaluation summaries together provide the reproducible
-evidence chain.
+The verifier rejects unknown/missing fields, changed release values, broken
+cross-artifact bindings, and checksum mismatches. Its frozen manifest binds the
+evidence to implementation commit
+`184913e5e504b150d3959ae541cc808544ac379e`.
+
+The live retrieval manifests captured commit
+`e657beaf7d184409b2d7574c974733cbd7233f4e` with a dirty worktree because the
+corpus expansion was still under review. Commit `184913e` is the reviewed,
+post-run implementation snapshot and preserves the accepted generated corpus,
+index, and dataset hashes. This package therefore does not claim that the live
+run originated from a clean checkout of `184913e`.
+
+Checksums are not a third-party signature and do not independently prove that
+the local run occurred. Git object integrity, the checked-in generator, exact
+hash bindings, tests, CI gate, and frozen evaluation summaries together form
+the reproducible evidence chain.

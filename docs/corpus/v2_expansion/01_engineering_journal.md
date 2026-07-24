@@ -433,7 +433,7 @@ Dev run:
 ```text
 run_id                 corpus_expanded_fullfact_dev_live_20260724
 cases                  48 / 48 passed
-scored gold cases      31
+scored gold cases      32
 hit@1                  1.0
 MRR                    1.0
 document_recall@3      1.0
@@ -473,12 +473,11 @@ full deterministic test suite.
 Final pre-commit local gates:
 
 ```text
-tests/corpus                 48 passed
-tests/indexing               34 passed
-full pytest                  1929 passed / 22 skipped / 3 warnings
+corpus + indexing            92 passed
+full pytest                  1939 passed / 22 skipped / 3 warnings
 compileall                   passed
 pip check                    no broken requirements
-public repository audit      533 candidates / 0 findings
+public repository audit      534 candidates / 0 findings
 public evidence verifier     verified=true
 git diff --check             passed; one CRLF-to-LF notice for .env.example
 ```
@@ -487,7 +486,45 @@ The three warnings are the existing FAISS SWIG deprecation warnings. They are
 not corpus failures. Remote exact-SHA Ubuntu/Windows results must be appended
 after the commit is pushed; local results cannot stand in for CI.
 
-## 15. Deferred work
+## 15. Independent review and evidence-chain hardening
+
+A read-only independent reviewer challenged the first release candidate. The
+findings and dispositions were:
+
+1. The public package did not bind facts, profile, generated corpus, index,
+   frozen datasets, evaluation summaries, and source code into one chain.
+   Fixed with `manifest.json`, exact SHA-256 bindings, and implementation
+   baseline commit `184913e5e504b150d3959ae541cc808544ac379e`.
+2. The first quality command regenerated a corpus in memory but did not prove
+   that the materialized corpus used by indexing matched it. Fixed by parsing
+   every generated file and requiring exact preset/manifest equality in both
+   the quality and index CLIs.
+3. The public verifier accepted extra fields and its tamper test only detected
+   a stale checksum. Fixed with exact field sets, a frozen release contract,
+   cross-artifact hash checks, and tests that alter semantics, update the
+   manifest hash, regenerate all checksums, and still expect rejection.
+4. The generator assumed every retired version had two facts, while the schema
+   did not require a retired version. Fixed by requiring one active plus at
+   least one retired version and iterating over the actual retired fact count.
+5. Operational ACL use was counted across retired content. Fixed so the gate
+   requires every operational group to protect active content.
+6. Full v2 byte determinism and undersized-profile failures were insufficiently
+   covered. Fixed with whole-artifact same-seed tests, single-fact retired
+   coverage, missing-retired rejection, and explicit capacity failure tests.
+
+The live dev/test manifests honestly report that they were captured from dirty
+worktree head `e657beaf7d184409b2d7574c974733cbd7233f4e`. The two-commit closeout
+therefore uses `184913e` as a reviewed post-run implementation snapshot. It
+does not relabel the earlier live run as a clean-checkout run.
+
+During checksum regeneration, Windows PowerShell 5 wrote a UTF-8 BOM because
+`Set-Content -Encoding utf8` has platform-specific behavior. The standalone
+verifier rejected the first row and two focused tests failed. The checksum
+file was rewritten as UTF-8 without BOM through the repository patch path;
+the verifier and all five evidence tests then passed. This was an artifact
+encoding failure, not a retrieval regression.
+
+## 16. Deferred work
 
 - human review of generated prose and answer usefulness;
 - real enterprise document connectors and legal/privacy approval;
