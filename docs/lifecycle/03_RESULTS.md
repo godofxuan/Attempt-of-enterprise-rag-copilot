@@ -742,14 +742,14 @@ measured support for the G6 reuse claim under the exact G10 boundary.
 
 | Field | Accepted value |
 | --- | --- |
-| Registration | `EXP-LC-007` |
-| Running transition | `EXP-LC-008` |
-| Completion | `EXP-LC-009` |
-| Frozen source commit | `5570d022cd0be73625748a07a9fcea26eaa97630` |
+| Registration | `EXP-LC-010` |
+| Running transition | `EXP-LC-011` |
+| Completion | `EXP-LC-012` |
+| Frozen source commit | `71e26d667d49a5573546e703e7a9fbb78803906d` |
 | Dataset | `expanded_benchmark_lifecycle_v4`, 1225 base documents |
 | Pairs | 10, alternating AB/BA |
 | Raw artifacts | 45, all SHA-256 bound |
-| Public package | `data/v2/public/lifecycle_g10_v2` |
+| Public package | `data/v2/public/lifecycle_g10_v3` |
 
 ### Result
 
@@ -757,15 +757,15 @@ measured support for the G6 reuse claim under the exact G10 boundary.
 | --- | ---: |
 | Correctness-equivalent pairs | 10/10 |
 | Faster intervention pairs | 10/10 |
-| Median intervention/baseline wall-time ratio | 0.716599 |
-| P95 wall-time ratio | 0.743191 |
-| Baseline-first median ratio | 0.706155 |
-| Intervention-first median ratio | 0.721557 |
+| Median intervention/baseline wall-time ratio | 0.707684 |
+| P95 wall-time ratio | 0.749550 |
+| Baseline-first median ratio | 0.725431 |
+| Intervention-first median ratio | 0.706630 |
 | Baseline embedding callbacks | 12,170 |
 | Intervention embedding callbacks | 310 |
 | Embedding-call ratio | 0.025472 |
-| Baseline peak RSS | 381,550,592 bytes |
-| Intervention peak RSS | 379,273,216 bytes |
+| Baseline peak RSS | 382,410,752 bytes |
+| Intervention peak RSS | 379,035,648 bytes |
 | Active-index deleted residual count | 0 |
 | Frozen decision | `SUPPORTED` |
 
@@ -774,7 +774,7 @@ The accepted resume/project statement is:
 > On a frozen 1225-document deterministic local lifecycle workload, a
 > preregistered 10-pair AB/BA experiment found that production computation
 > reuse preserved exact target, ACL, query, and deletion correctness while
-> reducing median complete target-build wall time by 28.34% and embedding
+> reducing median complete target-build wall time by 29.23% and embedding
 > callbacks by 97.45%.
 
 The statement must retain “deterministic local lifecycle workload.” It must not
@@ -782,14 +782,19 @@ be shortened into a real-model, production-QPS, or customer-data claim.
 
 ### Verification evidence
 
-Before the formal source commit, the hardened focused suite passed 175 tests
-with 7 skips, and the complete repository passed 2356 tests with 30 skips.
-The public audit inspected 622 candidates and found zero findings.
+Before the first formal source commit, the hardened focused suite passed 175
+tests with 7 skips, and the complete repository passed 2356 tests with 30
+skips. Post-package full validation then exposed `FAIL-LC-086`, an older
+evaluation publisher that bypassed bounded Windows retry. The RED/fix related
+suite passed 983 tests with 16 skips, and the corrected complete repository
+passed 2358 tests with 30 skips in 190.38 seconds.
 
-The final public package has 52 files and 3,196,456 bytes. The standalone
-verifier recomputed `10 pairs, SUPPORTED` from the package alone. Final
-post-package focused/full JUnit, audit, and integrated lifecycle validation
-results are recorded in the G10 handoff.
+The final public package has 52 files and 3,196,479 bytes. The standalone
+verifier recomputed `EXP-LC-012: 10 pairs, SUPPORTED` from the package alone.
+The v2 package remains valid historical evidence for source commit `5570d02`;
+v3 is the accepted final-source package. Final repository assertions passed 49
+focused tests, then 2359 complete-repository tests with 30 skips in 189.43
+seconds.
 
 ### Remaining limits
 

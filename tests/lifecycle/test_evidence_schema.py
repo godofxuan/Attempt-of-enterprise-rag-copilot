@@ -212,9 +212,15 @@ def test_repository_legacy_and_v2_transition_histories_are_both_valid() -> None:
         "EXP-LC-007",
         "EXP-LC-008",
         "EXP-LC-009",
+        "EXP-LC-010",
+        "EXP-LC-011",
+        "EXP-LC-012",
     ]
     assert {record.schema_version for record in current_records} == {2}
     assert [record.status.value for record in current_records] == [
+        "REGISTERED",
+        "RUNNING",
+        "COMPLETED",
         "REGISTERED",
         "RUNNING",
         "COMPLETED",

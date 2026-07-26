@@ -1981,11 +1981,11 @@ effect, but it makes the major order bias visible.
 The median time ratio is:
 
 ```text
-intervention wall time / baseline wall time = 0.7166
+intervention wall time / baseline wall time = 0.7077
 ```
 
-The intervention therefore used about 71.66 percent of baseline time. The
-relative reduction is `1 - 0.7166 = 0.2834`, or about 28.34 percent.
+The intervention therefore used about 70.77 percent of baseline time. The
+relative reduction is `1 - 0.7077 = 0.2923`, or about 29.23 percent.
 
 The embedding-call ratio is:
 
@@ -2035,7 +2035,10 @@ registered thresholds, and the recomputed decision is `SUPPORTED`.
 
 Deleting them would hide the development history and make it impossible to
 explain why the accepted protocol is stronger. `EXP-LC-001..006` remain
-historical; only `EXP-LC-007..009` bind the accepted source and portable
+historical protocol development. `EXP-LC-007..009` bind the first hardened
+source commit. Full-suite testing then found a Windows publisher outside the
+measured hot path; because configuration intentionally binds all app source,
+`EXP-LC-010..012` reran the same frozen protocol and form the current portable
 evidence.
 
 **Why not use average time?**
@@ -2044,9 +2047,9 @@ The primary statistic is the paired median ratio because it is less sensitive
 to occasional host spikes. Mean, min, P95, faster-pair count, and AB/BA strata
 remain visible as supporting diagnostics.
 
-**Does 28.34 percent mean production requests are 28.34 percent faster?**
+**Does 29.23 percent mean production requests are 29.23 percent faster?**
 
-No. It means complete target builds from an accepted base were 28.34 percent
+No. It means complete target builds from an accepted base were 29.23 percent
 faster at the median in this deterministic local 1225-document workload. It
 does not measure online answer latency, real embedding service latency, or
 multi-user throughput.

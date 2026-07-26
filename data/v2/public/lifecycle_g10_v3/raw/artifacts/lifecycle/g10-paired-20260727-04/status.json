@@ -1,0 +1,13 @@
+{
+  "bundle_manifest_sha256": "562b71333b5987e9fbc7f1d55565e5f0758daf8d8c33b91b9fed2b1404ae5c99",
+  "completed_at": "2026-07-26T22:15:03.092719+00:00",
+  "completed_pairs": 10,
+  "configuration_sha256": "666dde591576b7d261ec95cff30fba0f8b017b15198f6abeb33e999823412986",
+  "experiment_id": "EXP-LC-010",
+  "requested_pairs": 10,
+  "run_id": "g10-paired-20260727-04",
+  "schema_version": "g10_run_status_v2",
+  "started_at": "2026-07-26T21:54:35.779925+00:00",
+  "status": "COMPLETED",
+  "worker_exit_code": 0
+}

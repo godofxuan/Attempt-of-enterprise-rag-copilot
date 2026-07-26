@@ -36,6 +36,9 @@ PUBLIC_ROOT = (
 PUBLIC_V2_ROOT = (
     REPOSITORY_ROOT / "data" / "v2" / "public" / "lifecycle_g10_v2"
 )
+PUBLIC_V3_ROOT = (
+    REPOSITORY_ROOT / "data" / "v2" / "public" / "lifecycle_g10_v3"
+)
 
 
 def _completed_experiment() -> ExperimentRecord:
@@ -49,7 +52,7 @@ def _completed_experiment() -> ExperimentRecord:
     )
 
 
-def _completed_v2_experiment() -> tuple[
+def _completed_current_experiment() -> tuple[
     list[ExperimentRecord],
     ExperimentRecord,
 ]:
@@ -61,7 +64,7 @@ def _completed_v2_experiment() -> tuple[
     return (
         records,
         next(
-            item for item in records if item.experiment_id == "EXP-LC-009"
+            item for item in records if item.experiment_id == "EXP-LC-012"
         ),
     )
 
@@ -400,20 +403,20 @@ def test_public_g10_checksum_binds_only_canonical_summary() -> None:
     )
 
 
-def test_public_g10_v2_package_recomputes_current_formal_experiment() -> None:
-    history, completed = _completed_v2_experiment()
+def test_public_g10_v3_package_recomputes_current_formal_experiment() -> None:
+    history, completed = _completed_current_experiment()
     expected = build_public_performance_summary(
         REPOSITORY_ROOT,
         completed,
         history=history,
     )
 
-    observed = verify_public_performance_evidence_package(PUBLIC_V2_ROOT)
+    observed = verify_public_performance_evidence_package(PUBLIC_V3_ROOT)
 
     assert observed == expected
-    assert observed.completed_experiment_id == "EXP-LC-009"
+    assert observed.completed_experiment_id == "EXP-LC-012"
     assert observed.source_commit_sha == (
-        "5570d022cd0be73625748a07a9fcea26eaa97630"
+        "71e26d667d49a5573546e703e7a9fbb78803906d"
     )
     assert observed.final_status == "SUPPORTED"
     assert observed.pair_count == 10
@@ -422,6 +425,16 @@ def test_public_g10_v2_package_recomputes_current_formal_experiment() -> None:
     assert observed.faster_pair_count == 10
     assert observed.total_time_ratio.p50 <= 0.75
     assert observed.intervention_embedding_call_ratio <= 0.1
+
+
+def test_public_g10_v2_historical_package_remains_self_contained() -> None:
+    observed = verify_public_performance_evidence_package(PUBLIC_V2_ROOT)
+
+    assert observed.completed_experiment_id == "EXP-LC-009"
+    assert observed.source_commit_sha == (
+        "5570d022cd0be73625748a07a9fcea26eaa97630"
+    )
+    assert observed.final_status == "SUPPORTED"
 
 
 def test_v2_environment_status_and_registered_identity_are_strict(

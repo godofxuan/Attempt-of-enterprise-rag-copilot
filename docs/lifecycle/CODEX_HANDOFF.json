@@ -10,46 +10,48 @@
     "ADR-LC-008",
     "ADR-LC-009",
     "ADR-LC-010",
-    "ADR-LC-011"
+    "ADR-LC-011",
+    "ADR-LC-012",
+    "ADR-LC-013"
   ],
   "append_only_anchors": [
     {
-      "accepted_at_gate": "G9",
-      "accepted_bytes": 115048,
+      "accepted_at_gate": "G10",
+      "accepted_bytes": 123612,
       "path": "docs/lifecycle/01_ENGINEERING_JOURNAL.md",
-      "prefix_sha256": "c1b95611b978dc403501dbe207974b8059feb7ec55459b33cdcd3522a873e92d",
-      "record_count": 37
+      "prefix_sha256": "559ea4f89f3662b0feff294816028e7802db85f2d6bbfe890c3b5aa8dd5cb7d2",
+      "record_count": 43
     },
     {
-      "accepted_at_gate": "G9",
-      "accepted_bytes": 56390,
+      "accepted_at_gate": "G10",
+      "accepted_bytes": 60154,
       "path": "docs/lifecycle/02_DECISIONS.md",
-      "prefix_sha256": "8993b45d6d202af13bcbfb065784f0d1e8300f96e4effca233376f00293bee06",
+      "prefix_sha256": "c50c28168262276de7037317b8bbbf384c828edde980b1554c4ca3e2eef6d913",
+      "record_count": 13
+    },
+    {
+      "accepted_at_gate": "G10",
+      "accepted_bytes": 38414,
+      "path": "docs/lifecycle/03_RESULTS.md",
+      "prefix_sha256": "efc3d9de6d16ffc92b935b813f4d38218cbc409883c1a72c6851e0b3ba5fd8a0",
       "record_count": 11
     },
     {
-      "accepted_at_gate": "G9",
-      "accepted_bytes": 35271,
-      "path": "docs/lifecycle/03_RESULTS.md",
-      "prefix_sha256": "c35050b641afa7b942be0997b5d7959a2b641120780c557ce7adbe4e88661ab0",
-      "record_count": 10
-    },
-    {
-      "accepted_at_gate": "G9",
-      "accepted_bytes": 0,
+      "accepted_at_gate": "G10",
+      "accepted_bytes": 69121,
       "path": "docs/lifecycle/EXPERIMENTS.jsonl",
-      "prefix_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "record_count": 0
+      "prefix_sha256": "cf8becb86f02127176c9693b9905f35312d5e8f7d9dc3ab2d9510ea0346ffe0d",
+      "record_count": 12
     },
     {
-      "accepted_at_gate": "G9",
-      "accepted_bytes": 98853,
+      "accepted_at_gate": "G10",
+      "accepted_bytes": 136790,
       "path": "docs/lifecycle/FAILURES.jsonl",
-      "prefix_sha256": "e017d18344866a65c341e9821e3bd3bfec8785c7797630c2e878e2095642d58a",
-      "record_count": 65
+      "prefix_sha256": "229ac57ded0cec70fc741bcee140f6b573df1f3bdabce9f4037d62ea5bc208fd",
+      "record_count": 86
     },
     {
-      "accepted_at_gate": "G9",
+      "accepted_at_gate": "G10",
       "accepted_bytes": 0,
       "path": "docs/lifecycle/RESEARCH_REQUESTS.jsonl",
       "prefix_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -68,9 +70,11 @@
     "G6",
     "G7",
     "G8",
-    "G9"
+    "G9",
+    "G10"
   ],
   "completed_requirements": [
+    "REQ-LC-001",
     "REQ-LC-002",
     "REQ-LC-003",
     "REQ-LC-004",
@@ -78,141 +82,93 @@
     "REQ-LC-006",
     "REQ-LC-007",
     "REQ-LC-008",
-    "REQ-LC-009"
+    "REQ-LC-009",
+    "REQ-LC-010",
+    "REQ-LC-011"
   ],
-  "current_gate": "G10_PROTOCOL_FREEZE",
-  "current_sha": "d465eedb80cae4bc7b2e3be71b782ad565cc188e",
+  "current_gate": "G10_COMPLETE",
+  "current_sha": "71e26d667d49a5573546e703e7a9fbb78803906d",
   "dirty": true,
   "evidence_artifacts": [
     {
-      "byte_count": 9080,
-      "path": "artifacts/lifecycle/g6-focused-final-20260726-01/report.xml",
-      "sha256": "764ba7ba78486bf76c6953fb4fba3ee6f438f144ec31877ffba7245800ba3421"
+      "byte_count": 394601,
+      "path": "artifacts/lifecycle/g10-closeout-full-20260727-02.xml",
+      "sha256": "6709f49c5d930c0e9e0c4473c0c849deb154dc443ddab50ad3ef0fb07f06c96c"
     },
     {
-      "byte_count": 51506,
-      "path": "artifacts/lifecycle/g6-related-code-20260726-01/report.xml",
-      "sha256": "015a672a4385eac250a63bd55b05e3bdc47a96ebb917f76c464a2bd8a582756d"
+      "byte_count": 8114,
+      "path": "artifacts/lifecycle/g10-final-focused-20260727-01.xml",
+      "sha256": "752439cd0bfd95eba8680820d157ccdaa8f18214afdab5a307ddf92e022a4508"
     },
     {
-      "byte_count": 2628,
-      "path": "artifacts/lifecycle/g6-lifecycle-preclose-20260726-01/report.xml",
-      "sha256": "08a486e65e83421213dda3ae8a788a5ad4aee48b7b626f870b6e22357900cf9f"
+      "byte_count": 394748,
+      "path": "artifacts/lifecycle/g10-final-full-20260727-01.xml",
+      "sha256": "fa25154023db158b3ab41cd710788c72a7a663ec59558370d0352ee54ad23ac7"
     },
     {
-      "byte_count": 363240,
-      "path": "artifacts/lifecycle/g6-full-final-20260726-01/report.xml",
-      "sha256": "90eb21005f53fa6881a9805d884c4c913086f97a93b878c2f2330ca08f05b249"
+      "byte_count": 1082,
+      "path": "artifacts/lifecycle/g10-paired-20260727-04/summary.json",
+      "sha256": "3ee2f1048429bf67e62f2c21902a733025777ffe9d4b9eb52ef71fc7d00615a1"
     },
     {
-      "byte_count": 8670,
-      "path": "artifacts/lifecycle/g7-focused-final-20260726-01/report.xml",
-      "sha256": "31dcaaacb9dbaae08c193ba9974a90ead5754a763fa1f8123b9ed443893ca28e"
+      "byte_count": 179386,
+      "path": "artifacts/lifecycle/g10-publication-related-20260727-01.xml",
+      "sha256": "ea4836a927535e09344936a2048a69936801a8c87e6bda30c26d3f6de89e4630"
     },
     {
-      "byte_count": 99884,
-      "path": "artifacts/lifecycle/g7-related-final-20260726-04.xml",
-      "sha256": "626d2200081dcaaff1276c2574d0905750deb5c82c4879a8886bc8a1277513a7"
+      "byte_count": 15252,
+      "path": "data/v2/public/lifecycle_g10_v2/manifest.json",
+      "sha256": "c92583c8c2f714a1582f46a40415c6d28e5b8625fa5850d046fddb63a5545ec1"
     },
     {
-      "byte_count": 367579,
-      "path": "artifacts/lifecycle/g7-full-final-20260726-04.xml",
-      "sha256": "055fdea5b76b1532fad6ffc07696d0fea3a817238008242817602d69e244270d"
+      "byte_count": 6802,
+      "path": "data/v2/public/lifecycle_g10_v3/checksums.sha256",
+      "sha256": "2fa4395b8afc6d397b4db2a4179133184c5cd704a0778a073068772ac6d31729"
     },
     {
-      "byte_count": 16684,
-      "path": "artifacts/lifecycle/g7-current-model-recheck-20260727-01.xml",
-      "sha256": "82db461aaae7e38b11792c8fabe0bb426b63ae18553d84cac2308b7e587b87f3"
+      "byte_count": 15252,
+      "path": "data/v2/public/lifecycle_g10_v3/manifest.json",
+      "sha256": "5324f5e2f6d92cf8f6a9c85fb8bcb83aa66c7ff31dcb15b0d2a602ba085a3c67"
     },
     {
-      "byte_count": 33875,
-      "path": "artifacts/lifecycle/g8-focused-final-20260727-01.xml",
-      "sha256": "76a830a3310c9ad6beaf0cad0b932d2df51e339661e0df0af3484a13a70cd459"
+      "byte_count": 9336,
+      "path": "data/v2/public/lifecycle_g10_v3/summary.json",
+      "sha256": "e26a6e89e4f21051a5c587f8f72b20a944f07a1d160c21ce5c5fb4b8f0c152b0"
     },
     {
-      "byte_count": 378612,
-      "path": "artifacts/lifecycle/g8-full-final-20260727-01.xml",
-      "sha256": "ce88850d5893aedd73124bce9fe12653140ba4111db3f54498c5ef0cb9ab4cb6"
-    },
-    {
-      "byte_count": 377980,
-      "path": "artifacts/lifecycle/g8-full-final-20260727-02.xml",
-      "sha256": "6430803fda563866f4d4d03fa62c0e37870cd95ac4c272a5e9227f1dbd87d83d"
-    },
-    {
-      "byte_count": 16726,
-      "path": "artifacts/lifecycle/g9-focused-final-20260727-01.xml",
-      "sha256": "670f119f065df9ea2ee0e88d03965cd9953df698f44992f8520d15126a13e8c6"
-    },
-    {
-      "byte_count": 53377,
-      "path": "artifacts/lifecycle/g9-related-final-20260727-01.xml",
-      "sha256": "f0c73b3ebfb4f451f52e1dcd9508ad11c26dcdda22ddf486053f566b45de2069"
-    },
-    {
-      "byte_count": 387962,
-      "path": "artifacts/lifecycle/g9-full-final-20260727-01.xml",
-      "sha256": "8ab4c5a58d847d4f1eb326b3fcb8d5f06f5baff3530f296f946747f1dba03ff4"
-    },
-    {
-      "byte_count": 17307,
-      "path": "artifacts/lifecycle/g9-windows-related-20260727-02.xml",
-      "sha256": "a50aa52de030276ecffc4b541b4cbbbace1c356ca18220f88e9cc84ec1be71b5"
-    },
-    {
-      "byte_count": 381698,
-      "path": "artifacts/lifecycle/g9-full-final-20260727-02.xml",
-      "sha256": "0eecd32e834c3f5fe487127ae2a701b13cc877775a89ef1a9391908e54bfd2bc"
-    },
-    {
-      "byte_count": 8643,
-      "path": "data/enterprise_bundle/manifest.json",
-      "sha256": "e52d8d2e700615267680108d72de35af9e522720c38d07ce9ec1604c5d761cac"
-    },
-    {
-      "byte_count": 972,
-      "path": "data/v2/public/lifecycle_g9/summary.json",
-      "sha256": "00e540f2520148faa193df17c28f57ea9327efef05fee05bba3892333eee3d9d"
-    },
-    {
-      "byte_count": 837,
-      "path": "data/v2/public/lifecycle_g9/checksums.sha256",
-      "sha256": "0ee6f6aa12d6656d091eea7c854ce4e6b49e207fdca6debc7fbd8ae60a088156"
-    },
-    {
-      "byte_count": 57540,
+      "byte_count": 60215,
       "path": "docs/lifecycle/00_STAGE_CONTRACT.md",
-      "sha256": "690fcd3e4173d43482aefc2d384165590e70523f771e6aaffd043799b248c99f"
+      "sha256": "93aa6a89ca511a48d817f0a2dce652051c9d66ed257fc9329ee1e8cff634645f"
     },
     {
-      "byte_count": 115048,
+      "byte_count": 123612,
       "path": "docs/lifecycle/01_ENGINEERING_JOURNAL.md",
-      "sha256": "c1b95611b978dc403501dbe207974b8059feb7ec55459b33cdcd3522a873e92d"
+      "sha256": "559ea4f89f3662b0feff294816028e7802db85f2d6bbfe890c3b5aa8dd5cb7d2"
     },
     {
-      "byte_count": 56390,
+      "byte_count": 60154,
       "path": "docs/lifecycle/02_DECISIONS.md",
-      "sha256": "8993b45d6d202af13bcbfb065784f0d1e8300f96e4effca233376f00293bee06"
+      "sha256": "c50c28168262276de7037317b8bbbf384c828edde980b1554c4ca3e2eef6d913"
     },
     {
-      "byte_count": 35271,
+      "byte_count": 38414,
       "path": "docs/lifecycle/03_RESULTS.md",
-      "sha256": "c35050b641afa7b942be0997b5d7959a2b641120780c557ce7adbe4e88661ab0"
+      "sha256": "efc3d9de6d16ffc92b935b813f4d38218cbc409883c1a72c6851e0b3ba5fd8a0"
     },
     {
-      "byte_count": 80519,
+      "byte_count": 85882,
       "path": "docs/lifecycle/04_LEARNING_GUIDE.md",
-      "sha256": "74c3ca71b115ce91248bd29d45f02502133c96076fd669fde14ccf0ac529728a"
+      "sha256": "6f3d8c77b8b66306d918453cce2668f8ec149485ee4f3caa6256a572bae2b982"
     },
     {
-      "byte_count": 0,
+      "byte_count": 69121,
       "path": "docs/lifecycle/EXPERIMENTS.jsonl",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "sha256": "cf8becb86f02127176c9693b9905f35312d5e8f7d9dc3ab2d9510ea0346ffe0d"
     },
     {
-      "byte_count": 98853,
+      "byte_count": 136790,
       "path": "docs/lifecycle/FAILURES.jsonl",
-      "sha256": "e017d18344866a65c341e9821e3bd3bfec8785c7797630c2e878e2095642d58a"
+      "sha256": "229ac57ded0cec70fc741bcee140f6b573df1f3bdabce9f4037d62ea5bc208fd"
     },
     {
       "byte_count": 0,
@@ -220,299 +176,115 @@
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "byte_count": 8590,
+      "byte_count": 10846,
       "path": "docs/lifecycle/TRACEABILITY.csv",
-      "sha256": "eb7893b9952e1336010015162f66a81dddeaf69c5f149bfcf350a4b35e84a62b"
-    },
-    {
-      "byte_count": 10599,
-      "path": "docs/security/r2_s5/evidence/identity_matrix_result.json",
-      "sha256": "cc8282bfa7e4f1ac1b423dbbdbb83f98c7b30a51fb17aa5f640f2e256a32268d"
+      "sha256": "0a772aa8b5ab1511b25134e59553a4c1198bf9ed107584ff24c63e8f401cad32"
     }
   ],
   "files_to_read_next": [
     "docs/lifecycle/00_STAGE_CONTRACT.md",
     "docs/lifecycle/CODEX_HANDOFF.json",
-    "docs/lifecycle/02_DECISIONS.md",
+    "docs/lifecycle/03_RESULTS.md",
+    "docs/lifecycle/04_LEARNING_GUIDE.md",
     "docs/lifecycle/EXPERIMENTS.jsonl",
-    "app/lifecycle/evidence.py",
-    "app/indexing/benchmark.py",
-    "scripts/benchmark_full_rebuild.py",
-    "app/indexing/incremental_computation.py",
-    "app/indexing/incremental_snapshot.py",
-    "data/v2/config/expanded_benchmark.json",
-    "tests/indexing/test_full_rebuild_measurement.py"
+    "docs/lifecycle/FAILURES.jsonl",
+    "data/v2/public/lifecycle_g10_v3/summary.json",
+    "app/lifecycle/performance_runner.py",
+    "app/lifecycle/performance_evidence.py",
+    "scripts/benchmark_lifecycle_incremental.py"
   ],
   "last_test_runs": [
     {
-      "artifact_path": "artifacts/lifecycle/g6-focused-final-20260726-01/report.xml",
-      "command_id": "CMD-LC-G6-001",
-      "duration_seconds": 17.75,
+      "artifact_path": "artifacts/lifecycle/g10-publication-related-20260727-01.xml",
+      "command_id": "CMD-LC-G10-001",
+      "duration_seconds": 91.03,
       "exit_code": 0,
       "failed": 0,
       "kind": "pytest",
-      "passed": 59,
-      "pytest_duration_seconds": 17.75,
-      "scope": "G5 revision catalog and ChangePlan plus G6 computation cache and executor",
-      "skipped": 1,
+      "passed": 983,
+      "pytest_duration_seconds": 91.03,
+      "scope": "Evaluation publishers and shared Windows filesystem publication after FAIL-LC-086",
+      "skipped": 16,
       "warnings": 3
     },
     {
-      "artifact_path": "artifacts/lifecycle/g6-related-code-20260726-01/report.xml",
-      "command_id": "CMD-LC-G6-002",
-      "duration_seconds": 51.44,
+      "artifact_path": "artifacts/lifecycle/g10-closeout-full-20260727-02.xml",
+      "command_id": "CMD-LC-G10-002",
+      "duration_seconds": 190.38,
       "exit_code": 0,
       "failed": 0,
       "kind": "pytest",
-      "passed": 336,
-      "pytest_duration_seconds": 51.44,
-      "scope": "Ingestion, indexing, and identity lifecycle security code regression",
-      "skipped": 7,
+      "passed": 2358,
+      "pytest_duration_seconds": 190.38,
+      "scope": "Complete repository regression after bounded Windows publication correction",
+      "skipped": 30,
       "warnings": 3
     },
     {
-      "artifact_path": "artifacts/lifecycle/g6-full-final-20260726-01/report.xml",
-      "command_id": "CMD-LC-G6-003",
-      "duration_seconds": 184.28,
+      "artifact_path": "artifacts/lifecycle/g10-paired-20260727-04/summary.json",
+      "command_id": "CMD-LC-G10-003",
+      "duration_seconds": 1210.916,
+      "embedding_backend": "deterministic-local",
+      "exit_code": 0,
+      "kind": "benchmark",
+      "profile": "paired complete target build from accepted v4 base",
+      "repetitions": 10,
+      "scope": "EXP-LC-010 through EXP-LC-012 final-source AB/BA paired lifecycle experiment",
+      "summary_sha256": "3ee2f1048429bf67e62f2c21902a733025777ffe9d4b9eb52ef71fc7d00615a1"
+    },
+    {
+      "artifact_path": "artifacts/lifecycle/g10-final-focused-20260727-01.xml",
+      "command_id": "CMD-LC-G10-004",
+      "duration_seconds": 5.57,
       "exit_code": 0,
       "failed": 0,
       "kind": "pytest",
-      "passed": 2164,
-      "pytest_duration_seconds": 184.28,
-      "scope": "Complete deterministic repository regression for accepted G6 code state",
-      "skipped": 27,
-      "warnings": 3
-    },
-    {
-      "artifact_path": "docs/lifecycle/CODEX_HANDOFF.json",
-      "candidate_files": 580,
-      "command_id": "CMD-LC-G6-004",
-      "duration_seconds": 6.613,
-      "exit_code": 0,
-      "findings": 0,
-      "kind": "audit",
-      "scope": "Final G6 public repository secret and private artifact audit"
-    },
-    {
-      "artifact_path": "docs/lifecycle/CODEX_HANDOFF.json",
-      "command_id": "CMD-LC-G6-005",
-      "duration_seconds": 6.154,
-      "exit_code": 0,
-      "kind": "validation",
-      "scope": "Integrated G6 lifecycle consistency and public repository validation"
-    },
-    {
-      "artifact_path": "artifacts/lifecycle/g7-focused-final-20260726-01/report.xml",
-      "command_id": "CMD-LC-G7-001",
-      "duration_seconds": 29.14,
-      "exit_code": 0,
-      "failed": 0,
-      "kind": "pytest",
-      "passed": 57,
-      "pytest_duration_seconds": 29.14,
-      "scope": "G7 immutable snapshot, publication failure injection, delete, rollback, and related G6 contracts",
+      "passed": 49,
+      "pytest_duration_seconds": 5.57,
+      "scope": "Final v2/v3 public evidence, experiment schema, filesystem, and original publication failure regression",
       "skipped": 0,
       "warnings": 3
     },
     {
-      "artifact_path": "artifacts/lifecycle/g7-related-final-20260726-04.xml",
-      "command_id": "CMD-LC-G7-002",
-      "duration_seconds": 61.25,
+      "artifact_path": "artifacts/lifecycle/g10-final-full-20260727-01.xml",
+      "command_id": "CMD-LC-G10-005",
+      "duration_seconds": 189.43,
       "exit_code": 0,
       "failed": 0,
       "kind": "pytest",
-      "passed": 589,
-      "pytest_duration_seconds": 61.25,
-      "scope": "Indexing, retrieval, ingestion, lifecycle, and security regression",
-      "skipped": 11,
-      "warnings": 3
-    },
-    {
-      "artifact_path": "artifacts/lifecycle/g7-full-final-20260726-04.xml",
-      "command_id": "CMD-LC-G7-003",
-      "duration_seconds": 163.81,
-      "exit_code": 0,
-      "failed": 0,
-      "kind": "pytest",
-      "passed": 2194,
-      "pytest_duration_seconds": 163.81,
-      "scope": "Complete deterministic repository regression for accepted G7 source state",
-      "skipped": 27,
-      "warnings": 3
-    },
-    {
-      "artifact_path": "artifacts/lifecycle/g7-current-model-recheck-20260727-01.xml",
-      "command_id": "CMD-LC-G7-004",
-      "duration_seconds": 4.45,
-      "exit_code": 0,
-      "failed": 0,
-      "kind": "pytest",
-      "passed": 106,
-      "pytest_duration_seconds": 4.45,
-      "scope": "Current-model recheck of email, file validation, child admission, and parser boundary tests",
-      "skipped": 1,
-      "warnings": 3
-    },
-    {
-      "artifact_path": "artifacts/lifecycle/g8-focused-final-20260727-01.xml",
-      "command_id": "CMD-LC-G8-001",
-      "duration_seconds": 16.76,
-      "exit_code": 0,
-      "failed": 0,
-      "kind": "pytest",
-      "passed": 217,
-      "pytest_duration_seconds": 16.76,
-      "scope": "G8 lifecycle, all API v2, CLI, runtime resources, and G7 rollback regression",
-      "skipped": 2,
-      "warnings": 3
-    },
-    {
-      "artifact_path": "artifacts/lifecycle/g8-full-final-20260727-01.xml",
-      "command_id": "CMD-LC-G8-002",
-      "duration_seconds": 164.01,
-      "exit_code": 1,
-      "failed": 1,
-      "kind": "pytest",
-      "passed": 2260,
-      "pytest_duration_seconds": 164.01,
-      "scope": "First complete G8 repository run exposing stale trusted-identity derived evidence",
-      "skipped": 27,
-      "warnings": 3
-    },
-    {
-      "artifact_path": "docs/security/r2_s5/evidence/identity_matrix_result.json",
-      "command_id": "CMD-LC-G8-003",
-      "duration_seconds": 3.32,
-      "exit_code": 0,
-      "failed": 0,
-      "kind": "pytest",
-      "passed": 41,
-      "pytest_duration_seconds": 3.32,
-      "scope": "Trusted identity result recomputation and API identity boundary correction",
-      "skipped": 0,
-      "warnings": 3
-    },
-    {
-      "artifact_path": "artifacts/lifecycle/g8-full-final-20260727-02.xml",
-      "command_id": "CMD-LC-G8-004",
-      "duration_seconds": 169.46,
-      "exit_code": 0,
-      "failed": 0,
-      "kind": "pytest",
-      "passed": 2261,
-      "pytest_duration_seconds": 169.46,
-      "scope": "Complete deterministic repository regression for accepted G8 source state",
-      "skipped": 27,
+      "passed": 2359,
+      "pytest_duration_seconds": 189.43,
+      "scope": "Complete repository regression for final G10 code, records, and public packages",
+      "skipped": 30,
       "warnings": 3
     },
     {
       "artifact_path": "docs/lifecycle/CODEX_HANDOFF.json",
-      "candidate_files": 594,
-      "command_id": "CMD-LC-G8-005",
-      "duration_seconds": 5.075,
+      "candidate_files": 720,
+      "command_id": "CMD-LC-G10-006",
+      "duration_seconds": 6.779,
       "exit_code": 0,
       "findings": 0,
       "kind": "audit",
-      "scope": "G8 public repository secret and private artifact audit"
+      "scope": "Final G10 public repository secret, private path, and bounded evidence audit"
     },
     {
       "artifact_path": "docs/lifecycle/CODEX_HANDOFF.json",
-      "command_id": "CMD-LC-G8-006",
-      "duration_seconds": 4.681,
+      "command_id": "CMD-LC-G10-007",
+      "duration_seconds": 6.01,
       "exit_code": 0,
       "kind": "validation",
-      "scope": "Integrated G8 lifecycle consistency and public repository validation"
-    },
-    {
-      "artifact_path": "artifacts/lifecycle/g9-focused-final-20260727-01.xml",
-      "command_id": "CMD-LC-G9-001",
-      "duration_seconds": 14.82,
-      "exit_code": 0,
-      "failed": 0,
-      "kind": "pytest",
-      "passed": 109,
-      "pytest_duration_seconds": 14.82,
-      "scope": "G9 bundle, E2E, operator API, email identity, cache bootstrap, filesystem, and evaluation writer",
-      "skipped": 1,
-      "warnings": 3
-    },
-    {
-      "artifact_path": "artifacts/lifecycle/g9-related-final-20260727-01.xml",
-      "command_id": "CMD-LC-G9-002",
-      "duration_seconds": 36.21,
-      "exit_code": 0,
-      "failed": 0,
-      "kind": "pytest",
-      "passed": 348,
-      "pytest_duration_seconds": 36.21,
-      "scope": "Lifecycle, API v2, event, revision, email, ChangePlan, and immutable snapshot related regression",
-      "skipped": 4,
-      "warnings": 3
-    },
-    {
-      "artifact_path": "artifacts/lifecycle/g9-full-final-20260727-01.xml",
-      "command_id": "CMD-LC-G9-003",
-      "duration_seconds": 185.84,
-      "exit_code": 1,
-      "failed": 2,
-      "kind": "pytest",
-      "passed": 2279,
-      "pytest_duration_seconds": 185.84,
-      "scope": "First post-review complete run exposing Windows retry assertion and cache bootstrap ACL race",
-      "skipped": 28,
-      "warnings": 3
-    },
-    {
-      "artifact_path": "artifacts/lifecycle/g9-windows-related-20260727-02.xml",
-      "command_id": "CMD-LC-G9-004",
-      "duration_seconds": 7.96,
-      "exit_code": 0,
-      "failed": 0,
-      "kind": "pytest",
-      "passed": 111,
-      "pytest_duration_seconds": 7.96,
-      "scope": "Corrected cache, filesystem, writer, corpus, EML, and file-admission Windows regression",
-      "skipped": 1,
-      "warnings": 3
-    },
-    {
-      "artifact_path": "artifacts/lifecycle/g9-full-final-20260727-02.xml",
-      "command_id": "CMD-LC-G9-005",
-      "duration_seconds": 189.54,
-      "exit_code": 0,
-      "failed": 0,
-      "kind": "pytest",
-      "passed": 2281,
-      "pytest_duration_seconds": 189.54,
-      "scope": "Complete deterministic repository regression for accepted G9 source state",
-      "skipped": 28,
-      "warnings": 3
-    },
-    {
-      "artifact_path": "docs/lifecycle/CODEX_HANDOFF.json",
-      "candidate_files": 608,
-      "command_id": "CMD-LC-G9-006",
-      "duration_seconds": 5.639,
-      "exit_code": 0,
-      "findings": 0,
-      "kind": "audit",
-      "scope": "Final G9 public repository secret and private artifact audit"
-    },
-    {
-      "artifact_path": "docs/lifecycle/CODEX_HANDOFF.json",
-      "command_id": "CMD-LC-G9-007",
-      "duration_seconds": 5.196,
-      "exit_code": 0,
-      "kind": "validation",
-      "scope": "Integrated G9 lifecycle consistency and public repository validation"
+      "scope": "Integrated G10 anchors, artifacts, experiment history, failures, traceability, and public audit validation"
     }
   ],
   "next_actions": [
-    "Implement the G10 deterministic base/change/query bundle generator without collecting timing.",
-    "Implement and RED-test the isolated paired full-versus-incremental worker and correctness equivalence gate.",
-    "Append the exact G10 experiment preregistration only after all dataset and command hashes are frozen.",
-    "Collect no performance result until the REGISTERED record validates."
+    "Commit and push the final G10 handoff and lifecycle_g10_v3 public evidence package.",
+    "Freeze the next stage contract around independent human-labeled retrieval and answer-quality evidence.",
+    "Keep deterministic lifecycle performance separate from live-model latency and semantic-quality claims.",
+    "Resolve FAIL-LC-076 only through exact owner-controlled host cleanup; do not broaden deletion scope."
   ],
-  "open_failures": [],
+  "open_failures": [
+    "FAIL-LC-076"
+  ],
   "schema_version": 1
 }

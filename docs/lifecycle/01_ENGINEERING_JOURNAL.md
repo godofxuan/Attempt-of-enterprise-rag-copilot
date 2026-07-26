@@ -2840,3 +2840,60 @@ experiment transition and exact thresholds, compares aggregate rows with
 child pair/arm files, checks safe exact commands, and recomputes the decision.
 It reported `verified EXP-LC-009: 10 pairs, SUPPORTED`. The package contains 52
 files and 3,196,456 bytes.
+
+## 2026-07-27T06:15:00+08:00 - G10 / EVID-LC-041
+
+### Full-suite publication failure and final-source rerun
+
+The first post-package complete repository run passed 2356 tests but produced
+one setup error in an older R2-S3 public-evidence fixture. Windows
+`MoveFileExW` returned transient WinError 5 after the staging directory was
+written. The module still had a one-attempt private publication helper, while
+newer ingestion, indexing, evaluation, and lifecycle writers used the shared
+bounded `atomic_directory_move`.
+
+The diagnosis was made deterministic before the fix. A RED test injected two
+WinError 5 failures into the shared move seam, invoked the old evaluation
+publication entry point, and observed zero shared calls. The Windows branch now
+uses the shared no-replace move with bounded retries. Linux keeps
+`renameat2(RENAME_NOREPLACE)`. Target collisions and non-transient permission
+errors are still never retried or overwritten.
+
+The filesystem plus original failing parameterized tests passed 6 tests. The
+exact original node then passed 20 of 20 independent repetitions. The expanded
+evaluation/filesystem suite passed 983 tests with 16 skips. The corrected
+complete repository run passed 2358 tests with 30 skips in 190.38 seconds.
+`FAIL-LC-086` preserves the failed full run, RED signal, root cause, and fix.
+
+Because this repair changed an `app/**/*.py` file and G10 binds the complete app
+source tree, `EXP-LC-009` was not reused as a current-source claim. Commit
+`71e26d667d49a5573546e703e7a9fbb78803906d` froze the corrected source.
+`EXP-LC-010` registered the unchanged hypothesis, v4 dataset, and exact
+thresholds against configuration
+`666dde591576b7d261ec95cff30fba0f8b017b15198f6abeb33e999823412986`.
+`EXP-LC-011` recorded start and `EXP-LC-012` bound completion plus all 45 raw
+files.
+
+The final-source 10-pair result was:
+
+| Metric | Final result |
+| --- | ---: |
+| Correctness-equivalent pairs | 10/10 |
+| Faster intervention pairs | 10/10 |
+| Median total-time ratio | 0.707684 |
+| P95 total-time ratio | 0.749550 |
+| Baseline-first median ratio | 0.725431 |
+| Intervention-first median ratio | 0.706630 |
+| Embedding-call ratio | 0.025472 |
+| Deleted active-index residue | 0 |
+| Decision | `SUPPORTED` |
+
+The median corresponds to approximately 29.23 percent lower complete
+target-build wall time under the frozen local deterministic boundary. The v3
+public package contains 52 files and 3,196,479 bytes and independently
+recomputed `verified EXP-LC-012: 10 pairs, SUPPORTED`.
+
+After adding the final v3 and historical-v2 repository assertions, the final
+focused suite passed 49 tests in 5.57 seconds. The final complete repository
+run passed 2359 tests, skipped 30, and emitted the three unchanged SWIG
+deprecation warnings in 189.43 seconds.

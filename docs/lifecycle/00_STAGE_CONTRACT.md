@@ -1041,9 +1041,9 @@ results into a live-model latency claim.
 
 ### G10 Closeout
 
-The accepted formal run is the schema-v2 experiment chain
-`EXP-LC-007 -> EXP-LC-008 -> EXP-LC-009`. It binds source commit
-`5570d022cd0be73625748a07a9fcea26eaa97630`, the complete measurement source
+The accepted final formal run is the schema-v2 experiment chain
+`EXP-LC-010 -> EXP-LC-011 -> EXP-LC-012`. It binds source commit
+`71e26d667d49a5573546e703e7a9fbb78803906d`, the complete measurement source
 tree, dependency identities, the canonical v4 bundle, exact preregistered
 thresholds, and 45 aggregate/child execution artifacts.
 
@@ -1051,14 +1051,18 @@ The independently recomputed result is `SUPPORTED`:
 
 - 10 of 10 pairs are correctness equivalent;
 - 10 of 10 intervention arms are faster;
-- median intervention/baseline total-time ratio is `0.7165991685381844`;
+- median intervention/baseline total-time ratio is `0.7076844547982923`;
 - intervention/baseline embedding-call ratio is `0.025472473294987676`;
 - active-index deletion residual count is zero.
 
 This accepts a local deterministic lifecycle pipeline-overhead claim only. It
 does not establish live Ollama latency, semantic retrieval quality, production
-throughput, or private-enterprise acceptance. The self-contained public package
-is `data/v2/public/lifecycle_g10_v2`.
+throughput, or private-enterprise acceptance. The preceding
+`EXP-LC-007 -> EXP-LC-009` run remains valid evidence for source commit
+`5570d02`, but it was superseded as the current-source claim after full-suite
+testing found and fixed a Windows publication inconsistency. The final
+self-contained public package is `data/v2/public/lifecycle_g10_v3`; v2 remains
+historical evidence for the preceding source commit.
 
 One non-product exception remains open as `FAIL-LC-076`: an old pytest
 temporary directory on the host system drive has an ACL that prevents cleanup
