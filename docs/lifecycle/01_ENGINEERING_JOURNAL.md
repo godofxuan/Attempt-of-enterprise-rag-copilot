@@ -2707,3 +2707,136 @@ G9 does not prove retrieval relevance, answer faithfulness, real-model
 performance, incremental wall-time speedup, real enterprise acceptance,
 physical erasure of audit history, multi-host coordination, Linux local
 execution, or production traffic behavior. `EXPERIMENTS.jsonl` remains empty.
+
+## 2026-07-27T05:05:00+08:00 - G10 / EVID-LC-036
+
+### Why the first performance result was not accepted
+
+G10 initially produced an internally consistent supported result, but an
+independent provenance review found that it could not support a current-code
+claim. `EXP-LC-006` bound an older configuration identity, the full
+measurement source was not yet committed, its public directory omitted the
+Git-ignored raw artifacts, its ACL oracle had no denial cases, and its
+experiment timeline did not distinguish registration, start, and completion.
+
+The old records and raw files were retained as historical evidence. They were
+not edited, relabelled, or used as the G10 closeout result. Failures
+`FAIL-LC-078` through `FAIL-LC-084` record the review findings and fixes.
+
+### Frozen measurement boundary
+
+The baseline is not raw-file end-to-end ingestion. Both arms start from the
+same byte-copied, validated base state. Base-template construction is outside
+timing. Inside timing, both arms perform:
+
+```text
+bundle and prestate validation
+-> G6 complete target computation and transaction finalization
+-> G7 complete target assembly, validation, publication, and activation
+```
+
+The baseline uses a new empty target computation cache, so it recomputes the
+complete changed target. The intervention reuses the production computation
+cache from the same accepted base. Query, ACL, deletion, and exact target
+checks occur after timing and determine whether a timing pair may be accepted.
+
+## 2026-07-27T05:08:00+08:00 - G10 / EVID-LC-037
+
+### Dataset and correctness-oracle hardening
+
+The canonical v4 bundle contains 1225 base lifecycle documents and a target
+with 1215 live documents:
+
+- 31 content changes;
+- 20 ACL replacements;
+- 10 deletions;
+- 1164 unchanged documents;
+- 13 fixed correctness queries.
+
+An ACL replacement removes one old group and adds one new group. For protected
+documents, the oracle now requires one authorized positive retrieval and
+negative checks for the removed group, wrong tenant, and wrong region. Any
+protected-document hit in a negative result invalidates the pair. This changed
+the benchmark from “both arms make the same output” to “both arms make the
+same output and that output satisfies explicit visibility requirements.”
+
+The bundle was generated twice in isolated D-drive roots. All seven files were
+byte-identical. Its manifest SHA-256 is
+`562b71333b5987e9fbc7f1d55565e5f0758daf8d8c33b91b9fed2b1404ae5c99`.
+
+## 2026-07-27T05:11:00+08:00 - G10 / EVID-LC-038
+
+### Provenance and decision hardening
+
+The runner configuration now hashes every regular `app/**/*.py` measurement
+dependency, the benchmark CLI, `requirements.txt`, exact relevant package
+versions, pipeline identity, source path set, and source file count. Formal
+registration and execution refuse a dirty measurement source or a source tree
+that differs from Git `HEAD`.
+
+`PairedDecisionProtocol` parses the exact preregistered success and failure
+threshold objects. A missing, extra, or changed threshold prevents the run
+from starting. Experiment schema v2 requires a timezone-aware strict timeline:
+
+```text
+REGISTERED.registered_at
+  < RUNNING.started_at
+  < COMPLETED.completed_at
+```
+
+The completed record binds five aggregate artifacts and all forty child arm,
+pair, and command files. This makes every accepted row independently hashable.
+
+Before source freeze, the final hardening-focused suite passed 175 tests with
+7 skips. The complete repository passed 2356 tests with 30 skips. The public
+audit inspected 622 candidates and found zero findings. Source commit
+`5570d022cd0be73625748a07a9fcea26eaa97630` then froze the formal measurement
+implementation.
+
+## 2026-07-27T05:34:00+08:00 - G10 / EVID-LC-039
+
+### Formal paired execution
+
+`EXP-LC-007` registered the hypothesis, controlled variables, dataset,
+commands, exact thresholds, and source/dependency identity before timing.
+`EXP-LC-008` records execution start. `EXP-LC-009` records completion and all
+45 raw artifact hashes.
+
+Ten pairs ran in alternating baseline-first/intervention-first order. Each arm
+used a fresh process and a disjoint working root. The result was:
+
+| Metric | Result | Frozen threshold |
+| --- | ---: | ---: |
+| Correctness-equivalent pairs | 10/10 | 10/10 |
+| Faster intervention pairs | 10/10 | at least 8/10 |
+| Median total-time ratio | 0.716599 | at most 0.75 |
+| P95 total-time ratio | 0.743191 | descriptive |
+| Baseline-first median ratio | 0.706155 | descriptive |
+| Intervention-first median ratio | 0.721557 | descriptive |
+| Embedding-call ratio | 0.025472 | at most 0.10 |
+| Deleted active-index residue | 0 | 0 |
+
+The decision is `SUPPORTED`. The defensible interpretation is approximately
+28.34 percent lower median complete target-build wall time and approximately
+97.45 percent fewer embedding callbacks for this frozen deterministic local
+lifecycle workload. It is not a real-model latency or retrieval-quality claim.
+
+## 2026-07-27T05:36:00+08:00 - G10 / EVID-LC-040
+
+### Self-contained public verification
+
+The original G10 public directory retained only a summary and checksum, while
+reviewers could not fetch ignored raw artifacts. The replacement package at
+`data/v2/public/lifecycle_g10_v2` contains:
+
+- canonical public summary;
+- package manifest and checksum list;
+- all 45 bound raw aggregate and child files;
+- four explicit dataset metadata files.
+
+The standalone verifier reads only this directory. It rehashes all files,
+validates environment and terminal status identity, validates the complete
+experiment transition and exact thresholds, compares aggregate rows with
+child pair/arm files, checks safe exact commands, and recomputes the decision.
+It reported `verified EXP-LC-009: 10 pairs, SUPPORTED`. The package contains 52
+files and 3,196,456 bytes.

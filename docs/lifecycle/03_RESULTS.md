@@ -732,3 +732,72 @@ scenario passed 20 consecutive iterations after correction.
   links; the same test executes on a capable CI host.
 - No G10 performance claim is accepted until experiments are preregistered and
   run.
+
+## G10 Paired Lifecycle Performance and Provenance Results
+
+G10 closes `REQ-LC-010` for reproducible local performance evidence and adds
+measured support for the G6 reuse claim under the exact G10 boundary.
+
+### Formal experiment identity
+
+| Field | Accepted value |
+| --- | --- |
+| Registration | `EXP-LC-007` |
+| Running transition | `EXP-LC-008` |
+| Completion | `EXP-LC-009` |
+| Frozen source commit | `5570d022cd0be73625748a07a9fcea26eaa97630` |
+| Dataset | `expanded_benchmark_lifecycle_v4`, 1225 base documents |
+| Pairs | 10, alternating AB/BA |
+| Raw artifacts | 45, all SHA-256 bound |
+| Public package | `data/v2/public/lifecycle_g10_v2` |
+
+### Result
+
+| Metric | Observed |
+| --- | ---: |
+| Correctness-equivalent pairs | 10/10 |
+| Faster intervention pairs | 10/10 |
+| Median intervention/baseline wall-time ratio | 0.716599 |
+| P95 wall-time ratio | 0.743191 |
+| Baseline-first median ratio | 0.706155 |
+| Intervention-first median ratio | 0.721557 |
+| Baseline embedding callbacks | 12,170 |
+| Intervention embedding callbacks | 310 |
+| Embedding-call ratio | 0.025472 |
+| Baseline peak RSS | 381,550,592 bytes |
+| Intervention peak RSS | 379,273,216 bytes |
+| Active-index deleted residual count | 0 |
+| Frozen decision | `SUPPORTED` |
+
+The accepted resume/project statement is:
+
+> On a frozen 1225-document deterministic local lifecycle workload, a
+> preregistered 10-pair AB/BA experiment found that production computation
+> reuse preserved exact target, ACL, query, and deletion correctness while
+> reducing median complete target-build wall time by 28.34% and embedding
+> callbacks by 97.45%.
+
+The statement must retain “deterministic local lifecycle workload.” It must not
+be shortened into a real-model, production-QPS, or customer-data claim.
+
+### Verification evidence
+
+Before the formal source commit, the hardened focused suite passed 175 tests
+with 7 skips, and the complete repository passed 2356 tests with 30 skips.
+The public audit inspected 622 candidates and found zero findings.
+
+The final public package has 52 files and 3,196,456 bytes. The standalone
+verifier recomputed `10 pairs, SUPPORTED` from the package alone. Final
+post-package focused/full JUnit, audit, and integrated lifecycle validation
+results are recorded in the G10 handoff.
+
+### Remaining limits
+
+- Base-template construction and raw file admission are outside timing.
+- Deterministic embeddings measure lifecycle overhead, not Ollama latency.
+- Synthetic data does not establish semantic relevance, answer faithfulness,
+  or enterprise-user acceptance.
+- The benchmark is local and single-host; it is not a distributed throughput
+  or concurrency-capacity result.
+- `FAIL-LC-076` remains open for an old host-temp ACL residue. Subsequent
+  commands use only the project D-drive temporary root.

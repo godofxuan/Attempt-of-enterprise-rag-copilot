@@ -1920,3 +1920,141 @@ incremental computation reuse, immutable index publication, CAS activation,
 active-index deletion verification, rollback, authenticated operation, and a
 fictional exact-hash E2E evidence package. Do not attach unmeasured speedup,
 real-customer, or production-scale numbers.
+
+## G10 - How to Prove Incremental Lifecycle Value
+
+### What was actually compared
+
+The benchmark does not compare “rebuild the entire project from raw files”
+with “update a few files.” That would be an unfair comparison because the two
+arms would start at different business states.
+
+Both arms start with the same accepted base snapshot:
+
+```text
+same base catalog
+same base immutable index
+same target ChangePlan
+same target source bytes
+same host and dependencies
+```
+
+The baseline has no target computation cache, so it recomputes every target
+document's parse/normalize/chunk/embed stages. The intervention has the base
+cache and can reuse stages whose complete correctness key is unchanged. Both
+still build and validate a complete immutable target. This isolates the value
+of computation reuse without weakening publication safety.
+
+### Why a pair is rejected before timing matters
+
+Faster wrong output has no engineering value. For each pair, the project first
+requires:
+
+- exact target catalog and artifact fingerprints;
+- exact document/chunk/embedding order;
+- authorized retrieval success;
+- removed-group, wrong-tenant, and wrong-region retrieval denial;
+- zero deleted-source representation in the active index.
+
+Only a pair passing all correctness checks contributes to the performance
+decision. This is called a correctness gate around a performance experiment.
+
+### Why AB/BA order is alternated
+
+The first process can pay cold-start costs, while the second can benefit from
+operating-system file cache. If baseline always ran first, the experiment
+could unfairly favor intervention.
+
+```text
+pair 1: baseline -> intervention
+pair 2: intervention -> baseline
+pair 3: baseline -> intervention
+...
+```
+
+The result reports both order groups. Their median ratios, approximately 0.706
+and 0.722, point in the same direction. This does not eliminate every host
+effect, but it makes the major order bias visible.
+
+### How to read the two main ratios
+
+The median time ratio is:
+
+```text
+intervention wall time / baseline wall time = 0.7166
+```
+
+The intervention therefore used about 71.66 percent of baseline time. The
+relative reduction is `1 - 0.7166 = 0.2834`, or about 28.34 percent.
+
+The embedding-call ratio is:
+
+```text
+310 / 12170 = 0.02547
+```
+
+The intervention made about 2.55 percent as many embedding callbacks, a
+reduction of about 97.45 percent. Wall time does not fall by the same amount
+because complete validation, serialization, index assembly, publication, and
+activation still run in both arms.
+
+### Why commit binding matters
+
+An experiment result applies to the code that produced it. If the runner or a
+transitive measurement dependency changes afterward, the old number cannot be
+silently claimed for the new code.
+
+G10 registration hashes:
+
+- the Git commit;
+- every regular measurement source file;
+- the source path list and count;
+- `requirements.txt`;
+- exact relevant installed dependency versions;
+- pipeline, bundle, host, and model identities.
+
+The run refuses a dirty measurement source. This is the same reason a database
+migration, model evaluation, or security certification needs a versioned
+artifact: reviewers must know exactly what was measured.
+
+### Why the public package copies raw files
+
+A checksum of an unavailable file proves nothing to an external reviewer.
+The first public G10 summary referenced files under a Git-ignored run
+directory. The v2 package copies all 45 bounded raw files and four dataset
+descriptors, then binds them with a canonical manifest and checksum list.
+
+The verifier does more than hash checking. It proves that aggregate rows equal
+their child pair files, arm files belong to the expected pair, commands are
+the frozen safe commands, timestamps and identities agree, thresholds are the
+registered thresholds, and the recomputed decision is `SUPPORTED`.
+
+### Interview questions
+
+**Why did you keep failed or superseded experiments?**
+
+Deleting them would hide the development history and make it impossible to
+explain why the accepted protocol is stronger. `EXP-LC-001..006` remain
+historical; only `EXP-LC-007..009` bind the accepted source and portable
+evidence.
+
+**Why not use average time?**
+
+The primary statistic is the paired median ratio because it is less sensitive
+to occasional host spikes. Mean, min, P95, faster-pair count, and AB/BA strata
+remain visible as supporting diagnostics.
+
+**Does 28.34 percent mean production requests are 28.34 percent faster?**
+
+No. It means complete target builds from an accepted base were 28.34 percent
+faster at the median in this deterministic local 1225-document workload. It
+does not measure online answer latency, real embedding service latency, or
+multi-user throughput.
+
+**Why is only one local failure still open?**
+
+An early test used the host default temporary directory and created a path
+whose Windows ACL now prevents removal by the current token. It does not affect
+runtime correctness or public evidence. The exact exception remains visible
+as `FAIL-LC-076`, and all later Python/test temporary state is pinned to the
+project D drive rather than pretending cleanup succeeded.

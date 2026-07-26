@@ -7,6 +7,8 @@ import stat
 import sys
 from pathlib import Path
 
+from app.filesystem import atomic_directory_move
+
 
 _REPARSE_POINT_ATTRIBUTE = getattr(
     stat,
@@ -68,24 +70,8 @@ def _validated_absent_publication_target(
 
 def _atomic_publish_no_replace(stage: Path, target: Path) -> None:
     if os.name == "nt":
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        move_file = kernel32.MoveFileExW
-        move_file.argtypes = (
-            ctypes.c_wchar_p,
-            ctypes.c_wchar_p,
-            ctypes.c_ulong,
-        )
-        move_file.restype = ctypes.c_int
-        if move_file(str(stage), str(target), 0):
-            return
-        error_code = ctypes.get_last_error()
-        if error_code in {5, 80, 183} and target.exists():
-            raise FileExistsError(
-                errno.EEXIST,
-                os.strerror(errno.EEXIST),
-                str(target),
-            )
-        raise ctypes.WinError(error_code)
+        atomic_directory_move(stage, target)
+        return
 
     if sys.platform == "linux":
         libc = ctypes.CDLL(None, use_errno=True)

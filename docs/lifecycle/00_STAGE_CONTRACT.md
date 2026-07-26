@@ -1,6 +1,6 @@
 # R2-S7 Secure Knowledge Lifecycle Stage Contract
 
-Status: G0-G9 complete; G10 provenance hardening and rerun in progress
+Status: G0-G10 complete; R2-S7 accepted with one local disk-hygiene exception
 
 Baseline commit: `d465eedb80cae4bc7b2e3be71b782ad565cc188e`
 
@@ -1038,6 +1038,32 @@ results into a live-model latency claim.
    preserve every preregistered field and bind all raw artifact hashes.
 10. `T-LC-104`: focused, related, complete repository, public audit, and
     integrated lifecycle validation remain green before any performance claim.
+
+### G10 Closeout
+
+The accepted formal run is the schema-v2 experiment chain
+`EXP-LC-007 -> EXP-LC-008 -> EXP-LC-009`. It binds source commit
+`5570d022cd0be73625748a07a9fcea26eaa97630`, the complete measurement source
+tree, dependency identities, the canonical v4 bundle, exact preregistered
+thresholds, and 45 aggregate/child execution artifacts.
+
+The independently recomputed result is `SUPPORTED`:
+
+- 10 of 10 pairs are correctness equivalent;
+- 10 of 10 intervention arms are faster;
+- median intervention/baseline total-time ratio is `0.7165991685381844`;
+- intervention/baseline embedding-call ratio is `0.025472473294987676`;
+- active-index deletion residual count is zero.
+
+This accepts a local deterministic lifecycle pipeline-overhead claim only. It
+does not establish live Ollama latency, semantic retrieval quality, production
+throughput, or private-enterprise acceptance. The self-contained public package
+is `data/v2/public/lifecycle_g10_v2`.
+
+One non-product exception remains open as `FAIL-LC-076`: an old pytest
+temporary directory on the host system drive has an ACL that prevents cleanup
+by the current token. Every subsequent Python and pytest command used the
+project-drive `.private/lifecycle/pytest-temp` root.
 
 ## 13. Out of Scope
 

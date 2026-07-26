@@ -1093,3 +1093,88 @@ production throughput, private-enterprise acceptance, distributed operation,
 or live-model reproducibility. Fresh isolated runs may have different
 random-derived internal hashes while producing the same fixed-query
 fingerprints and accepted scenario invariants.
+
+## ADR-LC-012 - Measure Paired Builds from One Accepted Base State
+
+**Status:** Accepted in G10
+
+### Context
+
+A full raw-file rebuild and a cache-reusing lifecycle update do not begin at
+the same business state and would mix admission, parsing, base construction,
+and target-update costs. A single process also cannot provide independent peak
+RSS on Windows because the process high-water mark is cumulative. One timing
+sample cannot separate implementation benefit from host noise or execution
+order.
+
+### Decision
+
+Create one validated base template outside the measured operation. For every
+pair, byte-copy it into two isolated roots and launch fresh sequential arm
+processes. The baseline recomputes the complete changed target with an empty
+target cache. The intervention reuses the production base computation cache.
+Both arms include validation, G6 transaction finalization, complete G7
+publication validation, and activation inside timing.
+
+Alternate baseline-first and intervention-first order across ten pairs. Accept
+a timing row only after exact catalog, document, chunk, embedding, deletion,
+and positive/negative ACL query equivalence. Compute paired ratios and report
+both order strata. Apply only the thresholds fixed in the registered
+`PairedDecisionProtocol`.
+
+### Alternatives Rejected
+
+1. Compare raw ingestion with incremental update. The input states and measured
+   responsibilities differ.
+2. Run both arms in one process. Peak RSS would not be arm-independent.
+3. Use a single run. Host and order noise would dominate the claim.
+4. Accept equal artifact hashes without ACL denial checks. Equality can make
+   the same security mistake twice.
+
+### Consequences and Limitations
+
+The experiment measures local target-build pipeline overhead from an accepted
+base, not end-to-end document onboarding. Byte-copy preparation is excluded
+and must not be described as a production optimization. Deterministic
+embeddings make the run reproducible but prohibit a live-model latency claim.
+
+## ADR-LC-013 - Bind Formal Results to Committed Source and Portable Raw Evidence
+
+**Status:** Accepted in G10
+
+### Context
+
+The first supported run was internally consistent but measurement code changed
+afterward, thresholds were duplicated rather than linked, transition times
+were ambiguous, and ignored raw files prevented GitHub reviewers from
+recomputing the public result.
+
+### Decision
+
+Formal registration requires all measurement sources to match Git `HEAD`.
+Configuration identity binds the source tree, source paths, file count,
+requirements, relevant runtime dependency versions, pipeline, host, bundle,
+and model identity. Use immutable schema-v2 REGISTERED, RUNNING, and COMPLETED
+records with strict timestamps and parent links. Bind all aggregate and child
+files in the completed record.
+
+Export a bounded self-contained public package containing copied raw files,
+dataset metadata, canonical summary, manifest, and checksums. Verify it without
+consulting the private run directory or experiment ledger. Recompute semantic
+relationships and the decision, not only byte hashes.
+
+### Alternatives Rejected
+
+1. Update the old experiment record. This would erase provenance history.
+2. Trust matching constants in code and preregistration. There is no enforced
+   relationship.
+3. Publish only summary hashes. A reviewer cannot inspect ignored inputs.
+4. Publish raw private work roots. That leaks machine paths and unbounded
+   artifacts.
+
+### Consequences and Limitations
+
+Any measurement-source change requires a new experiment chain. The public
+package is larger, but it is portable and independently auditable. It remains
+synthetic local evidence and does not replace a private-data pilot, human
+quality labels, or live-model benchmarking.

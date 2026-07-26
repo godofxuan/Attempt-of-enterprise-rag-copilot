@@ -33,6 +33,9 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PUBLIC_ROOT = (
     REPOSITORY_ROOT / "data" / "v2" / "public" / "lifecycle_g10"
 )
+PUBLIC_V2_ROOT = (
+    REPOSITORY_ROOT / "data" / "v2" / "public" / "lifecycle_g10_v2"
+)
 
 
 def _completed_experiment() -> ExperimentRecord:
@@ -43,6 +46,23 @@ def _completed_experiment() -> ExperimentRecord:
     validate_experiment_history(records)
     return next(
         item for item in records if item.experiment_id == "EXP-LC-006"
+    )
+
+
+def _completed_v2_experiment() -> tuple[
+    list[ExperimentRecord],
+    ExperimentRecord,
+]:
+    records = load_jsonl_records(
+        REPOSITORY_ROOT / "docs" / "lifecycle" / "EXPERIMENTS.jsonl",
+        ExperimentRecord,
+    )
+    validate_experiment_history(records)
+    return (
+        records,
+        next(
+            item for item in records if item.experiment_id == "EXP-LC-009"
+        ),
     )
 
 
@@ -378,6 +398,30 @@ def test_public_g10_checksum_binds_only_canonical_summary() -> None:
     assert (PUBLIC_ROOT / "checksums.sha256").read_bytes() == (
         f"{checksum}  summary.json\n".encode("ascii")
     )
+
+
+def test_public_g10_v2_package_recomputes_current_formal_experiment() -> None:
+    history, completed = _completed_v2_experiment()
+    expected = build_public_performance_summary(
+        REPOSITORY_ROOT,
+        completed,
+        history=history,
+    )
+
+    observed = verify_public_performance_evidence_package(PUBLIC_V2_ROOT)
+
+    assert observed == expected
+    assert observed.completed_experiment_id == "EXP-LC-009"
+    assert observed.source_commit_sha == (
+        "5570d022cd0be73625748a07a9fcea26eaa97630"
+    )
+    assert observed.final_status == "SUPPORTED"
+    assert observed.pair_count == 10
+    assert observed.correctness_equivalent_pair_count == 10
+    assert observed.active_index_deleted_residual_count == 0
+    assert observed.faster_pair_count == 10
+    assert observed.total_time_ratio.p50 <= 0.75
+    assert observed.intervention_embedding_call_ratio <= 0.1
 
 
 def test_v2_environment_status_and_registered_identity_are_strict(

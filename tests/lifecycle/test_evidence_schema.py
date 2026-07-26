@@ -194,18 +194,31 @@ def test_v2_transition_timestamps_reject_missing_or_unordered_values(
         )
 
 
-def test_legacy_history_and_v2_transition_history_are_both_valid() -> None:
+def test_repository_legacy_and_v2_transition_histories_are_both_valid() -> None:
     repository_root = Path(__file__).resolve().parents[2]
-    legacy_records = load_jsonl_records(
+    records = load_jsonl_records(
         repository_root / "docs" / "lifecycle" / "EXPERIMENTS.jsonl",
         ExperimentRecord,
     )
 
-    validate_experiment_history(legacy_records)
+    validate_experiment_history(records)
+    legacy_records = records[:6]
+    current_records = records[6:]
     assert len(legacy_records) == 6
     assert {record.schema_version for record in legacy_records} == {1}
     assert all(record.started_at is None for record in legacy_records)
     assert all(record.completed_at is None for record in legacy_records)
+    assert [record.experiment_id for record in current_records] == [
+        "EXP-LC-007",
+        "EXP-LC-008",
+        "EXP-LC-009",
+    ]
+    assert {record.schema_version for record in current_records} == {2}
+    assert [record.status.value for record in current_records] == [
+        "REGISTERED",
+        "RUNNING",
+        "COMPLETED",
+    ]
 
     registered = ExperimentRecord.model_validate(
         _registered_experiment(
