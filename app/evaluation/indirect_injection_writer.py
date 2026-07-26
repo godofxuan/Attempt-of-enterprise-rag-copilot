@@ -13,6 +13,7 @@ from typing import Any, Literal, Mapping
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.filesystem import atomic_directory_move
 from app.evaluation.indirect_injection_runner import (
     GateCheck,
     PairedSecurityResult,
@@ -456,7 +457,7 @@ def publish_security_run(
         _assert_content_free(manifest_bytes, forbidden_texts)
         (stage / "manifest.json").write_bytes(manifest_bytes)
         _validate_stage(stage, final_manifest)
-        stage.rename(target)
+        atomic_directory_move(stage, target)
     except Exception:
         shutil.rmtree(stage, ignore_errors=True)
         raise

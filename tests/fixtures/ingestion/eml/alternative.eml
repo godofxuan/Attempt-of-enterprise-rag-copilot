@@ -1,0 +1,19 @@
+From: Alternative Sender <alternative-sender@example.invalid>
+To: Alternative Reader <alternative-reader@example.invalid>
+Date: Sat, 25 Jul 2026 11:30:00 +0800
+Subject: Fictional multipart choice
+Message-ID: <alternative-g4@example.invalid>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="g4-alternative"
+
+--g4-alternative
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+The plain representation is authoritative for extraction.
+--g4-alternative
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+<html><body><p>The HTML representation must not replace available plain text.</p></body></html>
+--g4-alternative--

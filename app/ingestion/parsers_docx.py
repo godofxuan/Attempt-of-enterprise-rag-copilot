@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from io import BytesIO
 from pathlib import Path
 
 import docx
@@ -26,7 +27,25 @@ class DocxDocumentParser:
     suffixes = (".docx",)
 
     def parse(self, path: Path) -> ParseResult:
-        document = Document(path)
+        return self._parse_document(Document(path), path=path)
+
+    def parse_bytes(
+        self,
+        content: bytes,
+        *,
+        source_name: str,
+    ) -> ParseResult:
+        return self._parse_document(
+            Document(BytesIO(content)),
+            path=Path(source_name),
+        )
+
+    def _parse_document(
+        self,
+        document,
+        *,
+        path: Path,
+    ) -> ParseResult:
         headings: list[str] = []
         sections: list[ParsedSection] = []
         tables: list[ParsedTable] = []

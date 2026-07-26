@@ -3,11 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 import pickle
+import time
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Literal
 
 import faiss
 import numpy as np
@@ -31,6 +32,15 @@ from app.utils import tokenize_for_bm25
 
 
 EmbedText = Callable[[str], list[float]]
+BuildPhase = Literal[
+    "prepare",
+    "embedding",
+    "index_construction",
+    "artifact_serialization",
+    "artifact_write",
+    "validation",
+]
+BuildPhaseObserver = Callable[[BuildPhase, float], None]
 
 
 class BuildPreview(BaseModel):
@@ -162,10 +172,13 @@ def _normalize_vectors(vectors: np.ndarray) -> np.ndarray:
 def _build_artifact_bytes(
     prepared: _PreparedBuild,
     embed_text: EmbedText,
+    *,
+    phase_observer: BuildPhaseObserver | None = None,
 ) -> tuple[dict[str, bytes], int]:
     indexed_chunks = prepared.indexed_chunks
     if not indexed_chunks:
         raise ValueError("build has no indexable chunks")
+    embedding_started = time.perf_counter()
     embeddings: list[list[float]] = []
     dimension: int | None = None
     for chunk in indexed_chunks:
@@ -180,10 +193,16 @@ def _build_artifact_bytes(
                 f"got {len(vector)} for {chunk.chunk_id!r}"
             )
         embeddings.append(vector)
+    _observe_phase(phase_observer, "embedding", embedding_started)
+
+    construction_started = time.perf_counter()
     array = _normalize_vectors(np.asarray(embeddings, dtype="float32"))
     index = faiss.IndexFlatIP(array.shape[1])
     index.add(array)
     tokenized = [tokenize_for_bm25(chunk.text) for chunk in indexed_chunks]
+    _observe_phase(phase_observer, "index_construction", construction_started)
+
+    serialization_started = time.perf_counter()
     artifacts = {
         "documents.json": _json_bytes(prepared.governed.documents),
         "chunks.json": _json_bytes(indexed_chunks),
@@ -191,6 +210,11 @@ def _build_artifact_bytes(
         "bm25_tokens.pkl": pickle.dumps(tokenized, protocol=pickle.HIGHEST_PROTOCOL),
         "faiss.index": faiss.serialize_index(index).tobytes(),
     }
+    _observe_phase(
+        phase_observer,
+        "artifact_serialization",
+        serialization_started,
+    )
     return artifacts, int(array.shape[1])
 
 
@@ -212,6 +236,15 @@ def _ensure_empty_output(output_dir: Path) -> None:
         raise FileExistsError(f"output directory is not empty: {output_dir}")
 
 
+def _observe_phase(
+    observer: BuildPhaseObserver | None,
+    phase: BuildPhase,
+    started_at: float,
+) -> None:
+    if observer is not None:
+        observer(phase, max(0.0, (time.perf_counter() - started_at) * 1000.0))
+
+
 def build_index_artifacts(
     *,
     input_dir: Path,
@@ -223,17 +256,24 @@ def build_index_artifacts(
     registry: ParserRegistry | None = None,
     started_at: datetime | None = None,
     finished_at: datetime | None = None,
+    phase_observer: BuildPhaseObserver | None = None,
 ) -> IndexManifest:
     output_dir = Path(output_dir)
     _ensure_empty_output(output_dir)
     start = started_at or datetime.now(timezone.utc)
+    prepare_started = time.perf_counter()
     prepared = _prepare(
         input_dir,
         chunker_config,
         registry=registry,
         ingested_at=start,
     )
-    artifacts, dimension = _build_artifact_bytes(prepared, embed_text)
+    _observe_phase(phase_observer, "prepare", prepare_started)
+    artifacts, dimension = _build_artifact_bytes(
+        prepared,
+        embed_text,
+        phase_observer=phase_observer,
+    )
     finish = finished_at or datetime.now(timezone.utc)
     preview = _preview(prepared, chunker_config)
     manifest = IndexManifest(
@@ -268,12 +308,17 @@ def build_index_artifacts(
         artifacts=_artifact_records(artifacts),
     )
 
+    write_started = time.perf_counter()
     output_dir.parent.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(exist_ok=True)
     for relative_path, content in artifacts.items():
         (output_dir / relative_path).write_bytes(content)
     (output_dir / "manifest.json").write_bytes(serialize_index_manifest(manifest))
+    _observe_phase(phase_observer, "artifact_write", write_started)
+
+    validation_started = time.perf_counter()
     validate_index_directory(output_dir, manifest)
+    _observe_phase(phase_observer, "validation", validation_started)
     return manifest
 
 
@@ -282,6 +327,20 @@ def validate_index_directory(output_dir: Path, manifest: IndexManifest) -> None:
     loaded = load_index_manifest(output_dir / "manifest.json")
     if loaded != manifest:
         raise ValueError("on-disk manifest does not match expected manifest")
+    required_artifacts = {
+        "documents.json",
+        "chunks.json",
+        "parents.json",
+        "bm25_tokens.pkl",
+        "faiss.index",
+    }
+    declared_artifacts = {artifact.path for artifact in manifest.artifacts}
+    missing = required_artifacts - declared_artifacts
+    if missing:
+        raise ValueError(
+            "index manifest does not bind required runtime artifacts: "
+            + ", ".join(sorted(missing))
+        )
     for artifact in manifest.artifacts:
         path = output_dir / artifact.path
         if not path.is_file():

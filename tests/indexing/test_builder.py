@@ -96,6 +96,54 @@ def test_builder_writes_validated_artifacts_with_one_embedding_per_indexed_chunk
     validate_index_directory(output, manifest)
 
 
+def test_builder_phase_observer_is_complete_and_does_not_change_artifacts(
+    tmp_path: Path,
+) -> None:
+    corpus = build_corpus(tmp_path / "corpus")
+    baseline_output = tmp_path / "baseline"
+    observed_output = tmp_path / "observed"
+    observed: list[tuple[str, float]] = []
+
+    baseline = build_index_artifacts(
+        input_dir=corpus,
+        output_dir=baseline_output,
+        run_id="same-run",
+        chunker_config=ChunkerConfig(mode="fixed", chunk_size=500, overlap=80),
+        embedding_model="fake-4d",
+        embed_text=FakeEmbedder(),
+        started_at=START,
+        finished_at=FINISH,
+    )
+    measured = build_index_artifacts(
+        input_dir=corpus,
+        output_dir=observed_output,
+        run_id="same-run",
+        chunker_config=ChunkerConfig(mode="fixed", chunk_size=500, overlap=80),
+        embedding_model="fake-4d",
+        embed_text=FakeEmbedder(),
+        started_at=START,
+        finished_at=FINISH,
+        phase_observer=lambda phase, duration_ms: observed.append(
+            (phase, duration_ms)
+        ),
+    )
+
+    assert [phase for phase, _ in observed] == [
+        "prepare",
+        "embedding",
+        "index_construction",
+        "artifact_serialization",
+        "artifact_write",
+        "validation",
+    ]
+    assert all(duration_ms >= 0.0 for _, duration_ms in observed)
+    assert measured == baseline
+    for artifact in measured.artifacts:
+        assert (observed_output / artifact.path).read_bytes() == (
+            baseline_output / artifact.path
+        ).read_bytes()
+
+
 def test_builder_rejects_inconsistent_embedding_dimensions_before_writing(
     tmp_path: Path,
 ) -> None:

@@ -29,6 +29,35 @@ class DocumentParser(Protocol):
 
     def parse(self, path: Path) -> ParseResult: ...
 
+    def parse_bytes(
+        self,
+        content: bytes,
+        *,
+        source_name: str,
+    ) -> ParseResult: ...
+
+
+class _MemoryTextPath:
+    def __init__(self, content: bytes, source_name: str) -> None:
+        self._content = content
+        self.name = Path(source_name).name
+
+    def __fspath__(self) -> str:
+        return self.name
+
+    def read_text(self, *, encoding: str) -> str:
+        return self._content.decode(encoding)
+
+
+class _MemoryTextParser:
+    def parse_bytes(
+        self,
+        content: bytes,
+        *,
+        source_name: str,
+    ) -> ParseResult:
+        return self.parse(_MemoryTextPath(content, source_name))  # type: ignore[arg-type]
+
 
 def _parse_error(
     *,
@@ -109,12 +138,48 @@ class ParserRegistry:
                 message=str(exc),
             ) from exc
 
+    def parse_bytes(
+        self,
+        content: bytes,
+        *,
+        suffix: str,
+    ) -> ParseResult:
+        normalized = suffix.casefold()
+        parser = self._by_suffix.get(normalized)
+        source_path = Path(f"[redacted]{normalized}")
+        if parser is None:
+            raise _parse_error(
+                code="unsupported_format",
+                path=source_path,
+                parser="registry",
+                message=f"no parser registered for suffix {normalized!r}",
+            )
+        parse_bytes = getattr(parser, "parse_bytes", None)
+        if not callable(parse_bytes):
+            raise _parse_error(
+                code="byte_parser_required",
+                path=source_path,
+                parser=parser.name,
+                message="parser does not implement immutable byte input",
+            )
+        try:
+            return parse_bytes(content, source_name=source_path.name)
+        except DocumentParseError:
+            raise
+        except Exception as exc:
+            raise _parse_error(
+                code="parser_failure",
+                path=source_path,
+                parser=parser.name,
+                message=str(exc),
+            ) from exc
+
     @property
     def supported_suffixes(self) -> tuple[str, ...]:
         return tuple(sorted(self._by_suffix))
 
 
-class MarkdownParser:
+class MarkdownParser(_MemoryTextParser):
     name = "markdown"
     version = PARSER_VERSION
     suffixes = (".md", ".markdown")
@@ -200,7 +265,7 @@ class MarkdownParser:
         )
 
 
-class TextParser:
+class TextParser(_MemoryTextParser):
     name = "text"
     version = PARSER_VERSION
     suffixes = (".txt",)
@@ -301,7 +366,7 @@ class _StructuredHTMLParser(HTMLParser):
             self._buffer = []
 
 
-class HtmlDocumentParser:
+class HtmlDocumentParser(_MemoryTextParser):
     name = "html"
     version = PARSER_VERSION
     suffixes = (".html", ".htm")
@@ -384,7 +449,7 @@ class HtmlDocumentParser:
         )
 
 
-class CsvDocumentParser:
+class CsvDocumentParser(_MemoryTextParser):
     name = "csv"
     version = PARSER_VERSION
     suffixes = (".csv",)
@@ -448,7 +513,7 @@ class CsvDocumentParser:
         )
 
 
-class JsonlDocumentParser:
+class JsonlDocumentParser(_MemoryTextParser):
     name = "jsonl"
     version = PARSER_VERSION
     suffixes = (".jsonl",)

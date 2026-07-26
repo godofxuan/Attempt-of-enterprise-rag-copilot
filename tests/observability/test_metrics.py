@@ -8,6 +8,7 @@ import pytest
 from app.observability.metrics import (
     MetricsRegistry,
     nearest_rank_percentile,
+    process_peak_rss_bytes,
     process_rss_bytes,
 )
 
@@ -18,6 +19,15 @@ def test_nearest_rank_percentile_is_deterministic() -> None:
     assert nearest_rank_percentile(values, 0.5) == 3.0
     assert nearest_rank_percentile(values, 0.95) == 100.0
     assert nearest_rank_percentile([], 0.95) is None
+
+
+def test_peak_rss_is_available_and_not_below_current_or_recorded_rss() -> None:
+    current = process_rss_bytes()
+    peak = process_peak_rss_bytes()
+
+    assert current is not None
+    assert peak is not None
+    assert peak >= current
 
 
 def test_metrics_track_request_status_latency_and_model_counters() -> None:

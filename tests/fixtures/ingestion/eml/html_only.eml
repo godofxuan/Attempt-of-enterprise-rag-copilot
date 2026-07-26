@@ -1,0 +1,22 @@
+From: Html Sender <html-sender@example.invalid>
+To: Html Reader <html-reader@example.invalid>
+Date: Sat, 25 Jul 2026 11:00:00 +0800
+Subject: Fictional HTML notice
+Message-ID: <html-g4@example.invalid>
+MIME-Version: 1.0
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+<!doctype html>
+<html>
+  <head>
+    <link rel="stylesheet" href="https://remote.example.invalid/theme.css">
+    <style>.hidden { display: none; }</style>
+    <script>fetch("https://remote.example.invalid/leak")</script>
+  </head>
+  <body>
+    <h1>Fictional HTML notice</h1>
+    <p>Use the approved internal request form.</p>
+    <img src="https://remote.example.invalid/tracker.png" alt="remote tracker">
+  </body>
+</html>

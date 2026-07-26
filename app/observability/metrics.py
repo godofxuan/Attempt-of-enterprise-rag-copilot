@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import os
+import sys
 from collections import Counter, deque
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
@@ -145,17 +146,23 @@ class MetricsRegistry:
 
 def process_rss_bytes() -> int | None:
     if os.name == "nt":
-        return _windows_rss_bytes()
+        return _windows_memory_bytes(peak=False)
     try:
         import resource
 
         usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        return int(usage * 1024)
+        return int(usage if sys.platform == "darwin" else usage * 1024)
     except Exception:
         return None
 
 
-def _windows_rss_bytes() -> int | None:
+def process_peak_rss_bytes() -> int | None:
+    if os.name == "nt":
+        return _windows_memory_bytes(peak=True)
+    return process_rss_bytes()
+
+
+def _windows_memory_bytes(*, peak: bool) -> int | None:
     try:
         import ctypes
         from ctypes import wintypes
@@ -194,7 +201,9 @@ def _windows_rss_bytes() -> int | None:
             ctypes.byref(counters),
             counters.cb,
         )
-        return int(counters.WorkingSetSize) if success else None
+        if not success:
+            return None
+        return int(counters.PeakWorkingSetSize if peak else counters.WorkingSetSize)
     except Exception:
         return None
 
@@ -202,5 +211,6 @@ def _windows_rss_bytes() -> int | None:
 __all__ = [
     "MetricsRegistry",
     "nearest_rank_percentile",
+    "process_peak_rss_bytes",
     "process_rss_bytes",
 ]

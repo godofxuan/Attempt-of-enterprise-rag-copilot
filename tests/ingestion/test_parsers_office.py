@@ -70,3 +70,23 @@ def test_malformed_office_file_returns_structured_error(
 
     assert captured.value.code == "parser_failure"
     assert captured.value.parser == expected_parser
+
+
+@pytest.mark.parametrize(
+    ("fixture_name", "suffix", "expected_parser"),
+    [
+        ("sample_policy.pdf", ".pdf", "pdf"),
+        ("sample_policy.docx", ".docx", "docx"),
+    ],
+)
+def test_office_parsers_accept_immutable_bytes(
+    registry,
+    fixture_name: str,
+    suffix: str,
+    expected_parser: str,
+) -> None:
+    content = (FIXTURES / fixture_name).read_bytes()
+    result = registry.parse_bytes(content, suffix=suffix)
+
+    assert result.parser_name == expected_parser
+    assert result.source_location == f"[redacted]{suffix}"

@@ -1,0 +1,26 @@
+From: Outer Sender <outer-sender@example.invalid>
+To: Outer Reader <outer-reader@example.invalid>
+Date: Sat, 25 Jul 2026 12:30:00 +0800
+Subject: Fictional outer message
+Message-ID: <outer-g4@example.invalid>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="g4-outer"
+
+--g4-outer
+Content-Type: text/plain; charset="utf-8"
+
+Outer fictional body.
+--g4-outer
+Content-Type: message/rfc822
+Content-Disposition: attachment
+
+From: Nested Sender <nested-sender@example.invalid>
+To: Nested Reader <nested-reader@example.invalid>
+Date: Sat, 25 Jul 2026 12:31:00 +0800
+Subject: Fictional nested message
+Message-ID: <nested-g4@example.invalid>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Nested fictional body.
+--g4-outer--

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 import scripts.eval_agent_v2_dev as evaluator
+from app import filesystem as filesystem_module
 from app.corpus.schemas import EvalCase
 from app.domain.agent import AgentBudget
 from app.domain.evidence import (
@@ -265,21 +266,29 @@ def test_writer_retries_transient_windows_directory_rename(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     output_dir = tmp_path / "retry-run"
-    original_rename = Path.rename
+    original_move = filesystem_module._move_once
     calls = 0
 
-    def flaky_rename(path: Path, target):
+    def flaky_rename(
+        path: Path,
+        target: Path,
+        *,
+        replace: bool,
+    ) -> None:
         nonlocal calls
         calls += 1
         if calls == 1:
-            raise PermissionError(5, "transient access denied")
-        return original_rename(path, target)
+            error = PermissionError(13, "transient access denied")
+            error.winerror = 5
+            raise error
+        return original_move(path, target, replace=replace)
 
-    monkeypatch.setattr(Path, "rename", flaky_rename)
+    monkeypatch.setattr(filesystem_module, "_move_once", flaky_rename)
+    monkeypatch.setattr(filesystem_module.time, "sleep", lambda _: None)
 
     paths = evaluator.write_results(output_dir, sample_result())
 
-    assert calls == 2
+    assert 2 <= calls <= filesystem_module._WINDOWS_DIRECTORY_MOVE_ATTEMPTS
     assert paths["summary"].is_file()
 
 

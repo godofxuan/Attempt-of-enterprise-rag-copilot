@@ -16,6 +16,7 @@ from rank_bm25 import BM25Okapi
 
 from app.corpus.schemas import EvalCase
 from app.domain.documents import ChunkRecord, DocumentParseError, DocumentRecord
+from app.filesystem import atomic_directory_move
 from app.ingestion.chunking import ChunkerConfig, chunk_document
 from app.ingestion.normalize import ingest_corpus
 from app.ingestion.versions import govern_documents
@@ -330,7 +331,7 @@ def write_ablation_results(
     try:
         (stage / "summary.json").write_bytes(_json_bytes(_summary_payload(result)))
         (stage / "details.json").write_bytes(_json_bytes(_details_payload(result)))
-        stage.rename(output_dir)
+        atomic_directory_move(stage, output_dir)
     finally:
         if stage.exists():
             shutil.rmtree(stage)

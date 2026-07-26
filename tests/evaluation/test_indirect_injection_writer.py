@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from app.evaluation import indirect_injection_writer as writer_module
 from app.domain.retrieved_security import DETECTOR_VERSION
 from app.evaluation.indirect_injection_dataset import (
     build_v1_bundle,
@@ -224,10 +225,11 @@ def test_writer_refuses_overwrite_and_cleans_same_parent_stage(
 
     failing_manifest = _manifest(result, run_id="r2-s1-d6-test-rename-failure")
 
-    def fail_rename(self: Path, target: Path):
+    def fail_rename(source: Path, target: Path):
+        del source, target
         raise OSError("synthetic promotion failure")
 
-    monkeypatch.setattr(Path, "rename", fail_rename)
+    monkeypatch.setattr(writer_module, "atomic_directory_move", fail_rename)
     with pytest.raises(OSError, match="synthetic promotion"):
         publish_security_run(root, failing_manifest, result, **kwargs)
     assert not (root / failing_manifest.run_id).exists()

@@ -1,0 +1,9 @@
+From: Malformed Sender <malformed-sender@example.invalid>
+To: Malformed Reader <malformed-reader@example.invalid>
+Date: Sat, 25 Jul 2026 13:00:00 +0800
+Subject: Fictional malformed MIME
+Message-ID: <malformed-g4@example.invalid>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="missing-boundary"
+
+This body never opens the declared multipart boundary.

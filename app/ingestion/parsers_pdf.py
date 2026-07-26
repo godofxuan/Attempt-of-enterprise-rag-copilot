@@ -1,3 +1,4 @@
+from io import BytesIO
 from pathlib import Path
 
 import pypdf
@@ -18,7 +19,23 @@ class PdfDocumentParser:
     suffixes = (".pdf",)
 
     def parse(self, path: Path) -> ParseResult:
-        reader = PdfReader(path)
+        return self._parse_reader(PdfReader(path), path=path)
+
+    def parse_bytes(
+        self,
+        content: bytes,
+        *,
+        source_name: str,
+    ) -> ParseResult:
+        source = BytesIO(content)
+        return self._parse_reader(PdfReader(source), path=Path(source_name))
+
+    def _parse_reader(
+        self,
+        reader: PdfReader,
+        *,
+        path: Path,
+    ) -> ParseResult:
         sections: list[ParsedSection] = []
         warnings: list[ParseWarning] = []
         text_parts: list[str] = []

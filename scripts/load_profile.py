@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 
 import requests
 
+from app.filesystem import atomic_directory_move
 from app.observability.metrics import nearest_rank_percentile
 from app.runtime.resources import ReadinessSnapshot
 from app.security.identity import IdentityConfigurationError
@@ -625,7 +626,7 @@ def _write_run(
         )
         if target.exists():
             raise FileExistsError(f"load run already exists: {target.name}")
-        staging.rename(target)
+        atomic_directory_move(staging, target)
         return target
     except Exception:
         if staging.exists() and staging.parent == target.parent:

@@ -5,11 +5,11 @@ import hashlib
 import json
 import shutil
 import tempfile
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+from app.filesystem import atomic_directory_move
 from app.evaluation.contracts import AblationRow, EvaluationRunResult
 from app.evaluation.run_manifest import RunManifest
 
@@ -199,16 +199,8 @@ def _validate_stage(stage: Path, expected_hashes: dict[str, str]) -> None:
 
 
 def _promote_stage(stage: Path, target: Path, *, max_attempts: int = 5) -> None:
-    for attempt in range(1, max_attempts + 1):
-        try:
-            stage.rename(target)
-            return
-        except PermissionError:
-            if target.exists():
-                raise FileExistsError(f"output run already exists: {target}")
-            if attempt == max_attempts:
-                raise
-            time.sleep(0.05 * attempt)
+    del max_attempts
+    atomic_directory_move(stage, target)
 
 
 def _json_bytes(value: Any, *, newline: bool = False) -> bytes:

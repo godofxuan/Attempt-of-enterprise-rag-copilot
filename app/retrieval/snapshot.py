@@ -15,11 +15,19 @@ from app.domain.documents import ChunkRecord, DocumentRecord
 from app.indexing.store import LoadedIndexVersion, load_index_version
 
 
+class _EmptyBM25:
+    corpus_size = 0
+
+    def get_scores(self, query_tokens: list[str]) -> np.ndarray:
+        del query_tokens
+        return np.zeros(0, dtype="float64")
+
+
 @dataclass(frozen=True)
 class V2IndexSnapshot:
     version: LoadedIndexVersion
     faiss_index: faiss.Index
-    bm25: BM25Okapi
+    bm25: BM25Okapi | _EmptyBM25
     bm25_tokens: tuple[tuple[str, ...], ...]
     chunks: tuple[ChunkRecord, ...]
     parents_by_id: Mapping[str, ChunkRecord]
@@ -28,8 +36,12 @@ class V2IndexSnapshot:
     all_chunks_by_id: Mapping[str, ChunkRecord]
 
     @classmethod
-    def load(cls, root: Path) -> V2IndexSnapshot:
-        version = load_index_version(Path(root))
+    def load(
+        cls,
+        root: Path,
+        run_id: str | None = None,
+    ) -> V2IndexSnapshot:
+        version = load_index_version(Path(root), run_id)
         manifest = version.manifest
         _validate_manifest_contract(version)
         path = version.path
@@ -53,7 +65,11 @@ class V2IndexSnapshot:
             raw_tokens,
             expected_count=manifest.indexed_chunk_count,
         )
-        bm25 = BM25Okapi([list(tokens) for tokens in bm25_tokens])
+        bm25 = (
+            BM25Okapi([list(tokens) for tokens in bm25_tokens])
+            if bm25_tokens
+            else _EmptyBM25()
+        )
         faiss_index = faiss.deserialize_index(
             np.frombuffer((path / "faiss.index").read_bytes(), dtype=np.uint8).copy()
         )

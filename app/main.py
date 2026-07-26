@@ -13,6 +13,7 @@ from app.api.identity import (
     document_bearer_authentication,
 )
 from app.api.middleware import RequestContextMiddleware
+from app.api.lifecycle import create_lifecycle_router
 from app.config import get_settings
 from app.db import save_feedback_metadata
 from app.domain.evidence import AnswerResponse
@@ -66,6 +67,7 @@ def _create_application(
     application.add_middleware(TrustedIdentityMiddleware, container=service)
     application.add_middleware(RequestContextMiddleware, container=service)
     install_error_handlers(application)
+    application.include_router(create_lifecycle_router(service))
 
     @application.get("/health/live", response_model=LivenessResponse)
     def liveness(request: Request) -> LivenessResponse:

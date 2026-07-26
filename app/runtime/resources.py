@@ -26,6 +26,8 @@ from app.security.identity import (
     build_feedback_actor_hasher,
     build_identity_verifier,
 )
+from app.lifecycle.operator import LifecycleOperatorService
+from app.lifecycle.pipeline import build_ollama_lifecycle_runtime
 
 
 class ReadyIndexInfo(BaseModel):
@@ -70,6 +72,11 @@ SECURE_ROUTE_TEMPLATES = frozenset(
         "/identity/me",
         "/observability/metrics",
         "/observability/traces/{request_id}",
+        "/operator/lifecycle/preview",
+        "/operator/lifecycle/build",
+        "/operator/lifecycle/activate",
+        "/operator/lifecycle/rollback",
+        "/operator/lifecycle/status",
     }
 )
 DEFAULT_ROUTE_TEMPLATES = SECURE_ROUTE_TEMPLATES
@@ -83,6 +90,7 @@ class ServiceContainer:
     traces: InMemoryTraceStore
     identity_verifier: IdentityVerifier
     feedback_actor_hasher: FeedbackActorPseudonymizer
+    lifecycle_operator: Any | None = None
 
 
 def build_service_container(
@@ -118,6 +126,16 @@ def build_service_container(
         traces=InMemoryTraceStore(max_records=settings.trace_buffer_size),
         identity_verifier=identity_verifier,
         feedback_actor_hasher=feedback_actor_hasher,
+        lifecycle_operator=LifecycleOperatorService(
+            input_root=settings.lifecycle_input_root.resolve(),
+            asset_root=(settings.lifecycle_private_root / "assets").resolve(),
+            catalog_root=(settings.lifecycle_private_root / "catalog").resolve(),
+            cache_root=(settings.lifecycle_private_root / "cache").resolve(),
+            index_root=settings.lifecycle_index_root.resolve(),
+            actor_pseudonymizer=feedback_actor_hasher,
+            operator_role=settings.identity_operator_role,
+            runtime_factory=lambda: build_ollama_lifecycle_runtime(settings),
+        ),
     )
 
 

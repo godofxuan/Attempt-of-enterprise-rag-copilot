@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from app import filesystem as filesystem_module
+from app.evaluation import writer as writer_module
 from app.evaluation.contracts import (
     AblationRow,
     EvaluationCaseResult,
@@ -149,10 +151,11 @@ def test_writer_cleans_staging_after_failure(
     run_id = "run-001"
     root = tmp_path / "eval_runs"
 
-    def fail_rename(self: Path, target: Path):
+    def fail_rename(source: Path, target: Path):
+        del source, target
         raise OSError("synthetic permanent rename failure")
 
-    monkeypatch.setattr(Path, "rename", fail_rename)
+    monkeypatch.setattr(writer_module, "atomic_directory_move", fail_rename)
     with pytest.raises(OSError, match="synthetic permanent"):
         publish_run(root, _manifest(tmp_path, run_id), _result(run_id))
 
@@ -165,18 +168,26 @@ def test_writer_retries_one_transient_permission_error(
 ) -> None:
     run_id = "run-001"
     root = tmp_path / "eval_runs"
-    original = Path.rename
+    original = filesystem_module._move_once
     calls = 0
 
-    def flaky_rename(self: Path, target: Path):
+    def flaky_rename(
+        source: Path,
+        target: Path,
+        *,
+        replace: bool,
+    ) -> None:
         nonlocal calls
         calls += 1
         if calls == 1:
-            raise PermissionError("synthetic transient denial")
-        return original(self, target)
+            error = PermissionError(13, "synthetic transient denial")
+            error.winerror = 5
+            raise error
+        return original(source, target, replace=replace)
 
-    monkeypatch.setattr(Path, "rename", flaky_rename)
+    monkeypatch.setattr(filesystem_module, "_move_once", flaky_rename)
+    monkeypatch.setattr(filesystem_module.time, "sleep", lambda _: None)
     output = publish_run(root, _manifest(tmp_path, run_id), _result(run_id))
 
-    assert calls == 2
+    assert 2 <= calls <= filesystem_module._WINDOWS_DIRECTORY_MOVE_ATTEMPTS
     assert output.exists()

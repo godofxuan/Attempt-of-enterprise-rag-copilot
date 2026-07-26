@@ -22,6 +22,7 @@ from app.domain.documents import (
     DocumentVersion,
     SourceLocator,
 )
+from app.filesystem import atomic_directory_move
 from app.evaluation.indirect_injection_contracts import (
     FixtureCandidate,
     FixtureCase,
@@ -155,7 +156,7 @@ def build_live_fixture_index(
         validate_index_directory(stage, manifest)
         if version_path.exists():
             raise FileExistsError(f"live fixture index already exists: {safe_run_id}")
-        stage.rename(version_path)
+        atomic_directory_move(stage, version_path)
     finally:
         if stage.exists():
             shutil.rmtree(stage)

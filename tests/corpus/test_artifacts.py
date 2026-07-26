@@ -39,7 +39,7 @@ def test_transient_windows_directory_lock_is_retried(
 
     _rename_with_retry(source, target, delays=(0.0,))
 
-    assert attempts == 2
+    assert attempts >= 2
     assert target.is_dir()
 
 

@@ -5,14 +5,18 @@ import json
 import os
 import re
 import shutil
+import stat
 import tempfile
+import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.filesystem import atomic_directory_move
 from app.indexing.builder import (
     EmbedText,
     build_index_artifacts,
@@ -24,6 +28,7 @@ from app.ingestion.parsers import ParserRegistry
 
 
 RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_LOCK_POLL_SECONDS = 0.01
 
 
 class ActiveIndexPointer(BaseModel):
@@ -82,6 +87,10 @@ def _load_pointer(root: Path) -> ActiveIndexPointer:
     return ActiveIndexPointer.model_validate(payload)
 
 
+def load_active_pointer(root: Path) -> ActiveIndexPointer:
+    return _load_pointer(root)
+
+
 def load_index_version(
     root: Path,
     run_id: str | None = None,
@@ -121,7 +130,12 @@ def _serialize_pointer(pointer: ActiveIndexPointer) -> bytes:
     return text.encode("utf-8")
 
 
-def _atomic_write_pointer(root: Path, pointer: ActiveIndexPointer) -> None:
+def _atomic_write_pointer(
+    root: Path,
+    pointer: ActiveIndexPointer,
+    *,
+    before_replace: Callable[[], None] | None = None,
+) -> None:
     root = _resolved_root(root)
     root.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
@@ -135,6 +149,8 @@ def _atomic_write_pointer(root: Path, pointer: ActiveIndexPointer) -> None:
             handle.write(_serialize_pointer(pointer))
             handle.flush()
             os.fsync(handle.fileno())
+        if before_replace is not None:
+            before_replace()
         os.replace(temporary_path, root / "active.json")
     finally:
         if temporary_path.exists():
@@ -146,7 +162,18 @@ def activate_version(
     run_id: str,
     *,
     activated_at: datetime | None = None,
+    before_replace: Callable[[], None] | None = None,
+    _lock_held: bool = False,
 ) -> ActiveIndexPointer:
+    if not _lock_held:
+        with publication_lock(root):
+            return activate_version(
+                root,
+                run_id,
+                activated_at=activated_at,
+                before_replace=before_replace,
+                _lock_held=True,
+            )
     loaded = load_index_version(root, run_id)
     pointer = ActiveIndexPointer(
         schema_version="enterprise_active_index_v1",
@@ -155,8 +182,75 @@ def activate_version(
         manifest_sha256=loaded.manifest_sha256,
         activated_at=activated_at or datetime.now(timezone.utc),
     )
-    _atomic_write_pointer(root, pointer)
+    _atomic_write_pointer(root, pointer, before_replace=before_replace)
     return pointer
+
+
+@contextmanager
+def publication_lock(root: Path, *, timeout_seconds: float = 10.0):
+    root = _resolved_root(root)
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / ".publication.lock"
+    flags = (
+        os.O_RDWR
+        | os.O_CREAT
+        | getattr(os, "O_BINARY", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        metadata = os.fstat(descriptor)
+        current = path.lstat()
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or path.is_symlink()
+            or metadata.st_nlink != 1
+            or (metadata.st_dev, metadata.st_ino)
+            != (current.st_dev, current.st_ino)
+        ):
+            raise PermissionError("index publication lock path is unsafe")
+        if metadata.st_size == 0:
+            os.write(descriptor, b"\0")
+            os.fsync(descriptor)
+        _lock_descriptor(descriptor, timeout_seconds=timeout_seconds)
+        try:
+            yield
+        finally:
+            _unlock_descriptor(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _lock_descriptor(descriptor: int, *, timeout_seconds: float) -> None:
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        try:
+            os.lseek(descriptor, 0, os.SEEK_SET)
+            if os.name == "nt":
+                import msvcrt
+
+                msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return
+        except OSError:
+            if time.monotonic() >= deadline:
+                raise TimeoutError("timed out waiting for index publication lock")
+            time.sleep(_LOCK_POLL_SECONDS)
+
+
+def _unlock_descriptor(descriptor: int) -> None:
+    os.lseek(descriptor, 0, os.SEEK_SET)
+    if os.name == "nt":
+        import msvcrt
+
+        msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+        return
+    import fcntl
+
+    fcntl.flock(descriptor, fcntl.LOCK_UN)
 
 
 def _validate_owned_target(root: Path, run_id: str) -> None:
@@ -187,7 +281,7 @@ def _refuse_active_overwrite(root: Path, run_id: str) -> None:
 
 def _install_stage(stage: Path, target: Path) -> None:
     if not target.exists():
-        stage.rename(target)
+        atomic_directory_move(stage, target)
         return
 
     backup = Path(
@@ -197,12 +291,12 @@ def _install_stage(stage: Path, target: Path) -> None:
         )
     )
     backup.rmdir()
-    target.rename(backup)
+    atomic_directory_move(target, backup)
     try:
-        stage.rename(target)
+        atomic_directory_move(stage, target)
     except Exception:
         if not target.exists() and backup.exists():
-            backup.rename(target)
+            atomic_directory_move(backup, target)
         raise
     else:
         shutil.rmtree(backup)
@@ -252,9 +346,10 @@ def build_index_version(
             finished_at=finished_at,
         )
         validate_index_directory(stage, manifest)
-        _install_stage(stage, target)
-        if activate:
-            activate_version(root, safe_run_id)
+        with publication_lock(root):
+            _install_stage(stage, target)
+            if activate:
+                activate_version(root, safe_run_id, _lock_held=True)
         return manifest
     finally:
         if stage.exists():

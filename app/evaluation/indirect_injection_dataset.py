@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from app.filesystem import atomic_directory_move
 from app.evaluation.indirect_injection_contracts import (
     ATTACK_CATEGORIES,
     BENIGN_CATEGORIES,
@@ -124,7 +125,7 @@ def build_v1_bundle(
             freeze_git_head=freeze_git_head,
         )
         (stage / _FREEZE_NAME).write_bytes(_json_bytes(freeze))
-        stage.replace(output_root)
+        atomic_directory_move(stage, output_root, replace=True)
     except Exception:
         shutil.rmtree(stage, ignore_errors=True)
         raise

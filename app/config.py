@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     parsed_docs_dir: Path = data_dir / "parsed_docs"
     indexes_dir: Path = data_dir / "indexes"
     v2_indexes_dir: Path = data_dir / "indexes_v2"
+    lifecycle_input_root: Path = data_dir / "enterprise_bundle"
+    lifecycle_index_root: Path = data_dir / "indexes_lifecycle"
+    lifecycle_private_root: Path = (
+        BASE_DIR / ".private" / "lifecycle" / "runtime"
+    )
     v2_corpus_profile: Literal[
         "demo",
         "benchmark",
@@ -108,6 +113,8 @@ class Settings(BaseSettings):
             "parsed_docs_dir": self.data_dir / "parsed_docs",
             "indexes_dir": self.data_dir / "indexes",
             "v2_indexes_dir": self.data_dir / "indexes_v2",
+            "lifecycle_input_root": self.data_dir / "enterprise_bundle",
+            "lifecycle_index_root": self.data_dir / "indexes_lifecycle",
             "sqlite_path": self.data_dir / "app.db",
         }
         for field_name, value in derived.items():

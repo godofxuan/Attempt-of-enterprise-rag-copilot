@@ -70,6 +70,31 @@ _EXACT_ROUTES = {
     ("GET", "/observability/metrics"): ProtectedRoute(
         method="GET", template="/observability/metrics", access="operator"
     ),
+    ("POST", "/operator/lifecycle/preview"): ProtectedRoute(
+        method="POST",
+        template="/operator/lifecycle/preview",
+        access="operator",
+    ),
+    ("POST", "/operator/lifecycle/build"): ProtectedRoute(
+        method="POST",
+        template="/operator/lifecycle/build",
+        access="operator",
+    ),
+    ("POST", "/operator/lifecycle/activate"): ProtectedRoute(
+        method="POST",
+        template="/operator/lifecycle/activate",
+        access="operator",
+    ),
+    ("POST", "/operator/lifecycle/rollback"): ProtectedRoute(
+        method="POST",
+        template="/operator/lifecycle/rollback",
+        access="operator",
+    ),
+    ("GET", "/operator/lifecycle/status"): ProtectedRoute(
+        method="GET",
+        template="/operator/lifecycle/status",
+        access="operator",
+    ),
 }
 _BEARER_DOCUMENTATION = HTTPBearer(auto_error=False, scheme_name="BearerAuth")
 

@@ -1,0 +1,5 @@
+Northstar Harbor fictional vendor onboarding runbook
+
+The procurement coordinator verifies tax and security documents.
+The budget owner approves purchases above 5000 fictional credits.
+No vendor account becomes active before both checks are recorded.

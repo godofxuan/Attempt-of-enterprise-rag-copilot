@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from app import filesystem
 from app.security import demo_identity, private_fs
 from app.security.demo_identity import (
     demo_identity_status,
@@ -841,18 +842,39 @@ def test_windows_held_acl_targets_handle_after_path_replacement(
     displaced = tmp_path / "displaced"
     original_set_acl = private_fs._set_windows_private_acl_handle
     replaced = False
+    transient_denial_injected = False
     root_handle: int | None = None
     observed_handles: list[int] = []
+    original_move_once = filesystem._move_once
+
+    def deny_replacement_once(
+        source: Path,
+        destination: Path,
+        *,
+        replace: bool,
+    ) -> None:
+        nonlocal transient_denial_injected
+        if (
+            source == replacement
+            and destination == root
+            and not transient_denial_injected
+        ):
+            transient_denial_injected = True
+            error = PermissionError("transient Windows directory denial")
+            error.winerror = 5
+            raise error
+        original_move_once(source, destination, replace=replace)
 
     def replace_then_set_acl(handle: int, *, directory: bool) -> None:
         nonlocal replaced
         observed_handles.append(handle)
         if not replaced:
-            root.rename(displaced)
-            replacement.rename(root)
+            filesystem.atomic_directory_move(root, displaced)
+            filesystem.atomic_directory_move(replacement, root)
             replaced = True
         original_set_acl(handle, directory=directory)
 
+    monkeypatch.setattr(filesystem, "_move_once", deny_replacement_once)
     monkeypatch.setattr(
         private_fs,
         "_set_windows_private_acl_handle",
@@ -873,6 +895,7 @@ def test_windows_held_acl_targets_handle_after_path_replacement(
             )
 
     assert replaced is True
+    assert transient_denial_injected is True
     assert root_handle is not None
     assert observed_handles[0] == root_handle
     replacement_marker = root / marker.name

@@ -23,6 +23,7 @@ from app.corpus.schemas import EvalCase
 from app.domain.agent import AgentBudget
 from app.domain.evidence import AnswerResponse
 from app.domain.queries import UserContext
+from app.filesystem import atomic_directory_move
 from app.indexing.store import build_index_version
 from app.ingestion.chunking import ChunkerConfig
 from app.retrieval.navigation import DocumentNavigator
@@ -411,7 +412,7 @@ def _promote_stage(
 ) -> None:
     for attempt in range(1, max_attempts + 1):
         try:
-            stage.rename(output_dir)
+            atomic_directory_move(stage, output_dir)
             return
         except PermissionError:
             if output_dir.exists():

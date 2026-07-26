@@ -136,3 +136,12 @@ def test_empty_text_document_is_rejected(registry, tmp_path: Path) -> None:
         registry.parse(path)
 
     assert captured.value.code == "empty_document"
+
+
+def test_text_parser_accepts_immutable_bytes_without_a_file_path(registry) -> None:
+    source = SMOKE / "support_0002.txt"
+    result = registry.parse_bytes(source.read_bytes(), suffix=".txt")
+
+    assert result.parser_name == "text"
+    assert result.source_location == "[redacted].txt"
+    assert result.text == registry.parse(source).text
