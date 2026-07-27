@@ -318,8 +318,23 @@ public repository audit            915 candidates / 0 findings
 git diff --check                    PASS (one existing CRLF normalization notice)
 ```
 
-Image-build, container runtime, rollback-drill, and SBOM artifact results are
-recorded only after the exact-commit Ubuntu job runs.
+Exact-commit remote evidence:
+
+```text
+commit                              31231333c8a0cf88973ac90333c407b89d181ee3
+Actions run                         30265595931
+deterministic-ubuntu-latest         PASS
+deterministic-windows-latest        PASS
+Linux image build and identity      PASS
+read-only in-image gates            PASS
+readiness failure / rollback drill  PASS
+Python SPDX SBOM generation/upload  PASS
+```
+
+Verifiable run:
+[GitHub Actions 30265595931](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30265595931).
+This is single-host synthetic deployment-contract evidence, not a registry
+release, staging deployment, production SLO, or production certification.
 
 ## 6. Honest Residual Risks
 

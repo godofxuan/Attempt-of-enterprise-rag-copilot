@@ -10,9 +10,9 @@ Next candidate: durable privacy-bounded telemetry.
 Deferred validation: the real two-person R2-S8 review remains `NOT RUN`.
 
 These are not parallel approvals. The Python and checked-in container contract
-are implemented;
-the exact-commit `linux-container-contract` GitHub job remains pending until
-the change is pushed.
+are implemented. Exact-commit
+[Actions run 30265595931](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30265595931)
+passed the `linux-container-contract` job for `3123133`.
 
 最后更新：2026-07-27
 

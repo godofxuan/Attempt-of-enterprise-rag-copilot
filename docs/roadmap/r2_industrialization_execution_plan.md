@@ -1,7 +1,7 @@
 # R2 Industrialization Execution Plan
 
-Status: R2-S9 implementation in progress; exact-commit Linux container CI
-pending.
+Status: R2-S9 implementation and exact-commit Linux container verification
+complete on `3123133`; next candidate is durable privacy-bounded telemetry.
 
 R2-S4 published a `CONSISTENT_OBSERVATION` across two frozen local chat models
 on the same visible synthetic dev cohort. That observation is useful evaluation
@@ -14,9 +14,10 @@ narrow.
 Current admitted implementation: R2-S9 Reproducible Minimal Linux
 Deploy/Rollback.
 
-Current local evidence: deployment/security contract tests pass. Docker is not
-installed on the Windows host, so image/readiness/rollback evidence must come
-from the exact-commit Ubuntu CI job.
+Current evidence: local deployment/security and full-regression gates pass.
+[Exact-SHA Actions run 30265595931](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30265595931)
+passed Ubuntu, Windows, Linux image/read-only gates, readiness/rollback, and
+SBOM upload for `3123133`.
 
 Next candidate: durable privacy-bounded telemetry.
 

@@ -1,7 +1,8 @@
 # R2-S9 Minimal Linux Deployment and Rollback Specification
 
-Status: implementation complete locally; exact-commit Linux container CI is
-pending until this change is pushed.
+Status: implementation and exact-commit Linux container verification complete.
+Commit `31231333c8a0cf88973ac90333c407b89d181ee3` passed
+[Actions run 30265595931](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30265595931).
 
 ## 1. Problem
 
