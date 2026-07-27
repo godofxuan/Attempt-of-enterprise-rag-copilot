@@ -1,14 +1,8 @@
-from urllib.parse import urlparse
-
 import requests
 
 from app.config import get_settings
 from app.runtime.model_transport import perform_model_request
-
-
-def _ollama_api_base_url(llm_base_url: str) -> str:
-    parsed = urlparse(llm_base_url)
-    return f"{parsed.scheme}://{parsed.netloc}"
+from app.security.model_endpoint import parse_pinned_model_endpoint
 
 
 def _post_ollama(url: str, payload: dict, timeout: int) -> requests.Response:
@@ -25,7 +19,8 @@ def chat_with_ollama(
     think: bool | str | None = None,
 ) -> str:
     settings = get_settings()
-    url = f"{_ollama_api_base_url(settings.llm_base_url)}/api/chat"
+    endpoint = parse_pinned_model_endpoint(settings.llm_base_url)
+    url = f"{endpoint.origin}/api/chat"
     payload = {
         "model": model,
         "messages": messages,

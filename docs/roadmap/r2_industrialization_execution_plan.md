@@ -1,6 +1,7 @@
 # R2 Industrialization Execution Plan
 
-Status: current during R2-S6 delivery.
+Status: R2-S9 implementation in progress; exact-commit Linux container CI
+pending.
 
 R2-S4 published a `CONSISTENT_OBSERVATION` across two frozen local chat models
 on the same visible synthetic dev cohort. That observation is useful evaluation
@@ -10,17 +11,20 @@ narrow.
 
 ## Priority
 
-Current admitted implementation: R2-S6 Versioned Corpus Expansion.
+Current admitted implementation: R2-S9 Reproducible Minimal Linux
+Deploy/Rollback.
 
-Next candidate: reproducible minimal Linux deploy/rollback.
+Current local evidence: deployment/security contract tests pass. Docker is not
+installed on the Windows host, so image/readiness/rollback evidence must come
+from the exact-commit Ubuntu CI job.
 
-Later candidate: durable privacy-bounded telemetry.
+Next candidate: durable privacy-bounded telemetry.
 
-These are not parallel approvals. R2-S5 is complete with exact-SHA
-Ubuntu/Windows CI. The owner then admitted R2-S6 to address the measured gap
-between the historical 600-document volume profile and its 32-fact knowledge
-breadth. Linux deployment remains a candidate, not an automatically approved
-implementation.
+Deferred validation: the real two-person R2-S8 review remains `NOT RUN`.
+
+These are not parallel approvals. R2-S5 and R2-S6 are complete. The owner
+explicitly deferred the real two-person R2-S8 pilot and continued with the next
+non-human-dependent industrialization item.
 
 ## R2-S6 Versioned Corpus Expansion
 

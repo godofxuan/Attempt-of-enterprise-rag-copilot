@@ -122,6 +122,7 @@ These values describe specific local artifacts; they are not production accuracy
 | R2-S3 measurement-only exposure ablation | accepted v2 run `r2-s3-dev-exposure-20260721-04`; actual/replay reach `15/28`, conditional quarantine `15/15`, rank-2 unreached downstream exposure `0/13`; diagnostic search reach depth 1/2/4 `6/26`, `22/26`, `26/26`; final local full `1395 passed`, 13 skipped (platform-dependent symlink/junction variants unavailable on this host) | Source run and production Guard/retrieval/Agent unchanged; [eight-file public evidence](data/v2/public/r2_s3_exposure/README.md) verifies `NO_CURRENT_BYPASS_OBSERVED`; private/public manifest schemas are v2; audit `454/0`; push is allowed only after fixed-HEAD reviews and local gates pass, while actual delivery/CI state is established by Git and GitHub Actions; independent holdout and semantic judge are `NOT RUN`; cross-model replication is NOT RUN at R2-S3 cutoff |
 | R2-S4 cross-model dev observation | [R2-S4 Results](docs/security/r2_s4/01_results.md): `CONSISTENT_OBSERVATION` on the same visible synthetic dev cohort; OFF attack `3/24`, ON `0/24`; OFF context exposure `7/24`, ON `0/24`; ON conditional quarantine `15/15`, all-labeled `15/28`; clean/mixed/poison-only `12/12`, `20/20`, `4/4`; component deterministic threshold diagnostic=false | [R2-S4 public evidence](data/v2/public/r2_s4_cross_model/README.md) is an eight-file package; run HEAD `109e8b52d8d31ae3562420351451a69915652be3`; 12 decision safety/utility observations matched, but this is not a release pass and not cross-model generalization; cross-model non-release diagnostic passed=true / release_pass=false; independent holdout, semantic judge calibration, human double review, and production traffic remain `NOT RUN` |
 | R2-S5 trusted identity local contract | exact-SHA CI #17 correctly blocked `d753df3`; one assertion-contract, two portability failures, and later TOCTOU/handle findings were repaired; scoped review reached `0 Critical / 0 Important / 0 Minor / RELEASE`, then exact repair SHA `1189253` passed Actions #18 on Ubuntu and Windows | Local synthetic RS256/JWKS authority, server-derived ACL context, public-by-exception authorization, bounded request framing, receipt-bound feedback, handle/descriptor-bound private filesystem lifecycle, strict owner policy and 11-source evidence; affected contract group `151/4`, local audit `515/0`, p95 `0.0904 ms`, matrix `20/20` with artifact `0258f8c2...0829`, local full `1918/22/3`; remote Ubuntu `1918/22/4`, Windows `1935/5/4`, both audit `515/0`; this is not real IdP or production certification |
+| R2-S9 minimal Linux deployment | local deployment/security contract `31 passed`; full local suite `2417 passed / 30 skipped`; public audit `915/0`; exact-commit Linux container job pending this push | Digest-pinned Python image, UID 10001, read-only runtime, separate data/identity mounts, append-only image+Git+index release ledger, crash-visible transaction recovery, readiness/index binding, rollback drill, and Python SPDX SBOM; single-host synthetic contract, not production deployment |
 | E7 final-code load rc02 | `31/31` requests | One Windows machine; warm p95 was 1.115 s / 4.244 s / 8.218 s at concurrency 1 / 5 / 10 |
 | E7 workflow ablation rc02 | fixed RAG `0.8571` vs bounded Agentic `1.0000` outcome accuracy | 28-case deterministic synthetic test; Agentic used 47 vs 28 tool calls |
 
@@ -162,6 +163,10 @@ after 15 minutes; rerun with `--force` before a new demo session.
 
 Open `http://127.0.0.1:8501`. Use liveness to confirm the process exists and readiness to confirm the database, active index, local models, trusted identity material, and retrieved-content Guard are usable.
 
+The separate single-host Linux image and rollback workflow is documented in
+the [R2-S9 deployment runbook](docs/deployment/r2_s9/02_runbook.md). Do not use
+the Compose file with a mutable image tag.
+
 ## Synthetic Data
 
 All companies, employees, users, policies, values, emails, tickets, meetings, access groups, questions, and documents are fictional synthetic fixtures. The data does not contain or represent a real employer's policies, identity records, customer data, contracts, or secrets. The reserved `example.invalid` domain is used for non-deliverable addresses.
@@ -186,6 +191,11 @@ The generator derives documents and evaluation labels from a checked-in fact mod
   LLM-judge calibration tooling,
   plus a verified 12-case public-synthetic dev packet. Its labels remain blank:
   human double review and semantic judge calibration are still `NOT RUN`.
+- R2-S9 is a single-host Linux deployment contract. Local Docker evidence is
+  unavailable on the Windows development host; only the exact-commit
+  `linux-container-contract` job can establish image build/readiness/rollback.
+  It does not establish production traffic, high availability, registry
+  signing, a real IdP, or a complete OS vulnerability policy.
 - GitHub Actions passed for feature-branch commit `9607e55`; this does not prove branch protection, deployment, production data, or an SLO.
 
 See [Known Limitations](docs/known_limitations.md) for consequences and admission criteria.
@@ -222,6 +232,9 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 - [R2-S5 Trusted Identity Engineering Journal](docs/security/r2_s5/01_engineering_journal.md)
 - [R2-S5 Implementation and Interview Guide](docs/security/r2_s5/02_implementation_and_interview_guide.md)
 - [R2-S5 Trusted Identity Results](docs/security/r2_s5/03_results.md)
+- [R2-S9 Linux Deployment Specification](docs/deployment/r2_s9/00_spec.md)
+- [R2-S9 Engineering Journal](docs/deployment/r2_s9/01_engineering_journal.md)
+- [R2-S9 Deployment Runbook](docs/deployment/r2_s9/02_runbook.md)
 - [R2 Industrialization Execution Plan](docs/roadmap/r2_industrialization_execution_plan.md)
 - [Observability and Load Evidence](docs/observability.md)
 - [Reproducibility Guide](docs/reproducibility.md)

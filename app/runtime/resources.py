@@ -7,7 +7,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Literal
-from urllib.parse import urlparse
 
 import requests
 from pydantic import BaseModel, ConfigDict, Field
@@ -19,13 +18,14 @@ from app.observability.metrics import MetricsRegistry
 from app.observability.tracing import InMemoryTraceStore
 from app.observability.tracing import trace_span
 from app.retrieval.snapshot import V2IndexSnapshot
-from app.security.retrieved_content import validate_retrieved_content_guard
 from app.security.identity import (
     FeedbackActorPseudonymizer,
     IdentityVerifier,
     build_feedback_actor_hasher,
     build_identity_verifier,
 )
+from app.security.model_endpoint import parse_pinned_model_endpoint
+from app.security.retrieved_content import validate_retrieved_content_guard
 from app.lifecycle.operator import LifecycleOperatorService
 from app.lifecycle.pipeline import build_ollama_lifecycle_runtime
 
@@ -354,6 +354,20 @@ class RuntimeResources:
     def _probe_index(self) -> ReadyIndexInfo:
         snapshot = V2IndexSnapshot.load(self.settings.v2_indexes_dir)
         manifest = snapshot.version.manifest
+        expected_run_id = self.settings.deployment_expected_index_run_id
+        expected_manifest_sha256 = (
+            self.settings.deployment_expected_index_manifest_sha256
+        )
+        if expected_run_id is not None and manifest.run_id != expected_run_id:
+            raise RuntimeError("active index does not match deployment release")
+        if (
+            expected_manifest_sha256 is not None
+            and snapshot.version.manifest_sha256
+            != expected_manifest_sha256
+        ):
+            raise RuntimeError(
+                "active index manifest does not match deployment release"
+            )
         return ReadyIndexInfo(
             run_id=manifest.run_id,
             chunk_count=manifest.indexed_chunk_count,
@@ -364,8 +378,9 @@ class RuntimeResources:
         )
 
     def _probe_models(self, index_info: ReadyIndexInfo) -> None:
-        parsed = urlparse(self.settings.llm_base_url)
-        origin = f"{parsed.scheme}://{parsed.netloc}"
+        origin = parse_pinned_model_endpoint(
+            self.settings.llm_base_url
+        ).origin
         connect_timeout = float(
             self.settings.readiness_probe_timeout_seconds
         )

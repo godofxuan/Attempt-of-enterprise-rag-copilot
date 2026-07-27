@@ -1,0 +1,54 @@
+name: enterprise-rag
+
+services:
+  api:
+    image: ${RAG_IMAGE:?RAG_IMAGE must be an immutable image@sha256 reference}
+    network_mode: host
+    user: "10001:10001"
+    read_only: true
+    init: true
+    restart: unless-stopped
+    environment:
+      DATA_DIR: /var/lib/rag
+      LIFECYCLE_PRIVATE_ROOT: /var/lib/rag/private/lifecycle
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://127.0.0.1:11434/v1}
+      LLM_API_KEY: ollama
+      CHAT_MODEL: ${CHAT_MODEL:-qwen2.5:3b}
+      EVIDENCE_MODEL: ${EVIDENCE_MODEL:-qwen3:8b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-bge-m3}
+      IDENTITY_JWKS_PATH: /run/secrets/rag-identity/jwks.json
+      IDENTITY_FEEDBACK_HMAC_KEY_PATH: /run/secrets/rag-identity/feedback_actor_hmac.key
+      IDENTITY_ISSUER: ${IDENTITY_ISSUER:-https://identity.localhost/}
+      IDENTITY_AUDIENCE: ${IDENTITY_AUDIENCE:-enterprise-rag-api}
+      DEPLOYMENT_RELEASE_ID: ${DEPLOYMENT_RELEASE_ID:?release binding is required}
+      DEPLOYMENT_EXPECTED_INDEX_RUN_ID: ${DEPLOYMENT_EXPECTED_INDEX_RUN_ID:?index run binding is required}
+      DEPLOYMENT_EXPECTED_INDEX_MANIFEST_SHA256: ${DEPLOYMENT_EXPECTED_INDEX_MANIFEST_SHA256:?index hash binding is required}
+      READINESS_MODEL_LOAD_TIMEOUT_SECONDS: ${READINESS_MODEL_LOAD_TIMEOUT_SECONDS:-90}
+    volumes:
+      - type: bind
+        source: ${RAG_DATA_ROOT:?RAG_DATA_ROOT must be an absolute host path}
+        target: /var/lib/rag
+      - type: bind
+        source: ${RAG_IDENTITY_ROOT:?RAG_IDENTITY_ROOT must be an absolute host path}
+        target: /run/secrets/rag-identity
+        read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=128m,uid=10001,gid=10001
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    mem_limit: 4g
+    cpus: 2.0
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json,urllib.request; response=urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=1); assert response.status == 200 and json.load(response).get('status') == 'alive'"
+      interval: 10s
+      timeout: 2s
+      start_period: 10s
+      retries: 6

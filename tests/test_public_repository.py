@@ -1107,10 +1107,13 @@ def test_r2_industrialization_plan_tracks_one_current_stage_and_ordered_candidat
     for text in (roadmap, backlog):
         assert (
             "Current admitted implementation: "
-            "R2-S6 Versioned Corpus Expansion."
+            "R2-S9 Reproducible Minimal Linux"
         ) in text
-        assert "Next candidate: reproducible minimal Linux deploy/rollback" in text
-        assert "Later candidate: durable privacy-bounded telemetry" in text
+        assert "Next candidate: durable privacy-bounded telemetry" in text
+        assert (
+            "Deferred validation: the real two-person R2-S8 review "
+            "remains `NOT RUN`."
+        ) in text
         assert "not parallel approvals" in text
         for section in (
             "Trigger",

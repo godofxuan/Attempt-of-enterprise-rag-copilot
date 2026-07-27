@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     evidence_model: str = "qwen3:8b"
     embedding_model: str = "bge-m3"
 
+    deployment_release_id: str | None = None
+    deployment_expected_index_run_id: str | None = None
+    deployment_expected_index_manifest_sha256: str | None = None
+
     identity_jwks_path: Path = (
         BASE_DIR / ".private" / "identity" / "jwks.json"
     ).resolve()
@@ -120,6 +124,36 @@ class Settings(BaseSettings):
         for field_name, value in derived.items():
             if field_name not in self.model_fields_set:
                 object.__setattr__(self, field_name, value)
+        return self
+
+    @model_validator(mode="after")
+    def validate_deployment_binding(self) -> "Settings":
+        values = (
+            self.deployment_release_id,
+            self.deployment_expected_index_run_id,
+            self.deployment_expected_index_manifest_sha256,
+        )
+        if all(value is None for value in values):
+            return self
+        if any(value is None for value in values):
+            raise ValueError(
+                "deployment release and expected index binding must be set together"
+            )
+        assert self.deployment_release_id is not None
+        assert self.deployment_expected_index_run_id is not None
+        assert self.deployment_expected_index_manifest_sha256 is not None
+        identifier_pattern = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+        if (
+            not identifier_pattern.fullmatch(self.deployment_release_id)
+            or not identifier_pattern.fullmatch(
+                self.deployment_expected_index_run_id
+            )
+            or not re.fullmatch(
+                r"[0-9a-f]{64}",
+                self.deployment_expected_index_manifest_sha256,
+            )
+        ):
+            raise ValueError("deployment release binding is invalid")
         return self
 
     @field_validator("identity_issuer")

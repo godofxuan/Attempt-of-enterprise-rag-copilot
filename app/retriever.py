@@ -1,7 +1,6 @@
 ﻿import json
 import pickle
 from pathlib import Path
-from urllib.parse import urlparse
 
 import faiss
 import numpy as np
@@ -11,6 +10,7 @@ from rank_bm25 import BM25Okapi
 from app.chunker import chunk_text
 from app.config import get_settings
 from app.runtime.model_transport import perform_model_request
+from app.security.model_endpoint import parse_pinned_model_endpoint
 from app.utils import ensure_dir, read_text_file, tokenize_for_bm25
 
 
@@ -24,11 +24,6 @@ def _write_faiss_index(index: faiss.Index, index_path) -> None:
     index_path.write_bytes(serialized.tobytes())
 
 
-def _ollama_api_base_url(llm_base_url: str) -> str:
-    parsed = urlparse(llm_base_url)
-    return f"{parsed.scheme}://{parsed.netloc}"
-
-
 def _post_ollama(url: str, payload: dict, timeout: int) -> requests.Response:
     session = requests.Session()
     session.trust_env = False
@@ -37,7 +32,8 @@ def _post_ollama(url: str, payload: dict, timeout: int) -> requests.Response:
 
 def _embed_text(model: str, text: str) -> list[float]:
     settings = get_settings()
-    url = f"{_ollama_api_base_url(settings.llm_base_url)}/api/embed"
+    endpoint = parse_pinned_model_endpoint(settings.llm_base_url)
+    url = f"{endpoint.origin}/api/embed"
     result = perform_model_request(
         lambda timeout: _post_ollama(
             url,

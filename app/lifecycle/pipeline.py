@@ -7,7 +7,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
-from urllib.parse import urlsplit
 
 import pydantic
 import requests
@@ -20,6 +19,7 @@ from app.indexing.computation_cache import (
 from app.indexing.incremental_computation import EmbedText, PipelineConfiguration
 from app.ingestion.chunking import ChunkerConfig
 from app.runtime.model_transport import perform_model_request
+from app.security.model_endpoint import parse_pinned_model_endpoint
 
 
 _SHA256 = re.compile(r"^(?:sha256:)?([0-9a-f]{64})$")
@@ -32,29 +32,12 @@ class LifecyclePipelineRuntime:
 
 
 def _local_ollama_origin(value: str) -> str:
-    parsed = urlsplit(value)
     try:
-        port = parsed.port
+        return parse_pinned_model_endpoint(value).origin
     except ValueError as exc:
         raise ValueError(
             "lifecycle embedding requires a pinned local Ollama origin"
         ) from exc
-    if (
-        parsed.scheme != "http"
-        or parsed.hostname not in {"localhost", "127.0.0.1", "::1"}
-        or port is None
-        or not 1 <= port <= 65_535
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.query
-        or parsed.fragment
-    ):
-        raise ValueError("lifecycle embedding requires a pinned local Ollama origin")
-    if parsed.hostname == "localhost":
-        host = "127.0.0.1"
-    else:
-        host = f"[{parsed.hostname}]" if parsed.hostname == "::1" else parsed.hostname
-    return f"http://{host}:{port}"
 
 
 def _source_digest(*relative_paths: str) -> str:

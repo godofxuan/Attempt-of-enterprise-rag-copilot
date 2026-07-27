@@ -70,3 +70,160 @@ jobs:
 
       - name: Audit public repository candidates
         run: python -m scripts.audit_public_repo
+
+  container:
+    name: linux-container-contract
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TEST_IMAGE: enterprise-rag-test:${{ github.sha }}
+      RUNTIME_IMAGE: enterprise-rag-runtime:${{ github.sha }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Build pinned test and runtime images
+        run: |
+          docker build --target test --tag "${TEST_IMAGE}" .
+          docker build --target runtime --tag "${RUNTIME_IMAGE}" .
+
+      - name: Verify runtime image identity
+        run: |
+          test "$(docker image inspect "${RUNTIME_IMAGE}" --format '{{.Config.User}}')" = "10001:10001"
+          test "$(docker image inspect "${RUNTIME_IMAGE}" --format '{{.Config.Healthcheck.Test}}')" != "<nil>"
+
+      - name: Run deterministic gates inside the image
+        run: |
+          mount_git="type=bind,source=${GITHUB_WORKSPACE}/.git,target=/workspace/.git,readonly"
+          run_args=(--rm --read-only --tmpfs /tmp:rw,exec,nosuid,nodev,size=1g,uid=10001,gid=10001 --mount "${mount_git}")
+          docker run "${run_args[@]}" "${TEST_IMAGE}" python -m pip check
+          docker run "${run_args[@]}" "${TEST_IMAGE}" python -m compileall -q app scripts streamlit_app tests
+          docker run "${run_args[@]}" "${TEST_IMAGE}" python -c "from pathlib import Path; from scripts.eval_enterprise_v2 import verify_frozen_test_hash; expected, actual = verify_frozen_test_hash(Path('data/v2/eval')); assert expected == actual"
+          docker run "${run_args[@]}" "${TEST_IMAGE}" python -m scripts.verify_quality_review_packet
+          docker run "${run_args[@]}" "${TEST_IMAGE}" python -m scripts.eval_corpus_quality --profile expanded
+          docker run "${run_args[@]}" "${TEST_IMAGE}" python -u -X faulthandler -m pytest -q
+          docker run "${run_args[@]}" "${TEST_IMAGE}" python -m scripts.audit_public_repo
+
+      - name: Run readiness failure and rollback drill
+        run: |
+          set -euo pipefail
+          smoke_root="${RUNNER_TEMP}/enterprise-rag-smoke"
+          mkdir -p "${smoke_root}"
+          chmod 0777 "${smoke_root}"
+          cleanup() {
+            docker rm -f enterprise-rag-api enterprise-rag-model-stub >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --rm \
+            --mount "type=bind,source=${smoke_root},target=/smoke" \
+            "${TEST_IMAGE}" \
+            python -m scripts.init_deployment_smoke_fixture --root /smoke/fixture
+
+          state_args=(--state-root /smoke/fixture/deployment --index-root /smoke/fixture/data/indexes_v2)
+          smoke_mount=(--mount "type=bind,source=${smoke_root},target=/smoke")
+          docker run --rm "${smoke_mount[@]}" "${TEST_IMAGE}" \
+            python -m scripts.manage_deployment "${state_args[@]}" register \
+            --release-id release-1 \
+            --image-reference "local/enterprise-rag:release-1@sha256:1111111111111111111111111111111111111111111111111111111111111111" \
+            --index-run-id deployment-smoke-index-v1 \
+            --source-commit "${GITHUB_SHA}"
+          docker run --rm "${smoke_mount[@]}" "${TEST_IMAGE}" \
+            python -m scripts.manage_deployment "${state_args[@]}" register \
+            --release-id release-2 \
+            --image-reference "local/enterprise-rag:release-2@sha256:2222222222222222222222222222222222222222222222222222222222222222" \
+            --index-run-id deployment-smoke-index-v2 \
+            --previous-release-id release-1 \
+            --source-commit "${GITHUB_SHA}"
+          docker run --rm "${smoke_mount[@]}" "${TEST_IMAGE}" \
+            python -m scripts.manage_deployment "${state_args[@]}" activate \
+            --release-id release-1
+          docker run --rm "${smoke_mount[@]}" "${TEST_IMAGE}" \
+            python -m scripts.manage_deployment "${state_args[@]}" render-env \
+            --output /smoke/fixture/release.env
+
+          docker run -d --rm --name enterprise-rag-model-stub \
+            --network host --read-only --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            "${TEST_IMAGE}" python -m scripts.deployment_model_stub
+
+          run_api() {
+            docker run -d --rm --name enterprise-rag-api \
+              --network host --read-only --init --user 10001:10001 \
+              --tmpfs /tmp:rw,noexec,nosuid,nodev,size=128m,uid=10001,gid=10001 \
+              --cap-drop ALL --security-opt no-new-privileges:true \
+              --pids-limit 512 --memory 4g --cpus 2 \
+              --env-file "${smoke_root}/fixture/release.env" \
+              --env DATA_DIR=/var/lib/rag \
+              --env LIFECYCLE_PRIVATE_ROOT=/var/lib/rag/private/lifecycle \
+              --env LLM_BASE_URL=http://127.0.0.1:11434/v1 \
+              --env CHAT_MODEL=deployment-smoke-chat \
+              --env EVIDENCE_MODEL=deployment-smoke-evidence \
+              --env EMBEDDING_MODEL=deployment-smoke-embed \
+              --env IDENTITY_JWKS_PATH=/run/secrets/rag-identity/jwks.json \
+              --env IDENTITY_FEEDBACK_HMAC_KEY_PATH=/run/secrets/rag-identity/feedback_actor_hmac.key \
+              --mount "type=bind,source=${smoke_root}/fixture/data,target=/var/lib/rag" \
+              --mount "type=bind,source=${smoke_root}/fixture/identity,target=/run/secrets/rag-identity,readonly" \
+              "${RUNTIME_IMAGE}"
+          }
+
+          run_api
+          docker run --rm --network host "${TEST_IMAGE}" \
+            python -m scripts.probe_deployment \
+            --expected-index-run-id deployment-smoke-index-v1
+          test "$(docker exec enterprise-rag-api id -u)" = "10001"
+          if docker exec enterprise-rag-api \
+            python -c "from pathlib import Path; Path('/opt/rag/write-test').write_text('x')"; then
+            echo "runtime code directory unexpectedly writable"
+            exit 1
+          fi
+          docker stop enterprise-rag-api
+
+          docker run --rm "${smoke_mount[@]}" "${TEST_IMAGE}" \
+            python -m scripts.manage_deployment "${state_args[@]}" activate \
+            --release-id release-2
+          docker run --rm "${smoke_mount[@]}" "${TEST_IMAGE}" \
+            python -m scripts.manage_deployment "${state_args[@]}" render-env \
+            --output /smoke/fixture/release.env --force
+          run_api
+          if docker run --rm --network host "${TEST_IMAGE}" \
+            python -m scripts.probe_deployment --deadline-seconds 5 \
+            --expected-index-run-id deployment-smoke-index-v2; then
+            echo "incompatible candidate unexpectedly became ready"
+            exit 1
+          fi
+          docker stop enterprise-rag-api
+
+          docker run --rm "${smoke_mount[@]}" "${TEST_IMAGE}" \
+            python -m scripts.manage_deployment "${state_args[@]}" rollback
+          docker run --rm "${smoke_mount[@]}" "${TEST_IMAGE}" \
+            python -m scripts.manage_deployment "${state_args[@]}" render-env \
+            --output /smoke/fixture/release.env --force
+          run_api
+          docker run --rm --network host "${TEST_IMAGE}" \
+            python -m scripts.probe_deployment \
+            --expected-index-run-id deployment-smoke-index-v1
+
+      - name: Generate Python runtime SBOM
+        run: |
+          evidence_root="${RUNNER_TEMP}/enterprise-rag-evidence"
+          mkdir -p "${evidence_root}"
+          chmod 0777 "${evidence_root}"
+          image_id="$(docker image inspect "${RUNTIME_IMAGE}" --format '{{.Id}}')"
+          image_digest="${image_id#sha256:}"
+          docker run --rm \
+            --mount "type=bind,source=${evidence_root},target=/evidence" \
+            "${TEST_IMAGE}" \
+            python -m scripts.generate_deployment_sbom \
+            --image-reference "local/enterprise-rag@sha256:${image_digest}" \
+            --source-commit "${GITHUB_SHA}" \
+            --output /evidence/python-runtime.spdx.json
+          test -s "${evidence_root}/python-runtime.spdx.json"
+
+      - name: Upload deployment SBOM
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: enterprise-rag-python-runtime-sbom
+          path: ${{ runner.temp }}/enterprise-rag-evidence/python-runtime.spdx.json
+          if-no-files-found: error

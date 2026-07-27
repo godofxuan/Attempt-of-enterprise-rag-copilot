@@ -1,5 +1,19 @@
 # Industrialization Backlog
 
+## 2026-07-27 R2-S9 status override
+
+Current admitted implementation: R2-S9 Reproducible Minimal Linux
+Deploy/Rollback.
+
+Next candidate: durable privacy-bounded telemetry.
+
+Deferred validation: the real two-person R2-S8 review remains `NOT RUN`.
+
+These are not parallel approvals. The Python and checked-in container contract
+are implemented;
+the exact-commit `linux-container-contract` GitHub job remains pending until
+the change is pushed.
+
 最后更新：2026-07-27
 
 本文不是承诺清单。每个 R2 项必须由真实失败、规模或合规需求触发，并在进入实现前定义可复现基线、验收指标、回滚和成本边界。当前 R1 状态见 [Project Status](../PROJECT_STATUS.md)。
