@@ -242,6 +242,29 @@ Lesson: "writable by the workload" does not mean "writable by everyone."
 Container bind-mount ownership must agree with the runtime identity and the
 private-file threat model.
 
+### 4.8 Fourth Linux run exposed ownership-operation ordering
+
+Exact-commit Actions run
+[`30263961033`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30263961033)
+again passed both OS jobs and all read-only image gates. The rollback step then
+failed before fixture initialization:
+
+```text
+chmod: changing permissions of '.../enterprise-rag-smoke':
+Operation not permitted
+```
+
+`sudo chown 10001:10001` had already transferred ownership away from the
+GitHub runner account, so the following unprivileged `chmod` was no longer
+authorized.
+
+Fix: perform both ownership and mode changes through `sudo`. This is a workflow
+ordering/privilege correction; no application or identity validation is
+weakened.
+
+Lesson: after ownership transfer, later metadata operations must be performed
+by the new owner or a privileged operator.
+
 ## 5. Current Verification
 
 Focused deployment/security suite:

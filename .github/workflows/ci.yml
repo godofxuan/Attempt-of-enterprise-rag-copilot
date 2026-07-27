@@ -120,7 +120,7 @@ jobs:
           smoke_root="${RUNNER_TEMP}/enterprise-rag-smoke"
           mkdir -p "${smoke_root}"
           sudo chown 10001:10001 "${smoke_root}"
-          chmod 0700 "${smoke_root}"
+          sudo chmod 0700 "${smoke_root}"
           cleanup() {
             docker rm -f enterprise-rag-api enterprise-rag-model-stub >/dev/null 2>&1 || true
           }
@@ -220,7 +220,7 @@ jobs:
           evidence_root="${RUNNER_TEMP}/enterprise-rag-evidence"
           mkdir -p "${evidence_root}"
           sudo chown 10001:10001 "${evidence_root}"
-          chmod 0700 "${evidence_root}"
+          sudo chmod 0700 "${evidence_root}"
           image_id="$(docker image inspect "${RUNTIME_IMAGE}" --format '{{.Id}}')"
           image_digest="${image_id#sha256:}"
           docker run --rm \
