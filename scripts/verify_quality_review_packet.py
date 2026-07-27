@@ -17,7 +17,7 @@ DEFAULT_PACKET = (
     / "data"
     / "v2"
     / "quality_review"
-    / "r2-s8-calibration-v3"
+    / "r2-s8-calibration-v4"
 )
 
 

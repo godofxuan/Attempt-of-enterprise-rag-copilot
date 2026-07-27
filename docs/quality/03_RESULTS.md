@@ -31,7 +31,11 @@ release evidence are `NOT RUN`.
 
 ## Verified public calibration packet
 
-`data/v2/quality_review/r2-s8-calibration-v3`
+`data/v2/quality_review/r2-s8-calibration-v4`
+
+V3 is retained as a rejected preflight artifact: its CSV hash was computed
+from Windows CRLF bytes before Git normalized the committed file to LF. V4 is
+the immutable replacement and fixes the writer to emit LF on every platform.
 
 | Property | Value |
 |---|---|
@@ -77,7 +81,7 @@ Full repository regression:
 Public repository audit:
 
 ```text
-745 candidates, 0 findings
+751 candidates, 0 findings
 ```
 
 ## What these results do not prove

@@ -236,7 +236,7 @@ reviewer packet -> two independent submissions -> disagreement/adjudication
 The tracked 12-case dev packet is:
 
 ```text
-data/v2/quality_review/r2-s8-calibration-v3
+data/v2/quality_review/r2-s8-calibration-v4
 ```
 
 CI verifies its hashes and requires:

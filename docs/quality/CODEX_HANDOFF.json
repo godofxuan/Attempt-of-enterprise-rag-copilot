@@ -21,7 +21,7 @@
     "warning_scope": "unrelated SWIG deprecations"
   },
   "tracked_calibration_packet": {
-    "path": "data/v2/quality_review/r2-s8-calibration-v3",
+    "path": "data/v2/quality_review/r2-s8-calibration-v4",
     "item_count": 12,
     "dataset_split": "dev",
     "population_kind": "public_synthetic",
@@ -42,7 +42,7 @@
     "warnings": 3
   },
   "public_audit": {
-    "candidates": 745,
+    "candidates": 751,
     "findings": 0
   },
   "next_action": "The coordinator creates one campaign identity pepper; two independent humans complete the 12-case reference-guided dev pilot; then aggregate/adjudicate. Do not run or claim real LLM-judge calibration before human consensus exists.",

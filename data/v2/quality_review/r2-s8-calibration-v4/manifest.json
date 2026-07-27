@@ -1,0 +1,47 @@
+{
+  "artifacts": {
+    "REVIEW_INSTRUCTIONS.md": "3eeafa4e06674bda7c58520b584a73763d9e191681c5098b09c7af3c1bb68e13",
+    "review_items.jsonl": "5c208cb8c482d2ee6ef93238a12896fdaec4f5949e68be4c46afa99cf81ed493",
+    "rubric.json": "782093b7ee000c5276a6468d3726c73e0581c666762d6ab73f66c9aeace94d93",
+    "submission_template.csv": "53e7bbd8fa7175c76322fcb428ffc94759d657bb9c45e08629ffe8467497cf8a"
+  },
+  "blinded_fields": [
+    "source_case_id",
+    "model_identity",
+    "model_variant",
+    "machine_passed",
+    "machine_failure_stage"
+  ],
+  "claim_status": "NOT_RUN",
+  "created_at_utc": "2026-07-27T03:38:01.240361Z",
+  "item_count": 12,
+  "minimum_independent_reviewers": 2,
+  "packet_id": "r2-s8-calibration-v4",
+  "producer": "enterprise_agentic_rag_v2",
+  "purpose": "calibration",
+  "rubric_schema_version": "enterprise_quality_review_rubric_v1",
+  "sampling_seed": 1729,
+  "sampling_strategy": "stratified_random",
+  "schema_version": "enterprise_quality_review_packet_v1",
+  "source": {
+    "dataset_sha256": "92b4753df4e69bb570e9ea202420b46124207f15a07cdbb421fb00e6990082bd",
+    "dataset_split": "dev",
+    "git_commit": "f081ccbb284feba6af30f38024e87d1c7b273a9d",
+    "independence_status": "not_independent",
+    "population_kind": "public_synthetic",
+    "run_id": "r2-s8-calibration-source-v1",
+    "run_manifest_sha256": "ca2ba99339e94ed6babb3889fcbfdbeeb20c45b821e5a709ecaf0cccc4b8d095"
+  },
+  "thresholds": {
+    "held_out_minimum_item_count": 60,
+    "maximum_access_safety_failures": 0,
+    "maximum_uncertain_rate": 0.1,
+    "minimum_cohens_kappa": 0.7,
+    "minimum_mean_ndcg_at_5": 0.8,
+    "minimum_mean_relevance_precision_at_5": 0.6,
+    "minimum_mean_relevance_recall_at_5": 0.85,
+    "minimum_overall_acceptance_rate": 0.8,
+    "minimum_raw_label_agreement": 0.8,
+    "minimum_retrieval_weighted_kappa": 0.7
+  }
+}

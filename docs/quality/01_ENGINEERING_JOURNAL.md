@@ -316,3 +316,36 @@ Ruff was probed as an additional lint gate but is not installed in the project
 virtual environment (`No module named ruff`). No lint result is claimed. The
 executed static/runtime gates are compileall, pip check, diff check, packet
 verification, public audit, focused tests, evaluation tests, and full pytest.
+
+## QEV-016 - Clean-checkout packet hash failure
+
+Status: RESOLVED
+
+GitHub Actions run `30234801613` failed on both Ubuntu and Windows in
+`Verify frozen quality-review calibration packet`. A clean `git archive`
+reproduction failed with `artifact hash mismatch: submission_template.csv`.
+The original Windows packet builder used the `csv` module's platform-default
+CRLF terminator, then hashed those bytes. `.gitattributes` normalized the
+committed blob to LF, so the working tree passed while every fresh checkout
+correctly rejected the changed bytes.
+
+Resolution:
+
+- pin `csv.DictWriter(lineterminator="\n")`;
+- assert at byte level that generated templates contain no CRLF;
+- keep v3 classified as a rejected preflight artifact rather than silently
+  representing it as valid;
+- publish immutable replacement `r2-s8-calibration-v4` with a separate private
+  control map;
+- point CI, reviewer runbook, traceability, status, and handoff records to v4;
+- verify the exact committed archive before the replacement push.
+
+This failure demonstrates why a clean-checkout gate is distinct from running
+tests in the producer's working tree.
+
+Post-fix verification:
+
+- quality-focused tests: `20 passed`;
+- exact Git index export verified packet v4 as `NOT_RUN`;
+- full repository: `2379 passed / 30 skipped`;
+- public audit: `751 candidates / 0 findings`.

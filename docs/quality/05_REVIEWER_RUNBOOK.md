@@ -3,7 +3,7 @@
 ## Current boundary
 
 This runbook executes the 12-case development calibration pilot in
-`data/v2/quality_review/r2-s8-calibration-v3`. It is not the final 60-case
+`data/v2/quality_review/r2-s8-calibration-v4`. It is not the final 60-case
 independent held-out acceptance.
 
 Two different people are required. Codex, an LLM judge, or one person using two
@@ -14,7 +14,7 @@ identities cannot satisfy this gate.
 The operator gives each reviewer only a copy of:
 
 ```text
-data/v2/quality_review/r2-s8-calibration-v3/
+data/v2/quality_review/r2-s8-calibration-v4/
 ```
 
 Do not give reviewers:
@@ -82,7 +82,7 @@ Run separately for reviewer A and reviewer B:
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.submit_quality_review `
-  --packet-dir data\v2\quality_review\r2-s8-calibration-v3 `
+  --packet-dir data\v2\quality_review\r2-s8-calibration-v4 `
   --completed-template <reviewer-completed.csv> `
   --reviewer-id-file <private-identity.txt> `
   --identity-pepper-file .private\quality\reviewers\identity-pepper.bin `
@@ -102,7 +102,7 @@ people; cryptography cannot prove human independence by itself.
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.aggregate_quality_reviews `
   --evidence-id r2-s8-human-pilot-v1 `
-  --packet-dir data\v2\quality_review\r2-s8-calibration-v3 `
+  --packet-dir data\v2\quality_review\r2-s8-calibration-v4 `
   --submission <reviewer-a-submission.json> `
   --submission <reviewer-b-submission.json> `
   --out-dir .private\quality\evidence

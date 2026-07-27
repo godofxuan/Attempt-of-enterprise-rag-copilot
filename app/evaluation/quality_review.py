@@ -1410,7 +1410,11 @@ def _write_packet_artifacts(
         encoding="utf-8",
         newline="",
     ) as handle:
-        writer = csv.DictWriter(handle, fieldnames=_SUBMISSION_FIELDS)
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=_SUBMISSION_FIELDS,
+            lineterminator="\n",
+        )
         writer.writeheader()
         for item in items:
             writer.writerow({"review_item_id": item.review_item_id})

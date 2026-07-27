@@ -887,14 +887,14 @@ scripts/build_quality_review_packet.py
 scripts/submit_quality_review.py
 scripts/aggregate_quality_reviews.py
 scripts/calibrate_quality_judge.py
-data/v2/quality_review/r2-s8-calibration-v3/
+data/v2/quality_review/r2-s8-calibration-v4/
 docs/quality/
 ```
 
 The tracked packet contains 12 stratified dev cases and verifies as
 `public_synthetic / not_independent / NOT_RUN`. The current evaluation
 regression is `999 passed / 16 skipped`; full repository regression is
-`2379 passed / 30 skipped`; public audit is `745/0`.
+`2379 passed / 30 skipped`; public audit is `751/0`.
 
 G5 is ready but not executable by Codex alone: two actual independent people
 must complete the packet. Do not manufacture reviewer identities, use an LLM

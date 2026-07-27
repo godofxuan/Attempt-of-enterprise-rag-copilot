@@ -141,3 +141,13 @@ The public packet and private control map live under different roots, so one
 filesystem rename cannot atomically commit both. A retry verifies the complete
 existing packet against current source/spec and publishes only a missing
 control map; exact existing controls are idempotent, and mismatches fail closed.
+
+## ADR-QE-017 - Hash-bound text artifacts use canonical LF bytes
+
+Status: ACCEPTED
+
+Artifact hashes bind bytes, not logical text. Every generated text artifact
+must therefore choose an explicit newline convention before hashing. CSV output
+uses `lineterminator="\n"`, matching the repository's LF policy. A released
+packet with a clean-checkout hash mismatch is rejected and replaced under a new
+packet ID; its manifest is never edited to conceal the failure.

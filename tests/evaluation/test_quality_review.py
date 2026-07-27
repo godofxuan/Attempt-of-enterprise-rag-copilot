@@ -93,6 +93,7 @@ def test_packet_publication_is_blinded_immutable_and_self_verifying(
     assert "primary_failure" not in item_text
 
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert b"\r\n" not in (output / "submission_template.csv").read_bytes()
     assert manifest["thresholds"] == {
         "held_out_minimum_item_count": 60,
         "maximum_access_safety_failures": 0,
