@@ -141,6 +141,34 @@ current roadmap stage. It was updated to require R2-S9 as current, durable
 privacy-bounded telemetry as next candidate, and the two-person R2-S8 review as
 explicitly `NOT RUN`.
 
+### 4.5 First Linux container run exposed a read-only cache conflict
+
+Exact-commit Actions run
+[`30260525575`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30260525575)
+passed both deterministic OS jobs but failed the first
+`linux-container-contract` run:
+
+```text
+deterministic-ubuntu-latest   PASS
+deterministic-windows-latest  PASS
+linux-container-contract      FAIL at "Run deterministic gates inside the image"
+```
+
+The image built and its non-root identity checks passed. The gate then failed
+within two seconds. The first write-capable operation in that gate was
+`compileall`: Python normally places compiled bytecode beside source files,
+while the contract intentionally mounts the test container root filesystem
+read-only.
+
+Fix: preserve the read-only filesystem and redirect `HOME`, XDG cache, and
+Python bytecode cache to the bounded `/tmp` tmpfs. Disable pytest's repository
+cache provider so the test runner also does not attempt to create
+`.pytest_cache` in `/workspace`.
+
+Lesson: a read-only container is an operational invariant, so build and test
+tools must receive explicit ephemeral write locations. Making the container
+writable would hide the conflict and weaken the contract.
+
 ## 5. Current Verification
 
 Focused deployment/security suite:

@@ -96,13 +96,21 @@ jobs:
       - name: Run deterministic gates inside the image
         run: |
           mount_git="type=bind,source=${GITHUB_WORKSPACE}/.git,target=/workspace/.git,readonly"
-          run_args=(--rm --read-only --tmpfs /tmp:rw,exec,nosuid,nodev,size=1g,uid=10001,gid=10001 --mount "${mount_git}")
+          run_args=(
+            --rm
+            --read-only
+            --tmpfs /tmp:rw,exec,nosuid,nodev,size=1g,uid=10001,gid=10001
+            --env HOME=/tmp/home
+            --env XDG_CACHE_HOME=/tmp/xdg-cache
+            --env PYTHONPYCACHEPREFIX=/tmp/pycache
+            --mount "${mount_git}"
+          )
           docker run "${run_args[@]}" "${TEST_IMAGE}" python -m pip check
           docker run "${run_args[@]}" "${TEST_IMAGE}" python -m compileall -q app scripts streamlit_app tests
           docker run "${run_args[@]}" "${TEST_IMAGE}" python -c "from pathlib import Path; from scripts.eval_enterprise_v2 import verify_frozen_test_hash; expected, actual = verify_frozen_test_hash(Path('data/v2/eval')); assert expected == actual"
           docker run "${run_args[@]}" "${TEST_IMAGE}" python -m scripts.verify_quality_review_packet
           docker run "${run_args[@]}" "${TEST_IMAGE}" python -m scripts.eval_corpus_quality --profile expanded
-          docker run "${run_args[@]}" "${TEST_IMAGE}" python -u -X faulthandler -m pytest -q
+          docker run "${run_args[@]}" "${TEST_IMAGE}" python -u -X faulthandler -m pytest -q -p no:cacheprovider
           docker run "${run_args[@]}" "${TEST_IMAGE}" python -m scripts.audit_public_repo
 
       - name: Run readiness failure and rollback drill
