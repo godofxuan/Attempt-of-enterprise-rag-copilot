@@ -1,6 +1,6 @@
 # Industrialization Backlog
 
-最后更新：2026-07-24
+最后更新：2026-07-27
 
 本文不是承诺清单。每个 R2 项必须由真实失败、规模或合规需求触发，并在进入实现前定义可复现基线、验收指标、回滚和成本边界。当前 R1 状态见 [Project Status](../PROJECT_STATUS.md)。
 
@@ -21,7 +21,7 @@
 |---|---|---|---|---|
 | COMPLETE | R2-S5 Trusted Identity Boundary | 历史 trigger：`/agent/v2/chat` 接受 request body 中调用方自报的 `UserContext` | exact-SHA Ubuntu/Windows CI #18 passed after fail-closed review/repair | 本地 RS256/JWKS 合同已完成；真实 IdP 仍未实现 |
 | P0 | Independent indirect-injection validation | S2-1 counterbalanced real-model evidence is historical; R2-S4 dev matrix COMPLETE / CONSISTENT_OBSERVATION on the same visible synthetic dev cohort; external holdout/calibration/double review still NOT RUN | independent reviewer package、one-shot holdout、blind double review、agreement/adjudication、semantic judge calibration 和 zero unauthorized action gate | Guard、可审计协议、exposure attribution 与跨模型运行 machinery 已实现；缺的是尚未执行的外部有效性证据，不能把 infrastructure 或 `CONSISTENT_OBSERVATION` 当 release pass |
-| P0 | Human semantic review | 需要对外报告 response quality 或用于业务 pilot | Frozen rubric、blind double review、adjudication、agreement、claim/citation/omission severity | 自动 required-fact 与 lexical checks 不能替代语义可用性判断 |
+| P0 | Human semantic review | 需要对外报告 response quality 或用于业务 pilot；R2-S8 G0-G4 tooling 已完成，真实双人标签仍 NOT RUN | Frozen rubric、blind double review、adjudication、agreement、claim/citation/omission severity | 自动 required-fact 与 lexical checks 不能替代语义可用性判断 |
 | P1 | Incremental upsert/delete | 文档更新频率使全量 rebuild 超过 agreed freshness window | Idempotent event contract、version/tombstone、partial failure recovery、active snapshot consistency、rollback | R1 immutable rebuild 更易审计，当前 72-doc demo 没有增量压力 |
 | P1 | Durable OpenTelemetry | 需要跨进程追踪、历史检索、告警或多副本 | OTel semantic conventions、collector/backend、sampling、redaction、retention、access control、trace-to-eval correlation | 当前 bounded memory 足以本地调试，直接加平台会先增加运维面 |
 | P1 | Reproducible deployment | 需要 staging/pilot 或非 Windows 环境 | Minimal image、non-root user、SBOM、pinned image/model versions、health probes、resource limits、secret injection、rollback drill | 本阶段只验证本机，不冒充 production deploy |
@@ -47,7 +47,7 @@
 4. Independent indirect-injection holdout freeze/verify infrastructure. `IMPLEMENTED`; reviewer package and run `NOT RUN`
 5. Measurement-only exposure ablation for the `13/28` observation. `COMPLETE`; accepted v2 run `r2-s3-dev-exposure-20260721-04`, no production change admitted
 6. R2-S4 cross-model replication. `COMPLETE WITH OBSERVATIONS`
-7. Independent package authoring, one-shot holdout execution, blind human review, and semantic judge calibration. `NOT RUN`
+7. Independent quality package/double-review/judge-calibration tooling. `IMPLEMENTED`; real two-person pilot, one-shot holdout, and semantic judge calibration `NOT RUN`
 
 ```text
 R2-S4 cross-model replication                  COMPLETE WITH OBSERVATIONS

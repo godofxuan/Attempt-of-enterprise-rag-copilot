@@ -919,7 +919,9 @@ def test_root_status_is_the_only_current_status_entrypoint() -> None:
         encoding="utf-8"
     )
 
-    assert "更新时间：2026-07-24" in status
+    assert "更新时间：2026-07-27" in status
+    assert "R2-S8 independent quality evidence" in status
+    assert "public_synthetic / not_independent / NOT_RUN" in status
     assert "R2-S6 versioned corpus expansion" in status
     assert "当前状态：知识库默认 profile" in status
     assert "20260724T024653Z_expanded_bge_m3_fixed" in status

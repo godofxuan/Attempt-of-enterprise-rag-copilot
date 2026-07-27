@@ -1,6 +1,22 @@
 # Enterprise Agentic RAG - Current Status
 
-更新时间：2026-07-24（R2-S6 versioned corpus expansion 已完成本地验收、推送及 exact-SHA Ubuntu/Windows CI）
+更新时间：2026-07-27（R2-S7 生命周期已完成；R2-S8 G0-G4 质量证据工具完成，真实双人审核仍 NOT RUN）
+
+当前最新阶段是 R2-S8 independent quality evidence。项目新增不可覆盖的
+模型/机器结论盲化且参考答案引导的 packet、匿名且严格的双人 submission、
+分歧/第三人裁决、人工检索
+`0/1/2/uncertain` 相关性、agreement/kappa、人工
+precision@5/recall@5/nDCG@5、
+答案接受率，以及从原始标签重算 summary 的 evidence verifier。可选 LLM
+judge 只能在固定模型/prompt/config 下进行至少 3 次 trial，并对照人类共识
+校准；其 `security_gate_authority=none`、`release_authority=false`。
+tracked 12 题 dev packet 位于
+`data/v2/quality_review/r2-s8-calibration-v3/`，明确是
+`public_synthetic / not_independent / NOT_RUN`。G5 需要两名真实独立人员，
+Codex 没有填充标签。当前 R2-S8 exact working tree 通过
+`2379 passed / 30 skipped / 3 warnings`，公开审计为 `745/0`。
+
+Historical accepted baseline marker: R2-S6 versioned corpus expansion.
 
 当前状态：知识库默认 profile 已从 72-document `demo` 切换为
 240-document `expanded`。事实宽度从 8 policies / 16 versions / 32 facts
@@ -107,6 +123,15 @@ synthetic corpus
   deterministic support/eval coverage、20 项 corpus quality gate、动态完整性问题
   数量、索引 CLI/default 接入、Ubuntu/Windows CI 门禁和可篡改检测的公共证据
   包；本地真实 BGE-M3 index 与 104-case dev/test retrieval regression 已通过。
+- R2-S7：实现安全 source event、staging/quarantine、EML/附件预算、
+  revision/tombstone/change plan、精确 chunk/embedding 失效复用、完整不可变
+  target snapshot、故障注入、原子激活、删除验证与回滚；最终生命周期性能证据
+  10/10 等价且 10/10 增量更快，embedding call ratio 约 0.02547。
+- R2-S8 G0-G4：实现模型/机器结论盲化、参考答案引导的质量证据、双人独立
+  标签、分歧裁决、人工检索与
+  回答指标、阈值化 fail-closed 结论、可重算 evidence bundle 和 LLM judge
+  calibration contract。真实 human double review 与 semantic judge
+  calibration 仍为 `NOT RUN`。
 
 ## 3. 当前证据
 

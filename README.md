@@ -182,6 +182,10 @@ The generator derives documents and evaluation labels from a checked-in fact mod
 - Traces and metrics are bounded in-memory local structures, not durable distributed observability.
 - Index lifecycle is immutable rebuild/activate, not production incremental upsert/delete.
 - The 50-row human semantic review and owner code/oral sign-off are `NOT RUN`; Codex does not fill or sign those judgements.
+- R2-S8 adds strict model/verdict-blinded, reference-guided double-review and
+  LLM-judge calibration tooling,
+  plus a verified 12-case public-synthetic dev packet. Its labels remain blank:
+  human double review and semantic judge calibration are still `NOT RUN`.
 - GitHub Actions passed for feature-branch commit `9607e55`; this does not prove branch protection, deployment, production data, or an SLO.
 
 See [Known Limitations](docs/known_limitations.md) for consequences and admission criteria.
@@ -226,6 +230,9 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 - [R2-S6 Corpus Expansion Engineering Journal](docs/corpus/v2_expansion/01_engineering_journal.md)
 - [R2-S6 Corpus Expansion Results and Interview Guide](docs/corpus/v2_expansion/02_results_and_interview_guide.md)
 - [Known Limitations](docs/known_limitations.md)
+- [R2-S8 Independent Quality Evidence Contract](docs/quality/00_STAGE_CONTRACT.md)
+- [R2-S8 Quality Results](docs/quality/03_RESULTS.md)
+- [R2-S8 Reviewer Runbook](docs/quality/05_REVIEWER_RUNBOOK.md)
 - [E7 Final Acceptance Journal](docs/roadmap/e7_final_acceptance_implementation.md)
 - [Industrialization Backlog](docs/industrialization_backlog.md)
 - [Historical Engineering Evolution Log](docs/AGENTIC_RAG_EVOLUTION_LOG.md)

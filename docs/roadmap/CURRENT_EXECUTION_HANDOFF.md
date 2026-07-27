@@ -863,3 +863,41 @@ After R2-S6 delivery, the ordered industrial next candidate returns to minimal
 reproducible Linux deploy/rollback unless the owner redirects it. Human
 semantic review and approved real-document structure sampling remain separate
 evidence gaps.
+
+## 23. R2-S7 lifecycle closeout
+
+R2-S7 G0-G10 is complete and pushed. The accepted source commit is
+`71e26d667d49a5573546e703e7a9fbb78803906d`; closeout commit is
+`f081ccbb284feba6af30f38024e87d1c7b273a9d`.
+
+Final-source paired evidence `EXP-LC-010/011/012` used 10 counterbalanced
+pairs: correctness was equivalent in 10/10, incremental intervention was faster
+in 10/10, p50 elapsed ratio was about 0.70768, and embedding-call ratio was
+about 0.02547. Full regression was `2359 passed / 30 skipped`; public audit was
+`720/0`. Exact contracts and non-claims are in `docs/lifecycle/`.
+
+## 24. R2-S8 current handoff
+
+R2-S8 G0-G4 tooling is complete. Current code and records:
+
+```text
+app/evaluation/quality_review.py
+app/evaluation/quality_judge.py
+scripts/build_quality_review_packet.py
+scripts/submit_quality_review.py
+scripts/aggregate_quality_reviews.py
+scripts/calibrate_quality_judge.py
+data/v2/quality_review/r2-s8-calibration-v3/
+docs/quality/
+```
+
+The tracked packet contains 12 stratified dev cases and verifies as
+`public_synthetic / not_independent / NOT_RUN`. The current evaluation
+regression is `999 passed / 16 skipped`; full repository regression is
+`2379 passed / 30 skipped`; public audit is `745/0`.
+
+G5 is ready but not executable by Codex alone: two actual independent people
+must complete the packet. Do not manufacture reviewer identities, use an LLM
+as human gold, inspect the other reviewer's labels, or claim quality from the
+blank packet. Resume from `docs/quality/CODEX_HANDOFF.json` and
+`docs/quality/05_REVIEWER_RUNBOOK.md`.

@@ -222,3 +222,39 @@ security_runs/<run_id>/
 The D1-frozen protocol requires 24 attack + 12 benign cases in each of dev and test, deterministic Guard OFF/ON propagation evidence, a separately labeled local live paired trial, content-unit detection metrics, task utility, bounded-work metrics and a strict security provenance manifest. All metrics report numerator, denominator and rate.
 
 The exact formulas, case schema, R1 hashes and release gate are in [R2-S1 Evaluation Protocol](security/r2_s1/04_evaluation_protocol.md). D6 provides dev/test datasets with 24 attack + 12 benign cases per split and a deterministic paired frozen-test result: OFF attack success `21/24`, ON `0/24`, ON benign quarantine `0/32`, clean task success `12/12`, and `788 passed` full regression. D7 separately ran the frozen split with a real isolated BGE-M3 index and Qwen2.5:3b generation: OFF user-visible attack success `3/24`, ON `0/24`, reached-conditioned quarantine recall `15/15`, benign quarantine `0/32`, and zero model errors. D6 remains the deterministic gate; D7 is `COMPLETED WITH OBSERVATIONS`, not a live release verdict or unseen benchmark. Full evidence is in the [D6 Engineering Journal](security/r2_s1/08_d6_engineering_journal.md) and [D7 Engineering Journal](security/r2_s1/09_d7_engineering_journal.md).
+
+## 14. R2-S8 independent quality evidence
+
+The legacy `human_review.csv` remains an informal blank inspection sheet.
+R2-S8 adds a separate strict protocol:
+
+```text
+reviewer packet -> two independent submissions -> disagreement/adjudication
+-> recomputed human quality evidence -> optional calibrated LLM judge
+```
+
+The tracked 12-case dev packet is:
+
+```text
+data/v2/quality_review/r2-s8-calibration-v3
+```
+
+CI verifies its hashes and requires:
+
+```text
+claim_status=NOT_RUN
+population_kind=public_synthetic
+independence_status=not_independent
+```
+
+The system reports human relevance precision@5/recall@5/nDCG@5, answer acceptance,
+agreement, kappa, uncertainty, and access-safety failures. A fixture or blank
+packet cannot become a quality pass. Exact protocol, results, failure log, and
+reviewer steps are under `docs/quality/`.
+
+Agreement is not one heterogeneous pooled statistic: raw agreement is a
+dimension macro-average, Cohen's kappa applies to overall acceptability, and
+retrieval relevance uses ordinal weighted kappa. Uncertain retrieval grades
+remain in metrics under a conservative lower-bound convention. Held-out
+acceptance requires `all_cases` and candidate pools bound to multiple run
+manifests. The human protocol is reference-guided, not verdict-blind.

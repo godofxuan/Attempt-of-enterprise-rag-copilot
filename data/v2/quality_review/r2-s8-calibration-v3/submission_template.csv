@@ -1,0 +1,13 @@
+review_item_id,retrieval_relevance_json,reviewer_id_hash,factual_correctness,completeness,citation_support,refusal_appropriateness,access_safety,overall_acceptability,primary_failure_stage,rationale,blindness_attestation,independence_attestation,submitted_at_utc
+qri_bc2aeab92eafa9d76c635b3e,,,,,,,,,,,,,
+qri_f77b3e348ec5700234c3d59a,,,,,,,,,,,,,
+qri_7de944c402bde3318972dc11,,,,,,,,,,,,,
+qri_7c85b4c7ec5a13536b67b58d,,,,,,,,,,,,,
+qri_bb8cb0d2b7d7dcf32e5aaf51,,,,,,,,,,,,,
+qri_d379917057a15cf82f97af08,,,,,,,,,,,,,
+qri_aec1ea6f5287e487e7c0b6ab,,,,,,,,,,,,,
+qri_86aca1290bac09c60f18ec53,,,,,,,,,,,,,
+qri_53305fde1f8a9d744768bd60,,,,,,,,,,,,,
+qri_053885fe0c309a3b6f700842,,,,,,,,,,,,,
+qri_cf2fd09874ac344d96dd1135,,,,,,,,,,,,,
+qri_8a50c29b0011cb00173bffe0,,,,,,,,,,,,,

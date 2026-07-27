@@ -168,3 +168,31 @@ Ollama clients, provide production scheduling, or make model aliases immutable.
 The manual no-other-Ollama-client check remains required before any future run.
 Operators must not delete, rotate, replace, redirect, or clean
 `R2_S4_EVALUATION_LOCK_DIR` during a run. Non-cooperating post-yield lock pathname replacement remains outside the standard-library threat model.
+
+## 9. R2-S8 quality-evidence boundary
+
+R2-S8 G0-G4 tooling is implemented: immutable model/verdict-blinded,
+reference-guided packets, strict
+pseudonymous double review, disagreement/adjudication, human relevance and
+answer metrics, recomputable evidence, and version-pinned LLM-judge
+calibration. The tracked 12-case packet is a public-synthetic dev calibration
+packet with blank labels.
+
+The following remain `NOT RUN`:
+
+```text
+real two-person dev pilot       NOT RUN
+independent 60-case holdout     NOT RUN
+semantic judge calibration     NOT RUN
+human double review            NOT RUN
+production traffic             NOT RUN
+```
+
+Therefore the project still cannot claim human-verified factual accuracy,
+independent retrieval relevance, calibrated LLM judging, or production quality.
+The tooling is evidence infrastructure, not the missing evidence itself.
+The current protocol exposes frozen expected response mode and reference
+material to reviewers. It supports consistent criterion-based grading but is
+not a verdict-blind study and may anchor refusal judgements. Reviewer HMACs use
+one coordinator-held campaign pepper to detect duplicate normalized IDs, but
+the operator must still verify that two actual people participated.

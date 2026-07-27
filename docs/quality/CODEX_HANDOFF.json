@@ -1,0 +1,55 @@
+{
+  "schema_version": "r2_s8_quality_handoff_v1",
+  "updated_at": "2026-07-27",
+  "branch": "codex/rag-eval-system",
+  "accepted_base_commit": "f081ccbb284feba6af30f38024e87d1c7b273a9d",
+  "current_gate": "G5_READY_FOR_TWO_HUMANS_NOT_RUN",
+  "completed_tooling_gates": [
+    "G0",
+    "G1",
+    "G2",
+    "G3",
+    "G4_TOOLING"
+  ],
+  "not_run_evidence_gates": [
+    "G5",
+    "G6"
+  ],
+  "focused_test_result": {
+    "passed": 20,
+    "warnings": 3,
+    "warning_scope": "unrelated SWIG deprecations"
+  },
+  "tracked_calibration_packet": {
+    "path": "data/v2/quality_review/r2-s8-calibration-v3",
+    "item_count": 12,
+    "dataset_split": "dev",
+    "population_kind": "public_synthetic",
+    "independence_status": "not_independent",
+    "claim_status": "NOT_RUN"
+  },
+  "open_failures": [
+    "FAIL-QE-001"
+  ],
+  "evaluation_regression": {
+    "passed": 999,
+    "skipped": 16,
+    "warnings": 3
+  },
+  "full_repository_regression": {
+    "passed": 2379,
+    "skipped": 30,
+    "warnings": 3
+  },
+  "public_audit": {
+    "candidates": 745,
+    "findings": 0
+  },
+  "next_action": "The coordinator creates one campaign identity pepper; two independent humans complete the 12-case reference-guided dev pilot; then aggregate/adjudicate. Do not run or claim real LLM-judge calibration before human consensus exists.",
+  "non_claims": [
+    "No completed independent double-human review",
+    "No calibrated LLM judge",
+    "No independent held-out quality result",
+    "No production quality claim"
+  ]
+}
