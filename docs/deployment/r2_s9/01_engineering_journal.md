@@ -217,6 +217,31 @@ state contract. Cache paths and application state paths are separate concerns;
 redirecting only Python caches is insufficient. Test infrastructure must not
 change the application contract merely to avoid a filesystem error.
 
+### 4.7 Third Linux run exposed an unsafe shared-directory mode
+
+Exact-commit Actions run
+[`30262747981`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30262747981)
+passed Ubuntu, Windows, image construction, runtime identity checks, and every
+deterministic gate inside the read-only test image. The rollback drill then
+failed during fixture initialization:
+
+```text
+app.security.identity.IdentityConfigurationError:
+identity private path is unsafe
+```
+
+The workflow had made the host bind directory mode `0777` so container UID
+10001 could write to it. The identity boundary correctly rejects a
+world-writable ancestor for private JWKS and HMAC material.
+
+Fix: keep the security validator unchanged. Transfer the smoke and SBOM
+directories to UID/GID 10001 and set mode `0700`. Add a CI-contract test that
+requires this ownership/mode pair and forbids `0777` in both blocks.
+
+Lesson: "writable by the workload" does not mean "writable by everyone."
+Container bind-mount ownership must agree with the runtime identity and the
+private-file threat model.
+
 ## 5. Current Verification
 
 Focused deployment/security suite:
@@ -239,7 +264,7 @@ Final local gates after the provenance and roadmap repairs:
 ```text
 compileall                         PASS
 pip check                          PASS
-pytest                             2418 passed / 30 skipped / 3 warnings
+pytest                             2419 passed / 30 skipped / 3 warnings
 public repository audit            915 candidates / 0 findings
 git diff --check                    PASS (one existing CRLF normalization notice)
 ```

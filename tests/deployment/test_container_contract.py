@@ -96,6 +96,31 @@ def test_container_ci_routes_test_writes_to_bounded_tmpfs() -> None:
     assert "--env DATA_DIR=" not in gate
 
 
+def test_container_ci_private_outputs_are_owned_by_runtime_identity() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+    rollback = workflow.split(
+        "- name: Run readiness failure and rollback drill",
+        maxsplit=1,
+    )[1].split(
+        "- name: Generate Python runtime SBOM",
+        maxsplit=1,
+    )[0]
+    sbom = workflow.split(
+        "- name: Generate Python runtime SBOM",
+        maxsplit=1,
+    )[1].split(
+        "- name: Upload deployment SBOM",
+        maxsplit=1,
+    )[0]
+
+    for block in (rollback, sbom):
+        assert "sudo chown 10001:10001" in block
+        assert "chmod 0700" in block
+        assert "chmod 0777" not in block
+
+
 def test_runtime_contract_hash_binds_all_operator_facing_files() -> None:
     first = calculate_runtime_contract_sha256(ROOT)
     second = calculate_runtime_contract_sha256(ROOT)
