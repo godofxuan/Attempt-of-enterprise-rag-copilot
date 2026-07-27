@@ -410,6 +410,19 @@ def test_audit_enumerates_tracked_and_untracked_nonignored_files(
     assert "ignored/artifact.txt" not in report.candidate_files
 
 
+def test_audit_rejects_nested_directory_as_implicit_git_root(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    nested = tmp_path / "nested"
+    nested.mkdir()
+
+    with pytest.raises(RuntimeError, match="Git worktree root"):
+        audit_repository(nested)
+
+
 def test_audit_rejects_absolute_paths_in_any_markdown(tmp_path: Path) -> None:
     from scripts.audit_public_repo import audit_repository
 

@@ -55,6 +55,8 @@ calibration, and independent held-out quality acceptance.
 | QTV-13 | `uncertain` removes a difficult retrieval query from metrics | Returned uncertainty scores as grade 0 and candidate-pool uncertainty as grade 2 for conservative metric bounds |
 | QTV-14 | Candidate count dominates agreement statistics | Raw agreement is a dimension macro-average; overall Cohen's kappa and retrieval weighted kappa are separate |
 | QTV-15 | Unweighted stratified sample is reported as population quality | Held-out acceptance requires `all_cases` until inclusion weights are schema-bound |
+| QTV-16 | A delegated process creates coordinator secrets owned by the wrong operating-system identity | Default campaign initialization requires the effective Windows token owner to match the intended host account |
+| QTV-17 | Public audit runs below the repository root and reports an empty false pass | Candidate discovery requires the requested root to equal Git's exact worktree top level |
 
 ## 4. Gate sequence
 
@@ -100,6 +102,8 @@ Codex and must not use fabricated labels.
 | QR-23 | Packet/control partial publication is recoverable only when existing artifacts exactly match the current source/spec |
 | QR-24 | Judge stability compares every pair of repeated trials |
 | QR-25 | Reference-guided mode visibility is disclosed and is not called verdict-blind review |
+| QR-26 | A real campaign is immutable, binds two exact reviewer kits to one packet and identity domain, keeps coordinator secrets out of reviewer kits, and refuses delegated Windows owner mismatch |
+| QR-27 | Public release audit refuses nested or non-worktree roots instead of treating zero discovered candidates as success |
 
 ## 6. Frozen label dimensions
 

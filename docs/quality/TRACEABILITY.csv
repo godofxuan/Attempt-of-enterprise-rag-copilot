@@ -24,3 +24,5 @@ QR-22,G3,COMPLETE,app/evaluation/quality_review.py
 QR-23,G1,COMPLETE,tests/evaluation/test_quality_review_cli.py
 QR-24,G4,COMPLETE,tests/evaluation/test_quality_judge.py
 QR-25,G0,COMPLETE,docs/quality/02_DECISIONS.md
+QR-26,G5,READY_TOOLING,tests/evaluation/test_quality_campaign.py
+QR-27,G6,COMPLETE,tests/test_public_repository.py

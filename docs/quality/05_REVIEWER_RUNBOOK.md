@@ -9,17 +9,39 @@ independent held-out acceptance.
 Two different people are required. Codex, an LLM judge, or one person using two
 identities cannot satisfy this gate.
 
-## Operator separation
+## Initialize once
 
-The operator gives each reviewer only a copy of:
+From a normal terminal running as the intended Windows account, initialize the
+campaign:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.init_quality_review_campaign `
+  --campaign-id r2-s8-human-pilot-v1
+```
+
+Do not run this command through Codex or another delegated Windows account.
+The initializer binds the private coordinator ACL to the effective operating
+system token and rejects a token/host-account mismatch. It publishes with
+no-overwrite semantics, verifies every hash, and leaves the campaign at
+`NOT_RUN` with zero judgements.
+
+Verify readiness:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.verify_quality_review_campaign `
+  --campaign-dir .private\quality\campaigns\r2-s8-human-pilot-v1
+```
+
+The operator gives each reviewer only their matching directory:
 
 ```text
-data/v2/quality_review/r2-s8-calibration-v4/
+.private/quality/campaigns/r2-s8-human-pilot-v1/reviewer-kits/reviewer-a/
+.private/quality/campaigns/r2-s8-human-pilot-v1/reviewer-kits/reviewer-b/
 ```
 
 Do not give reviewers:
 
-- `.private/quality/control/`;
+- `coordinator/`, `inbox/`, `submissions/`, or `evidence/`;
 - source case IDs;
 - source run failures;
 - machine pass/fail labels;
@@ -32,8 +54,7 @@ grading reference.
 
 ## Reviewer task
 
-Each reviewer independently fills their own copy of
-`submission_template.csv`.
+Each reviewer independently fills their own `completed_template.csv`.
 
 For every source in `retrieval_candidate_evidence`:
 
@@ -54,41 +75,36 @@ Then complete:
 
 Do not fill reviewer hash, attestations, or timestamp; the CLI owns those.
 
-## Private identity files
+## Private coordinator files
 
-Each reviewer supplies one stable organizational identity to the coordinator in
-a private file outside Git:
-
-```text
-.private/quality/reviewers/<slot>/identity.txt
-```
-
-The coordinator creates one campaign-wide private pepper and uses the same file
-for reviewer A, reviewer B, and any adjudicator:
+Each reviewer supplies one stable organizational identity to the coordinator
+through a private channel. The coordinator writes them to the two pre-created,
+zero-length placeholders:
 
 ```text
-.private/quality/reviewers/identity-pepper.bin
+.private/quality/campaigns/r2-s8-human-pilot-v1/coordinator/reviewer-a.identity.txt
+.private/quality/campaigns/r2-s8-human-pilot-v1/coordinator/reviewer-b.identity.txt
 ```
 
-The pepper must contain at least 32 CSPRNG bytes. Do not let each reviewer use a
-different pepper: aggregation rejects different identity domains, and changing
-peppers would defeat duplicate-person detection. Raw identity and pepper never
-enter the published submission. The submission stores only HMAC-SHA256(identity)
-and SHA-256(pepper) as a non-secret domain identifier.
+The initializer already created the one campaign-wide private pepper:
+
+```text
+.private/quality/campaigns/r2-s8-human-pilot-v1/coordinator/identity-pepper.bin
+```
+
+Do not replace it or create per-reviewer peppers. Aggregation rejects different
+identity domains, and changing peppers would defeat duplicate-person detection.
+Raw identity and pepper never enter reviewer kits or published submissions.
+The submission stores only HMAC-SHA256(identity) and SHA-256(pepper) as a
+non-secret domain identifier.
 
 ## Submit
 
-Run separately for reviewer A and reviewer B:
+Save the returned reviewer CSVs as `inbox/reviewer-a.csv` and
+`inbox/reviewer-b.csv`. Exact commands for both slots are generated in:
 
-```powershell
-.\.venv\Scripts\python.exe -m scripts.submit_quality_review `
-  --packet-dir data\v2\quality_review\r2-s8-calibration-v4 `
-  --completed-template <reviewer-completed.csv> `
-  --reviewer-id-file <private-identity.txt> `
-  --identity-pepper-file .private\quality\reviewers\identity-pepper.bin `
-  --out-dir .private\quality\submissions `
-  --attest-blind `
-  --attest-independent
+```text
+.private/quality/campaigns/r2-s8-human-pilot-v1/coordinator/COMMANDS.md
 ```
 
 Do not use `--fixture-only` for real human work.
@@ -100,12 +116,24 @@ people; cryptography cannot prove human independence by itself.
 ## Aggregate
 
 ```powershell
+$reviewerAFiles = @(Get-ChildItem `
+  -LiteralPath .private\quality\campaigns\r2-s8-human-pilot-v1\submissions\reviewer-a `
+  -Filter submission.json -Recurse -File)
+$reviewerBFiles = @(Get-ChildItem `
+  -LiteralPath .private\quality\campaigns\r2-s8-human-pilot-v1\submissions\reviewer-b `
+  -Filter submission.json -Recurse -File)
+if ($reviewerAFiles.Count -ne 1 -or $reviewerBFiles.Count -ne 1) {
+  throw "Expected exactly one immutable submission for each reviewer"
+}
+$reviewerA = $reviewerAFiles[0].FullName
+$reviewerB = $reviewerBFiles[0].FullName
+
 .\.venv\Scripts\python.exe -m scripts.aggregate_quality_reviews `
   --evidence-id r2-s8-human-pilot-v1 `
   --packet-dir data\v2\quality_review\r2-s8-calibration-v4 `
-  --submission <reviewer-a-submission.json> `
-  --submission <reviewer-b-submission.json> `
-  --out-dir .private\quality\evidence
+  --submission $reviewerA `
+  --submission $reviewerB `
+  --out-dir .private\quality\campaigns\r2-s8-human-pilot-v1\evidence
 ```
 
 If the result is `needs_adjudication`, a third person creates a strict

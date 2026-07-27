@@ -28,6 +28,9 @@ release evidence are `NOT RUN`.
 - version-pinned, repeated LLM-judge calibration against human consensus;
 - fail-closed single-trial and same-family-correlation handling;
 - explicit no-release/no-security authority for the LLM judge.
+- immutable two-reviewer campaign initialization and readiness verification;
+- exact per-slot reviewer kits with no coordinator secret material;
+- fail-closed Windows token/host owner matching for the real private campaign.
 
 ## Verified public calibration packet
 
@@ -52,10 +55,10 @@ the immutable replacement and fixes the writer to emit LF on every platform.
 
 ## Verification
 
-Focused tests:
+Quality-focused tests after campaign tooling:
 
 ```text
-20 passed
+25 passed
 3 unrelated SWIG deprecation warnings
 ```
 
@@ -69,19 +72,19 @@ must use `pooled_variants`.
 Broader evaluation regression:
 
 ```text
-999 passed, 16 skipped, 3 warnings
+1004 passed, 16 skipped, 3 warnings
 ```
 
 Full repository regression:
 
 ```text
-2381 passed, 29 skipped, 3 warnings
+2386 passed, 30 skipped, 3 warnings
 ```
 
 Public repository audit:
 
 ```text
-892 candidates, 0 findings
+896 candidates, 0 findings
 ```
 
 ## What these results do not prove
@@ -97,3 +100,9 @@ tests establish calibration behavior only.
 The current human protocol is reference-guided, not verdict-blind. Reviewers
 see frozen expected response mode and reference material; this supports
 criterion-based scoring but can anchor refusal judgements.
+
+The real `r2-s8-human-pilot-v1` private campaign is intentionally not created
+by Codex. On Windows, Codex uses a delegated sandbox token; creating coordinator
+secrets there would bind the ACL to the wrong account. The owner must run the
+single initialization command in `05_REVIEWER_RUNBOOK.md` from a normal
+terminal. This is an execution prerequisite, not a completed human result.

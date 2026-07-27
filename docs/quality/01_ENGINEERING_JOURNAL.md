@@ -413,3 +413,88 @@ Resolution:
 
 The affected Windows scope passes `54 passed`. Ubuntu CI is the execution proof
 for the Linux syscall branch because this development host is Windows.
+
+## QEV-019 - G5 immutable campaign execution layer
+
+Status: TOOLING COMPLETE; REAL CAMPAIGN NOT RUN
+
+G5 previously had validated packet, submission, aggregation, and adjudication
+components but left the coordinator to assemble secrets and reviewer copies
+manually. That gap allowed packet drift, accidental secret sharing, reused
+templates, and unrepeatable operator instructions.
+
+The new campaign layer adds:
+
+- `app/evaluation/quality_campaign.py`: strict manifest, atomic no-overwrite
+  initialization, exact immutable-artifact hashes, packet verification,
+  secret-leak checks, phase-aware blank identity placeholders, empty mutable
+  directories, and readiness recomputation;
+- `scripts/init_quality_review_campaign.py`: one-command private campaign
+  creation;
+- `scripts/verify_quality_review_campaign.py`: independent readiness check;
+- `tests/evaluation/test_quality_campaign.py`: blank-state, no-overwrite,
+  tamper, pepper, undeclared-file, CLI, and owner-mismatch regressions.
+
+The first RED run exposed an invariant from the existing packet verifier:
+review packet directories must retain their manifest `packet_id`. Naming both
+copies `packet/` broke that binding. The fix preserves
+`r2-s8-calibration-v4/` inside each reviewer kit and dynamically binds both
+generated submission commands to it; the packet verifier was not weakened.
+
+A real initialization attempt then exposed an operating-system identity
+boundary. Codex commands run under a delegated sandbox Windows token even
+though the inherited `USERNAME` names the host account. The private ACL
+correctly granted the effective token and SYSTEM, but that would make the
+coordinator workspace unusable to the host operator. The generated activity
+was moved to the ignored private failed-campaign area and is not evidence. The
+CLI now fails before secret creation for every output root when token and
+intended owner differ.
+
+A final flow review found that the identity placeholders cannot be immutable:
+the coordinator must fill them after readiness verification. They are now
+declared by exact path in the manifest and required to be empty during
+readiness, but are excluded from immutable artifact hashes. The pepper,
+instructions, packet copies, and reviewer tasks remain hash-bound. Submission
+validation becomes the authority after identities are populated.
+
+One rerun used a nested D-drive pytest `--basetemp` whose parent did not exist;
+pytest produced four setup errors before tests ran. Repointing basetemp directly
+under the existing `.private` directory produced `5 passed`. No C-drive
+project artifact is used by the final focused command.
+
+The resulting state is deliberately split:
+
+- software readiness: complete and tested;
+- real private campaign: must be initialized by the owner in a normal terminal;
+- human judgements: `0`;
+- G5 claim: `NOT_RUN`.
+
+Final verification:
+
+- quality-focused tests: `25 passed`;
+- evaluation suite: `1004 passed / 16 skipped`;
+- full repository: `2386 passed / 30 skipped`;
+- public-repository regressions: `96 passed`;
+- compileall and pip dependency consistency: passed;
+- public audit after placeholder sanitization: `896 candidates / 0 findings`.
+
+The first public audit reported five findings because the engineering record
+and test fixtures repeated a local account name and an email-shaped identity.
+Those values were replaced with non-identifying role labels and a stable opaque
+reviewer ID; no audit allowlist was widened.
+
+The exact-index export then exposed a separate false-pass mode: running the
+audit inside a nested directory of a parent Git worktree returned zero
+candidates with exit code zero. The auditor now resolves
+`git rev-parse --show-toplevel` and requires it to equal the requested root
+before candidate enumeration. A nested-root regression proves the command fails
+closed instead of presenting `0/0` as evidence.
+
+The final staged index was exported into an ignored D-drive directory and
+initialized as its own temporary Git worktree. The first public-test attempt
+was rejected by Git's dubious-ownership protection because the sandbox created
+the directory while the nested Git process used the host identity. The rerun
+used a process-scoped `safe.directory` value only for that disposable export;
+no global Git configuration changed. Exact-index results were `25 passed`
+for quality tooling, `96 passed` for public repository controls, compileall
+clean, and `896 candidates / 0 findings`.

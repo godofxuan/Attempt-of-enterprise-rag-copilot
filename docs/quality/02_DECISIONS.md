@@ -173,3 +173,22 @@ uses `renameat2(RENAME_NOREPLACE)` for atomic collision enforcement. Windows
 keeps its native no-replace rename and bounded sharing-denial retry. The
 preflight-check fallback exists only for platforms where the stronger primitive
 is unavailable and does not upgrade their concurrency guarantee.
+
+## ADR-QE-020 - Coordinator secrets belong to the effective operator identity
+
+Status: ACCEPTED
+
+The default real campaign initializer compares the effective Windows token
+account with the intended host account before creating a pepper or identity
+file. The CLI enforces this for every output root. Unit tests isolate the
+low-level file contract with explicit temporary roots and replace only the
+external identity check; a delegated Codex process cannot create a real
+coordinator directory. This prevents a technically private ACL from locking the
+actual operator out while preserving the existing current-user-plus-SYSTEM
+private ACL policy.
+
+Identity placeholders are phase-controlled rather than immutable. Their exact
+paths are manifest-bound and they must be empty at readiness; the coordinator
+then populates them for pseudonym generation. Hashing their initial empty bytes
+as permanent artifacts would incorrectly classify the required transition as
+tampering.

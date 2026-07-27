@@ -254,6 +254,29 @@ def audit_repository(
 
 
 def _git_candidate_files(root: Path) -> tuple[str, ...]:
+    top_level = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "rev-parse",
+            "--show-toplevel",
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if top_level.returncode != 0:
+        raise RuntimeError("audit root is not a Git worktree")
+    try:
+        discovered_root = Path(
+            top_level.stdout.decode("utf-8").strip()
+        ).resolve()
+    except (UnicodeDecodeError, OSError) as exc:
+        raise RuntimeError("Git worktree root is invalid") from exc
+    if discovered_root != root:
+        raise RuntimeError("audit root is not the Git worktree root")
+
     completed = subprocess.run(
         [
             "git",

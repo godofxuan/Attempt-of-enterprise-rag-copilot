@@ -16,7 +16,7 @@
     "G6"
   ],
   "focused_test_result": {
-    "passed": 20,
+    "passed": 25,
     "warnings": 3,
     "warning_scope": "unrelated SWIG deprecations"
   },
@@ -32,20 +32,27 @@
     "FAIL-QE-001"
   ],
   "evaluation_regression": {
-    "passed": 999,
+    "passed": 1004,
     "skipped": 16,
     "warnings": 3
   },
   "full_repository_regression": {
-    "passed": 2381,
-    "skipped": 29,
+    "passed": 2386,
+    "skipped": 30,
     "warnings": 3
   },
   "public_audit": {
-    "candidates": 892,
+    "candidates": 896,
     "findings": 0
   },
-  "next_action": "The coordinator creates one campaign identity pepper; two independent humans complete the 12-case reference-guided dev pilot; then aggregate/adjudicate. Do not run or claim real LLM-judge calibration before human consensus exists.",
+  "campaign_tooling": {
+    "campaign_id": "r2-s8-human-pilot-v1",
+    "status": "READY_TOOLING",
+    "real_private_campaign": "NOT_INITIALIZED",
+    "reason": "Codex uses a delegated Windows token and cannot own the operator coordinator ACL",
+    "owner_command": ".\\.venv\\Scripts\\python.exe -m scripts.init_quality_review_campaign --campaign-id r2-s8-human-pilot-v1"
+  },
+  "next_action": "The owner runs campaign_tooling.owner_command from a normal host-account terminal, gives each of two independent humans only their matching reviewer kit, then submits and aggregates. Do not claim G5 or run real LLM-judge calibration before human consensus exists.",
   "non_claims": [
     "No completed independent double-human review",
     "No calibrated LLM judge",
