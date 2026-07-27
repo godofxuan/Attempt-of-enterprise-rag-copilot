@@ -390,3 +390,26 @@ Clean-index evidence:
 - formerly failing/public scope: `138 passed / 1 skipped`;
 - full repository: `2381 passed / 29 skipped`;
 - public audit including formal evidence: `892 candidates / 0 findings`.
+
+## QEV-018 - Linux no-replace publication semantics
+
+Status: RESOLVED
+
+GitHub Actions run `30236134185` reduced Ubuntu failures to four. Three tests
+simulated Windows sharing-denial retries but were not platform-scoped. The
+fourth exposed production behavior: POSIX `os.rename(source, destination)` may
+replace an existing empty destination directory, unlike the no-replace behavior
+observed on Windows.
+
+Resolution:
+
+- Windows sharing-denial retry tests now run only on Windows;
+- Linux uses `renameat2(..., RENAME_NOREPLACE)` through libc, so the kernel
+  performs the collision check atomically and returns `EEXIST`;
+- platforms without `renameat2` use an explicit preflight collision check
+  before `os.rename` as a compatibility fallback;
+- the collision error remains `FileExistsError`, preserving all callers'
+  immutable publication contract.
+
+The affected Windows scope passes `54 passed`. Ubuntu CI is the execution proof
+for the Linux syscall branch because this development host is Windows.

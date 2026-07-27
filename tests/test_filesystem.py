@@ -16,6 +16,7 @@ def _sharing_denial() -> PermissionError:
     return error
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows publication retry")
 def test_atomic_directory_move_retries_transient_windows_denial(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

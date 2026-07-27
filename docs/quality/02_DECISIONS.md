@@ -162,3 +162,14 @@ must be tracked or packaged self-contained. Ignore exceptions are narrow:
 only named immutable G10 runs and six exact manifest-bound synthetic metadata
 files are public. CI validity is checked from an exported Git index with the
 normal operating-system TEMP location, not from the enriched development tree.
+
+## ADR-QE-019 - Linux no-replace publication uses a kernel primitive
+
+Status: ACCEPTED
+
+A user-space `destination.exists()` check followed by `os.rename()` has a race
+window and POSIX rename may replace an existing empty directory. Linux therefore
+uses `renameat2(RENAME_NOREPLACE)` for atomic collision enforcement. Windows
+keeps its native no-replace rename and bounded sharing-denial retry. The
+preflight-check fallback exists only for platforms where the stronger primitive
+is unavailable and does not upgrade their concurrency guarantee.

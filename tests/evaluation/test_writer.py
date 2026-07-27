@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -163,6 +164,7 @@ def test_writer_cleans_staging_after_failure(
     assert list(root.glob(f".{run_id}.staging-*")) == []
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows publication retry")
 def test_writer_retries_one_transient_permission_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

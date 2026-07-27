@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import base64
 import io
+import os
 import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -789,6 +790,10 @@ def test_quarantine_prepublication_failure_preserves_original_staging(
     assert list((storage_root / ".incoming").iterdir()) == []
 
 
+@pytest.mark.skipif(
+    os.name != "nt",
+    reason="Windows sharing-denial retry policy",
+)
 def test_windows_transient_quarantine_publication_denial_is_retried(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
