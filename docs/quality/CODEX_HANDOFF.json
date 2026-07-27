@@ -37,12 +37,12 @@
     "warnings": 3
   },
   "full_repository_regression": {
-    "passed": 2379,
-    "skipped": 30,
+    "passed": 2381,
+    "skipped": 29,
     "warnings": 3
   },
   "public_audit": {
-    "candidates": 751,
+    "candidates": 892,
     "findings": 0
   },
   "next_action": "The coordinator creates one campaign identity pepper; two independent humans complete the 12-case reference-guided dev pilot; then aggregate/adjudicate. Do not run or claim real LLM-judge calibration before human consensus exists.",

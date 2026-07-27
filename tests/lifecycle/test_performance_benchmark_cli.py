@@ -335,10 +335,13 @@ def test_registration_rejects_posthoc_threshold_change(
 
 def test_registration_record_binds_v2_source_and_protocol_identity(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    base_dir = tmp_path.absolute()
+    monkeypatch.setattr(cli, "BASE_DIR", base_dir)
     bundle = generate_performance_bundle(
         [_document(number) for number in range(1, 13)],
-        (tmp_path / "bundle").absolute(),
+        base_dir / "bundle",
         content_update_count=3,
         acl_only_count=2,
         delete_count=1,

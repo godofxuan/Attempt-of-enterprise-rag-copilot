@@ -381,7 +381,7 @@ def _validate_traceability_references(
             except ValueError as exc:
                 raise ValueError(
                     f"traceability implementation path is unsafe or missing: "
-                    f"{implementation_path}"
+                    f"{implementation_path}: {exc}"
                 ) from exc
 
 

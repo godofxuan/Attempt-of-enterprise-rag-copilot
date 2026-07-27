@@ -151,3 +151,14 @@ must therefore choose an explicit newline convention before hashing. CSV output
 uses `lineterminator="\n"`, matching the repository's LF policy. A released
 packet with a clean-checkout hash mismatch is rejected and replaced under a new
 packet ID; its manifest is never edited to conceal the failure.
+
+## ADR-QE-018 - CI evidence must exist in the tracked tree
+
+Status: ACCEPTED
+
+A test that reads ignored local evidence is not reproducible even when it passes
+on the producer's machine. Formal public evidence referenced by repository tests
+must be tracked or packaged self-contained. Ignore exceptions are narrow:
+only named immutable G10 runs and six exact manifest-bound synthetic metadata
+files are public. CI validity is checked from an exported Git index with the
+normal operating-system TEMP location, not from the enriched development tree.

@@ -1,0 +1,7 @@
+{
+  "bundle_manifest_sha256": "14965a8c5606986afaacbc128dccccbc18dd024fe1ac6234ea598e190af399cb",
+  "configuration_sha256": "3517da4c7bddbb5ed9c297f9415cd9224068fa1ef24ef6867ecb1e6b1b037210",
+  "host_identity_sha256": "9f3479df082d839fee8ad59b64fdbe83cc09aef09447c0844b93190503a9e536",
+  "schema_version": "g10_environment_v1",
+  "source_corpus_manifest_sha256": "833338d8472a1da652134d5b23c100a08cc5e76db785154e8609314b2be1f834"
+}

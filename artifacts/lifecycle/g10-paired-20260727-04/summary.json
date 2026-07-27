@@ -1,0 +1,37 @@
+{
+  "baseline_embedding_calls": 12170,
+  "baseline_first_total_time_ratio": {
+    "count": 5,
+    "maximum": 0.7495497870261254,
+    "mean": 0.7255523576869148,
+    "minimum": 0.7064103684235744,
+    "p50": 0.7254306145284058,
+    "p95": 0.7495497870261254
+  },
+  "baseline_peak_rss_bytes": 382410752,
+  "correctness_equivalent_pair_count": 10,
+  "decision": "SUPPORTED",
+  "experiment_id": "EXP-LC-010",
+  "faster_pair_count": 10,
+  "intervention_embedding_call_ratio": 0.025472473294987676,
+  "intervention_embedding_calls": 310,
+  "intervention_first_total_time_ratio": {
+    "count": 5,
+    "maximum": 0.729339064119162,
+    "mean": 0.7053499931677318,
+    "minimum": 0.6762013444421903,
+    "p50": 0.7066297279641887,
+    "p95": 0.729339064119162
+  },
+  "intervention_peak_rss_bytes": 379035648,
+  "pair_count": 10,
+  "schema_version": "paired_benchmark_summary_v1",
+  "total_time_ratio": {
+    "count": 10,
+    "maximum": 0.7495497870261254,
+    "mean": 0.7154511754273234,
+    "minimum": 0.6762013444421903,
+    "p50": 0.7076844547982923,
+    "p95": 0.7495497870261254
+  }
+}

@@ -14,7 +14,7 @@ tracked 12 题 dev packet 位于
 `data/v2/quality_review/r2-s8-calibration-v4/`，明确是
 `public_synthetic / not_independent / NOT_RUN`。G5 需要两名真实独立人员，
 Codex 没有填充标签。当前 R2-S8 exact working tree 通过
-`2379 passed / 30 skipped / 3 warnings`，公开审计为 `751/0`。
+`2381 passed / 29 skipped / 3 warnings`，公开审计为 `892/0`。
 
 Historical accepted baseline marker: R2-S6 versioned corpus expansion.
 

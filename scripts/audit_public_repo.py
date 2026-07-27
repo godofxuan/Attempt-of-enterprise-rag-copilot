@@ -68,6 +68,16 @@ _ALLOWED_RUNTIME_MARKERS = {
     "data/indexes/.gitkeep",
     "data/parsed_docs/.gitkeep",
 }
+_ALLOWED_MANIFEST_BOUND_HIDDEN_METADATA = frozenset(
+    f"data/v2/public/{package}/dataset/.private/lifecycle/"
+    f"g10-expanded-lifecycle-v4/{filename}"
+    for package in ("lifecycle_g10_v2", "lifecycle_g10_v3")
+    for filename in (
+        "change_descriptor.json",
+        "manifest.json",
+        "query_descriptor.json",
+    )
+)
 _FORBIDDEN_RUNTIME_SUFFIXES = {".db", ".log", ".sqlite", ".sqlite3"}
 _PRIVATE_KEY_PATTERN = re.compile(
     r"-----BEGIN (?:RSA |OPENSSH |EC |DSA |PGP )?PRIVATE KEY-----"
@@ -457,6 +467,8 @@ def _is_forbidden_path(relative: str) -> bool:
     path = PurePosixPath(relative)
     name = path.name
     if relative in _ALLOWED_RUNTIME_MARKERS:
+        return False
+    if relative in _ALLOWED_MANIFEST_BOUND_HIDDEN_METADATA:
         return False
     if name == ".env" or (name.startswith(".env.") and name != ".env.example"):
         return True

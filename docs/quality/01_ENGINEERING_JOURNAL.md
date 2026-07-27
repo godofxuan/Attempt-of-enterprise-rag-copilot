@@ -349,3 +349,44 @@ Post-fix verification:
 - exact Git index export verified packet v4 as `NOT_RUN`;
 - full repository: `2379 passed / 30 skipped`;
 - public audit: `751 candidates / 0 findings`.
+
+## QEV-017 - CI clean-checkout dependency audit
+
+Status: RESOLVED
+
+GitHub Actions run `30235395861` proved that fixing the packet hash was
+necessary but not sufficient. Both jobs passed packet v4 verification, then
+the deterministic suite failed. A Git-index export reproduced 32 Windows
+failures without using GitHub logs.
+
+Root causes:
+
+- formal G10 raw runs `02` through `04` were referenced by append-only
+  experiment records and tests but hidden by a blanket ignore rule;
+- six synthetic dataset metadata files were declared by public package
+  manifests but hidden because their source-relative package path contained
+  `.private`;
+- one registration test passed locally only because this session redirected
+  pytest TEMP below the repository root;
+- Linux `os.open(..., dir_fd=...)` and Windows directory-move retry semantics
+  were not represented by the original monkeypatches;
+- traceability validation wrapped a precise symlink error in a generic message.
+
+Resolution:
+
+- track only immutable formal G10 runs `02`, `03`, and `04`; all other local
+  lifecycle runs remain ignored;
+- unignore and audit-allow exactly six manifest-bound synthetic metadata files,
+  while an unexpected sibling remains forbidden and package verification
+  rejects undeclared files;
+- make the registration test bind its own temporary repository root;
+- model `dir_fd` in the file-swap test and run sharing-denial retry assertions
+  only on Windows;
+- retain the lower-level symlink diagnosis in the public validation error;
+- export the exact Git index and rerun the formerly failing scope and full suite.
+
+Clean-index evidence:
+
+- formerly failing/public scope: `138 passed / 1 skipped`;
+- full repository: `2381 passed / 29 skipped`;
+- public audit including formal evidence: `892 candidates / 0 findings`.

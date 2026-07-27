@@ -1,0 +1,8 @@
+{
+  "completed_pairs": 10,
+  "requested_pairs": 10,
+  "run_id": "g10-paired-20260727-02",
+  "schema_version": "g10_run_status_v1",
+  "status": "COMPLETED",
+  "worker_exit_code": 0
+}

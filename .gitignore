@@ -15,6 +15,17 @@ __pycache__/
 .private/
 .superpowers/
 
+# Two frozen public packages preserve six manifest-bound synthetic metadata
+# files at their source-relative paths. Do not generalize this exception.
+!data/v2/public/lifecycle_g10_v2/dataset/.private/
+!data/v2/public/lifecycle_g10_v2/dataset/.private/lifecycle/
+!data/v2/public/lifecycle_g10_v2/dataset/.private/lifecycle/g10-expanded-lifecycle-v4/
+!data/v2/public/lifecycle_g10_v2/dataset/.private/lifecycle/g10-expanded-lifecycle-v4/*.json
+!data/v2/public/lifecycle_g10_v3/dataset/.private/
+!data/v2/public/lifecycle_g10_v3/dataset/.private/lifecycle/
+!data/v2/public/lifecycle_g10_v3/dataset/.private/lifecycle/g10-expanded-lifecycle-v4/
+!data/v2/public/lifecycle_g10_v3/dataset/.private/lifecycle/g10-expanded-lifecycle-v4/*.json
+
 # Local databases and generated runtime artifacts
 data/app.db
 data/*.db
@@ -37,7 +48,14 @@ load_runs/
 security_runs/
 exposure_runs/
 holdout_submissions/
-artifacts/lifecycle/
+# Keep local lifecycle runs ignored except the immutable formal G10 evidence.
+artifacts/lifecycle/*
+!artifacts/lifecycle/g10-paired-20260727-02/
+!artifacts/lifecycle/g10-paired-20260727-02/**
+!artifacts/lifecycle/g10-paired-20260727-03/
+!artifacts/lifecycle/g10-paired-20260727-03/**
+!artifacts/lifecycle/g10-paired-20260727-04/
+!artifacts/lifecycle/g10-paired-20260727-04/**
 .tmp/lifecycle/
 .tmp_r2_s3_final_public_04/
 .tmp_r2_s3_public_????????-????-????-????-????????????/

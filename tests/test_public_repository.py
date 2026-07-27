@@ -1372,6 +1372,37 @@ def test_public_audit_rejects_raw_holdout_submission_candidate(
     ) in {(item.code, item.path) for item in report.findings}
 
 
+def test_public_audit_allows_only_frozen_hidden_dataset_metadata(
+    tmp_path: Path,
+) -> None:
+    from scripts.audit_public_repo import audit_repository
+
+    _write_minimal_complete_security_corpus(tmp_path)
+    allowed = (
+        "data/v2/public/lifecycle_g10_v3/dataset/.private/lifecycle/"
+        "g10-expanded-lifecycle-v4/manifest.json"
+    )
+    unexpected = (
+        "data/v2/public/lifecycle_g10_v3/dataset/.private/lifecycle/"
+        "g10-expanded-lifecycle-v4/unbound.json"
+    )
+    for relative in (allowed, unexpected):
+        path = tmp_path / Path(relative)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}\n", encoding="utf-8")
+
+    report = audit_repository(
+        tmp_path,
+        candidate_files=[allowed, unexpected],
+    )
+    forbidden = {
+        item.path for item in report.findings if item.code == "forbidden_path"
+    }
+
+    assert allowed not in forbidden
+    assert unexpected in forbidden
+
+
 def test_exposure_private_runs_are_ignored_and_forbidden_public_candidates(
     tmp_path: Path,
 ) -> None:

@@ -602,6 +602,10 @@ def test_publication_failure_is_safe_and_removes_incoming_transaction(
     assert list((storage_root / "quarantine").iterdir()) == []
 
 
+@pytest.mark.skipif(
+    os.name != "nt",
+    reason="Windows sharing-denial retry policy",
+)
 def test_windows_transient_publication_denial_is_retried(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -856,10 +860,19 @@ def test_file_identity_change_between_lstat_and_open_is_rejected(
     storage_root = tmp_path / "asset-store"
     real_open = os.open
 
-    def switched_open(path, flags, mode=0o777):
+    def switched_open(path, flags, mode=0o777, *, dir_fd=None):
         target = Path(path)
-        if target == source:
+        if dir_fd is not None and target == Path(source.name):
+            return real_open(
+                replacement.name,
+                flags,
+                mode,
+                dir_fd=dir_fd,
+            )
+        if dir_fd is None and target == source:
             return real_open(replacement, flags, mode)
+        if dir_fd is not None:
+            return real_open(path, flags, mode, dir_fd=dir_fd)
         return real_open(path, flags, mode)
 
     monkeypatch.setattr("app.ingestion.file_validation.os.open", switched_open)

@@ -894,7 +894,7 @@ docs/quality/
 The tracked packet contains 12 stratified dev cases and verifies as
 `public_synthetic / not_independent / NOT_RUN`. The current evaluation
 regression is `999 passed / 16 skipped`; full repository regression is
-`2379 passed / 30 skipped`; public audit is `751/0`.
+`2381 passed / 29 skipped`; public audit is `892/0`.
 
 G5 is ready but not executable by Codex alone: two actual independent people
 must complete the packet. Do not manufacture reviewer identities, use an LLM

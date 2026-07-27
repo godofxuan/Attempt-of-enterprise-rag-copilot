@@ -75,13 +75,13 @@ Broader evaluation regression:
 Full repository regression:
 
 ```text
-2379 passed, 30 skipped, 3 warnings
+2381 passed, 29 skipped, 3 warnings
 ```
 
 Public repository audit:
 
 ```text
-751 candidates, 0 findings
+892 candidates, 0 findings
 ```
 
 ## What these results do not prove
