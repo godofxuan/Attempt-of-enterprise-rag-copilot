@@ -169,6 +169,54 @@ Lesson: a read-only container is an operational invariant, so build and test
 tools must receive explicit ephemeral write locations. Making the container
 writable would hide the conflict and weaken the contract.
 
+### 4.6 Second Linux run exposed default runtime-state writes
+
+Exact-commit Actions run
+[`30261323054`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30261323054)
+confirmed that the cache repair worked: both OS jobs passed and the container
+gate completed 2,411 tests before reporting seven failures:
+
+```text
+7 failed / 2411 passed / 29 skipped
+OSError: [Errno 30] Read-only file system: '/workspace/data/indexes_v2'
+```
+
+The failing health and trusted-identity tests start the FastAPI lifespan.
+Startup creates the configured data directories. Outside deployment, the
+default data root is the repository's `data/` directory, which is correctly
+unwritable under the container contract.
+
+The first proposed fix set `DATA_DIR` and `LIFECYCLE_PRIVATE_ROOT` to `/tmp`.
+The seven affected tests plus container/public contract tests passed:
+
+```text
+111 passed
+```
+
+The full local suite then rejected that approach:
+
+```text
+1 failed / 2417 passed / 30 skipped
+test_v2_config_is_separate_from_legacy_defaults
+```
+
+The failing compatibility test correctly requires `Settings(_env_file=None)`
+to retain the repository default paths. A global environment override would
+make CI green by changing the configuration semantics under test.
+
+Final fix: preserve the default configuration and mount only the excluded,
+runtime-created `/workspace/data/indexes_v2` path as a bounded 256 MiB tmpfs.
+Add a repository test that locks the read-only root, both tmpfs mounts, cache
+paths, absence of a `DATA_DIR` override, and disabled pytest cache together.
+The first assertion scanned the whole workflow and incorrectly rejected the
+later runtime drill's legitimate `/var/lib/rag` binding; it was narrowed to the
+deterministic-gate step so the two execution contracts remain distinct.
+
+Lesson: tests running inside an immutable image still need an explicit writable
+state contract. Cache paths and application state paths are separate concerns;
+redirecting only Python caches is insufficient. Test infrastructure must not
+change the application contract merely to avoid a filesystem error.
+
 ## 5. Current Verification
 
 Focused deployment/security suite:
@@ -191,7 +239,7 @@ Final local gates after the provenance and roadmap repairs:
 ```text
 compileall                         PASS
 pip check                          PASS
-pytest                             2417 passed / 30 skipped / 3 warnings
+pytest                             2418 passed / 30 skipped / 3 warnings
 public repository audit            915 candidates / 0 findings
 git diff --check                    PASS (one existing CRLF normalization notice)
 ```

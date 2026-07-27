@@ -100,6 +100,7 @@ jobs:
             --rm
             --read-only
             --tmpfs /tmp:rw,exec,nosuid,nodev,size=1g,uid=10001,gid=10001
+            --tmpfs /workspace/data/indexes_v2:rw,exec,nosuid,nodev,size=256m,uid=10001,gid=10001
             --env HOME=/tmp/home
             --env XDG_CACHE_HOME=/tmp/xdg-cache
             --env PYTHONPYCACHEPREFIX=/tmp/pycache

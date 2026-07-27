@@ -67,6 +67,35 @@ def test_docker_context_excludes_local_secrets_models_and_runtime_state() -> Non
         assert required in ignore
 
 
+def test_container_ci_routes_test_writes_to_bounded_tmpfs() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+    gate = workflow.split(
+        "- name: Run deterministic gates inside the image",
+        maxsplit=1,
+    )[1].split(
+        "- name: Run readiness failure and rollback drill",
+        maxsplit=1,
+    )[0]
+
+    for required in (
+        "--read-only",
+        "--tmpfs /tmp:rw,exec,nosuid,nodev,size=1g,uid=10001,gid=10001",
+        (
+            "--tmpfs /workspace/data/indexes_v2:"
+            "rw,exec,nosuid,nodev,size=256m,uid=10001,gid=10001"
+        ),
+        "--env HOME=/tmp/home",
+        "--env XDG_CACHE_HOME=/tmp/xdg-cache",
+        "--env PYTHONPYCACHEPREFIX=/tmp/pycache",
+        "-p no:cacheprovider",
+    ):
+        assert required in gate
+
+    assert "--env DATA_DIR=" not in gate
+
+
 def test_runtime_contract_hash_binds_all_operator_facing_files() -> None:
     first = calculate_runtime_contract_sha256(ROOT)
     second = calculate_runtime_contract_sha256(ROOT)
