@@ -202,6 +202,8 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 
 ## Documentation
 
+- [Complete Project Evolution History (start here)](docs/history/00_PROJECT_EVOLUTION.md)
+- [Complete Git Commit Index (123 commits through R2-S9 closeout)](docs/history/01_COMMIT_INDEX.md)
 - [Current Project Status](PROJECT_STATUS.md)
 - [Architecture](docs/architecture.md)
 - [Demo Runbook](docs/demo_runbook.md)
