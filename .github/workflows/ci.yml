@@ -159,7 +159,7 @@ jobs:
             "${TEST_IMAGE}" python -m scripts.deployment_model_stub
 
           run_api() {
-            docker run -d --rm --name enterprise-rag-api \
+            sudo docker run -d --rm --name enterprise-rag-api \
               --network host --read-only --init --user 10001:10001 \
               --tmpfs /tmp:rw,noexec,nosuid,nodev,size=128m,uid=10001,gid=10001 \
               --cap-drop ALL --security-opt no-new-privileges:true \
@@ -228,8 +228,13 @@ jobs:
             "${TEST_IMAGE}" \
             python -m scripts.generate_deployment_sbom \
             --image-reference "local/enterprise-rag@sha256:${image_digest}" \
-            --source-commit "${GITHUB_SHA}" \
-            --output /evidence/python-runtime.spdx.json
+             --source-commit "${GITHUB_SHA}" \
+             --output /evidence/python-runtime.spdx.json
+          sudo chown "$(id -u):$(id -g)" \
+            "${evidence_root}" \
+            "${evidence_root}/python-runtime.spdx.json"
+          sudo chmod 0700 "${evidence_root}"
+          sudo chmod 0600 "${evidence_root}/python-runtime.spdx.json"
           test -s "${evidence_root}/python-runtime.spdx.json"
 
       - name: Upload deployment SBOM

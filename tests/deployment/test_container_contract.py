@@ -117,8 +117,14 @@ def test_container_ci_private_outputs_are_owned_by_runtime_identity() -> None:
 
     for block in (rollback, sbom):
         assert "sudo chown 10001:10001" in block
-        assert "chmod 0700" in block
+        assert "sudo chmod 0700" in block
         assert "chmod 0777" not in block
+
+    assert (
+        "sudo docker run -d --rm --name enterprise-rag-api" in rollback
+    )
+    assert 'sudo chown "$(id -u):$(id -g)"' in sbom
+    assert "sudo chmod 0600" in sbom
 
 
 def test_runtime_contract_hash_binds_all_operator_facing_files() -> None:

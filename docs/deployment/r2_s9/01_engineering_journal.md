@@ -265,6 +265,32 @@ weakened.
 Lesson: after ownership transfer, later metadata operations must be performed
 by the new owner or a privileged operator.
 
+### 4.9 Fifth Linux run exposed a private handoff boundary
+
+Exact-commit Actions run
+[`30264794280`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30264794280)
+passed both OS jobs and all image gates. It then successfully created the smoke
+fixture, registered both releases, activated release 1, and rendered its
+environment before failing:
+
+```text
+docker: open .../fixture/release.env: permission denied
+```
+
+The renderer intentionally creates `release.env` with mode `0600` under UID
+10001. The unprivileged host Docker CLI must open an `--env-file` before asking
+the daemon to start the container, so it could not cross that private handoff.
+
+Fix: keep the file private and run only the host `docker run` operation through
+`sudo`; the runtime container still explicitly runs as UID/GID 10001. The same
+review identified the equivalent future SBOM handoff: after UID 10001 writes
+the non-secret SBOM, ownership is returned to the runner with directory mode
+`0700` and file mode `0600` before artifact upload.
+
+Lesson: distinguish the privileges of the host CLI, Docker daemon, and
+container process. A root CLI does not imply a root workload when `--user`
+remains enforced and verified.
+
 ## 5. Current Verification
 
 Focused deployment/security suite:
