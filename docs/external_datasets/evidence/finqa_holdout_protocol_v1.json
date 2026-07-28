@@ -1,0 +1,74 @@
+{
+  "schema_version": "finqa_holdout_protocol_v1",
+  "status": "FROZEN",
+  "frozen_on": "2026-07-28",
+  "frozen_code_parent_revision": "3c2ed21cc1604a99e6e6a445cbea1ef17763b8c9",
+  "repository": "https://github.com/czyssrs/FinQA",
+  "dataset_revision": "0f16e2867befa6840783e58be38c9efb9229d742",
+  "dataset_license": "CC-BY-4.0",
+  "test_sha256": "831dbfb2e785dbc227f895ce3f24046433467aec67b09db2bd6ac7692a8a30dc",
+  "test_labels_loaded_before_freeze": false,
+  "sample_count": 100,
+  "sample_seed": "finqa-test-holdout-v1",
+  "sampling_algorithm": "ascending SHA256(sample_seed + ':' + case_id)",
+  "retrieval_modes": [
+    "oracle",
+    "hybrid"
+  ],
+  "execution_order": [
+    "oracle",
+    "hybrid"
+  ],
+  "top_k": 10,
+  "answer_strategy": "program",
+  "answer_strategy_detail": "model_planned_arithmetic_expression_executed_by_decimal_ast_allowlist",
+  "answer_model": "qwen3:8b",
+  "answer_model_sha256": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+  "embedding_model": "bge-m3",
+  "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+  "temperature": 0,
+  "think": false,
+  "timeout_seconds": 120.0,
+  "max_attempts": 2,
+  "scoring": {
+    "strict_execution_decimal_places": 5,
+    "presentation_absolute_tolerance": 0.005,
+    "presentation_relative_tolerance": 0.005,
+    "presentation_sign_sensitive": true,
+    "grounded_requires_gold_citation_recall": 1.0,
+    "protocol_failures_score_zero": true
+  },
+  "dev_selection_evidence": {
+    "case_count": 20,
+    "sample_seed": "finqa-dev-pilot-v1",
+    "oracle_strict_execution_accuracy": 0.75,
+    "oracle_grounded_strict_execution_accuracy": 0.65,
+    "oracle_generation_protocol_error_rate": 0.0,
+    "hybrid_k10_strict_execution_accuracy": 0.55,
+    "hybrid_k10_grounded_strict_execution_accuracy": 0.45,
+    "hybrid_k10_evidence_recall": 0.925,
+    "hybrid_k10_generation_protocol_error_rate": 0.0,
+    "k5_hybrid_evidence_recall": 0.8083333333333333,
+    "k15_hybrid_evidence_recall": 0.95,
+    "selection_reason": "K10 preserved K5 strict accuracy while improving evidence recall and protocol stability; K15 added only 0.025 recall."
+  },
+  "source_file_sha256": {
+    "app/agent/safe_calculator.py": "95115a3f4bc046cfea2ab7e19dd4dd171560eeaddd003bafc2e364afa6f4c404",
+    "app/evaluation/numeric_answer.py": "22b535913155a2ed3af94a5f71c47832819f73b9f2b9c7c63a029fe908bc3419",
+    "app/external_datasets/finqa.py": "73782d7f7286fa7b8aa7026519f9ebb86741382040ac5751406490913ec9e0df",
+    "app/external_datasets/finqa_eval.py": "4f1aea4c06456cf0fbaaa213256e1ce4d08df1b072476e80d678c6b1b0964e34",
+    "app/ollama_chat.py": "095a09cbda9279000935b136b68c6ef83a46babac2a516ae49db703acd135b4b",
+    "app/runtime/model_transport.py": "0168ddb5f598608332b2ec87e5a40459337799c2cb38794f454e85c128e0b88a",
+    "app/runtime/ollama_embeddings.py": "150e1aa0e30f3f6df95ebc032f540431a8dd814efe23c64c880333dead4809d6",
+    "app/security/retrieved_content.py": "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2",
+    "scripts/eval_finqa.py": "a8847141eb0f91ab8f71737687cc66e79d41788baa70bde1a8357d58d9237642",
+    "scripts/prepare_finqa.py": "d618c7fb3b541ff299eab5c3dd6d2f4e28ee665b62469589f132aa70a94582ac"
+  },
+  "publication_policy": {
+    "raw_dataset_private_only": true,
+    "per_case_test_details_private_only": true,
+    "public_evidence_aggregate_only": true,
+    "rerun_after_test_observation": false,
+    "parameter_change_after_test_observation": false
+  }
+}
