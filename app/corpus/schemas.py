@@ -6,8 +6,16 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-DocumentFormat = Literal["md", "txt", "html", "csv", "jsonl"]
-SourceType = Literal["policy", "wiki", "email", "ticket", "meeting", "table"]
+DocumentFormat = Literal["md", "txt", "html", "csv", "jsonl", "pdf"]
+SourceType = Literal[
+    "policy",
+    "wiki",
+    "email",
+    "ticket",
+    "meeting",
+    "table",
+    "filing",
+]
 DocumentStatus = Literal["active", "retired"]
 VariantType = Literal[
     "authoritative",

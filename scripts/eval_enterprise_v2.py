@@ -8,10 +8,12 @@ import hashlib
 import json
 import re
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 
 from app.config import get_settings
 from app.corpus.schemas import EvalCase
+from app.external_datasets.financebench import build_financebench_entity_catalog
 from app.evaluation.run_manifest import build_run_manifest
 from app.evaluation.runtime import (
     build_deterministic_runtime,
@@ -19,6 +21,7 @@ from app.evaluation.runtime import (
 )
 from app.evaluation.suite import evaluate_suite
 from app.evaluation.writer import publish_run
+from app.retrieval.entity_scope import EntityScopedSearchBackend
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -52,6 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--candidate-k", type=int, default=20)
     parser.add_argument("--bootstrap-iterations", type=int, default=2000)
     parser.add_argument("--bootstrap-seed", type=int, default=20260716)
+    parser.add_argument(
+        "--entity-scope",
+        choices=["none", "financebench"],
+        default="none",
+    )
     return parser
 
 
@@ -121,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
                 update={"v2_indexes_dir": args.index_root.resolve()}
             )
         runtime = build_live_runtime(settings)
+        runtime = _apply_entity_scope(args, runtime, corpus_dir)
         output = _evaluate_and_publish(
             args,
             cases,
@@ -137,6 +146,7 @@ def main(argv: list[str] | None = None) -> int:
                 "suite": args.suite,
                 "split": args.split,
                 "mode": args.mode,
+                "entity_scope": args.entity_scope,
                 "output_dir": str(output),
             },
             ensure_ascii=False,
@@ -171,7 +181,10 @@ def _evaluate_and_publish(
         "split": args.split,
         "mode": args.mode,
         "dataset_file": dataset_path.name,
+        "entity_scope": args.entity_scope,
     }
+    if getattr(args, "entity_catalog_sha256", None) is not None:
+        config["entity_catalog_sha256"] = args.entity_catalog_sha256
     manifest = build_run_manifest(
         run_id=args.run_id,
         suite=args.suite,
@@ -196,6 +209,24 @@ def _validate_args(args: argparse.Namespace) -> None:
         raise ValueError("candidate-k must be between top-k and 200")
     if args.bootstrap_iterations < 0:
         raise ValueError("bootstrap iterations must be non-negative")
+    if args.entity_scope != "none" and args.suite != "retrieval":
+        raise ValueError("entity scope currently supports the retrieval suite only")
+    if args.entity_scope != "none" and args.mode != "live":
+        raise ValueError("entity scope currently supports live mode only")
+
+
+def _apply_entity_scope(args, runtime, corpus_dir: Path):
+    if args.entity_scope == "none":
+        return runtime
+    if args.entity_scope != "financebench":
+        raise ValueError(f"unsupported entity scope: {args.entity_scope}")
+    catalog = build_financebench_entity_catalog(corpus_dir)
+    args.entity_catalog_sha256 = catalog.canonical_sha256()
+    return replace(
+        runtime,
+        variant=f"{runtime.variant}+financebench-entity-scope-v5",
+        pipeline=EntityScopedSearchBackend(runtime.pipeline, catalog),
+    )
 
 
 if __name__ == "__main__":

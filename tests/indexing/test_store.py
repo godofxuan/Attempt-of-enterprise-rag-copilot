@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from app.corpus.artifacts import write_corpus
@@ -96,6 +97,38 @@ def test_build_and_activate_writes_verifiable_pointer(
     assert pointer["manifest_sha256"] == hashlib.sha256(manifest_bytes).hexdigest()
     assert loaded.path == version_path.resolve()
     assert loaded.manifest == manifest
+    assert load_active_manifest(root) == manifest
+
+
+def test_build_and_activate_supports_batch_embedding_provider(
+    tmp_path: Path,
+    corpus_dir: Path,
+) -> None:
+    root = tmp_path / "indexes-v2"
+    calls: list[list[str]] = []
+
+    def embed_chunks(chunks) -> np.ndarray:
+        calls.append([chunk.chunk_id for chunk in chunks])
+        return np.asarray(
+            [[float(index + 1), 1.0] for index, _ in enumerate(chunks)],
+            dtype="float32",
+        )
+
+    manifest = build_index_version(
+        root=root,
+        input_dir=corpus_dir,
+        run_id="batch-run",
+        chunker_config=ChunkerConfig(mode="fixed", chunk_size=500, overlap=80),
+        embedding_model="fake-batch-2d",
+        embed_chunks=embed_chunks,
+        activate=True,
+        started_at=START,
+        finished_at=FINISH,
+    )
+
+    assert len(calls) == 1
+    assert len(calls[0]) == manifest.indexed_chunk_count
+    assert manifest.embedding.dimension == 2
     assert load_active_manifest(root) == manifest
 
 

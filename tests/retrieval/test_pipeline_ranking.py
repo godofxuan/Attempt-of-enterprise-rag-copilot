@@ -110,6 +110,61 @@ def test_hybrid_rrf_uses_deterministic_tie_break(
     assert first.hits[0].chunk_id == "a-chunk"
 
 
+def test_search_many_reuses_query_embedding_across_metadata_scopes(
+    chunk_factory,
+    snapshot_factory,
+) -> None:
+    first = chunk_factory(
+        chunk_id="first",
+        doc_id="first-doc",
+        policy_id="first-policy",
+        text="needle first",
+        checksum="1" * 64,
+    )
+    second = chunk_factory(
+        chunk_id="second",
+        doc_id="second-doc",
+        policy_id="second-policy",
+        text="needle second",
+        checksum="2" * 64,
+    )
+    calls: list[str] = []
+    pipeline = HybridRetrievalPipeline(
+        snapshot_factory(
+            [first, second],
+            vectors=[[1.0, 0.0], [0.9, 0.1]],
+        ),
+        embed_text=lambda text: calls.append(text) or [1.0, 0.0],
+    )
+
+    results = pipeline.search_many(
+        [
+            search_request(
+                mode="hybrid",
+                top_k=1,
+                candidate_k=2,
+                filters=QueryFilters(
+                    policy_ids=["first-policy"],
+                    temporal_scope="all",
+                ),
+            ),
+            search_request(
+                mode="hybrid",
+                top_k=1,
+                candidate_k=2,
+                filters=QueryFilters(
+                    policy_ids=["first-policy", "second-policy"],
+                    temporal_scope="all",
+                ),
+            ),
+        ]
+    )
+
+    assert calls == ["needle"]
+    assert results[0].hits[0].policy_id == "first-policy"
+    assert len(results[1].hits) == 1
+
+
 def test_metadata_current_authority_department_policy_and_as_of_filters(
     chunk_factory,
     snapshot_factory,

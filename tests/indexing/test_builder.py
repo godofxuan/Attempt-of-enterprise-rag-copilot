@@ -96,6 +96,103 @@ def test_builder_writes_validated_artifacts_with_one_embedding_per_indexed_chunk
     validate_index_directory(output, manifest)
 
 
+def test_builder_accepts_one_validated_batch_embedding_matrix(
+    tmp_path: Path,
+) -> None:
+    corpus = build_corpus(tmp_path / "corpus")
+    output = tmp_path / "index"
+    observed_chunk_ids: list[str] = []
+
+    def embed_chunks(chunks) -> np.ndarray:
+        observed_chunk_ids.extend(chunk.chunk_id for chunk in chunks)
+        rows = [
+            [float(index + 1), float(len(chunk.text) + 1), 1.0]
+            for index, chunk in enumerate(chunks)
+        ]
+        return np.asarray(rows, dtype="float32")
+
+    manifest = build_index_artifacts(
+        input_dir=corpus,
+        output_dir=output,
+        run_id="batch-run",
+        chunker_config=ChunkerConfig(mode="fixed", chunk_size=500, overlap=80),
+        embedding_model="fake-batch-3d",
+        embed_chunks=embed_chunks,
+        started_at=START,
+        finished_at=FINISH,
+    )
+
+    assert len(observed_chunk_ids) == manifest.indexed_chunk_count == 64
+    assert len(observed_chunk_ids) == len(set(observed_chunk_ids))
+    assert manifest.embedding.dimension == 3
+    validate_index_directory(output, manifest)
+
+
+@pytest.mark.parametrize(
+    ("matrix_factory", "error"),
+    [
+        pytest.param(
+            lambda rows: np.ones((rows - 1, 3), dtype="float32"),
+            "row count",
+            id="missing-row",
+        ),
+        pytest.param(
+            lambda rows: np.ones(rows, dtype="float32"),
+            "two-dimensional",
+            id="not-a-matrix",
+        ),
+        pytest.param(
+            lambda rows: np.full((rows, 3), np.nan, dtype="float32"),
+            "finite",
+            id="non-finite",
+        ),
+        pytest.param(
+            lambda rows: np.zeros((rows, 3), dtype="float32"),
+            "zero",
+            id="zero-vector",
+        ),
+    ],
+)
+def test_builder_rejects_invalid_batch_embedding_matrix_before_writing(
+    tmp_path: Path,
+    matrix_factory,
+    error: str,
+) -> None:
+    corpus = build_corpus(tmp_path / "corpus")
+    output = tmp_path / "index"
+
+    with pytest.raises(ValueError, match=error):
+        build_index_artifacts(
+            input_dir=corpus,
+            output_dir=output,
+            run_id="invalid-batch",
+            chunker_config=ChunkerConfig(mode="fixed", chunk_size=500, overlap=80),
+            embedding_model="broken-batch",
+            embed_chunks=lambda chunks: matrix_factory(len(chunks)),
+            started_at=START,
+            finished_at=FINISH,
+        )
+
+    assert not output.exists()
+
+
+def test_builder_rejects_ambiguous_embedding_providers(tmp_path: Path) -> None:
+    corpus = build_corpus(tmp_path / "corpus")
+
+    with pytest.raises(ValueError, match="exactly one"):
+        build_index_artifacts(
+            input_dir=corpus,
+            output_dir=tmp_path / "index",
+            run_id="ambiguous",
+            chunker_config=ChunkerConfig(mode="fixed", chunk_size=500, overlap=80),
+            embedding_model="ambiguous",
+            embed_text=FakeEmbedder(),
+            embed_chunks=lambda chunks: np.ones((len(chunks), 3)),
+            started_at=START,
+            finished_at=FINISH,
+        )
+
+
 def test_builder_phase_observer_is_complete_and_does_not_change_artifacts(
     tmp_path: Path,
 ) -> None:

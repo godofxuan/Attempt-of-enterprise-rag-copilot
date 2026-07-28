@@ -593,3 +593,33 @@ deployment                                     NOT RUN
 exact-run pre-gate audit 473 candidates / 0 findings.
 
 本轮先修复证据系统而不是先跑模型，因为一旦 `-01` immutable target 被不完整代码占用，就不能删除目录后假装是同一次实验。门禁通过后，one planned R2-S4 cross-model run has already executed under the frozen plan; no rerun or overwrite of the immutable R2-S4 run IDs is allowed. Task9 final gates, push, and CI are external delivery evidence rather than another model run or overwrite of immutable model evidence。
+
+## 12. FinanceBench 真实文档外部评测轨
+
+完整工程记录见
+[`docs/external_datasets/financebench_results.md`](docs/external_datasets/financebench_results.md)。
+
+```text
+upstream revision                 cc39aeb4afdf33909ee1412188bf89035950c2eb
+public questions / PDFs           150 / 84
+company-grouped dev / frozen test 49 / 101; company overlap 0
+PDF parser                        pypdf 6.14.2
+heading chunks                    29,335
+BGE-M3 vectors                    29,335 x 1,024
+embedding batches                 937 computed / 0 corrupt recompute
+index manifest SHA-256            7eae87f4c9ab670a1f10838f553fe2a0a7b53c0ef2958ff950101e7b8305be01
+dev baseline Recall@5             79.59% (39/49)
+dev entity-scope v5 Recall@5      100% (49/49)
+dev v5 MRR / nDCG@5               94.56% / 95.97%
+dev baseline / v5 mean latency    743 ms / 799 ms
+dev v5 ACL leakage                0
+frozen test                       NOT RUN
+page citation / answer scoring    NOT RUN
+```
+
+本阶段增加了受字符与条数双预算约束的 Ollama 批量 embedding、模型/语料/chunk
+指纹绑定的原子 `.npy` 分片缓存、损坏批次重算、D 盘 jieba runtime cache、
+语料元数据生成的实体 alias 目录，以及 exact-year + entity-history 双 scope。
+`search_many` 只在单个逻辑请求内共享 query embedding、FAISS 全局结果和 BM25
+scores，不跨用户持久化查询。49/49 是 dev 文档级检索结果，不得表述为 frozen
+test、答案生成、页级引用或生产准确率。

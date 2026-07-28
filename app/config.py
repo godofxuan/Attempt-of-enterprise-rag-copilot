@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     lifecycle_private_root: Path = (
         BASE_DIR / ".private" / "lifecycle" / "runtime"
     )
+    runtime_cache_dir: Path = BASE_DIR / ".private" / "runtime_cache"
     v2_corpus_profile: Literal[
         "demo",
         "benchmark",

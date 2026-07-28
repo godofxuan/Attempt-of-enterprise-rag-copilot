@@ -32,6 +32,7 @@ from app.utils import tokenize_for_bm25
 
 
 EmbedText = Callable[[str], list[float]]
+EmbedChunks = Callable[[list[ChunkRecord]], np.ndarray]
 BuildPhase = Literal[
     "prepare",
     "embedding",
@@ -165,38 +166,75 @@ def _json_bytes(models: list[BaseModel]) -> bytes:
 
 def _normalize_vectors(vectors: np.ndarray) -> np.ndarray:
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-    norms[norms == 0] = 1.0
     return vectors / norms
+
+
+def _validate_embedding_matrix(
+    values: object,
+    indexed_chunks: list[ChunkRecord],
+) -> np.ndarray:
+    try:
+        vectors = np.asarray(values, dtype="float32")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("embedding provider returned non-numeric values") from exc
+    if vectors.ndim != 2:
+        raise ValueError("embedding provider must return a two-dimensional matrix")
+    expected_rows = len(indexed_chunks)
+    if vectors.shape[0] != expected_rows:
+        raise ValueError(
+            "embedding row count does not match indexed chunks: "
+            f"expected {expected_rows}, got {vectors.shape[0]}"
+        )
+    if vectors.shape[1] < 1 or vectors.shape[1] > 65_536:
+        raise ValueError("embedding dimension is invalid")
+    if not np.isfinite(vectors).all():
+        raise ValueError("embedding values must be finite numbers")
+    norms = np.linalg.norm(vectors, axis=1)
+    zero_rows = np.flatnonzero(norms == 0)
+    if zero_rows.size:
+        chunk = indexed_chunks[int(zero_rows[0])]
+        raise ValueError(f"embedding is zero for chunk {chunk.chunk_id!r}")
+    return np.ascontiguousarray(vectors, dtype="float32")
 
 
 def _build_artifact_bytes(
     prepared: _PreparedBuild,
-    embed_text: EmbedText,
+    embed_text: EmbedText | None,
     *,
+    embed_chunks: EmbedChunks | None = None,
     phase_observer: BuildPhaseObserver | None = None,
 ) -> tuple[dict[str, bytes], int]:
     indexed_chunks = prepared.indexed_chunks
     if not indexed_chunks:
         raise ValueError("build has no indexable chunks")
     embedding_started = time.perf_counter()
-    embeddings: list[list[float]] = []
-    dimension: int | None = None
-    for chunk in indexed_chunks:
-        vector = list(embed_text(chunk.text))
-        if not vector:
-            raise ValueError(f"embedding is empty for chunk {chunk.chunk_id!r}")
-        if dimension is None:
-            dimension = len(vector)
-        elif len(vector) != dimension:
-            raise ValueError(
-                f"embedding dimensions are inconsistent: expected {dimension}, "
-                f"got {len(vector)} for {chunk.chunk_id!r}"
-            )
-        embeddings.append(vector)
+    if embed_chunks is not None:
+        array = _validate_embedding_matrix(
+            embed_chunks(indexed_chunks),
+            indexed_chunks,
+        )
+    else:
+        if embed_text is None:
+            raise ValueError("an embedding provider is required")
+        embeddings: list[list[float]] = []
+        dimension: int | None = None
+        for chunk in indexed_chunks:
+            vector = list(embed_text(chunk.text))
+            if not vector:
+                raise ValueError(f"embedding is empty for chunk {chunk.chunk_id!r}")
+            if dimension is None:
+                dimension = len(vector)
+            elif len(vector) != dimension:
+                raise ValueError(
+                    f"embedding dimensions are inconsistent: expected {dimension}, "
+                    f"got {len(vector)} for {chunk.chunk_id!r}"
+                )
+            embeddings.append(vector)
+        array = _validate_embedding_matrix(embeddings, indexed_chunks)
     _observe_phase(phase_observer, "embedding", embedding_started)
 
     construction_started = time.perf_counter()
-    array = _normalize_vectors(np.asarray(embeddings, dtype="float32"))
+    array = _normalize_vectors(array)
     index = faiss.IndexFlatIP(array.shape[1])
     index.add(array)
     tokenized = [tokenize_for_bm25(chunk.text) for chunk in indexed_chunks]
@@ -252,12 +290,15 @@ def build_index_artifacts(
     run_id: str,
     chunker_config: ChunkerConfig,
     embedding_model: str,
-    embed_text: EmbedText,
+    embed_text: EmbedText | None = None,
+    embed_chunks: EmbedChunks | None = None,
     registry: ParserRegistry | None = None,
     started_at: datetime | None = None,
     finished_at: datetime | None = None,
     phase_observer: BuildPhaseObserver | None = None,
 ) -> IndexManifest:
+    if (embed_text is None) == (embed_chunks is None):
+        raise ValueError("provide exactly one of embed_text or embed_chunks")
     output_dir = Path(output_dir)
     _ensure_empty_output(output_dir)
     start = started_at or datetime.now(timezone.utc)
@@ -272,6 +313,7 @@ def build_index_artifacts(
     artifacts, dimension = _build_artifact_bytes(
         prepared,
         embed_text,
+        embed_chunks=embed_chunks,
         phase_observer=phase_observer,
     )
     finish = finished_at or datetime.now(timezone.utc)

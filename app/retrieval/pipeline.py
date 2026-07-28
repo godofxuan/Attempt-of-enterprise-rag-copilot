@@ -72,7 +72,41 @@ class HybridRetrievalPipeline:
         self.rrf_k = rrf_k
 
     def search(self, request: SearchRequest) -> SearchResult:
-        pool = self.ranked_candidates_for_guard(request)
+        return self._search(
+            request,
+            query_vectors=None,
+            bm25_score_cache=None,
+            dense_search_cache=None,
+        )
+
+    def search_many(self, requests: list[SearchRequest]) -> list[SearchResult]:
+        query_vectors: dict[str, np.ndarray] = {}
+        bm25_score_cache: dict[str, np.ndarray] = {}
+        dense_search_cache: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+        return [
+            self._search(
+                request,
+                query_vectors=query_vectors,
+                bm25_score_cache=bm25_score_cache,
+                dense_search_cache=dense_search_cache,
+            )
+            for request in requests
+        ]
+
+    def _search(
+        self,
+        request: SearchRequest,
+        *,
+        query_vectors: dict[str, np.ndarray] | None,
+        bm25_score_cache: dict[str, np.ndarray] | None,
+        dense_search_cache: dict[str, tuple[np.ndarray, np.ndarray]] | None,
+    ) -> SearchResult:
+        pool = self.ranked_candidates_for_guard(
+            request,
+            query_vectors=query_vectors,
+            bm25_score_cache=bm25_score_cache,
+            dense_search_cache=dense_search_cache,
+        )
         selected = self._select_diverse_ranked(
             pool.candidates,
             top_k=request.top_k,
@@ -99,6 +133,10 @@ class HybridRetrievalPipeline:
     def ranked_candidates_for_guard(
         self,
         request: SearchRequest,
+        *,
+        query_vectors: dict[str, np.ndarray] | None = None,
+        bm25_score_cache: dict[str, np.ndarray] | None = None,
+        dense_search_cache: dict[str, tuple[np.ndarray, np.ndarray]] | None = None,
     ) -> RankedSearchPool:
         started = time.perf_counter()
         acl_indices, denied_count = self.access_policy.visible_indices(
@@ -132,17 +170,36 @@ class HybridRetrievalPipeline:
         bm25_ranked: list[tuple[int, float]] = []
         dense_ranked: list[tuple[int, float]] = []
         if request.mode in {"bm25", "hybrid"}:
-            bm25_ranked = self._rank_bm25(
-                request.query,
-                metadata_indices,
-                request.candidate_k,
+            bm25_ranked = (
+                self._rank_bm25(
+                    request.query,
+                    metadata_indices,
+                    request.candidate_k,
+                )
+                if bm25_score_cache is None
+                else self._rank_bm25(
+                    request.query,
+                    metadata_indices,
+                    request.candidate_k,
+                    score_cache=bm25_score_cache,
+                )
             )
             stage_counts["bm25_candidates"] = len(bm25_ranked)
         if request.mode in {"dense", "hybrid"}:
-            dense_ranked = self._rank_dense(
-                request.query,
-                metadata_indices,
-                request.candidate_k,
+            dense_ranked = (
+                self._rank_dense(
+                    request.query,
+                    metadata_indices,
+                    request.candidate_k,
+                )
+                if query_vectors is None
+                else self._rank_dense(
+                    request.query,
+                    metadata_indices,
+                    request.candidate_k,
+                    query_vectors=query_vectors,
+                    search_cache=dense_search_cache,
+                )
             )
             stage_counts["dense_candidates"] = len(dense_ranked)
 
@@ -195,8 +252,16 @@ class HybridRetrievalPipeline:
         query: str,
         visible_indices: list[int],
         candidate_k: int,
+        *,
+        score_cache: dict[str, np.ndarray] | None = None,
     ) -> list[tuple[int, float]]:
-        scores = self.snapshot.bm25.get_scores(tokenize_for_bm25(query))
+        scores = score_cache.get(query) if score_cache is not None else None
+        if scores is None:
+            scores = np.asarray(
+                self.snapshot.bm25.get_scores(tokenize_for_bm25(query))
+            )
+            if score_cache is not None:
+                score_cache[query] = scores
         ranked = sorted(
             visible_indices,
             key=lambda index: (
@@ -211,7 +276,43 @@ class HybridRetrievalPipeline:
         query: str,
         visible_indices: list[int],
         candidate_k: int,
+        *,
+        query_vectors: dict[str, np.ndarray] | None = None,
+        search_cache: dict[str, tuple[np.ndarray, np.ndarray]] | None = None,
     ) -> list[tuple[int, float]]:
+        vector = (
+            query_vectors.get(query)
+            if query_vectors is not None
+            else None
+        )
+        if vector is None:
+            vector = self._normalized_query_vector(query)
+            if query_vectors is not None:
+                query_vectors[query] = vector
+        search_result = (
+            search_cache.get(query)
+            if search_cache is not None
+            else None
+        )
+        if search_result is None:
+            search_result = self.snapshot.faiss_index.search(
+                vector,
+                self.snapshot.faiss_index.ntotal,
+            )
+            if search_cache is not None:
+                search_cache[query] = search_result
+        scores, indices = search_result
+        visible = set(visible_indices)
+        ranked: list[tuple[int, float]] = []
+        for index, score in zip(indices[0].tolist(), scores[0].tolist()):
+            if index == -1 or index not in visible:
+                continue
+            ranked.append((index, float(score)))
+            if len(ranked) == candidate_k:
+                break
+        return ranked
+
+    def _normalized_query_vector(self, query: str) -> np.ndarray:
         if self.embed_text is None:
             raise ValueError("dense retrieval requires an embed_text function")
         vector = np.asarray(self.embed_text(query), dtype="float32")
@@ -226,20 +327,7 @@ class HybridRetrievalPipeline:
         norm = float(np.linalg.norm(vector))
         if norm == 0:
             raise ValueError("query embedding must not be a zero vector")
-        vector = (vector / norm).reshape(1, -1)
-        scores, indices = self.snapshot.faiss_index.search(
-            vector,
-            self.snapshot.faiss_index.ntotal,
-        )
-        visible = set(visible_indices)
-        ranked: list[tuple[int, float]] = []
-        for index, score in zip(indices[0].tolist(), scores[0].tolist()):
-            if index == -1 or index not in visible:
-                continue
-            ranked.append((index, float(score)))
-            if len(ranked) == candidate_k:
-                break
-        return ranked
+        return (vector / norm).reshape(1, -1)
 
     def _fuse(
         self,

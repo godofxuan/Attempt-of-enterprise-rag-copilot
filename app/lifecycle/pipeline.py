@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 import hashlib
-import math
-import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 import pydantic
-import requests
+import requests  # noqa: F401  # compatibility hook for transport tests
 
 from app.config import Settings
 from app.indexing.computation_cache import (
@@ -18,26 +15,13 @@ from app.indexing.computation_cache import (
 )
 from app.indexing.incremental_computation import EmbedText, PipelineConfiguration
 from app.ingestion.chunking import ChunkerConfig
-from app.runtime.model_transport import perform_model_request
-from app.security.model_endpoint import parse_pinned_model_endpoint
-
-
-_SHA256 = re.compile(r"^(?:sha256:)?([0-9a-f]{64})$")
+from app.runtime.ollama_embeddings import OllamaEmbeddingClient
 
 
 @dataclass(frozen=True)
 class LifecyclePipelineRuntime:
     pipeline: PipelineConfiguration
     embed_text: EmbedText
-
-
-def _local_ollama_origin(value: str) -> str:
-    try:
-        return parse_pinned_model_endpoint(value).origin
-    except ValueError as exc:
-        raise ValueError(
-            "lifecycle embedding requires a pinned local Ollama origin"
-        ) from exc
 
 
 def _source_digest(*relative_paths: str) -> str:
@@ -53,100 +37,14 @@ def _source_digest(*relative_paths: str) -> str:
     return digest.hexdigest()
 
 
-def _request(
-    settings: Settings,
-    send: Callable[[float], requests.Response],
-) -> requests.Response:
-    return perform_model_request(
-        send,
-        operation="embed",
-        timeout_seconds=settings.model_request_timeout_seconds,
-        max_attempts=settings.model_max_attempts,
-        backoff_seconds=settings.model_retry_backoff_ms / 1000.0,
-    ).response
-
-
-def _model_digest(payload: object, model_identifier: str) -> str:
-    if not isinstance(payload, dict) or not isinstance(payload.get("models"), list):
-        raise ValueError("Ollama tags response is invalid")
-    exact: list[object] = []
-    base: list[object] = []
-    for item in payload["models"]:
-        if not isinstance(item, dict):
-            continue
-        name = item.get("name")
-        if not isinstance(name, str):
-            continue
-        if name == model_identifier:
-            exact.append(item.get("digest"))
-        elif name.removesuffix(":latest") == model_identifier:
-            base.append(item.get("digest"))
-    candidates = exact or base
-    if len(candidates) != 1:
-        raise ValueError("configured embedding model identity is ambiguous")
-    digest = candidates[0]
-    match = _SHA256.fullmatch(digest) if isinstance(digest, str) else None
-    if match is None:
-        raise ValueError("configured embedding model digest is invalid")
-    return match.group(1)
-
-
 def build_ollama_lifecycle_runtime(
     settings: Settings,
 ) -> LifecyclePipelineRuntime:
-    origin = _local_ollama_origin(settings.llm_base_url)
-    model_identifier = settings.embedding_model
-    session = requests.Session()
-    session.trust_env = False
-    tags = _request(
+    client = OllamaEmbeddingClient.from_settings(
         settings,
-        lambda timeout: session.get(
-            f"{origin}/api/tags",
-            timeout=timeout,
-            allow_redirects=False,
-        ),
-    ).json()
-    model_sha256 = _model_digest(tags, model_identifier)
-    expected_dimension: int | None = None
-
-    def embed_text(text: str) -> list[float]:
-        response = _request(
-            settings,
-            lambda timeout: session.post(
-                f"{origin}/api/embed",
-                json={"model": model_identifier, "input": text},
-                timeout=timeout,
-                allow_redirects=False,
-            ),
-        )
-        payload = response.json()
-        if (
-            not isinstance(payload, dict)
-            or not isinstance(payload.get("embeddings"), list)
-            or len(payload["embeddings"]) != 1
-            or not isinstance(payload["embeddings"][0], list)
-        ):
-            raise ValueError("Ollama embedding response is invalid")
-        values = payload["embeddings"][0]
-        if any(
-            isinstance(value, bool) or not isinstance(value, (int, float))
-            for value in values
-        ):
-            raise ValueError("Ollama embedding values must be JSON numbers")
-        vector = [float(value) for value in values]
-        if not all(math.isfinite(value) for value in vector):
-            raise ValueError("Ollama embedding values must be finite numbers")
-        if not vector or len(vector) > 65_536:
-            raise ValueError("Ollama embedding dimension is invalid")
-        if (
-            expected_dimension is not None
-            and len(vector) != expected_dimension
-        ):
-            raise ValueError("Ollama embedding dimension changed after probe")
-        return vector
-
-    probe = embed_text("lifecycle embedding dimension probe")
-    expected_dimension = len(probe)
+        probe_text="lifecycle embedding dimension probe",
+        endpoint_context="lifecycle embedding",
+    )
     dependencies = tuple(
         sorted(
             (
@@ -200,15 +98,15 @@ def build_ollama_lifecycle_runtime(
                 dependency_versions=dependencies,
             ),
             backend="ollama-local",
-            model_identifier=model_identifier,
-            model_sha256=model_sha256,
-            dimension=len(probe),
+            model_identifier=client.model_identifier,
+            model_sha256=client.model_sha256,
+            dimension=client.dimension,
             normalization="l2",
         ),
     )
     return LifecyclePipelineRuntime(
         pipeline=pipeline,
-        embed_text=embed_text,
+        embed_text=client.embed_text,
     )
 
 

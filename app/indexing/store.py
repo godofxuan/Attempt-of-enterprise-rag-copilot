@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.filesystem import atomic_directory_move
 from app.indexing.builder import (
+    EmbedChunks,
     EmbedText,
     build_index_artifacts,
     validate_index_directory,
@@ -309,7 +310,8 @@ def build_index_version(
     run_id: str,
     chunker_config: ChunkerConfig,
     embedding_model: str,
-    embed_text: EmbedText,
+    embed_text: EmbedText | None = None,
+    embed_chunks: EmbedChunks | None = None,
     activate: bool = False,
     force: bool = False,
     registry: ParserRegistry | None = None,
@@ -341,6 +343,7 @@ def build_index_version(
             chunker_config=chunker_config,
             embedding_model=embedding_model,
             embed_text=embed_text,
+            embed_chunks=embed_chunks,
             registry=registry,
             started_at=started_at,
             finished_at=finished_at,
