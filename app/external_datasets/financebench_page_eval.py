@@ -86,6 +86,7 @@ class FinanceBenchPageCaseResult(FinanceBenchPageEvalModel):
         default_factory=list,
         max_length=20,
     )
+    page_reranker_applied: bool = False
     stage_counts: dict[str, int] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -155,6 +156,7 @@ class FinanceBenchPageRunSummary(FinanceBenchPageEvalModel):
         default_factory=list,
         max_length=10,
     )
+    reranker_case_count: int = Field(default=0, ge=0)
 
     @model_validator(mode="after")
     def validate_summary(self) -> "FinanceBenchPageRunSummary":
@@ -179,10 +181,16 @@ class FinanceBenchPageRunSummary(FinanceBenchPageEvalModel):
         if reranker_values != sorted(set(reranker_values)):
             raise ValueError("reranker summary cutoffs must be sorted and unique")
         if any(
-            item.case_count != self.case_count
+            item.case_count != self.reranker_case_count
             for item in self.reranker_cutoffs
         ):
-            raise ValueError("reranker summaries must cover every case")
+            raise ValueError("reranker summaries must cover reranked cases")
+        if bool(self.reranker_cutoffs) != (self.reranker_case_count > 0):
+            raise ValueError(
+                "reranker cutoffs and reranker case count must agree"
+            )
+        if self.reranker_case_count > self.case_count:
+            raise ValueError("reranker case count exceeds total case count")
         return self
 
 
@@ -328,6 +336,8 @@ def evaluate_financebench_page_cases(
     drilldown_merge_mode: Literal["quota", "global_page_score"] = "quota",
     page_reranker=None,
     reranker_dense_head_count: int = 0,
+    reranker_gate_mode: Literal["always", "dense_top1_below"] = "always",
+    reranker_gate_threshold: float = 0.639074,
 ) -> list[FinanceBenchPageCaseResult]:
     if top_k != 5:
         raise ValueError("FinanceBench page v1 requires top_k=5")
@@ -350,6 +360,13 @@ def evaluate_financebench_page_cases(
         )
     if page_reranker is None and reranker_dense_head_count:
         raise ValueError("dense head preservation requires a page reranker")
+    if not math.isfinite(reranker_gate_threshold):
+        raise ValueError("reranker gate threshold must be finite")
+    if (
+        reranker_gate_mode == "dense_top1_below"
+        and drilldown_mode != "dense"
+    ):
+        raise ValueError("dense score gate requires dense page drilldown")
     _validate_bundle_alignment(cases, evidence_cases, split=split)
     evidence_by_id = {item.case_id: item for item in evidence_cases}
     results: list[FinanceBenchPageCaseResult] = []
@@ -371,6 +388,7 @@ def evaluate_financebench_page_cases(
         page_candidate_score = None
         page_reranker_score = None
         page_candidates: list[Any] = []
+        page_reranker_applied = False
         if page_drilldown_backend is not None:
             drilldown_started = time.perf_counter()
             page_hits, page_candidates, page_search_count = (
@@ -393,7 +411,14 @@ def evaluate_financebench_page_cases(
                 "page_drilldown_candidates": len(page_candidates),
                 "page_drilldown_returned": len(page_hits),
             }
-            if page_reranker is not None and page_candidates:
+            should_rerank = _should_apply_page_reranker(
+                page_reranker=page_reranker,
+                candidates=page_candidates,
+                gate_mode=reranker_gate_mode,
+                gate_threshold=reranker_gate_threshold,
+            )
+            if should_rerank:
+                page_reranker_applied = True
                 reranker_started = time.perf_counter()
                 reranked = page_reranker.rerank(
                     question=case.question,
@@ -420,6 +445,8 @@ def evaluate_financebench_page_cases(
                         "page_reranker_returned": len(page_hits),
                     }
                 )
+            elif page_reranker is not None:
+                page_stage_counts["page_reranker_skipped"] = 1
         gold_pages = _unique_page_references(evidence)
         if page_drilldown_backend is not None:
             page_candidate_score = score_page_retrieval(
@@ -428,7 +455,7 @@ def evaluate_financebench_page_cases(
                 gold_pages=gold_pages,
                 cutoffs=(5, 10, 20),
             )
-        if page_reranker is not None and page_candidates:
+        if page_reranker_applied:
             page_reranker_score = score_page_retrieval(
                 case_id=case.case_id,
                 hits=reranked_hits,
@@ -465,6 +492,7 @@ def evaluate_financebench_page_cases(
                     _hit_ranking_score(hit)
                     for hit in page_candidates
                 ],
+                page_reranker_applied=page_reranker_applied,
                 stage_counts={
                     **evaluated.observation.result.stage_counts,
                     **page_stage_counts,
@@ -504,10 +532,6 @@ def summarize_financebench_page_cases(
         for row in rows
         if row.page_reranker_score is not None
     ]
-    if reranker_scores and len(reranker_scores) != len(rows):
-        raise ValueError(
-            "FinanceBench page cases mix reranker and non-reranker scores"
-        )
     reranker_cutoffs = (
         _summarize_page_scores(reranker_scores)
         if reranker_scores
@@ -527,6 +551,7 @@ def summarize_financebench_page_cases(
         cutoffs=cutoff_summaries,
         candidate_cutoffs=candidate_cutoffs,
         reranker_cutoffs=reranker_cutoffs,
+        reranker_case_count=len(reranker_scores),
     )
 
 
@@ -647,6 +672,8 @@ def build_financebench_page_manifest(
     reranker_timeout_seconds: float | str = "none",
     reranker_dense_head_count: int = 0,
     reranker_max_attempts: int = 2,
+    reranker_gate_mode: Literal["always", "dense_top1_below"] = "always",
+    reranker_gate_threshold: float = 0.639074,
     summary: FinanceBenchPageRunSummary,
     created_at_utc: datetime | None = None,
 ) -> FinanceBenchPageRunManifest:
@@ -678,6 +705,8 @@ def build_financebench_page_manifest(
             "reranker_timeout_seconds": reranker_timeout_seconds,
             "reranker_dense_head_count": reranker_dense_head_count,
             "reranker_max_attempts": reranker_max_attempts,
+            "reranker_gate_mode": reranker_gate_mode,
+            "reranker_gate_threshold": reranker_gate_threshold,
             "cutoffs": "1,3,5",
             "candidate_cutoffs": "5,10,20",
             "metric_contract": "unique_doc_page_v1",
@@ -857,6 +886,20 @@ def _merge_reranked_pages(
         if len(selected) == output_k:
             break
     return selected
+
+
+def _should_apply_page_reranker(
+    *,
+    page_reranker: Any,
+    candidates: Sequence[Any],
+    gate_mode: Literal["always", "dense_top1_below"],
+    gate_threshold: float,
+) -> bool:
+    if page_reranker is None or not candidates:
+        return False
+    if gate_mode == "always":
+        return True
+    return _hit_ranking_score(candidates[0]) <= gate_threshold
 
 
 def _global_page_candidates(

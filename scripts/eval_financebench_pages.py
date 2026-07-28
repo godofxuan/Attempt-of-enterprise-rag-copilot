@@ -105,6 +105,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=2,
     )
     parser.add_argument(
+        "--reranker-gate-mode",
+        choices=["always", "dense_top1_below"],
+        default="always",
+    )
+    parser.add_argument(
+        "--reranker-gate-threshold",
+        type=float,
+        default=0.639074,
+    )
+    parser.add_argument(
         "--freeze-protocol",
         type=Path,
         default=DEFAULT_FREEZE_PROTOCOL,
@@ -168,6 +178,8 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("dense head preservation requires a page reranker")
     if not 1 <= args.reranker_max_attempts <= 3:
         raise ValueError("reranker max attempts must be between 1 and 3")
+    if not float("-inf") < args.reranker_gate_threshold < float("inf"):
+        raise ValueError("reranker gate threshold must be finite")
     reranker_model = (
         args.reranker_model or settings.evidence_model
         if args.page_reranker == "local_llm"
@@ -218,6 +230,8 @@ def main(argv: list[str] | None = None) -> int:
         drilldown_merge_mode=args.drilldown_merge_mode,
         page_reranker=page_reranker,
         reranker_dense_head_count=args.reranker_dense_head_count,
+        reranker_gate_mode=args.reranker_gate_mode,
+        reranker_gate_threshold=args.reranker_gate_threshold,
     )
     embedding_calls = runtime.counters.embedding_calls - embedding_calls_before
     generation_calls = (
@@ -253,6 +267,8 @@ def main(argv: list[str] | None = None) -> int:
         ),
         reranker_dense_head_count=args.reranker_dense_head_count,
         reranker_max_attempts=args.reranker_max_attempts,
+        reranker_gate_mode=args.reranker_gate_mode,
+        reranker_gate_threshold=args.reranker_gate_threshold,
         summary=summary,
     )
     output = publish_financebench_page_run(
@@ -282,6 +298,7 @@ def main(argv: list[str] | None = None) -> int:
                     item.model_dump(mode="json")
                     for item in summary.reranker_cutoffs
                 ],
+                "reranker_case_count": summary.reranker_case_count,
                 "embedding_calls": embedding_calls,
                 "generation_calls": generation_calls,
                 "reranker_model": reranker_model,
@@ -334,6 +351,8 @@ def _validate_frozen_configuration(args, configuration) -> None:
         raise ValueError("test split does not permit an unfrozen page reranker")
     if args.reranker_dense_head_count != 0:
         raise ValueError("test split requires zero reranker dense head count")
+    if args.reranker_gate_mode != "always":
+        raise ValueError("test split requires the frozen reranker gate mode")
     actual = {
         "top_k": 5,
         "candidate_k": args.candidate_k,

@@ -412,6 +412,41 @@ def test_financebench_page_eval_can_preserve_dense_head_before_reranking() -> No
     assert details[0].passed is True
 
 
+def test_financebench_page_eval_can_skip_high_confidence_reranking() -> None:
+    broad = _Pipeline([_hit(1, doc_id="doc-a", page_number=90)])
+    focused = _PolicyPipeline(
+        {
+            "policy-doc-a": [
+                _hit(11, doc_id="doc-a", page_number=2, score=0.80),
+                _hit(12, doc_id="doc-a", page_number=8, score=0.70),
+            ]
+        }
+    )
+    reranker = _ReversePageReranker()
+
+    details = evaluate_financebench_page_cases(
+        cases=[_case()],
+        evidence_cases=[_evidence_case()],
+        pipeline=broad,
+        page_drilldown_backend=focused,
+        drilldown_max_documents=1,
+        drilldown_mode="dense",
+        drilldown_merge_mode="global_page_score",
+        page_reranker=reranker,
+        reranker_dense_head_count=1,
+        reranker_gate_mode="dense_top1_below",
+        reranker_gate_threshold=0.75,
+    )
+    summary = summarize_financebench_page_cases(details)
+
+    assert reranker.calls == 0
+    assert details[0].page_reranker_applied is False
+    assert details[0].stage_counts["page_reranker_skipped"] == 1
+    assert details[0].page_reranker_score is None
+    assert summary.reranker_case_count == 0
+    assert summary.reranker_cutoffs == []
+
+
 @pytest.mark.parametrize(
     ("failure", "message"),
     [
@@ -569,6 +604,7 @@ def test_financebench_page_run_is_immutable_and_self_verifying(
     assert verified.config["page_reranker"] == "none"
     assert verified.config["reranker_dense_head_count"] == 0
     assert verified.config["reranker_max_attempts"] == 2
+    assert verified.config["reranker_gate_mode"] == "always"
     assert verified.generation_calls == 0
     assert verified.summary == summary
     assert set(verified.artifacts) == {"summary.json", "details.jsonl"}
