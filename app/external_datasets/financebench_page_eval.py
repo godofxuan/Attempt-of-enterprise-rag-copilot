@@ -76,10 +76,12 @@ class FinanceBenchPageCaseResult(FinanceBenchPageEvalModel):
     document_recall_at_5: float = Field(ge=0.0, le=1.0)
     page_score: PageRetrievalCaseScore
     page_candidate_score: PageRetrievalCaseScore | None = None
+    page_reranker_score: PageRetrievalCaseScore | None = None
     passed: bool
     latency_ms: float = Field(ge=0.0)
     page_search_count: int = Field(default=0, ge=0, le=20)
     page_search_latency_ms: float = Field(default=0.0, ge=0.0)
+    page_reranker_latency_ms: float = Field(default=0.0, ge=0.0)
     stage_counts: dict[str, int] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -138,6 +140,10 @@ class FinanceBenchPageRunSummary(FinanceBenchPageEvalModel):
         default_factory=list,
         max_length=10,
     )
+    reranker_cutoffs: list[FinanceBenchPageCutoffSummary] = Field(
+        default_factory=list,
+        max_length=10,
+    )
 
     @model_validator(mode="after")
     def validate_summary(self) -> "FinanceBenchPageRunSummary":
@@ -158,6 +164,14 @@ class FinanceBenchPageRunSummary(FinanceBenchPageEvalModel):
             for item in self.candidate_cutoffs
         ):
             raise ValueError("candidate summaries must cover every case")
+        reranker_values = [item.cutoff for item in self.reranker_cutoffs]
+        if reranker_values != sorted(set(reranker_values)):
+            raise ValueError("reranker summary cutoffs must be sorted and unique")
+        if any(
+            item.case_count != self.case_count
+            for item in self.reranker_cutoffs
+        ):
+            raise ValueError("reranker summaries must cover every case")
         return self
 
 
@@ -302,6 +316,7 @@ def evaluate_financebench_page_cases(
     drilldown_mode: Literal["hybrid", "dense", "bm25"] = "hybrid",
     drilldown_merge_mode: Literal["quota", "global_page_score"] = "quota",
     page_reranker=None,
+    reranker_dense_head_count: int = 0,
 ) -> list[FinanceBenchPageCaseResult]:
     if top_k != 5:
         raise ValueError("FinanceBench page v1 requires top_k=5")
@@ -318,6 +333,12 @@ def evaluate_financebench_page_cases(
         raise ValueError(
             "global_page_score requires comparable dense retrieval scores"
         )
+    if not 0 <= reranker_dense_head_count < top_k:
+        raise ValueError(
+            "reranker_dense_head_count must be between 0 and top_k - 1"
+        )
+    if page_reranker is None and reranker_dense_head_count:
+        raise ValueError("dense head preservation requires a page reranker")
     _validate_bundle_alignment(cases, evidence_cases, split=split)
     evidence_by_id = {item.case_id: item for item in evidence_cases}
     results: list[FinanceBenchPageCaseResult] = []
@@ -334,8 +355,10 @@ def evaluate_financebench_page_cases(
         page_hits = list(evaluated.observation.result.hits)
         page_search_count = 0
         page_search_latency_ms = 0.0
+        page_reranker_latency_ms = 0.0
         page_stage_counts: dict[str, int] = {}
         page_candidate_score = None
+        page_reranker_score = None
         if page_drilldown_backend is not None:
             drilldown_started = time.perf_counter()
             page_hits, page_candidates, page_search_count = (
@@ -359,11 +382,21 @@ def evaluate_financebench_page_cases(
                 "page_drilldown_returned": len(page_hits),
             }
             if page_reranker is not None and page_candidates:
+                reranker_started = time.perf_counter()
                 reranked = page_reranker.rerank(
                     question=case.question,
                     candidates=page_candidates,
                 )
-                page_hits = list(reranked.hits[:top_k])
+                page_reranker_latency_ms = (
+                    time.perf_counter() - reranker_started
+                ) * 1000
+                reranked_hits = list(reranked.hits)
+                page_hits = _merge_reranked_pages(
+                    dense_hits=page_candidates,
+                    reranked_hits=reranked_hits,
+                    dense_head_count=reranker_dense_head_count,
+                    output_k=top_k,
+                )
                 page_stage_counts.update(
                     {
                         "page_reranker_calls": 1,
@@ -382,6 +415,13 @@ def evaluate_financebench_page_cases(
                 gold_pages=gold_pages,
                 cutoffs=(5, 10, 20),
             )
+        if page_reranker is not None and page_candidates:
+            page_reranker_score = score_page_retrieval(
+                case_id=case.case_id,
+                hits=reranked_hits,
+                gold_pages=gold_pages,
+                cutoffs=(5, 10, 20),
+            )
         page_score = score_page_retrieval(
             case_id=case.case_id,
             hits=page_hits,
@@ -397,14 +437,17 @@ def evaluate_financebench_page_cases(
                 document_recall_at_5=document_recall,
                 page_score=page_score,
                 page_candidate_score=page_candidate_score,
+                page_reranker_score=page_reranker_score,
                 passed=document_recall == 1.0
                 and page_score.passed_at_max_cutoff,
                 latency_ms=(
                     evaluated.observation.latency_ms
                     + page_search_latency_ms
+                    + page_reranker_latency_ms
                 ),
                 page_search_count=page_search_count,
                 page_search_latency_ms=page_search_latency_ms,
+                page_reranker_latency_ms=page_reranker_latency_ms,
                 stage_counts={
                     **evaluated.observation.result.stage_counts,
                     **page_stage_counts,
@@ -439,6 +482,20 @@ def summarize_financebench_page_cases(
         if candidate_scores
         else []
     )
+    reranker_scores = [
+        row.page_reranker_score
+        for row in rows
+        if row.page_reranker_score is not None
+    ]
+    if reranker_scores and len(reranker_scores) != len(rows):
+        raise ValueError(
+            "FinanceBench page cases mix reranker and non-reranker scores"
+        )
+    reranker_cutoffs = (
+        _summarize_page_scores(reranker_scores)
+        if reranker_scores
+        else []
+    )
     latencies = sorted(item.latency_ms for item in rows)
     passed = sum(item.passed for item in rows)
     return FinanceBenchPageRunSummary(
@@ -452,6 +509,7 @@ def summarize_financebench_page_cases(
         latency_ms_p95=latencies[_nearest_rank_index(len(latencies), 0.95)],
         cutoffs=cutoff_summaries,
         candidate_cutoffs=candidate_cutoffs,
+        reranker_cutoffs=reranker_cutoffs,
     )
 
 
@@ -570,6 +628,7 @@ def build_financebench_page_manifest(
     page_reranker: Literal["none", "local_llm"] = "none",
     reranker_model: str = "none",
     reranker_timeout_seconds: float | str = "none",
+    reranker_dense_head_count: int = 0,
     summary: FinanceBenchPageRunSummary,
     created_at_utc: datetime | None = None,
 ) -> FinanceBenchPageRunManifest:
@@ -599,6 +658,7 @@ def build_financebench_page_manifest(
             "page_reranker": page_reranker,
             "reranker_model": reranker_model,
             "reranker_timeout_seconds": reranker_timeout_seconds,
+            "reranker_dense_head_count": reranker_dense_head_count,
             "cutoffs": "1,3,5",
             "candidate_cutoffs": "5,10,20",
             "metric_contract": "unique_doc_page_v1",
@@ -756,6 +816,28 @@ def _weighted_document_pages(
             ) == quota:
                 break
     return selected[:output_k]
+
+
+def _merge_reranked_pages(
+    *,
+    dense_hits: Sequence[Any],
+    reranked_hits: Sequence[Any],
+    dense_head_count: int,
+    output_k: int,
+) -> list[Any]:
+    selected: list[Any] = []
+    seen_chunks: set[str] = set()
+    for hit in [
+        *list(dense_hits[:dense_head_count]),
+        *list(reranked_hits),
+    ]:
+        if hit.chunk_id in seen_chunks:
+            continue
+        seen_chunks.add(hit.chunk_id)
+        selected.append(hit)
+        if len(selected) == output_k:
+            break
+    return selected
 
 
 def _global_page_candidates(

@@ -377,6 +377,37 @@ def test_financebench_page_eval_applies_page_reranker_to_candidate_pool() -> Non
     assert details[0].stage_counts["page_reranker_calls"] == 1
     assert details[0].stage_counts["page_reranker_admitted"] == 2
     assert details[0].stage_counts["page_reranker_quarantined"] == 0
+    assert details[0].page_reranker_score is not None
+    assert details[0].page_reranker_latency_ms >= 0
+
+
+def test_financebench_page_eval_can_preserve_dense_head_before_reranking() -> None:
+    broad = _Pipeline([_hit(1, doc_id="doc-a", page_number=90)])
+    focused = _PolicyPipeline(
+        {
+            "policy-doc-a": [
+                _hit(11, doc_id="doc-a", page_number=2, score=0.80),
+                _hit(12, doc_id="doc-a", page_number=8, score=0.70),
+            ]
+        }
+    )
+
+    details = evaluate_financebench_page_cases(
+        cases=[_case()],
+        evidence_cases=[_evidence_case()],
+        pipeline=broad,
+        page_drilldown_backend=focused,
+        drilldown_max_documents=1,
+        drilldown_mode="dense",
+        drilldown_merge_mode="global_page_score",
+        page_reranker=_ReversePageReranker(),
+        reranker_dense_head_count=1,
+    )
+
+    assert [
+        item.page_number for item in details[0].page_score.ranked_pages
+    ] == [2, 8]
+    assert details[0].passed is True
 
 
 @pytest.mark.parametrize(
@@ -534,6 +565,7 @@ def test_financebench_page_run_is_immutable_and_self_verifying(
     assert verified.schema_version == "financebench_page_retrieval_run_v2"
     assert verified.config["drilldown_merge_mode"] == "quota"
     assert verified.config["page_reranker"] == "none"
+    assert verified.config["reranker_dense_head_count"] == 0
     assert verified.generation_calls == 0
     assert verified.summary == summary
     assert set(verified.artifacts) == {"summary.json", "details.jsonl"}
