@@ -175,7 +175,7 @@ class GenerationV2ResponseBuilder:
 
             messages = build_messages()
             source_by_id = {source.source_id: source for source in sources}
-            generated, claims, generation_attempts = self._generate_valid_shape(
+            _generated, claims, generation_attempts = self._generate_valid_shape(
                 messages,
                 source_by_id,
                 retry_messages_factory=build_messages,
@@ -186,46 +186,67 @@ class GenerationV2ResponseBuilder:
             }
             visible_hits = [source.evidence for source in sources]
             citations = verify_claims(claims, visible_hits)
-            cited_source_ids = {
-                source_id
-                for generated_claim in generated.claims
-                for source_id in generated_claim.cited_source_ids
+            citation_by_claim = {
+                citation.claim_id: citation for citation in citations
+            }
+            supported_claims = [
+                claim
+                for claim in claims
+                if citation_by_claim[claim.claim_id].supported
+            ]
+            supported_citations = [
+                citation for citation in citations if citation.supported
+            ]
+            unsupported_count = len(claims) - len(supported_claims)
+
+            if not supported_claims:
+                fallback = self.source_free_builder.build(
+                    question=question,
+                    state=state,
+                    mode="partial",
+                    stop_reason="partial_evidence",
+                    trace=response_trace,
+                )
+                return fallback.model_copy(
+                    update={
+                        "warnings": [
+                            *fallback.warnings,
+                            (
+                                "Generated claims lacked sufficient visible "
+                                "evidence; returned extractive partial evidence."
+                            ),
+                        ]
+                    }
+                )
+
+            cited_chunk_ids = {
+                chunk_id
+                for claim in supported_claims
+                for chunk_id in claim.cited_chunk_ids
             }
             answer_sources = [
                 _answer_source(source.evidence)
                 for source in sources
-                if source.source_id in cited_source_ids
+                if source.evidence.hit.chunk_id in cited_chunk_ids
             ]
             if not answer_sources:
-                raise ValueError("generated answer did not cite visible evidence")
+                raise ValueError("supported claims did not cite visible evidence")
 
             verified_mode: AnswerMode = mode
             verified_stop_reason = stop_reason
             warnings: list[str] = []
-            citation_by_claim = {
-                citation.claim_id: citation for citation in citations
-            }
-            unsupported_critical = [
-                claim.claim_id
-                for claim in claims
-                if claim.critical and not citation_by_claim[claim.claim_id].supported
-            ]
-            if unsupported_critical:
+            if unsupported_count:
                 verified_mode = "partial"
                 verified_stop_reason = "partial_evidence"
                 warnings.append(
-                    "Critical claims failed deterministic citation checks: "
-                    + ", ".join(unsupported_critical)
-                )
-            elif any(not citation.supported for citation in citations):
-                warnings.append(
-                    "One or more non-critical claims failed citation checks."
+                    f"{unsupported_count} generated claim(s) were omitted because "
+                    "visible evidence did not pass deterministic citation checks."
                 )
             return AnswerResponse(
                 mode=verified_mode,
-                answer=generated.answer,
-                claims=claims,
-                citations=citations,
+                answer="\n".join(claim.text for claim in supported_claims),
+                claims=supported_claims,
+                citations=supported_citations,
                 sources=answer_sources,
                 warnings=warnings,
                 stop_reason=verified_stop_reason,
