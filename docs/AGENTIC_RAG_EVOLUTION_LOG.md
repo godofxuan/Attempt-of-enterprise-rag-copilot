@@ -444,3 +444,47 @@ data/eval_outputs/agent_loop_{mode}_{split}_failures.csv
 4. 扩大 capability eval，加入更难的多来源、冲突证据、恶意文档注入和真实企业权限案例。
 
 暂不优先加入多 Agent。当前瓶颈是可观测性、真实数据与评测覆盖，不是缺少更多 Agent 角色。
+
+## 10. 2026-07-28 更新：FinQA Calculator Agent
+
+本节补充本文早期 Agent loop 记录，且覆盖第 9 节的旧“下一步”判断。项目已经完成
+展示、可观测性、安全、身份、生命周期和部署阶段；最新质量改进是把真实财报数值
+推理接入有界工具协议。
+
+流程变为：
+
+```text
+question
+  -> oracle or BM25Plus/BGE-M3 RRF evidence
+  -> retrieved-content Guard
+  -> Qwen3 selects operands and plans one arithmetic expression
+  -> AST allowlist + Decimal Calculator
+  -> strict numeric scoring + citation scoring
+  -> immutable manifest/details/summary
+```
+
+这里最重要的 Agent 设计不是增加角色，而是把不可靠与可靠职责分开：
+
+- LLM 负责自然语言理解、选数和列式；
+- Python 负责工具权限、表达式语法、资源预算、精确执行、重试上限和停止；
+- evaluator 把 retrieval、generation、citation、grounding 和 protocol error
+  分开评分。
+
+dev 上 direct answer、typed-step 和 safe expression 的 oracle strict 分别是
+`0%`、`15%`、`75%`；typed-step 协议错误为 `50%`，safe expression 为 `0%`。
+固定 100 题 test 样本最终观测到 oracle strict `52%`，hybrid K=10 strict
+`44%`、evidence recall `93.5%`。这说明 Calculator 大幅改善了工具协议和精度，
+但没有解决错误选数和财务计划，也说明 20 题 dev 明显乐观。
+
+第一次 test 尝试在抽样和模型调用前因单行表 schema 失败。项目没有删除或掩盖
+该事件，而是发布 incident、用合成 fixture 修复、做结构预检、supersede v1
+并重新冻结 v2。详细证据见
+[`external_datasets/finqa.md`](external_datasets/finqa.md)。
+
+后续不能重调本次 test。新的质量工作应建立新版本 dev/holdout，并优先分析：
+
+1. 年份、类别和基准值选择错误；
+2. oracle 52% 的数值计划上限；
+3. hybrid 相对 oracle 的 8 点 strict 损失；
+4. citation recall 导致 strict 到 grounded strict 的差距；
+5. 独立双人语义审核与第二模型复现。

@@ -1,9 +1,9 @@
 # Enterprise Agentic RAG Complete Evolution History
 
-> 中文总索引：从最初的固定式 RAG 到 R2-S9 工业化收口及 FinanceBench
-> 页面重排 v2。
+> 中文总索引：从最初的固定式 RAG 到 R2-S9 工业化收口、FinanceBench
+> 页面重排 v2 及 FinQA 数值 Agent holdout。
 >
-> 记录截止：`daefac1f4dcc7dd0c1d30dc45d3108aeb94d34e6`（2026-07-28）
+> 记录覆盖到本文所在提交；各实验 exact SHA 记录在对应协议与证据文件中。
 >
 > 本文负责解释“为什么改、改了什么、在哪里改、如何验证、还缺什么”。逐提交原始记录见 [01_COMMIT_INDEX.md](01_COMMIT_INDEX.md)。
 
@@ -401,3 +401,71 @@ CI 先后暴露 container cache、索引状态、bind mount 权限、smoke 目�
 5. Git 提交索引的生成截止点。
 
 GitHub 的 Commits 页面始终是包含文档维护提交在内的最终原始历史；本文和提交索引是便于学习与审核的解释层。
+
+## 21. FinQA 数值推理 Agent 与独立 holdout
+
+### 为什么增加这条轨道
+
+FinanceBench 已能测真实财报的文档和页面定位，但不能区分“证据没找到”和
+“证据已经给出，模型仍然算错”。FinQA 因此单独测四件事：gold evidence 下的
+数值计划上限、hybrid 检索损失、引用完整性、以及模型/Calculator 工具协议。
+
+### 代码改在哪里
+
+- `app/external_datasets/finqa.py`：固定 revision/SHA 下载、严格 schema、
+  corrected table-row 映射、gold ID/text 对齐和稳定 hash 抽样。
+- `app/external_datasets/finqa_eval.py`：oracle/BM25Plus/BGE-M3/RRF、Guard、
+  临时候选 ID、表达式 Agent、逐题协议错误隔离、分层指标和不可变 run。
+- `app/agent/safe_calculator.py`：AST 白名单、`Decimal` 执行、字符/节点/深度/
+  数值/指数预算，不使用 `eval`。
+- `scripts/eval_finqa.py`：clean-worktree、模型 digest、D 盘锁、冻结参数/
+  源码/模型门禁、原子发布。
+- `scripts/prepare_finqa.py`：test 下载必须同时满足显式开关和 FROZEN 协议。
+- `docs/external_datasets/evidence`：v1/v2 协议、schema incident 和内容无关
+  test 聚合证据。
+
+### 关键失败与修复
+
+1. 第一次 dev 请求在模型调用前因 transport operation 被写成
+   `model identity` 而失败；修为已有预算体系支持的 `chat`。
+2. Ollama 不支持字符串 `minLength/maxLength` grammar；生成 schema 删除这些
+   关键字，Pydantic 仍在响应后强校验长度。
+3. direct-answer dev oracle strict 为 `0%`。原因既有真实算错，也有
+   `52.8%` 对 `.52772` 的展示舍入；因此保留严格 5 位指标，并新增独立、
+   符号敏感的 0.5% presentation tolerance，不能互相覆盖。
+4. 强校验后，单题两次输出失败会终止整批。修为只捕获专用 protocol error，
+   该题计 0 并保存尝试次数；Ollama/网络/数据故障继续整批失败。
+5. typed-step Calculator 看似更结构化，但 Qwen 把 evidence ID 当 operand，
+   dev 协议错误达到 `50%`。该方案没有因为“更 Agentic”而强行保留为默认。
+6. 简化为算术表达式后，Qwen 负责选数和列式，AST/Decimal Tool 负责执行；
+   dev oracle strict 提升到 `75%`、协议错误降到 `0%`。
+7. 第一次 test oracle 在抽样/模型调用前遇到合法单行表，被 adapter 的
+   “至少两行”假设拒绝。没有 run artifact 或指标。项目发布 incident，
+   用合成 fixture 修正为至少一行，完成只输出 count/hash 的结构预检，
+   v1 标记 superseded，再以相同参数、模型和评分冻结 v2。
+
+### 最终固定观察
+
+固定 100 题 test 样本、Qwen3 8B、temperature 0：
+
+| Arm | Strict | Presentation | Evidence recall | Grounded strict | Protocol error |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Oracle | 52% | 54% | 100% | 45% | 0% |
+| Hybrid RRF K=10 | 44% | 44% | 93.5% | 40% | 1% |
+
+oracle 到 hybrid 的 strict 差距为 8 点，说明检索有损失；oracle 自身只有 52%，
+说明更大的剩余瓶颈仍是数值选择和财务计划。dev oracle 75% 到 test 52% 的
+23 点下降说明小 dev pilot 明显乐观，这正是冻结 holdout 必须存在的原因。
+
+收口验证为 FinQA focused `90 passed`、仓库全量
+`2563 passed / 30 skipped / 3 warnings`、public audit
+`964 candidates / 0 findings`；最后一项只覆盖审计器已实现规则。
+
+详细记录：
+[FinQA runbook/results](../external_datasets/finqa.md)、
+[v2 protocol](../external_datasets/evidence/finqa_holdout_protocol_v2.json)、
+[schema incident](../external_datasets/evidence/finqa_holdout_schema_incident_v1.json)、
+[public evidence](../external_datasets/evidence/finqa_test_holdout_v1.json)。
+
+当前仍不能声称完整 FinQA test accuracy、SOTA、跨模型泛化、人类语义审核或
+生产财务可靠性。后续若优化，必须建立新的 dev/holdout 版本，不能重调本次 test。

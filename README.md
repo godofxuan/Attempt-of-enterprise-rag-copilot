@@ -132,6 +132,7 @@ These values describe specific local artifacts; they are not production accuracy
 | R2-S5 trusted identity local contract | exact-SHA CI #17 correctly blocked `d753df3`; one assertion-contract, two portability failures, and later TOCTOU/handle findings were repaired; scoped review reached `0 Critical / 0 Important / 0 Minor / RELEASE`, then exact repair SHA `1189253` passed Actions #18 on Ubuntu and Windows | Local synthetic RS256/JWKS authority, server-derived ACL context, public-by-exception authorization, bounded request framing, receipt-bound feedback, handle/descriptor-bound private filesystem lifecycle, strict owner policy and 11-source evidence; affected contract group `151/4`, local audit `515/0`, p95 `0.0904 ms`, matrix `20/20` with artifact `0258f8c2...0829`, local full `1918/22/3`; remote Ubuntu `1918/22/4`, Windows `1935/5/4`, both audit `515/0`; this is not real IdP or production certification |
 | R2-S9 minimal Linux deployment | local deployment/security contract `31 passed`; full local suite `2419 passed / 30 skipped`; public audit `915/0`; [exact-SHA CI #36](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30265595931) passed Ubuntu, Windows, Linux container gates, readiness/rollback drill, and SBOM upload on `3123133` | Digest-pinned Python image, UID 10001, read-only runtime, separate data/identity mounts, append-only image+Git+index release ledger, crash-visible transaction recovery, readiness/index binding, rollback drill, and Python SPDX SBOM; single-host synthetic contract, not production deployment |
 | FinanceBench external evaluation | pinned open sample: `150` questions, `84` referenced PDFs, `32` companies; company-grouped `49` dev / `101` frozen test; resumable BGE-M3 index `29335 x 1024`; dev dense Page Hit@5 `48.98%`; guarded qwen3 confidence cascade dev Page Hit@5 `53.06%`, Macro Page Recall@5 `46.94%`, `13/49` reranks, mean/p95 `2.46s/5.95s`; frozen v1 test Page Hit@5 `30.69%` | [v2 reranker record](docs/external_datasets/financebench_reranker_v2.md) and [external track results](docs/external_datasets/financebench_results.md); v2 threshold is dev-selected and requires a new independent holdout; old test was not reused; answer accuracy, semantic citation review, and human review are `NOT RUN` |
+| FinQA numerical Agent evaluation | fixed `100`-case test sample; Qwen3 expression planning plus AST/Decimal Calculator; oracle strict `52%`, grounded strict `45%`; hybrid K=10 strict `44%`, grounded strict `40%`, evidence recall `93.5%`; hybrid protocol error `1%`; full regression `2563 passed / 30 skipped`, audit `964/0` | [FinQA results](docs/external_datasets/finqa.md) and [content-free evidence](docs/external_datasets/evidence/finqa_test_holdout_v1.json); the disclosed v1 schema incident occurred before sampling/model calls; this is one local sample, not full FinQA accuracy, SOTA, cross-model generalization, human review, or production reliability |
 | E7 final-code load rc02 | `31/31` requests | One Windows machine; warm p95 was 1.115 s / 4.244 s / 8.218 s at concurrency 1 / 5 / 10 |
 | E7 workflow ablation rc02 | fixed RAG `0.8571` vs bounded Agentic `1.0000` outcome accuracy | 28-case deterministic synthetic test; Agentic used 47 vs 28 tool calls |
 
@@ -199,6 +200,14 @@ ranking and within-document page ranking as generalization bottlenecks. Qwen
 answer generation/scoring remains `NOT RUN`. See the
 [FinanceBench runbook](docs/external_datasets/financebench.md) and
 [engineering results](docs/external_datasets/financebench_results.md).
+
+The separate FinQA track measures numerical planning after retrieval. Qwen3
+emits a restricted arithmetic expression and a local AST-allowlisted `Decimal`
+Calculator executes it without `eval`. On the frozen 100-case test sample,
+oracle strict execution was `52%`; hybrid RRF at K=10 measured `44%` strict
+execution and `93.5%` evidence recall. These are sample-scoped local
+observations, not full FinQA or production claims. See the
+[FinQA numerical track](docs/external_datasets/finqa.md).
 
 ## Limitations
 

@@ -1,0 +1,121 @@
+{
+  "schema_version": "finqa_public_holdout_evidence_v1",
+  "status": "OBSERVED",
+  "claim_scope": "One fixed 100-case sample from the pinned FinQA test split on one local Qwen3/BGE-M3 environment.",
+  "protocol": {
+    "path": "docs/external_datasets/evidence/finqa_holdout_protocol_v2.json",
+    "sha256": "dd17d3bba78ea6b6b50d86b88cd436d320e127b7340d32d213950c9bb9bff4d5",
+    "status": "FROZEN",
+    "code_revision": "35139977635cfb31bc1829b1e11422151a9905d6"
+  },
+  "preexecution_incident": {
+    "path": "docs/external_datasets/evidence/finqa_holdout_schema_incident_v1.json",
+    "sha256": "cbe0b871c9521abc2b2f1db0751d25ce22ab608917bbcdd8521935c183f5e3e6",
+    "model_generation_calls": 0,
+    "metrics_observed": false,
+    "disclosure": "Protocol v1 was superseded after a single-row table failed schema validation before sampling or model calls."
+  },
+  "dataset": {
+    "repository": "https://github.com/czyssrs/FinQA",
+    "revision": "0f16e2867befa6840783e58be38c9efb9229d742",
+    "license": "CC-BY-4.0",
+    "test_sha256": "831dbfb2e785dbc227f895ce3f24046433467aec67b09db2bd6ac7692a8a30dc",
+    "source_case_count": 1147,
+    "selected_case_count": 100,
+    "sample_seed": "finqa-test-holdout-v1",
+    "selected_case_ids_sha256": "8820e3433f4e9d194ba9d81bc16c2a18e5e0a5d91724cb5f174d6524c3240789"
+  },
+  "models": {
+    "answer_model": "qwen3:8b",
+    "answer_model_sha256": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "embedding_model": "bge-m3",
+    "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+    "temperature": 0,
+    "think": false
+  },
+  "arms": {
+    "oracle": {
+      "run_id": "finqa-test-holdout-v1-oracle",
+      "manifest_sha256": "49cd3d136443392158cb3d58d81056e7ebf83e81f46bf647fad04128f1796ba0",
+      "private_details_sha256": "ca34d44b6987f0785262dc45d50d45153871c8aaf2dc0554c641e427cc08eedf",
+      "private_summary_sha256": "7b03946ca2e32232056cb06a8ce401f40d5117c2cb00a7a7fe7137019557a03b",
+      "metrics": {
+        "answer_parse_rate": 1.0,
+        "execution_accuracy": 0.52,
+        "presentation_tolerance_accuracy": 0.54,
+        "evidence_recall": 1.0,
+        "citation_precision": 1.0,
+        "citation_recall": 0.9250000000000003,
+        "grounded_execution_accuracy": 0.45,
+        "grounded_presentation_accuracy": 0.47,
+        "generation_protocol_error_rate": 0.0,
+        "generation_calls": 101,
+        "calculator_calls": 100,
+        "latency_ms_mean": 795.5143250000947,
+        "latency_ms_p95": 931.4119000009669,
+        "quarantined_unit_count": 0
+      }
+    },
+    "hybrid_k10": {
+      "run_id": "finqa-test-holdout-v1-hybrid",
+      "manifest_sha256": "9f2d739ed2e64c0266ee552c896a3c485ee8154235dd4469b03a2dedb1eb975d",
+      "private_details_sha256": "0ee70757b2e869bfafd763ef35121942c35a2969c3bf943a5488065b9ca87383",
+      "private_summary_sha256": "b6cbd7376b6ce79966fd7c304cc9a3bc69b83bf37411a34eb3a5e61fa26382c3",
+      "metrics": {
+        "answer_parse_rate": 0.99,
+        "execution_accuracy": 0.44,
+        "presentation_tolerance_accuracy": 0.44,
+        "evidence_recall": 0.935,
+        "citation_precision": 0.7938333333333333,
+        "citation_recall": 0.7833333333333334,
+        "grounded_execution_accuracy": 0.4,
+        "grounded_presentation_accuracy": 0.4,
+        "generation_protocol_error_rate": 0.01,
+        "generation_calls": 103,
+        "calculator_calls": 102,
+        "latency_ms_mean": 1053.7251199998173,
+        "latency_ms_p95": 1570.290900001055,
+        "quarantined_unit_count": 0
+      }
+    }
+  },
+  "observed_deltas_hybrid_minus_oracle": {
+    "execution_accuracy": -0.08,
+    "presentation_tolerance_accuracy": -0.1,
+    "evidence_recall": -0.065,
+    "grounded_execution_accuracy": -0.05,
+    "generation_protocol_error_rate": 0.01,
+    "latency_ms_mean": 258.2107949997226,
+    "latency_ms_p95": 638.879000000088
+  },
+  "interpretation": {
+    "oracle_reasoning_ceiling_observed": "52/100 strict answers were correct when gold evidence was supplied.",
+    "end_to_end_observed": "44/100 strict answers were correct with hybrid retrieval at K=10.",
+    "retrieval_attribution": "The observed oracle-to-hybrid strict gap was 8 percentage points while hybrid gold-evidence recall was 93.5%.",
+    "citation_attribution": "Grounded strict accuracy was 45% oracle and 40% hybrid because a correct number also required complete gold citation recall.",
+    "dev_to_test_gap": "Oracle strict fell from 75% on the visible 20-case dev pilot to 52% on the fixed test sample; hybrid strict fell from 55% to 44%."
+  },
+  "not_claimed": [
+    "Full FinQA test-set accuracy",
+    "State-of-the-art FinQA performance",
+    "Cross-model or cross-domain generalization",
+    "Production financial-answer reliability",
+    "Human-reviewed semantic correctness",
+    "Absence of all security vulnerabilities"
+  ],
+  "repository_verification": {
+    "focused_external_tests_passed": 90,
+    "full_tests_passed": 2563,
+    "full_tests_skipped": 30,
+    "full_test_warnings": 3,
+    "public_audit_candidates": 964,
+    "public_audit_findings": 0,
+    "audit_boundary": "Zero findings applies only to the implemented static audit rules."
+  },
+  "privacy": {
+    "raw_test_data_published": false,
+    "case_ids_published": false,
+    "questions_answers_or_evidence_published": false,
+    "private_artifacts_published": false
+  }
+}

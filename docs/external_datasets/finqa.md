@@ -62,32 +62,46 @@ test 下载必须显式增加 `--execute-frozen-test-download`，并且只能在
 
 若 oracle 正确而 hybrid 错误，继续分解为 evidence miss、排序不足或引用遗漏。
 
-## 5. 模型边界
+## 5. Agent 与 Calculator 边界
 
-`LocalFinQAAnswerer` 不把真实 unit ID 暴露给模型，而是映射成
-`evidence-01..n`：
+最终采用 `LocalFinQAProgramAnswerer`，而不是让模型直接写最终数字：
 
 1. retrieved-content Guard 先扫描证据；
-2. 模型只能引用白名单 candidate ID；
-3. 输出必须是严格 JSON；
-4. `final_answer` 只能包含一个数字、百分数、`yes` 或 `no`；
-5. 引用缺失、重复、未知 ID 或额外字段都失败；
-6. 最多允许一次显式纠错，重试计入 generation calls；
-7. 线上默认超时不变，FinQA 离线评测单独使用 120 秒。
+2. 真实 unit ID 映射成临时 `evidence-01..n`；
+3. 模型只输出算术表达式和白名单引用，不输出可信最终答案；
+4. 表达式只允许数字、括号和 `+ - * /`；
+5. `app/agent/safe_calculator.py` 用 AST 白名单和 `Decimal` 执行，不使用
+   `eval`；
+6. Calculator 限制字符数、AST 节点、深度、数值范围和指数，并拒绝变量、
+   函数、幂运算、下标、除零和非有限数；
+7. 最多纠错一次，generation calls 和 calculator calls 分开计数；
+8. 单题协议失败记 0 分并保留错误类型；网络、模型服务和数据损坏仍使整批失败。
+
+dev 消融说明为什么使用简单表达式，而不是“为了 Agentic 而堆复杂 JSON”：
+
+- direct answer：oracle strict `0%`，presentation tolerance `35%`；
+- typed-step program：strict `15%`，但协议错误 `50%`；
+- safe expression + Calculator：oracle strict `75%`，协议错误 `0%`。
+
+这组数字只来自固定 20 题 dev pilot，用于选择协议，不是泛化结论。
 
 ## 6. 指标含义
 
 | 指标 | 含义 |
 | --- | --- |
 | `answer_parse_rate` | 最终答案是否满足单值协议 |
-| `execution_accuracy` | 归一化后是否匹配官方 `exe_ans` |
+| `execution_accuracy` | 归一化并四舍五入到 5 位后是否匹配官方 `exe_ans` |
+| `presentation_tolerance_accuracy` | 保持符号一致，且绝对或相对误差不超过 0.5% |
 | `evidence_recall` | 提供给模型的证据覆盖多少 gold units |
 | `citation_precision` | 模型引用中有多少是 gold units |
 | `citation_recall` | gold units 中有多少被模型引用 |
 | `grounded_execution_accuracy` | 答案正确且 gold citation recall 为 100% |
+| `generation_protocol_error_rate` | 两次输出仍无法解析或安全执行的题目比例 |
+| `generation_calls` / `calculator_calls` | 模型与确定性工具的真实调用次数 |
 
 数值评分把逗号、美元符号、会计负数括号和百分号规范化，并在 5 位小数上比较。
-它不使用 LLM judge，也不从一段长文本中猜测“最像最终答案”的数字。
+严格指标与展示容差指标同时保留，不能用容差覆盖严格失败。评分不使用 LLM
+judge，也不从长文本中猜测“最像最终答案”的数字。
 
 ## 7. 不可变运行
 
@@ -101,13 +115,44 @@ test 下载必须显式增加 `--execute-frozen-test-download`，并且只能在
 发布过程先写同盘 staging、复验后原子移动。run ID 不可覆盖；summary 必须能从
 details 重新计算；任何文件被修改后 verifier 都会拒绝。
 
-## 8. 当前执行顺序
+## 8. 冻结、incident 与 test 结果
 
-1. 在 20 个稳定 dev 样本上运行 oracle；
-2. 在同一 20 个 dev 样本上运行 hybrid；
-3. 只根据 dev 修正 parser、prompt 或 retrieval；
-4. 冻结 test SHA、100 个稳定样本、两个 arm 和代码文件 hash；
-5. 下载 test，并连续执行 oracle 与 hybrid；
-6. 不根据 test 结果改参数或重跑；若失败，结果保留并建立新的 dev 版本。
+冻结协议绑定 10 个关键源码 hash、Qwen3/BGE-M3 digest、temperature 0、
+100 题稳定样本、oracle/hybrid 两臂、K=10 和评分规则。第一次 oracle 尝试在
+抽样和模型调用前因单行表 schema 失败，没有生成 run artifact。该事件没有隐藏：
 
-当前不能声称 FinQA test accuracy，也不能用 dev 结果填写简历泛化指标。
+- [v1 superseded 协议](evidence/finqa_holdout_protocol_v1.json)
+- [schema incident](evidence/finqa_holdout_schema_incident_v1.json)
+- [v2 frozen 协议](evidence/finqa_holdout_protocol_v2.json)
+
+修复只把 `table/table_ori` 从至少两行放宽到至少一行，保留矩形、宽度、
+gold ID/text、字节 hash 和重复 key 校验。结构预检通过后重新冻结，参数、模型、
+策略和评分未变化。
+
+固定 100 题 test 样本结果：
+
+| Arm | Strict execution | Presentation tolerance | Evidence recall | Grounded strict | Protocol error | Mean / p95 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Oracle gold evidence | 52% | 54% | 100% | 45% | 0% | 0.796s / 0.931s |
+| Hybrid RRF, K=10 | 44% | 44% | 93.5% | 40% | 1% | 1.054s / 1.570s |
+
+可审计的内容无关聚合证据见
+[finqa_test_holdout_v1.json](evidence/finqa_test_holdout_v1.json)。原始 test、
+逐题 details、问题、答案和证据文本仍只在 `.private`。
+
+收口门禁：FinQA/Calculator focused `90 passed`；仓库全量
+`2563 passed / 30 skipped / 3 warnings`；public audit
+`964 candidates / 0 findings`。`0 findings` 只表示当前静态规则未命中。
+
+## 9. 结果怎么解释
+
+1. oracle strict `52%` 是给出 gold evidence 后的本地数值计划上限，不是检索分；
+2. hybrid strict `44%` 是固定 K=10 的端到端观察值；
+3. 两者相差 8 个百分点，而 hybrid evidence recall 为 `93.5%`，说明检索仍有
+   损失，但更大的剩余瓶颈是选择正确数字和财务运算计划；
+4. grounded strict 比 strict 更低，因为数字正确还不够，引用必须覆盖全部 gold；
+5. dev oracle `75%` 到 test oracle `52%` 的 23 点下降说明 20 题 dev pilot
+   明显乐观，不能用 dev 分数写成泛化能力。
+
+可以声称的是“固定 100 题 FinQA test 样本上的本地观察结果”。不能声称完整
+FinQA test accuracy、SOTA、跨模型泛化、生产财务可靠性或人工语义审核结论。
