@@ -4,6 +4,7 @@ except ModuleNotFoundError:
     from scripts import _bootstrap  # noqa: F401
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -42,12 +43,25 @@ from app.security.model_endpoint import parse_pinned_model_endpoint
 
 
 DEFAULT_OUT_ROOT = DEFAULT_PRIVATE_ROOT / "eval_runs"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_FREEZE_PROTOCOL = (
-    Path(__file__).resolve().parents[1]
+    REPOSITORY_ROOT
     / "docs"
     / "external_datasets"
     / "evidence"
     / "finqa_holdout_protocol_v1.json"
+)
+FINQA_FROZEN_SOURCE_FILES = (
+    "app/agent/safe_calculator.py",
+    "app/evaluation/numeric_answer.py",
+    "app/external_datasets/finqa.py",
+    "app/external_datasets/finqa_eval.py",
+    "app/ollama_chat.py",
+    "app/runtime/model_transport.py",
+    "app/runtime/ollama_embeddings.py",
+    "app/security/retrieved_content.py",
+    "scripts/eval_finqa.py",
+    "scripts/prepare_finqa.py",
 )
 
 
@@ -102,12 +116,17 @@ def main(argv: list[str] | None = None) -> int:
     expected_sha256 = (
         FINQA_DEV_SHA256 if args.split == "dev" else FINQA_TEST_SHA256
     )
+    frozen_protocol = None
     if args.split == "test":
         if not args.execute_frozen_test:
             raise ValueError(
                 "FinQA test requires explicit --execute-frozen-test confirmation"
             )
-        _validate_frozen_test_configuration(args, answer_model)
+        frozen_protocol = _validate_frozen_test_configuration(
+            args,
+            answer_model,
+        )
+        _validate_frozen_source_hashes(frozen_protocol)
     cases, split_sha256 = load_finqa_split(
         split_path,
         expected_sha256=expected_sha256,
@@ -129,6 +148,14 @@ def main(argv: list[str] | None = None) -> int:
         )
         embedding_model = embedding_client.model_identifier
         embedding_model_sha256 = embedding_client.model_sha256
+    if frozen_protocol is not None:
+        _validate_frozen_model_identity(
+            frozen_protocol,
+            retrieval_mode=args.retrieval_mode,
+            answer_model_sha256=answer_model_sha256,
+            embedding_model=embedding_model,
+            embedding_model_sha256=embedding_model_sha256,
+        )
 
     generation_calls = 0
 
@@ -248,7 +275,10 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _validate_frozen_test_configuration(args, answer_model: str) -> None:
+def _validate_frozen_test_configuration(
+    args,
+    answer_model: str,
+) -> dict:
     payload = json.loads(
         args.freeze_protocol.resolve().read_text(encoding="utf-8")
     )
@@ -273,6 +303,54 @@ def _validate_frozen_test_configuration(args, answer_model: str) -> None:
         raise ValueError("FinQA test configuration does not match frozen protocol")
     if args.retrieval_mode not in expected["retrieval_modes"]:
         raise ValueError("FinQA test retrieval mode is not frozen")
+    return payload
+
+
+def _validate_frozen_source_hashes(
+    payload: dict,
+    *,
+    root: Path = REPOSITORY_ROOT,
+) -> None:
+    expected = payload.get("source_file_sha256")
+    if not isinstance(expected, dict) or set(expected) != set(
+        FINQA_FROZEN_SOURCE_FILES
+    ):
+        raise ValueError("FinQA frozen source hash set is invalid")
+    root = root.resolve()
+    for relative_path in FINQA_FROZEN_SOURCE_FILES:
+        expected_sha256 = expected[relative_path]
+        if not isinstance(expected_sha256, str) or not re.fullmatch(
+            r"[0-9a-f]{64}",
+            expected_sha256,
+        ):
+            raise ValueError("FinQA frozen source hash is invalid")
+        source_path = (root / relative_path).resolve()
+        try:
+            source_path.relative_to(root)
+        except ValueError as exc:
+            raise ValueError("FinQA frozen source path escapes repository") from exc
+        actual_sha256 = hashlib.sha256(source_path.read_bytes()).hexdigest()
+        if actual_sha256 != expected_sha256:
+            raise ValueError(
+                f"FinQA frozen source hash mismatch: {relative_path}"
+            )
+
+
+def _validate_frozen_model_identity(
+    payload: dict,
+    *,
+    retrieval_mode: str,
+    answer_model_sha256: str,
+    embedding_model: str,
+    embedding_model_sha256: str | None,
+) -> None:
+    if payload.get("answer_model_sha256") != answer_model_sha256:
+        raise ValueError("FinQA frozen answer model identity mismatch")
+    if retrieval_mode == "hybrid" and (
+        payload.get("embedding_model") != embedding_model
+        or payload.get("embedding_model_sha256") != embedding_model_sha256
+    ):
+        raise ValueError("FinQA frozen embedding model identity mismatch")
 
 
 def _clean_git_revision() -> str:

@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -100,6 +101,55 @@ def test_finqa_cli_defaults_to_program_answer_strategy() -> None:
     args = eval_finqa.build_parser().parse_args(["--run-id", "dev-run"])
 
     assert args.answer_strategy == "program"
+
+
+def test_finqa_frozen_source_hashes_reject_code_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "app" / "scorer.py"
+    source.parent.mkdir()
+    source.write_text("frozen\n", encoding="utf-8")
+    monkeypatch.setattr(
+        eval_finqa,
+        "FINQA_FROZEN_SOURCE_FILES",
+        ("app/scorer.py",),
+    )
+    payload = {
+        "source_file_sha256": {
+            "app/scorer.py": hashlib.sha256(source.read_bytes()).hexdigest(),
+        }
+    }
+
+    eval_finqa._validate_frozen_source_hashes(payload, root=tmp_path)
+    source.write_text("changed\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="source hash mismatch"):
+        eval_finqa._validate_frozen_source_hashes(payload, root=tmp_path)
+
+
+def test_finqa_frozen_model_identity_rejects_digest_change() -> None:
+    payload = {
+        "answer_model_sha256": "a" * 64,
+        "embedding_model": "bge-m3",
+        "embedding_model_sha256": "b" * 64,
+    }
+
+    eval_finqa._validate_frozen_model_identity(
+        payload,
+        retrieval_mode="hybrid",
+        answer_model_sha256="a" * 64,
+        embedding_model="bge-m3",
+        embedding_model_sha256="b" * 64,
+    )
+    with pytest.raises(ValueError, match="model identity"):
+        eval_finqa._validate_frozen_model_identity(
+            payload,
+            retrieval_mode="hybrid",
+            answer_model_sha256="c" * 64,
+            embedding_model="bge-m3",
+            embedding_model_sha256="b" * 64,
+        )
 
 
 def test_finqa_model_identity_uses_chat_transport_budget(
