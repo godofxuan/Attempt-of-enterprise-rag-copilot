@@ -158,6 +158,21 @@ class FinanceBenchPageRunSummary(FinanceBenchPageEvalModel):
     )
     reranker_case_count: int = Field(default=0, ge=0)
 
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_reranker_case_count(cls, value: Any) -> Any:
+        if (
+            isinstance(value, dict)
+            and "reranker_case_count" not in value
+            and value.get("reranker_cutoffs")
+        ):
+            migrated = dict(value)
+            migrated["reranker_case_count"] = value[
+                "reranker_cutoffs"
+            ][0]["case_count"]
+            return migrated
+        return value
+
     @model_validator(mode="after")
     def validate_summary(self) -> "FinanceBenchPageRunSummary":
         if self.passed_case_count > self.case_count:

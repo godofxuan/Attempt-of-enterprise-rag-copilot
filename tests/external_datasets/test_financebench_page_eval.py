@@ -381,6 +381,11 @@ def test_financebench_page_eval_applies_page_reranker_to_candidate_pool() -> Non
     assert details[0].stage_counts["page_reranker_quarantined"] == 0
     assert details[0].page_reranker_score is not None
     assert details[0].page_reranker_latency_ms >= 0
+    summary = summarize_financebench_page_cases(details)
+    legacy_payload = summary.model_dump(mode="json")
+    legacy_payload.pop("reranker_case_count")
+    migrated = type(summary).model_validate(legacy_payload)
+    assert migrated.reranker_case_count == 1
 
 
 def test_financebench_page_eval_can_preserve_dense_head_before_reranking() -> None:
