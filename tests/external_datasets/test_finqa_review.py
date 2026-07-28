@@ -128,8 +128,10 @@ def test_plan_reviewer_keeps_a_valid_draft_and_hides_real_unit_ids() -> None:
     assert result.expression_changed is False
     assert result.final_answer == "0.2"
     assert result.review_generation_calls == 1
-    assert "table_1" not in json.dumps(captured)
-    assert "evidence-01" in json.dumps(captured)
+    serialized = json.dumps(captured)
+    assert "table_1" not in serialized
+    assert "evidence-01" in serialized
+    assert "must yield 0.054, not 5.4" in serialized
 
 
 def test_plan_reviewer_revises_expression_and_citations() -> None:
@@ -297,6 +299,7 @@ def test_review_run_is_immutable_and_tamper_evident(
     ).hexdigest()
     manifest = FinQAReviewRunManifest(
         review_run_id="finqa-review-dev-v1",
+        review_prompt_version="finqa_plan_review_v1",
         source_run_id="finqa-source-dev-v1",
         source_manifest_sha256="a" * 64,
         source_details_sha256="b" * 64,

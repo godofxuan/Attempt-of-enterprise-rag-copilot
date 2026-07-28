@@ -92,7 +92,32 @@ source artifact 损坏、证据顺序漂移和模型身份不明确都会让整�
 不满足任一条件时，不把 reviewer 接入默认生产路径。负结果仍保留为有效工程
 证据，用于说明为什么“再调用一次 LLM”不自动等于 Agent 能力提升。
 
-## 7. 实现位置
+## 7. v1 结果和 v2 修复假设
+
+v1 同模型全题 review 未达到采用门槛：
+
+| Arm | Baseline strict | Reviewed strict | wrong→correct | correct→wrong | Mean latency multiplier |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Oracle | 63% | 62% | 0 | 1 | 2.08x |
+| Hybrid | 59% | 55% | 1 | 5 | 2.08x |
+
+Oracle exact McNemar p-value 为 `1.0`，Hybrid 为 `0.21875`。两臂协议回退均为
+0，但“协议稳定”不等于“质量有效”。v1 结论是 `REJECT`，不得接入默认链路。
+
+逐题私有诊断发现，Oracle 唯一退化题和 Hybrid 的两道退化题被 reviewer
+错误地把原始比例乘以 100。原因是 planner prompt 已明确规定 FinQA scorer
+接收 raw ratio，而 v1 review prompt 只笼统要求检查 scale，没有复述这一合同。
+
+v2 只做两个预注册修复：
+
+1. 明确百分比答案必须产生 raw ratio，禁止为了显示百分数乘以 100；
+2. baseline 已通过 planner/Calculator 合同，无法指出无歧义错误时必须 KEEP。
+
+v2 使用同一 100 题只能判断已知开发失败是否被修复，属于 tuning observation，
+不能作为独立泛化证据。即使 v2 在该集合上通过数值门槛，仍需新的未用于提示词
+修改的 dev validation cohort 才能考虑采用。
+
+## 8. 实现位置
 
 - 核心 reviewer、成对 schema、统计和不可变 artifact：
   `app/external_datasets/finqa_review.py`

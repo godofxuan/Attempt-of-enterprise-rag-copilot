@@ -55,8 +55,14 @@ FinQACorrectnessTransition = Literal[
     "wrong_to_correct",
     "wrong_to_wrong",
 ]
+FinQAReviewPromptVersion = Literal[
+    "finqa_plan_review_v1",
+    "finqa_plan_review_v2",
+]
 
-FINQA_REVIEW_PROMPT_VERSION = "finqa_plan_review_v1"
+FINQA_REVIEW_PROMPT_VERSION: FinQAReviewPromptVersion = (
+    "finqa_plan_review_v2"
+)
 _REVIEW_ARTIFACTS = {"details.jsonl", "summary.json"}
 
 
@@ -201,7 +207,7 @@ class FinQAReviewRunManifest(BaseModel):
     review_run_id: str = Field(
         pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
     )
-    review_prompt_version: Literal["finqa_plan_review_v1"] = (
+    review_prompt_version: FinQAReviewPromptVersion = (
         FINQA_REVIEW_PROMPT_VERSION
     )
     source_run_id: str = Field(min_length=1, max_length=200)
@@ -244,15 +250,24 @@ class LocalFinQAPlanReviewer:
         chat_fn: FinQAChatFn = chat_with_ollama,
         guard: RetrievedContentGuard | None = None,
         max_attempts: int = 2,
+        prompt_version: FinQAReviewPromptVersion = (
+            FINQA_REVIEW_PROMPT_VERSION
+        ),
     ) -> None:
         if not model.strip():
             raise ValueError("FinQA review model must be non-empty")
         if not 1 <= max_attempts <= 3:
             raise ValueError("FinQA review attempts must be between 1 and 3")
+        if prompt_version not in {
+            "finqa_plan_review_v1",
+            "finqa_plan_review_v2",
+        }:
+            raise ValueError("FinQA review prompt version is unsupported")
         self.model = model.strip()
         self.chat_fn = chat_fn
         self.guard = guard or RetrievedContentGuard()
         self.max_attempts = max_attempts
+        self.prompt_version = prompt_version
 
     def review(
         self,
@@ -314,6 +329,7 @@ class LocalFinQAPlanReviewer:
             baseline_expression=baseline.calculation,
             baseline_result=baseline.final_answer,
             baseline_cited_candidate_ids=baseline_candidate_ids,
+            prompt_version=self.prompt_version,
         )
 
         payload: FinQAProgramPayload | None = None
@@ -648,6 +664,7 @@ def _build_review_messages(
     baseline_expression: str,
     baseline_result: str,
     baseline_cited_candidate_ids: Sequence[str],
+    prompt_version: FinQAReviewPromptVersion,
 ) -> list[dict[str, str]]:
     evidence = [
         {
@@ -672,6 +689,21 @@ def _build_review_messages(
         "Never put evidence IDs or words in the expression. Cite only evidence IDs "
         "containing operands used. Return only JSON; never return a final answer."
     )
+    if prompt_version == "finqa_plan_review_v2":
+        system_prompt += (
+            " The draft already passed the planner and Calculator contracts, so "
+            "KEEP is the default. Revise only when the exact question and evidence "
+            "show one unambiguous operand, operation, sign, scale, or citation "
+            "mismatch. If no concrete mismatch can be identified, repeat the exact "
+            "draft expression and citations. The scorer requires a raw ratio for "
+            "percentage answers: a program for 5.4 percent must yield 0.054, not "
+            "5.4, and a ratio must never be multiplied by 100 merely for display. "
+            "For increase, decrease, decline, growth, or percentage change, use "
+            "signed new-minus-old divided by the old value. For portion or "
+            "what-percent questions, divide the requested part by the stated total. "
+            "When source percentage values such as 26, 28, and 26 are averaged, "
+            "convert the resulting percentage to a raw ratio by dividing by 100."
+        )
     user_prompt = json.dumps(
         {
             "question": question,
@@ -820,6 +852,7 @@ __all__ = [
     "FinQAReviewAnswerResult",
     "FinQAReviewCaseEvaluation",
     "FinQAReviewRunManifest",
+    "FinQAReviewPromptVersion",
     "FinQAReviewStatus",
     "FinQAReviewSummary",
     "LocalFinQAPlanReviewer",

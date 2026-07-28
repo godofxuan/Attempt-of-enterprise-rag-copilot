@@ -29,6 +29,7 @@ from app.external_datasets.finqa_diagnostics import (
 )
 from app.external_datasets.finqa_eval import selected_case_ids_sha256
 from app.external_datasets.finqa_review import (
+    FINQA_REVIEW_PROMPT_VERSION,
     FinQAReviewRunManifest,
     LocalFinQAPlanReviewer,
     evaluate_finqa_review_case,
@@ -55,6 +56,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model")
     parser.add_argument("--timeout-seconds", type=float, default=120.0)
     parser.add_argument("--max-attempts", type=int, default=2)
+    parser.add_argument(
+        "--prompt-version",
+        choices=["finqa_plan_review_v1", "finqa_plan_review_v2"],
+        default=FINQA_REVIEW_PROMPT_VERSION,
+    )
     parser.add_argument("--source-root", type=Path, default=DEFAULT_SOURCE_ROOT)
     parser.add_argument("--out-root", type=Path, default=DEFAULT_REVIEW_ROOT)
     return parser
@@ -124,6 +130,7 @@ def main(argv: list[str] | None = None) -> int:
         model=review_model,
         chat_fn=review_chat,
         max_attempts=args.max_attempts,
+        prompt_version=args.prompt_version,
     )
     rows = []
     lock_root = Path(settings.runtime_cache_dir).resolve() / "evaluation_locks"
@@ -170,6 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     ).hexdigest()
     manifest = FinQAReviewRunManifest(
         review_run_id=args.review_run_id,
+        review_prompt_version=args.prompt_version,
         source_run_id=source_manifest.run_id,
         source_manifest_sha256=source_manifest_sha256,
         source_details_sha256=details_sha256,
