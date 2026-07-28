@@ -10,6 +10,7 @@ from app.external_datasets.finqa_eval import (
     FinQAAnswerResult,
     FinQARunManifest,
     LocalFinQAAnswerer,
+    LocalFinQAProgramAnswerer,
     evaluate_finqa_case,
     evaluate_finqa_protocol_error,
     parse_finqa_answer_payload,
@@ -139,6 +140,87 @@ def test_local_finqa_answerer_maps_temporary_ids_back_to_units() -> None:
     assert "table_1" not in calls[0][1][1]["content"]
 
 
+def test_local_finqa_program_answerer_executes_calculator_result() -> None:
+    case = _case()
+    units = rank_finqa_evidence(case, mode="oracle", top_k=5)
+
+    def chat(model, messages, *, response_format=None, think=None):
+        return json.dumps(
+            {
+                "program": {
+                    "steps": [
+                        {
+                            "operation": "subtract",
+                            "arguments": ["120", "100"],
+                        },
+                        {
+                            "operation": "divide",
+                            "arguments": ["#0", "100"],
+                        },
+                    ]
+                },
+                "cited_candidate_ids": ["evidence-01"],
+            }
+        )
+
+    result = LocalFinQAProgramAnswerer(
+        model="qwen-test",
+        chat_fn=chat,
+    ).answer(question=case.qa.question, evidence_units=units)
+
+    assert result.final_answer == "0.2"
+    assert result.cited_unit_ids == ("table_1",)
+    assert result.calculator_calls == 1
+    assert json.loads(result.calculation)["steps"][1]["arguments"] == [
+        "#0",
+        "100",
+    ]
+
+
+def test_local_finqa_program_answerer_counts_failed_calculator_retry() -> None:
+    case = _case()
+    units = rank_finqa_evidence(case, mode="oracle", top_k=5)
+    responses = iter(
+        [
+            json.dumps(
+                {
+                    "program": {
+                        "steps": [
+                            {
+                                "operation": "divide",
+                                "arguments": ["1", "0"],
+                            }
+                        ]
+                    },
+                    "cited_candidate_ids": ["evidence-01"],
+                }
+            ),
+            json.dumps(
+                {
+                    "program": {
+                        "steps": [
+                            {
+                                "operation": "divide",
+                                "arguments": ["20", "100"],
+                            }
+                        ]
+                    },
+                    "cited_candidate_ids": ["evidence-01"],
+                }
+            ),
+        ]
+    )
+
+    result = LocalFinQAProgramAnswerer(
+        model="qwen-test",
+        chat_fn=lambda *args, **kwargs: next(responses),
+    ).answer(question=case.qa.question, evidence_units=units)
+
+    assert result.final_answer == "0.2"
+    assert result.attempt_count == 2
+    assert result.calculator_calls == 2
+
+
 def test_local_finqa_answerer_retries_one_invalid_response() -> None:
     case = _case()
     units = rank_finqa_evidence(case, mode="oracle", top_k=5)
@@ -220,6 +302,7 @@ def test_finqa_protocol_error_becomes_a_scored_auditable_row() -> None:
     assert row.citation_precision == 0.0
     assert row.generation_calls == 2
     assert summary.generation_protocol_error_rate == 1.0
+    assert summary.calculator_calls == 0
     assert summary.execution_accuracy == 0.0
 
 
@@ -424,6 +507,7 @@ def test_finqa_v1_rows_migrate_new_metrics_as_not_available() -> None:
     payload.pop("presentation_tolerance_match")
     payload.pop("grounded_presentation_match")
     payload.pop("answer_status")
+    payload.pop("calculator_calls")
 
     migrated = finqa_eval.FinQACaseEvaluation.model_validate(payload)
     summary = summarize_finqa_cases([migrated])
@@ -433,3 +517,4 @@ def test_finqa_v1_rows_migrate_new_metrics_as_not_available() -> None:
     assert summary.presentation_tolerance_accuracy is None
     assert summary.grounded_presentation_accuracy is None
     assert summary.generation_protocol_error_rate is None
+    assert summary.calculator_calls is None

@@ -27,6 +27,7 @@ from app.external_datasets.finqa_eval import (
     FinQAAnswerProtocolError,
     FinQARunManifest,
     LocalFinQAAnswerer,
+    LocalFinQAProgramAnswerer,
     evaluate_finqa_case,
     evaluate_finqa_protocol_error,
     publish_finqa_run,
@@ -66,6 +67,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--sample-count", type=int, default=20)
     parser.add_argument("--sample-seed", default="finqa-dev-pilot-v1")
+    parser.add_argument(
+        "--answer-strategy",
+        choices=["direct", "program"],
+        default="program",
+    )
     parser.add_argument("--model")
     parser.add_argument("--timeout-seconds", type=float, default=120.0)
     parser.add_argument("--max-attempts", type=int, default=2)
@@ -143,7 +149,12 @@ def main(argv: list[str] | None = None) -> int:
             timeout_seconds=args.timeout_seconds,
         )
 
-    answerer = LocalFinQAAnswerer(
+    answerer_type = (
+        LocalFinQAProgramAnswerer
+        if args.answer_strategy == "program"
+        else LocalFinQAAnswerer
+    )
+    answerer = answerer_type(
         model=answer_model,
         chat_fn=tracked_chat,
         max_attempts=args.max_attempts,
@@ -207,6 +218,7 @@ def main(argv: list[str] | None = None) -> int:
         sample_seed=args.sample_seed,
         retrieval_mode=args.retrieval_mode,
         top_k=args.top_k,
+        answer_strategy=args.answer_strategy,
         answer_model=answer_model,
         answer_model_sha256=answer_model_sha256,
         embedding_model=embedding_model,
@@ -249,6 +261,7 @@ def _validate_frozen_test_configuration(args, answer_model: str) -> None:
         "retrieval_modes": ["oracle", "hybrid"],
         "top_k": args.top_k,
         "answer_model": answer_model,
+        "answer_strategy": args.answer_strategy,
         "timeout_seconds": args.timeout_seconds,
         "max_attempts": args.max_attempts,
     }

@@ -21,6 +21,7 @@ def _args(protocol: Path, *, mode: str = "oracle") -> argparse.Namespace:
         top_k=5,
         timeout_seconds=120.0,
         max_attempts=2,
+        answer_strategy="program",
     )
 
 
@@ -38,6 +39,7 @@ def _write_protocol(path: Path) -> None:
                 "answer_model": "qwen3:8b",
                 "timeout_seconds": 120.0,
                 "max_attempts": 2,
+                "answer_strategy": "program",
             }
         ),
         encoding="utf-8",
@@ -77,6 +79,27 @@ def test_finqa_test_protocol_rejects_post_freeze_parameter_change(
             args,
             "qwen3:8b",
         )
+
+
+def test_finqa_test_protocol_rejects_answer_strategy_change(
+    tmp_path: Path,
+) -> None:
+    protocol = tmp_path / "protocol.json"
+    _write_protocol(protocol)
+    args = _args(protocol)
+    args.answer_strategy = "direct"
+
+    with pytest.raises(ValueError, match="does not match frozen protocol"):
+        eval_finqa._validate_frozen_test_configuration(
+            args,
+            "qwen3:8b",
+        )
+
+
+def test_finqa_cli_defaults_to_program_answer_strategy() -> None:
+    args = eval_finqa.build_parser().parse_args(["--run-id", "dev-run"])
+
+    assert args.answer_strategy == "program"
 
 
 def test_finqa_model_identity_uses_chat_transport_budget(
