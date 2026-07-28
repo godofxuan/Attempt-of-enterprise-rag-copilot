@@ -160,7 +160,10 @@ chunking ablation。
 | dev selected Page Hit@5 | 48.98% / 24 of 49 |
 | dev selected complete Page Recall@5 | 38.78% / 19 of 49 |
 | dev selected macro Page Recall@5 | 43.88% |
-| frozen test result | NOT RUN |
+| frozen test document Recall@5 | 95.05% / 96 of 101 |
+| frozen test Page Hit@5 | 30.69% / 31 of 101 |
+| frozen test complete Page Recall@5 | 24.75% / 25 of 101 |
+| frozen test macro Page Recall@5 | 27.72% |
 | 答案生成/答案评分/人工引用审核 | NOT RUN |
 
 以上 100% 仅指 49 道 **development retrieval cases** 的文档级
@@ -173,6 +176,8 @@ chunking ablation。
 [`evidence/financebench_dev_page_retrieval_v1.json`](evidence/financebench_dev_page_retrieval_v1.json)
 与
 [`evidence/financebench_page_retrieval_freeze_v1.json`](evidence/financebench_page_retrieval_freeze_v1.json)。
+冻结 test 的脱敏 aggregate 与 artifact hashes 位于
+[`evidence/financebench_test_page_retrieval_v1.json`](evidence/financebench_test_page_retrieval_v1.json)。
 原始 PDF、问题内容和逐题私有输出不会提交到仓库。
 
 ## 6. 批量 embedding 与断点恢复
@@ -344,6 +349,27 @@ references，同时在逐题 stage counts 保留 `gold_evidence_snippets` 和
 `gold_unique_pages`。严格 scorer 仍拒绝调用者直接传入重复 gold page。失败
 尝试没有结果目录、staging 或 aggregate metrics，不能从项目记录中删除后假装
 没有发生；修复后使用新 commit 运行同一冻结检索配置。
+
+修复提交 `a2527e6` 上的冻结 test 完成，未改任何检索参数：
+
+| 指标 | dev | frozen test | 差值 |
+| --- | ---: | ---: | ---: |
+| Document Recall@5 | 100% | 95.05% | -4.95 pp |
+| Page Hit@5 | 48.98% | 30.69% | -18.29 pp |
+| Complete Page Recall@5 | 38.78% | 24.75% | -14.02 pp |
+| Macro Page Recall@5 | 43.88% | 27.72% | -16.15 pp |
+
+test 的 gold document rank 分布是 rank-1 `66`、rank-2 `23`、rank-3 `4`、
+rank-4 `2`、rank-5 `1`、top-5 missing `5`。70 个 Page Hit@5 失败可分为：
+
+- 35 题 gold 文档已是 rank-1，但 dense 页内排序 miss；
+- 35 题 gold 文档不在 rank-1，其中 5 题甚至不在 top-5；
+- 2 题没有返回可定位页面，产生 `no_retrieval_hits` 与
+  `unscorable_page_locator`。
+
+这说明 dev 上“全部页预算给 top-1 文档”的选择存在泛化损失。v1 不再根据 test
+调参；下一协议需要在新 dev 数据上分别准入 document reranker 和 page
+reranker，并使用新的独立 holdout 验证。
 
 ## 9. 代码位置
 

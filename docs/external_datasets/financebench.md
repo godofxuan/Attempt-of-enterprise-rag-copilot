@@ -169,8 +169,16 @@ missing explicit confirmation:
   --drilldown-max-documents 1
 ```
 
-Do not run that command while tuning. At this checkpoint, frozen test remains
-`NOT RUN`.
+The command was executed after the dev protocol was frozen. The immutable test
+run reports document Recall@5 `95.05%`, Page Hit@5 `30.69%`, complete Page
+Recall@5 `24.75%`, and macro Page Recall@5 `27.72%`. The lower score is retained
+as the generalization result; v1 must not be retuned against these 101 cases.
+
+The first execution attempt failed before publishing any artifact because two
+test cases contained multiple evidence snippets on the same page. The adapter
+was corrected to normalize snippets into unique `(doc_id, page_number)`
+identities without changing retrieval configuration. Both the failed
+precondition and completed run are recorded in the engineering results.
 
 ## Current scoring boundary
 

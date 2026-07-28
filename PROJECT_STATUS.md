@@ -617,7 +617,9 @@ dev selected Page Hit@5           48.98% (24/49)
 dev complete Page Recall@5        38.78% (19/49)
 dev macro Page Recall@5           43.88%
 dev page embedding calls          98
-frozen test                       FAILED_PRECONDITION / NO RESULT
+frozen test document Recall@5     95.05% (96/101)
+frozen test Page Hit@5            30.69% (31/101)
+frozen complete Page Recall@5     24.75% (25/101)
 answer generation/scoring/review  NOT RUN
 ```
 
@@ -627,4 +629,5 @@ answer generation/scoring/review  NOT RUN
 `search_many` 只在单个逻辑请求内共享 query embedding、FAISS 全局结果和 BM25
 scores，不跨用户持久化查询。页级 evaluator 进一步发现：找对文档不等于找到
 证据页；当前主要短板是文档内页面排序。49/49 是 dev 文档级检索结果，24/49
-是 dev Page Hit@5，均不得表述为 frozen test、答案生成或生产准确率。
+是 dev Page Hit@5。冻结 test 的 96/101 文档召回和 31/101 Page Hit@5 单独
+报告，三者均不得表述为答案生成或生产准确率。
