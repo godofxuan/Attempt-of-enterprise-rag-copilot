@@ -1,0 +1,146 @@
+{
+  "schema_version": "finqa_public_dev_diagnostic_evidence_v1",
+  "status": "OBSERVED_DEV_DIAGNOSTIC",
+  "claim_scope": "One deterministic 100-case sample from the pinned FinQA dev split on one local Qwen3/BGE-M3 environment. This is diagnostic evidence, not a new holdout result.",
+  "dataset": {
+    "repository": "https://github.com/czyssrs/FinQA",
+    "revision": "0f16e2867befa6840783e58be38c9efb9229d742",
+    "dev_sha256": "a847fb7e0d61a3125a1e2909852df6b89f1ee64d2c5ff1bf689e332214deee51",
+    "source_case_count": 883,
+    "selected_case_count": 100,
+    "sample_seed": "finqa-v2-diagnostic-dev-v1",
+    "selected_case_ids_sha256": "ecd5b9668fd8e98ab04c7e65c093abadf568b68de274282ab89e225557f6d5d5"
+  },
+  "models": {
+    "answer_model": "qwen3:8b",
+    "answer_model_sha256": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "embedding_model": "bge-m3",
+    "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+    "temperature": 0,
+    "think": false
+  },
+  "code": {
+    "evaluation_and_diagnostic_revision": "87d2f0c7bd05fdbaeee20d34e7c8cb2f85c07e32",
+    "diagnostic_algorithm": "finqa_dev_diagnostic_v1"
+  },
+  "arms": {
+    "oracle": {
+      "run_id": "finqa-v2-diagnostic-dev-v1-oracle",
+      "run_manifest_sha256": "374eda0dbc556a7e02c60303c02360af42a8887423b2bcbeae694675495ecde6",
+      "private_details_sha256": "d0c905435a61550882df1fdf0b0e5125596a71441f96097c86b4ba7cef7ebc82",
+      "diagnostic_manifest_sha256": "edacb82da3462b71c7d591ede0b3f49080a0b0d075acc0a170b5dd2134a1a595",
+      "private_diagnostic_details_sha256": "f92eb131cb35aa5502459340333fc0ea79534d9d73738045db8a5ef153611ec1",
+      "metrics": {
+        "execution_accuracy": 0.63,
+        "presentation_tolerance_accuracy": 0.64,
+        "evidence_recall": 1.0,
+        "citation_precision": 1.0,
+        "citation_recall": 0.9241666666666666,
+        "grounded_execution_accuracy": 0.56,
+        "generation_protocol_error_rate": 0.0,
+        "generation_calls": 100,
+        "calculator_calls": 100,
+        "latency_ms_mean": 870.3360149999389,
+        "latency_ms_p95": 1178.9539999990666
+      },
+      "diagnostic_category_counts": {
+        "correct_grounded": 56,
+        "correct_citation_incomplete": 7,
+        "retrieval_miss": 0,
+        "generation_protocol_error": 0,
+        "unsupported_gold_operation": 1,
+        "operand_selection_signal": 20,
+        "operation_plan_signal": 11,
+        "composition_or_scale_signal": 5
+      }
+    },
+    "hybrid_k10": {
+      "run_id": "finqa-v2-diagnostic-dev-v1-hybrid",
+      "run_manifest_sha256": "8c163ab47040816aef8d68131fce94713fa7e4015ae9f554650edbff9ee4b38f",
+      "private_details_sha256": "ed514688a0821158d00bd13d5c291245d7d99d23db824a177d447d550a6efc00",
+      "diagnostic_manifest_sha256": "8d976aa0f0b79785d7d1aca62b5f7e5bcd0f179d697a8e82f2eb0b7215c0fafb",
+      "private_diagnostic_details_sha256": "330da888fc0b334a12f11c773c32103d8ffbb925f556ab1a303e956825523fb8",
+      "metrics": {
+        "execution_accuracy": 0.59,
+        "presentation_tolerance_accuracy": 0.61,
+        "evidence_recall": 0.9198333333333334,
+        "citation_precision": 0.882,
+        "citation_recall": 0.8206666666666668,
+        "grounded_execution_accuracy": 0.52,
+        "generation_protocol_error_rate": 0.0,
+        "generation_calls": 101,
+        "calculator_calls": 101,
+        "latency_ms_mean": 1035.7502709999608,
+        "latency_ms_p95": 1328.1590000005963
+      },
+      "diagnostic_category_counts": {
+        "correct_grounded": 52,
+        "correct_citation_incomplete": 7,
+        "retrieval_miss": 12,
+        "generation_protocol_error": 0,
+        "unsupported_gold_operation": 1,
+        "operand_selection_signal": 21,
+        "operation_plan_signal": 1,
+        "composition_or_scale_signal": 6
+      }
+    }
+  },
+  "paired_observation": {
+    "correct_in_both": 53,
+    "wrong_in_both": 31,
+    "oracle_only_correct": 10,
+    "hybrid_only_correct": 6,
+    "hybrid_minus_oracle_execution_accuracy": -0.04
+  },
+  "label_quality_audit": {
+    "full_dev_reported_answer_parseable": 858,
+    "full_dev_reported_answer_unparseable": 25,
+    "full_dev_parseable_answer_vs_execution_target_tolerance_disagreements": 97,
+    "selected_reported_answer_parseable": 94,
+    "selected_reported_answer_unparseable": 6,
+    "selected_parseable_answer_vs_execution_target_tolerance_disagreements": 3,
+    "interpretation": "The human-facing answer field is a secondary data-quality signal only. Primary execution scoring remains bound to official exe_ans."
+  },
+  "diagnostic_semantics": {
+    "priority": [
+      "generation_protocol_error",
+      "correct_grounded_or_citation_incomplete",
+      "retrieval_miss",
+      "unsupported_gold_operation",
+      "operand_selection_signal",
+      "operation_plan_signal",
+      "composition_or_scale_signal"
+    ],
+    "caution": "Retrieval and protocol categories are direct observations. Operand and operation categories are deterministic mechanical signals against the official program, not guaranteed semantic root causes; algebraic rewrites can create false positives."
+  },
+  "interpretation": {
+    "larger_dev_sample": "Oracle strict was 63%, below the earlier visible 20-case dev pilot at 75% and above the already-observed fixed test sample at 52%.",
+    "retrieval_gap": "On the same 100 dev cases, hybrid strict was four percentage points below oracle and hybrid evidence recall was 91.98%.",
+    "primary_dev_signal": "Oracle failures contained 20 operand-selection and 11 operation-plan signals, so retrieval alone cannot explain the remaining errors.",
+    "next_engineering_hypothesis": "Evaluate a bounded plan-review step on dev before changing the production path; measure accuracy gain, regression count, call cost, and latency instead of assuming a second LLM call helps."
+  },
+  "not_claimed": [
+    "A replacement for the already-observed FinQA test holdout",
+    "Full FinQA dev or test accuracy",
+    "State-of-the-art FinQA performance",
+    "A semantically certain root cause for every failure",
+    "Cross-model or cross-domain generalization",
+    "Production financial-answer reliability",
+    "Human-reviewed semantic correctness"
+  ],
+  "repository_verification": {
+    "focused_public_and_diagnostic_tests_passed": 107,
+    "full_tests_passed": 2578,
+    "full_tests_skipped": 30,
+    "full_test_warnings": 3,
+    "public_audit_candidates": 968,
+    "public_audit_findings": 0,
+    "audit_boundary": "Zero findings applies only to the implemented static audit rules."
+  },
+  "privacy": {
+    "raw_dev_data_published": false,
+    "case_ids_published": false,
+    "questions_answers_evidence_or_expressions_published": false,
+    "private_run_and_diagnostic_artifacts_published": false
+  }
+}

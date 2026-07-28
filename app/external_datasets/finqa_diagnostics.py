@@ -16,6 +16,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.agent.safe_calculator import execute_decimal_expression
+from app.evaluation.numeric_answer import (
+    normalize_direct_answer,
+    presentation_tolerance_match,
+)
 from app.external_datasets.finqa import (
     FinQACase,
     build_finqa_evidence_units,
@@ -131,6 +135,17 @@ class FinQADiagnosticSummary(BaseModel):
         le=1,
     )
     classification_coverage: float = Field(ge=0, le=1)
+
+
+class FinQALabelQualitySummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    case_count: int = Field(ge=1)
+    reported_answer_parseable_count: int = Field(ge=0)
+    reported_answer_parse_rate: float = Field(ge=0, le=1)
+    reported_answer_unparseable_count: int = Field(ge=0)
+    parseable_target_tolerance_disagreement_count: int = Field(ge=0)
+    parseable_target_tolerance_disagreement_rate: float = Field(ge=0, le=1)
 
 
 class FinQADiagnosticManifest(BaseModel):
@@ -384,6 +399,37 @@ def summarize_finqa_diagnostics(
             else None
         ),
         classification_coverage=1.0,
+    )
+
+
+def summarize_finqa_label_quality(
+    cases: Sequence[FinQACase],
+) -> FinQALabelQualitySummary:
+    values = list(cases)
+    if not values:
+        raise ValueError("FinQA label quality summary requires at least one case")
+    parseable = []
+    for case in values:
+        try:
+            normalize_direct_answer(case.qa.answer)
+        except ValueError:
+            continue
+        parseable.append(case)
+    disagreements = sum(
+        not presentation_tolerance_match(case.qa.answer, case.qa.exe_ans)
+        for case in parseable
+    )
+    count = len(values)
+    parseable_count = len(parseable)
+    return FinQALabelQualitySummary(
+        case_count=count,
+        reported_answer_parseable_count=parseable_count,
+        reported_answer_parse_rate=parseable_count / count,
+        reported_answer_unparseable_count=count - parseable_count,
+        parseable_target_tolerance_disagreement_count=disagreements,
+        parseable_target_tolerance_disagreement_rate=(
+            disagreements / parseable_count if parseable_count else 0.0
+        ),
     )
 
 
@@ -659,11 +705,13 @@ __all__ = [
     "FinQADiagnosticSummary",
     "FinQAExpressionAnalysis",
     "FinQAGoldProgram",
+    "FinQALabelQualitySummary",
     "analyze_finqa_expression",
     "diagnose_finqa_case",
     "load_verified_finqa_details",
     "parse_finqa_gold_program",
     "publish_finqa_diagnostic",
     "summarize_finqa_diagnostics",
+    "summarize_finqa_label_quality",
     "verify_finqa_diagnostic",
 ]

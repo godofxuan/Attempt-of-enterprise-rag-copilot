@@ -488,3 +488,21 @@ dev 上 direct answer、typed-step 和 safe expression 的 oracle strict 分别�
 3. hybrid 相对 oracle 的 8 点 strict 损失；
 4. citation recall 导致 strict 到 grounded strict 的差距；
 5. 独立双人语义审核与第二模型复现。
+
+## 11. 2026-07-29 更新：FinQA dev 失败诊断
+
+test 揭示后没有继续用 test 调参。新的 100 题 dev 诊断得到 Oracle strict `63%`、
+Hybrid strict `59%`、Hybrid evidence recall `91.98%`。新增的确定性诊断器
+校验不可变 run 后，将失败分成 retrieval、protocol、unsupported operation、
+operand、operation-plan 和 composition/scale 信号。
+
+Oracle 37 个错误里有 20 个 operand signal 和 11 个 operation-plan signal；
+Hybrid 41 个错误里有 12 个 retrieval miss 和 21 个 operand signal。结论是：
+下一阶段应先验证“有界 plan review 是否改善选数”，而不是继续增加检索 K 或
+默认堆第二个 LLM。任何 review 方案必须同时报告净提升、正确题退化、调用数与
+延迟。
+
+诊断不是 LLM judge。retrieval/protocol 是直接事实；operand/operation 使用
+gold program 做机械比较，等价代数改写可能造成假阳性。因此文档称其为 signal，
+不称确定根因。标签质量审计还记录了 dev `answer` 与 `exe_ans` 的不一致，但主分
+继续绑定官方 `exe_ans`。

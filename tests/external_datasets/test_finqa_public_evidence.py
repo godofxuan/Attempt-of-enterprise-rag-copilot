@@ -47,3 +47,68 @@ def test_finqa_public_holdout_evidence_is_content_free_and_consistent() -> None:
     assert (
         evidence["preexecution_incident"]["model_generation_calls"] == 0
     )
+
+
+def test_finqa_public_dev_diagnostic_is_aggregate_and_consistent() -> None:
+    evidence = json.loads(
+        (EVIDENCE_ROOT / "finqa_dev_diagnostic_v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    oracle = evidence["arms"]["oracle"]
+    hybrid = evidence["arms"]["hybrid_k10"]
+    paired = evidence["paired_observation"]
+    label_quality = evidence["label_quality_audit"]
+
+    assert evidence["status"] == "OBSERVED_DEV_DIAGNOSTIC"
+    assert evidence["dataset"]["selected_case_count"] == 100
+    assert sum(oracle["diagnostic_category_counts"].values()) == 100
+    assert sum(hybrid["diagnostic_category_counts"].values()) == 100
+    assert (
+        paired["correct_in_both"]
+        + paired["wrong_in_both"]
+        + paired["oracle_only_correct"]
+        + paired["hybrid_only_correct"]
+        == 100
+    )
+    assert (
+        hybrid["metrics"]["execution_accuracy"]
+        - oracle["metrics"]["execution_accuracy"]
+        == pytest.approx(paired["hybrid_minus_oracle_execution_accuracy"])
+    )
+    assert (
+        label_quality["full_dev_reported_answer_parseable"]
+        + label_quality["full_dev_reported_answer_unparseable"]
+        == evidence["dataset"]["source_case_count"]
+    )
+    assert (
+        label_quality["selected_reported_answer_parseable"]
+        + label_quality["selected_reported_answer_unparseable"]
+        == evidence["dataset"]["selected_case_count"]
+    )
+    assert evidence["privacy"] == {
+        "raw_dev_data_published": False,
+        "case_ids_published": False,
+        "questions_answers_evidence_or_expressions_published": False,
+        "private_run_and_diagnostic_artifacts_published": False,
+    }
+    assert evidence["repository_verification"] == {
+        "focused_public_and_diagnostic_tests_passed": 107,
+        "full_tests_passed": 2578,
+        "full_tests_skipped": 30,
+        "full_test_warnings": 3,
+        "public_audit_candidates": 968,
+        "public_audit_findings": 0,
+        "audit_boundary": (
+            "Zero findings applies only to the implemented static audit rules."
+        ),
+    }
+    forbidden_keys = {"case_id", "question", "answer", "expression"}
+    stack = [evidence]
+    while stack:
+        value = stack.pop()
+        if isinstance(value, dict):
+            assert forbidden_keys.isdisjoint(value)
+            stack.extend(value.values())
+        elif isinstance(value, list):
+            stack.extend(value)

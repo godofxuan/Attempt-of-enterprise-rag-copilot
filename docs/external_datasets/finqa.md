@@ -156,3 +156,45 @@ gold ID/text、字节 hash 和重复 key 校验。结构预检通过后重新冻
 
 可以声称的是“固定 100 题 FinQA test 样本上的本地观察结果”。不能声称完整
 FinQA test accuracy、SOTA、跨模型泛化、生产财务可靠性或人工语义审核结论。
+
+## 10. test 之后的 dev 错误诊断
+
+test 结果揭示后不再用该 100 题调参。项目改用新的稳定 seed
+`finqa-v2-diagnostic-dev-v1`，从 883 题 dev 中选 100 题做诊断。两臂使用同一
+Qwen3/BGE-M3 digest、Calculator 协议和 K=10：
+
+| Arm | Strict | Presentation | Evidence recall | Citation recall | Grounded strict | Mean / p95 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Oracle | 63% | 64% | 100% | 92.42% | 56% | 0.870s / 1.179s |
+| Hybrid RRF | 59% | 61% | 91.98% | 82.07% | 52% | 1.036s / 1.328s |
+
+这不是第二个 holdout，也不能用 63%/59% 覆盖上面的 test 52%/44%。它的用途是
+定位下一步：
+
+1. `app/external_datasets/finqa_diagnostics.py` 严格解析全部 `883/883` 条 dev
+   gold program，并把模型表达式转成后序运算序列和 Decimal operand multiset；
+2. `scripts/diagnose_finqa_run.py` 先校验 source run 的 manifest/artifact hash，
+   只接受 `split=dev` 和 Calculator program 策略，显式拒绝 test；
+3. 分类优先级为协议错误、正确且 grounded/引用不全、检索漏证据、不支持的
+   gold operation、operand signal、operation-plan signal、composition/scale；
+4. retrieval/protocol 是直接观察；operand/operation 是与 gold program 的机械
+   比较信号，可能受等价代数改写影响，不能冒充确定的语义根因；
+5. Oracle 的 37 个错误中有 20 个 operand signal、11 个 operation-plan signal、
+   5 个 composition/scale signal 和 1 个当前 Calculator 不支持的 operation；
+6. Hybrid 的 41 个错误中有 12 个 retrieval miss、21 个 operand signal，
+   说明检索有损失，但完整证据下的选数仍是更大的工程目标。
+
+标签质量审计也没有隐藏：全 dev 的人类展示 `answer` 有 `858/883` 可按单值协议
+解析，其中 `97/858` 与官方 `exe_ans` 超出 0.5% 宽容一致性；本次 100 题为
+`94` 个可解析、`3` 个不一致。主分仍严格绑定官方 `exe_ans`，展示 answer 只作为
+数据质量信号，不能选择对模型更有利的标签。
+
+可审计聚合证据见
+[finqa_dev_diagnostic_v1.json](evidence/finqa_dev_diagnostic_v1.json)；
+逐题问题、表达式、case ID 和诊断详情只在 `.private`。下一假设是对 dev 评估
+有界 plan-review，但必须同时报告提升、正确题退化、额外模型调用和延迟，不能
+默认“再调一次 LLM”一定更好。
+
+本阶段收口：相关公开/诊断测试 `107 passed`，全仓库
+`2578 passed / 30 skipped / 3 warnings`，public audit
+`968 candidates / 0 findings`。

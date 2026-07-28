@@ -12,6 +12,7 @@ from app.external_datasets.finqa_diagnostics import (
     parse_finqa_gold_program,
     publish_finqa_diagnostic,
     summarize_finqa_diagnostics,
+    summarize_finqa_label_quality,
     verify_finqa_diagnostic,
 )
 from app.external_datasets.finqa_eval import FinQACaseEvaluation
@@ -178,6 +179,33 @@ def test_expression_grounding_uses_citations_and_official_constants() -> None:
     )
 
     assert row.expression_operand_grounding_rate == pytest.approx(2 / 3)
+
+
+def test_label_quality_separates_unparseable_and_conflicting_targets() -> None:
+    consistent = _case()
+    conflicting = _case().model_copy(
+        update={
+            "id": "report.pdf-2",
+            "qa": _case().qa.model_copy(
+                update={"answer": "20%", "exe_ans": 20}
+            ),
+        }
+    )
+    unparseable = _case().model_copy(
+        update={
+            "id": "report.pdf-3",
+            "qa": _case().qa.model_copy(update={"answer": "not one value"}),
+        }
+    )
+
+    summary = summarize_finqa_label_quality(
+        [consistent, conflicting, unparseable]
+    )
+
+    assert summary.reported_answer_parseable_count == 2
+    assert summary.reported_answer_unparseable_count == 1
+    assert summary.parseable_target_tolerance_disagreement_count == 1
+    assert summary.parseable_target_tolerance_disagreement_rate == 0.5
 
 
 def test_diagnostic_artifact_is_immutable_and_tamper_evident(

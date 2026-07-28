@@ -469,3 +469,25 @@ oracle 到 hybrid 的 strict 差距为 8 点，说明检索有损失；oracle �
 
 当前仍不能声称完整 FinQA test accuracy、SOTA、跨模型泛化、人类语义审核或
 生产财务可靠性。后续若优化，必须建立新的 dev/holdout 版本，不能重调本次 test。
+
+## 22. FinQA dev 失败归因与标签质量审计
+
+固定 test 揭示后，项目没有继续看 test 调 prompt，而是在新 seed 的 100 题 dev
+上建立诊断臂。新增：
+
+- `app/external_datasets/finqa_diagnostics.py`：安全解析 gold program 和模型
+  AST，计算 operand recall、operation sequence 与引用 operand grounding；
+- `scripts/diagnose_finqa_run.py`：只接受已校验的 dev Calculator run，拒绝 test，
+  输出原子、不可覆盖、hash 可复验的 manifest/details/summary；
+- `tests/external_datasets/test_finqa_diagnostics.py`：覆盖语法预算、分类优先级、
+  一元负号、标签冲突、不可变发布与篡改拒绝。
+
+新 100 题 dev 的 Oracle/Hybrid strict 为 `63%/59%`，Hybrid evidence recall
+为 `91.98%`。Oracle 错误的主要机械信号为 operand `20`、operation plan `11`；
+Hybrid 另有 retrieval miss `12`。这把“模型不行”拆成了可以分别实验的假设。
+
+同时发现 human-facing `answer` 与 `exe_ans` 存在少量尺度、符号或脏字段问题。
+项目新增确定性标签审计，但保持主评分绑定 `exe_ans`，没有事后选择有利标签。
+公开内容无关证据见
+[finqa_dev_diagnostic_v1.json](../external_datasets/evidence/finqa_dev_diagnostic_v1.json)。
+收口门禁为 `2578 passed / 30 skipped / 3 warnings` 和 public audit `968/0`。
