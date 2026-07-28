@@ -147,7 +147,23 @@ v2 的实际开发观察如下：
 采用判断仍使用 baseline 到最终 adjudicated 输出的成对转移、exact McNemar、
 grounded 指标和完整端到端成本。该实验仍属于同一开发集上的调优，不是独立验证。
 
-## 9. 实现位置
+## 9. 零重叠 Dev Validation 冻结
+
+原 100 题已经用于失败分析和 v2 prompt 修复，不能继续把它当验证集。项目在任何
+validation 模型调用前，仅使用 case ID 搜索标准稳定抽样 seed，冻结了：
+
+- seed：`finqa-plan-review-validation-v1-0742`
+- 数量：50
+- selected case IDs SHA-256：`cb99e24e...a0ba2cb`
+- 与原 100 题重叠：`0`
+
+选择 seed 时没有读取问题、答案、gold program、模型输出或分数。完整机器可读
+协议见
+[finqa_plan_review_validation_protocol_v1.json](evidence/finqa_plan_review_validation_protocol_v1.json)。
+验证链路的 prompt、模型 digest、run ID 和成功门槛全部保持不变。该集合仍来自
+FinQA dev，只能提供内部零重叠验证，不能声称独立域泛化或替代 frozen test。
+
+## 10. 实现位置
 
 - 核心 reviewer、成对 schema、统计和不可变 artifact：
   `app/external_datasets/finqa_review.py`
