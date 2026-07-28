@@ -173,6 +173,27 @@ def test_amount_mismatch_rejects_8000_against_5000() -> None:
     assert result.unsupported_reason == "numeric_mismatch"
 
 
+def test_percentage_mismatch_rejects_12_percent_against_10_percent() -> None:
+    result = verify_claims(
+        [
+            Claim(
+                claim_id="claim-1",
+                text="The approved reimbursement rate is 12%.",
+                cited_chunk_ids=["chunk-remote"],
+            )
+        ],
+        [
+            hit(
+                matched_text="The approved reimbursement rate is 10%.",
+                context_text="The approved reimbursement rate is 10%.",
+            )
+        ],
+    )[0]
+
+    assert result.supported is False
+    assert result.unsupported_reason == "numeric_mismatch"
+
+
 def test_negation_mismatch_rejects_allow_against_prohibit() -> None:
     result = verify_claims(
         [
