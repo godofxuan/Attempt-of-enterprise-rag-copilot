@@ -90,6 +90,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--reranker-model")
     parser.add_argument(
+        "--reranker-timeout-seconds",
+        type=float,
+        default=120.0,
+    )
+    parser.add_argument(
         "--freeze-protocol",
         type=Path,
         default=DEFAULT_FREEZE_PROTOCOL,
@@ -145,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     if args.page_reranker != "none" and not args.page_drilldown:
         raise ValueError("page reranker requires --page-drilldown")
+    if not 0 < args.reranker_timeout_seconds <= 300:
+        raise ValueError("reranker timeout must be between 0 and 300 seconds")
     reranker_model = (
         args.reranker_model or settings.evidence_model
         if args.page_reranker == "local_llm"
@@ -164,6 +171,7 @@ def main(argv: list[str] | None = None) -> int:
             messages,
             response_format=response_format,
             think=think,
+            timeout_seconds=args.reranker_timeout_seconds,
         )
 
     page_reranker = (
@@ -220,6 +228,11 @@ def main(argv: list[str] | None = None) -> int:
         drilldown_merge_mode=args.drilldown_merge_mode,
         page_reranker=args.page_reranker,
         reranker_model=reranker_model,
+        reranker_timeout_seconds=(
+            args.reranker_timeout_seconds
+            if args.page_reranker == "local_llm"
+            else "none"
+        ),
         summary=summary,
     )
     output = publish_financebench_page_run(

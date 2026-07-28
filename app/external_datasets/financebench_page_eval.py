@@ -195,7 +195,7 @@ class FinanceBenchPageRunManifest(FinanceBenchPageEvalModel):
         default=None,
         pattern=r"^[0-9a-f]{64}$",
     )
-    config: dict[str, int | str]
+    config: dict[str, int | float | str]
     summary: FinanceBenchPageRunSummary
     artifacts: dict[str, FinanceBenchArtifactEvidence]
 
@@ -569,6 +569,7 @@ def build_financebench_page_manifest(
     drilldown_merge_mode: Literal["quota", "global_page_score"] = "quota",
     page_reranker: Literal["none", "local_llm"] = "none",
     reranker_model: str = "none",
+    reranker_timeout_seconds: float | str = "none",
     summary: FinanceBenchPageRunSummary,
     created_at_utc: datetime | None = None,
 ) -> FinanceBenchPageRunManifest:
@@ -597,6 +598,7 @@ def build_financebench_page_manifest(
             "drilldown_merge_mode": drilldown_merge_mode,
             "page_reranker": page_reranker,
             "reranker_model": reranker_model,
+            "reranker_timeout_seconds": reranker_timeout_seconds,
             "cutoffs": "1,3,5",
             "candidate_cutoffs": "5,10,20",
             "metric_contract": "unique_doc_page_v1",

@@ -55,6 +55,26 @@ def test_chat_with_ollama_passes_json_format_without_changing_defaults(monkeypat
     assert captured["timeout"] == 7.0
 
 
+def test_chat_with_ollama_uses_explicit_timeout_override(monkeypatch):
+    captured = {}
+
+    def fake_post(url, payload, timeout):
+        captured.update(url=url, payload=payload, timeout=timeout)
+        return FakeResponse()
+
+    monkeypatch.setattr(ollama_chat, "get_settings", settings)
+    monkeypatch.setattr(ollama_chat, "_post_ollama", fake_post)
+
+    result = ollama_chat.chat_with_ollama(
+        "qwen3:8b",
+        [{"role": "user", "content": "rank"}],
+        timeout_seconds=120.0,
+    )
+
+    assert result == '{"verdict": "sufficient"}'
+    assert captured["timeout"] == 120.0
+
+
 def test_chat_with_ollama_passes_think_as_top_level_api_field(monkeypatch):
     captured = {}
 
