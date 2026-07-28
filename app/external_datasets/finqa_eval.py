@@ -599,12 +599,8 @@ def _response_format(candidate_ids: Sequence[str]) -> dict[str, Any]:
     return {
         "type": "object",
         "properties": {
-            "final_answer": {"type": "string", "minLength": 1, "maxLength": 100},
-            "calculation": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 2000,
-            },
+            "final_answer": {"type": "string"},
+            "calculation": {"type": "string"},
             "cited_candidate_ids": {
                 "type": "array",
                 "items": {"type": "string", "enum": list(candidate_ids)},

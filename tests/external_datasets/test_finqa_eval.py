@@ -17,6 +17,7 @@ from app.external_datasets.finqa_eval import (
     summarize_finqa_cases,
     verify_finqa_run,
 )
+from app.external_datasets import finqa_eval
 
 
 def _case() -> FinQACase:
@@ -88,6 +89,24 @@ def test_parse_finqa_answer_rejects_unknown_or_duplicate_citations() -> None:
     with pytest.raises(ValueError, match="unknown candidate"):
         parse_finqa_answer_payload(
             unknown,
+            allowed_candidate_ids=["evidence-01"],
+        )
+
+
+def test_finqa_response_schema_avoids_unsupported_ollama_string_lengths() -> None:
+    schema = finqa_eval._response_format(["evidence-01"])
+
+    assert schema["properties"]["final_answer"] == {"type": "string"}
+    assert schema["properties"]["calculation"] == {"type": "string"}
+    with pytest.raises(ValueError, match="at least 1 character"):
+        parse_finqa_answer_payload(
+            json.dumps(
+                {
+                    "final_answer": "",
+                    "calculation": "x",
+                    "cited_candidate_ids": ["evidence-01"],
+                }
+            ),
             allowed_candidate_ids=["evidence-01"],
         )
 
