@@ -133,6 +133,19 @@
 | 121 | 2026-07-27 | [`0ee3ba2`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/0ee3ba2536dc9a4d0549fde69bd30c6c96b02f04) | fix(ci): apply smoke directory mode as root |
 | 122 | 2026-07-27 | [`3123133`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/31231333c8a0cf88973ac90333c407b89d181ee3) | fix(ci): preserve private deployment handoffs |
 | 123 | 2026-07-27 | [`9517266`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/951726601213b9b9a75b6ec4016fc87ad0331dfd) | docs(deployment): close out R2-S9 evidence [skip ci] |
+| 124 | 2026-07-28 | [`723543a`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/723543ac727f374464e141f80a4420dbaeb255d6) | feat: add resumable FinanceBench retrieval track |
+| 125 | 2026-07-28 | [`5d612ea`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/5d612ea9c6c72039e76846c71d46d16e7f29c733) | fix: route runtime caches to writable container storage |
+| 126 | 2026-07-28 | [`c815c39`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/c815c39c747357a39fef86aae97014459f940363) | feat(eval): add frozen FinanceBench page retrieval |
+| 127 | 2026-07-28 | [`a2527e6`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/a2527e6834371e1121836cd403d1090ab49e948b) | fix(eval): normalize FinanceBench evidence pages |
+| 128 | 2026-07-28 | [`d1b2975`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/d1b2975b7b45cae1abc3696262da1fcf165a4380) | docs(eval): record frozen FinanceBench page results |
+| 129 | 2026-07-28 | [`f33e2ab`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/f33e2abcb942ace3931d57530d4bca1d4dd258a5) | feat(eval): add FinanceBench page candidate ranking |
+| 130 | 2026-07-28 | [`14adcab`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/14adcabf24ed4b3470a30042ef02b262b2e7bc3c) | feat(retrieval): add guarded local page reranker |
+| 131 | 2026-07-28 | [`18e2665`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/18e2665da0a712c4b18b44ab4075fcab2ada94f7) | fix(eval): isolate page reranker timeout budget |
+| 132 | 2026-07-28 | [`e4fde24`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/e4fde24328bf9c57e0fcb7e1f06314662a0c8918) | feat(eval): fuse dense and local page rankings |
+| 133 | 2026-07-28 | [`89b64af`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/89b64afb7b58f2d23744186089ea8281a1c47199) | fix(retrieval): retry invalid page ranking protocol |
+| 134 | 2026-07-28 | [`e032178`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/e032178923b9a35c6eb52060b770ffa2da6172b6) | feat(eval): record page ranking confidence scores |
+| 135 | 2026-07-28 | [`ba3dd0e`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/ba3dd0e65240c8bd79a96c176dd7d1df37d019d0) | feat(retrieval): gate page reranking by dense confidence |
+| 136 | 2026-07-28 | [`daefac1`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/daefac1f4dcc7dd0c1d30dc45d3108aeb94d34e6) | fix(eval): preserve older reranker run verification |
 
 ## 范围说明
 

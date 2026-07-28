@@ -1,8 +1,9 @@
 # Enterprise Agentic RAG Complete Evolution History
 
-> 中文总索引：从最初的固定式 RAG 到 R2-S9 工业化收口。
+> 中文总索引：从最初的固定式 RAG 到 R2-S9 工业化收口及 FinanceBench
+> 页面重排 v2。
 >
-> 记录截止：`951726601213b9b9a75b6ec4016fc87ad0331dfd`（2026-07-27）
+> 记录截止：`daefac1f4dcc7dd0c1d30dc45d3108aeb94d34e6`（2026-07-28）
 >
 > 本文负责解释“为什么改、改了什么、在哪里改、如何验证、还缺什么”。逐提交原始记录见 [01_COMMIT_INDEX.md](01_COMMIT_INDEX.md)。
 
@@ -10,8 +11,10 @@
 
 截至上述截止提交：
 
-- **代码和已提交文档：已上传。** 分支 `codex/rag-eval-system` 与远端同步，共有 123 个历史提交。
-- **阶段性工程记录：大部分已上传。** E0-E7、R2-S1、R2-S2、R2-S3、R2-S4、R2-S5、R2-S6、R2-S7、R2-S8、R2-S9 都有设计、日志、结果或运行手册。
+- **代码和截止点文档：已提交。** 截止 `daefac1` 共记录 136 个历史提交；
+  本文之后的文档收口提交仍以 GitHub Commits 页面为最终原始历史。
+- **阶段性工程记录：大部分已上传。** E0-E7、R2-S1 至 R2-S9、
+  FinanceBench external track 和 page reranker v2 都有设计、日志、结果或运行手册。
 - **此前缺少的是统一入口。** 原有记录散落在 `docs/roadmap`、`docs/security`、`docs/corpus`、`docs/lifecycle`、`docs/quality` 和 `docs/deployment`，无法按时间一次读完。本文补齐这个入口。
 - **不会上传的内容：** 密钥、JWT 私钥、真实身份数据、模型文件、`.private` 下的本地评审活动、临时缓存和可能含敏感内容的原始运行产物。这是安全边界，不是记录丢失。
 - **无法诚实补写的内容：** 早期只在聊天中讨论、从未写入仓库或 Git 的措辞细节。本文只依据 Git、代码、测试和现存工程日志重建，不编造过程。
@@ -47,6 +50,7 @@ Git 提交是“发生过什么”的不可变骨架，工程日志是“为什�
 | 2026-07-27 | R2-S7 | 安全、版本化、可审计知识生命周期 | `5570d02` 至 `f081ccb` |
 | 2026-07-27 | R2-S8 | 独立人工质量证据工作流 | `d7578e4` 至 `c95f9ff` |
 | 2026-07-27 | R2-S9 | Linux 容器、readiness、回滚、SBOM 和 CI 收口 | `7edff9b` 至 `9517266` |
+| 2026-07-28 | FinanceBench page reranker v2 | 候选/最终指标拆分、guarded Qwen 重排、dense-head 融合、置信度 cascade 与成本评测 | `f33e2ab` 至 `daefac1` |
 
 ## 4. 阶段 0：从空仓库到固定式 RAG MVP
 

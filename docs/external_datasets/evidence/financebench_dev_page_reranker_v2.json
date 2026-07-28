@@ -1,0 +1,160 @@
+{
+  "artifacts": {
+    "all_listed_private_runs_verified": true,
+    "private_artifacts_committed": false,
+    "verification_code_revision": "daefac1f4dcc7dd0c1d30dc45d3108aeb94d34e6"
+  },
+  "boundaries": {
+    "answer_accuracy": "NOT_RUN",
+    "answer_generation": "NOT_RUN",
+    "frozen_test_v1_reused_for_v2_tuning": false,
+    "human_review": "NOT_RUN",
+    "promotion_status": "NEW_INDEPENDENT_HOLDOUT_REQUIRED",
+    "result_scope": "financebench_dev_page_localization_only",
+    "semantic_citation_entailment": "NOT_RUN",
+    "threshold_selected_on": "financebench_dev_49"
+  },
+  "candidate_ceiling": {
+    "complete_page_recall_at_10": 0.5102040816326531,
+    "macro_page_recall_at_10": 0.5612244897959183,
+    "page_hit_at_10": 0.6122448979591837,
+    "purpose": "separates candidate-generation misses from final-ranking misses"
+  },
+  "dataset": {
+    "case_count": 49,
+    "dataset_manifest_sha256": "41d93347ee04996473a02f2ccc4607d037fa2e691f277ce0801a4710e4f9a251",
+    "dev_eval_sha256": "ce081042437fb49eff865ba51a66bb50e370e269bd3cdd5e617edae3f2a99753",
+    "dev_evidence_sha256": "38b8fdadde007161404ef520f78842f5054444a2b5592929c1e22e87bc3eeb6b",
+    "revision": "cc39aeb4afdf33909ee1412188bf89035950c2eb",
+    "split": "dev"
+  },
+  "incidents": [
+    {
+      "artifact_published": false,
+      "code_revision": "14adcab",
+      "reason": "online_12_second_model_timeout_was_incorrectly_reused_for_offline_listwise_reranking",
+      "resolution": "explicit_offline_timeout_override_recorded_in_run_provenance"
+    },
+    {
+      "artifact_published": true,
+      "code_revision": "18e2665",
+      "reason": "first_qwen3_quality_run_excluded_reranker_latency_from_total_latency",
+      "resolution": "quality_metrics_retained_as_diagnostic_only; latency_invalidated; later runs measure full latency"
+    },
+    {
+      "artifact_published": false,
+      "code_revision": "e4fde24",
+      "reason": "qwen2.5_3b_returned_duplicate_candidate_ids_despite_json_schema",
+      "resolution": "strict_corrective_retry_added; invalid output was never silently repaired"
+    },
+    {
+      "artifact_published": false,
+      "code_revision": "e4fde24",
+      "reason": "local_evaluation_process_interrupted_and_ollama_service_stopped",
+      "resolution": "atomic publication left no partial run; Ollama restarted with D_drive_model_root"
+    },
+    {
+      "artifact_published": true,
+      "code_revision": "ba3dd0e",
+      "reason": "new_summary_field_initially_broke_verification_of_older_reranker_runs",
+      "resolution": "schema_migration_added_at_daefac1; all_listed_runs_reverified"
+    }
+  ],
+  "index": {
+    "embedding_model": "bge-m3",
+    "entity_catalog_sha256": "7b92868849fa179ff84d2b858820c2719599a772cd4fee864794dc1fd50f7580",
+    "manifest_sha256": "7eae87f4c9ab670a1f10838f553fe2a0a7b53c0ef2958ff950101e7b8305be01",
+    "run_id": "financebench-bge-m3-heading-1800-v1"
+  },
+  "repository_verification": {
+    "full_test_failed": 0,
+    "full_test_passed": 2496,
+    "full_test_skipped": 30,
+    "public_audit_candidates": 946,
+    "public_audit_findings": 0,
+    "verified_on": "2026-07-28"
+  },
+  "runs": [
+    {
+      "artifacts": {
+        "details_sha256": "087c3a1d69fc5eac16351502c1255d7a192cbf5dd69fe2e6e2790dc8a4408656",
+        "manifest_sha256": "18db06a45f81e436b6c8c9d296ea757a5286cc6835a9e692a3410d9665326469",
+        "summary_sha256": "96495012c9537f011ccfd63d36d37642cc47aa49b1569cf9a8e08f9a2c111c49"
+      },
+      "code_revision": "e032178923b9a35c6eb52060b770ffa2da6172b6",
+      "complete_page_recall_at_5": 0.3877551020408163,
+      "embedding_calls": 98,
+      "generation_calls": 0,
+      "latency_ms_mean": 1286.748812244886,
+      "latency_ms_p95": 1708.753999999999,
+      "macro_page_recall_at_5": 0.4387755102040816,
+      "page_hit_at_5": 0.4897959183673469,
+      "run_id": "financebench-pages-dev-v2-confidence-doc1-c10",
+      "variant": "dense_top_document_10_candidate_baseline"
+    },
+    {
+      "artifacts": {
+        "details_sha256": "f2296beb8d402cdfb4581c4dd789a2feaaa3f740b37851aec6bdfe90eb7553c8",
+        "manifest_sha256": "fd4b41e1dd93dfdfa3c0f73bd3ccbdcab3677b3d759421fad31841311ebb3c44",
+        "summary_sha256": "f5a07241fe2c7aa1eaae588c559e1c65ca9e0cd87a3b682ad43109debdb42466"
+      },
+      "code_revision": "e4fde24328bf9c57e0fcb7e1f06314662a0c8918",
+      "complete_page_recall_at_5": 0.42857142857142855,
+      "embedding_calls": 98,
+      "generation_calls": 49,
+      "latency_ms_mean": 8859.855412244888,
+      "latency_ms_p95": 45116.9549,
+      "macro_page_recall_at_5": 0.5,
+      "page_hit_at_5": 0.5714285714285714,
+      "reranker_case_count": 49,
+      "reranker_model": "qwen3:8b",
+      "run_id": "financebench-pages-dev-v2-qwen3-doc1-c10-densehead1",
+      "variant": "full_qwen3_reranking_with_dense_top1_preserved"
+    },
+    {
+      "artifacts": {
+        "details_sha256": "90ba6a7b25b0079f97dd5f94bbf3953ae237394de9fcf07804959313ec15b9e4",
+        "manifest_sha256": "778ce6bf2a449f22a0473b91964e6a1c73d68bb018e4d585679a98a8b7fc0f01",
+        "summary_sha256": "d602a0b5a166947d407e6e9ab4801e47ca439c39687282c61cf9a45432b54158"
+      },
+      "code_revision": "89b64afb7b58f2d23744186089ea8281a1c47199",
+      "complete_page_recall_at_5": 0.32653061224489793,
+      "embedding_calls": 98,
+      "generation_calls": 57,
+      "latency_ms_mean": 3065.1221816326497,
+      "latency_ms_p95": 4094.1236999997273,
+      "macro_page_recall_at_5": 0.37755102040816324,
+      "page_hit_at_5": 0.42857142857142855,
+      "reranker_case_count": 49,
+      "reranker_model": "qwen2.5:3b",
+      "run_id": "financebench-pages-dev-v2-qwen25-3b-doc1-c10-densehead1",
+      "structured_output_retry_count": 8,
+      "variant": "small_model_negative_control"
+    },
+    {
+      "artifacts": {
+        "details_sha256": "9e9357df5a2281c316380fe2266ed56680e2ce2e37104f6bf227a84d828ff298",
+        "manifest_sha256": "452fca487662ed8edd087334992e02df34633b5858c590b40d2253f981586ce3",
+        "summary_sha256": "05be880f7e6b1c018af18eef49e3ae7f365c85ac413d9d3537b90de7fe313265"
+      },
+      "code_revision": "ba3dd0e65240c8bd79a96c176dd7d1df37d019d0",
+      "complete_page_recall_at_5": 0.40816326530612246,
+      "embedding_calls": 98,
+      "generation_calls": 13,
+      "latency_ms_mean": 2459.3611040816736,
+      "latency_ms_p95": 5952.604600000086,
+      "macro_page_recall_at_5": 0.46938775510204084,
+      "page_hit_at_5": 0.5306122448979592,
+      "reranker_case_count": 13,
+      "reranker_gate": {
+        "dense_head_count": 1,
+        "mode": "dense_top1_below",
+        "threshold": 0.639074
+      },
+      "reranker_model": "qwen3:8b",
+      "run_id": "financebench-pages-dev-v2-qwen3-gated-top1-0639074",
+      "variant": "development_candidate_confidence_gated_qwen3"
+    }
+  ],
+  "schema_version": "financebench_dev_page_reranker_public_evidence_v1"
+}

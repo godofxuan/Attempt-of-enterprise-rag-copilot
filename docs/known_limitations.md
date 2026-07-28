@@ -24,7 +24,7 @@ another malicious process on the same host. Manifest and journal SHA-256
 bindings detect non-coordinated corruption, not a process that already has the
 same account's identity-directory write authority.
 
-最后更新：2026-07-23
+最后更新：2026-07-28
 
 本文使用三个状态：`FAILED` 表示已运行且未通过；`NOT RUN` 表示没有满足协议的 fixture/依赖或实验；“未实现”表示代码能力不存在。`NOT RUN` 不能写成通过。
 
@@ -37,7 +37,7 @@ same account's identity-directory write authority.
 | Live quality | 历史 full Agent canonical live dev 为 23/24；新增 expanded retrieval-only dev/test 为 48/48、56/56 | retrieval success 不等于回答语义、人类可用性或生产端到端 100% | 保留历史 artifact；对 expanded 执行独立 answer/Agent/human review，不根据 frozen test 反复调参 |
 | Citation grounding | Host 只输出通过 visible-source、最低词汇支持、阿拉伯数字、日期/状态和常见否定一致性检查的 claim；全部失败时回退到可见证据抽取式 partial | 这是确定性 fail-closed gate，可能拒绝正确同义改写，也不能证明完整 semantic entailment、事实正确性或 hallucination immunity | 用真实双人评审测量误拒绝与漏检；在独立数据上校准后才考虑更强语义判定 |
 | Indirect document injection | D1-D7, V1-V5, S2-1, R2-S3, and R2-S4 Task 8 are complete with observations; R2-S4 public package `data/v2/public/r2_s4_cross_model` is `VERIFIED / 8 FILES`; decision `CONSISTENT_OBSERVATION` on the same visible synthetic dev cohort; `release_pass=false` | The result supports only this narrow comparison: 12 decision safety/utility observations matched for frozen Qwen2.5/Qwen3 on visible synthetic dev data; 3 operational counts matched; 2 latency metrics differed. It is not production safety evidence and not cross-model generalization. Public proof scope intentionally omits private input/nonce/candidate-order hashes and aligns only by ordinal/public-safe fields | Independent holdout, semantic judge calibration, human double review, production traffic, real IdP, and deployment remain `NOT RUN`; any broader claim requires those gates |
-| Reranker | `NOT RUN` (`no_admitted_reranker`) | 不能声称 cross-encoder/reranker 改善过排序 | 固定候选模型、license/资源预算与 latency gate；在 frozen test 上做隔离消融 |
+| Reranker | FinanceBench dev 已运行 guarded qwen3/qwen2.5 listwise reranker；dev-selected qwen3 cascade 为 Page Hit@5 `53.06%`、Macro Page Recall@5 `46.94%`、`13/49` reranks、mean/p95 `2.46s/5.95s` | 这是页面定位 dev 结果，不是答案准确率；阈值在同一 dev 上选择，旧 test 已被分析，不能用于 v2 泛化声明；qwen3 全量 p95 `45.12s`，qwen2.5 质量低于 dense baseline | 冻结当前配置、模型 digest 和门禁，在新的独立 holdout 上同时验证 page、answer、citation、调用率和 latency，再决定是否接入默认在线路由 |
 | Human review | `NOT RUN`；50 行、8 个人工判断列保持空白 | 自动 claim/citation/required-fact checks 不能替代语义和可用性评分 | 本人按冻结 rubric 完成 review；若用于正式质量结论，再增加第二 reviewer、分歧仲裁和 agreement 记录 |
 | Authentication/authorization | 本地 RS256 JWT/JWKS、server-derived Principal、operator route role 和文档 ACL 已实现；身份源仍是本地模拟，不是真实 IdP | Streamlit/API 只允许本机演示；不能声称已接 SSO、revocation、SCIM 或企业 policy admin | 接真实 OIDC discovery/JWKS cache、HTTPS、secret manager、tenant-scoped operator policy 和 change audit |
 | Index updates | immutable rebuild + activate；没有 incremental upsert/delete | 文档变化需要新 run，不能承诺低延迟同步 | 定义 document tombstone/version contract、idempotency、rollback 和 consistency tests |

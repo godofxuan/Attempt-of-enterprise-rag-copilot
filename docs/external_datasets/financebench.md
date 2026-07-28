@@ -191,3 +191,37 @@ scorer.
 Do not report document recall or page localization as FinanceBench answer
 accuracy. Exact numeric normalization, generation, claim-level citation
 entailment, and human review are separate evaluation steps.
+
+## Development-only page reranker v2
+
+The v2 page reranker is an additive development protocol. It does not modify
+the frozen v1 test configuration. The selected development candidate uses
+one-document dense page drilldown, ten unique page candidates, a guarded local
+`qwen3:8b` listwise reranker, dense Top-1 preservation, and a dense-score
+confidence gate:
+
+```powershell
+& '.\.venv\Scripts\python.exe' -m scripts.eval_financebench_pages `
+  --run-id <new-immutable-run-id> `
+  --split dev `
+  --page-drilldown `
+  --drilldown-max-documents 1 `
+  --drilldown-chunks-per-doc 10 `
+  --drilldown-mode dense `
+  --drilldown-merge-mode global_page_score `
+  --page-reranker local_llm `
+  --reranker-model qwen3:8b `
+  --reranker-timeout-seconds 120 `
+  --reranker-dense-head-count 1 `
+  --reranker-max-attempts 2 `
+  --reranker-gate-mode dense_top1_below `
+  --reranker-gate-threshold 0.639074
+```
+
+The measured dev run applied the reranker to `13/49` cases and reported Page
+Hit@5 `53.06%`, complete Page Recall@5 `40.82%`, macro Page Recall@5 `46.94%`,
+mean latency `2.46s`, and p95 `5.95s`. The threshold was selected on the same
+dev split, so promotion status is `NEW_INDEPENDENT_HOLDOUT_REQUIRED`.
+
+See [the implementation and failure record](financebench_reranker_v2.md) and
+[the content-free public aggregate](evidence/financebench_dev_page_reranker_v2.json).

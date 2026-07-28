@@ -454,3 +454,30 @@ tokenize_for_bm25
 本地修复验证包括真实 jieba 首次建缓存、23 个配置/容器定向测试，以及
 2,460 个完整确定性测试。远端 CI 的最终状态以修复提交对应的 GitHub Actions
 run 为准，不能用本地结果代替远端容器证据。
+
+## 13. 页面重排 v2 与置信度 Cascade
+
+在 frozen test v1 完成后，v2 不再使用该 test 调参，只在 49 题 dev 上拆分
+“候选召回”和“最终 Top-5 排序”。dense 候选 Top-10 的 Page Hit 为
+`61.22%`，高于最终 Top-5 的 `48.98%`，证明一部分正确页已经召回但排序不足。
+
+新增 guarded local listwise reranker、dense Top-1 保护融合和 dense-score
+confidence gate。真实结果：
+
+| 方案 | Generation calls | Page Hit@5 | Complete R@5 | Macro R@5 | Mean / p95 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| dense baseline | 0 | 48.98% | 38.78% | 43.88% | 1.29s / 1.71s |
+| qwen3 全量 + dense Top-1 | 49 | 57.14% | 42.86% | 50.00% | 8.86s / 45.12s |
+| qwen2.5:3b negative control | 57 | 42.86% | 32.65% | 37.76% | 3.07s / 4.09s |
+| qwen3 confidence cascade | 13 | 53.06% | 40.82% | 46.94% | 2.46s / 5.95s |
+
+全量 qwen3 质量最好但在线成本不可接受；小模型更快但质量低于 baseline，并有
+8 次结构化输出纠错；cascade 相比全量 qwen3 减少 `73.47%` 调用并保留部分
+质量提升。阈值 `dense_top1 <= 0.639074` 来自 dev，状态为
+`NEW_INDEPENDENT_HOLDOUT_REQUIRED`，不能作为泛化结论。
+
+完整代码、故障、指标含义和面试边界见
+[FinanceBench 页面重排 v2](financebench_reranker_v2.md)，公开聚合见
+[v2 evidence](evidence/financebench_dev_page_reranker_v2.json)。
+
+本轮交付关闭前完成全仓回归 `2496 passed, 30 skipped, 0 failed`，并完成公开仓库脱敏审计 `946 candidates, 0 findings`。这些数字只证明代码回归和公开材料边界通过，不替代独立 holdout 的模型质量验证。
