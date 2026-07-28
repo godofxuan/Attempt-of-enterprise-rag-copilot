@@ -347,7 +347,7 @@ def test_escaped_attack_text_is_detected_at_each_internal_boundary(
     assert off.verifier_exposure is True
 
 
-def test_fake_generator_uses_attack_unit_propagation_not_plaintext_canary(
+def test_fake_generator_attack_claims_still_pass_citation_grounding(
     paired_result,
 ) -> None:
     _, result = paired_result
@@ -357,7 +357,13 @@ def test_fake_generator_uses_attack_unit_propagation_not_plaintext_canary(
         if item.label == "attack" and item.model_context_exposure
     ]
     assert exposed
-    assert all(item.document_canary_exposure for item in exposed)
+    assert any(item.document_canary_exposure for item in exposed)
+
+    filtered = [
+        item for item in exposed if not item.document_canary_exposure
+    ]
+    assert filtered
+    assert all(item.answer_mode == "partial" for item in filtered)
 
     encoded = next(
         item
@@ -365,7 +371,8 @@ def test_fake_generator_uses_attack_unit_propagation_not_plaintext_canary(
         if item.case_id == "r2s1-test-encoded-invisible-3"
     )
     assert encoded.model_context_exposure is True
-    assert encoded.document_canary_exposure is True
+    assert encoded.document_canary_exposure is False
+    assert encoded.answer_mode == "partial"
 
 
 def test_no_egress_boundary_blocks_direct_socket_connect_without_network() -> None:
