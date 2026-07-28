@@ -117,13 +117,48 @@ v2 使用同一 100 题只能判断已知开发失败是否被修复，属于 tu
 不能作为独立泛化证据。即使 v2 在该集合上通过数值门槛，仍需新的未用于提示词
 修改的 dev validation cohort 才能考虑采用。
 
-## 8. 实现位置
+v2 的实际开发观察如下：
+
+| Reviewer / Arm | Baseline strict | Reviewed strict | wrong→correct | correct→wrong | Mean latency multiplier |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Qwen3 8B / Oracle | 63% | 64% | 1 | 0 | 1.97x |
+| Qwen3 8B / Hybrid | 59% | 59% | 0 | 0 | 2.05x |
+| Qwen3-Coder 30B / Hybrid | 59% | 61% | 5 | 3 | 3.73x |
+
+8B v2 消除了已知 scale 退化，但 Hybrid 没有新增正确题。异构 30B 有 `+2`
+点净信号，却仍有 3 道正确题退化、McNemar `p=0.7265625`，且引用召回下降
+约 1.07 点，因此三者都不满足采用门槛。
+
+## 8. 有界候选仲裁
+
+下一项开发实验不允许 adjudicator 重新生成算式：
+
+```text
+8B baseline
+  -> 30B reviewer proposal
+  -> proposal 未变化：直接结束
+  -> proposal 有变化：匿名、位置随机化的 A/B adjudication
+  -> 选择 baseline 或 proposal
+  -> 协议失败：保留 baseline
+```
+
+只对 30B 修改的 `24/100` 题调用 adjudicator。候选来源不会进入 prompt，
+候选 A/B 位置由 `SHA256(prompt_version + case_id)` 确定，防止固定位置偏差。
+采用判断仍使用 baseline 到最终 adjudicated 输出的成对转移、exact McNemar、
+grounded 指标和完整端到端成本。该实验仍属于同一开发集上的调优，不是独立验证。
+
+## 9. 实现位置
 
 - 核心 reviewer、成对 schema、统计和不可变 artifact：
   `app/external_datasets/finqa_review.py`
 - 真实运行入口：`scripts/eval_finqa_review.py`
 - 回退、传输失败、状态转移和篡改检测测试：
   `tests/external_datasets/test_finqa_review.py`
+- 匿名候选仲裁、汇总和不可变 artifact：
+  `app/external_datasets/finqa_adjudication.py`
+- 仲裁运行入口：`scripts/eval_finqa_adjudication.py`
+- 仲裁边界和发布测试：
+  `tests/external_datasets/test_finqa_adjudication.py`
 
 运行产物只写入 `.private/external_datasets/finqa/review_runs`。公开仓库后续仅发布
 聚合指标、hash、代码版本和边界声明，不发布问题、答案、证据、case ID 或逐题算式。
