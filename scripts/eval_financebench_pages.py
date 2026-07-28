@@ -26,7 +26,9 @@ from app.external_datasets.financebench_page_eval import (
     publish_financebench_page_run,
     summarize_financebench_page_cases,
 )
+from app.ollama_chat import chat_with_ollama
 from app.retrieval.entity_scope import EntityScopedSearchBackend
+from app.retrieval.page_reranker import LocalLLMPageReranker
 
 
 DEFAULT_INDEX_ROOT = DEFAULT_PRIVATE_ROOT / "indexes"
@@ -82,6 +84,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="quota",
     )
     parser.add_argument(
+        "--page-reranker",
+        choices=["none", "local_llm"],
+        default="none",
+    )
+    parser.add_argument("--reranker-model")
+    parser.add_argument(
         "--freeze-protocol",
         type=Path,
         default=DEFAULT_FREEZE_PROTOCOL,
@@ -135,7 +143,39 @@ def main(argv: list[str] | None = None) -> int:
         ),
         pipeline=pipeline,
     )
+    if args.page_reranker != "none" and not args.page_drilldown:
+        raise ValueError("page reranker requires --page-drilldown")
+    reranker_model = (
+        args.reranker_model or settings.evidence_model
+        if args.page_reranker == "local_llm"
+        else "none"
+    )
+
+    def tracked_reranker_chat(
+        model,
+        messages,
+        *,
+        response_format=None,
+        think=None,
+    ):
+        runtime.counters.generation_calls += 1
+        return chat_with_ollama(
+            model,
+            messages,
+            response_format=response_format,
+            think=think,
+        )
+
+    page_reranker = (
+        LocalLLMPageReranker(
+            model=reranker_model,
+            chat_fn=tracked_reranker_chat,
+        )
+        if args.page_reranker == "local_llm"
+        else None
+    )
     embedding_calls_before = runtime.counters.embedding_calls
+    generation_calls_before = runtime.counters.generation_calls
     details = evaluate_financebench_page_cases(
         cases=cases,
         evidence_cases=evidence_cases,
@@ -151,8 +191,12 @@ def main(argv: list[str] | None = None) -> int:
         drilldown_chunks_per_doc=args.drilldown_chunks_per_doc,
         drilldown_mode=args.drilldown_mode,
         drilldown_merge_mode=args.drilldown_merge_mode,
+        page_reranker=page_reranker,
     )
     embedding_calls = runtime.counters.embedding_calls - embedding_calls_before
+    generation_calls = (
+        runtime.counters.generation_calls - generation_calls_before
+    )
     summary = summarize_financebench_page_cases(details)
     run_manifest = build_financebench_page_manifest(
         run_id=args.run_id,
@@ -162,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
         entity_catalog_sha256=catalog.canonical_sha256(),
         embedding_model=settings.embedding_model,
         embedding_calls=embedding_calls,
+        generation_calls=generation_calls,
         split=args.split,
         code_revision=code_revision,
         freeze_protocol_sha256=freeze_protocol_sha256,
@@ -173,6 +218,8 @@ def main(argv: list[str] | None = None) -> int:
         drilldown_chunks_per_doc=args.drilldown_chunks_per_doc,
         drilldown_mode=args.drilldown_mode,
         drilldown_merge_mode=args.drilldown_merge_mode,
+        page_reranker=args.page_reranker,
+        reranker_model=reranker_model,
         summary=summary,
     )
     output = publish_financebench_page_run(
@@ -199,6 +246,8 @@ def main(argv: list[str] | None = None) -> int:
                     for item in summary.candidate_cutoffs
                 ],
                 "embedding_calls": embedding_calls,
+                "generation_calls": generation_calls,
+                "reranker_model": reranker_model,
                 "output_dir": str(output),
                 "frozen_test": (
                     "EXECUTED" if args.split == "test" else "NOT_RUN"
@@ -244,6 +293,8 @@ def _validate_frozen_configuration(args, configuration) -> None:
         raise ValueError(
             "test split requires the frozen quota drilldown merge mode"
         )
+    if args.page_reranker != "none" or args.reranker_model is not None:
+        raise ValueError("test split does not permit an unfrozen page reranker")
     actual = {
         "top_k": 5,
         "candidate_k": args.candidate_k,

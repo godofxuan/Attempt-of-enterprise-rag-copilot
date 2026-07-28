@@ -186,6 +186,7 @@ class FinanceBenchPageRunManifest(FinanceBenchPageEvalModel):
     entity_catalog_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     embedding_model: str = Field(min_length=1, max_length=200)
     embedding_calls: int = Field(ge=0)
+    generation_calls: int = Field(default=0, ge=0)
     code_revision: str | None = Field(
         default=None,
         pattern=r"^[0-9a-f]{40}$",
@@ -300,6 +301,7 @@ def evaluate_financebench_page_cases(
     drilldown_chunks_per_doc: int = 5,
     drilldown_mode: Literal["hybrid", "dense", "bm25"] = "hybrid",
     drilldown_merge_mode: Literal["quota", "global_page_score"] = "quota",
+    page_reranker=None,
 ) -> list[FinanceBenchPageCaseResult]:
     if top_k != 5:
         raise ValueError("FinanceBench page v1 requires top_k=5")
@@ -356,6 +358,22 @@ def evaluate_financebench_page_cases(
                 "page_drilldown_candidates": len(page_candidates),
                 "page_drilldown_returned": len(page_hits),
             }
+            if page_reranker is not None and page_candidates:
+                reranked = page_reranker.rerank(
+                    question=case.question,
+                    candidates=page_candidates,
+                )
+                page_hits = list(reranked.hits[:top_k])
+                page_stage_counts.update(
+                    {
+                        "page_reranker_calls": 1,
+                        "page_reranker_admitted": reranked.admitted_count,
+                        "page_reranker_quarantined": (
+                            reranked.quarantined_count
+                        ),
+                        "page_reranker_returned": len(page_hits),
+                    }
+                )
         gold_pages = _unique_page_references(evidence)
         if page_drilldown_backend is not None:
             page_candidate_score = score_page_retrieval(
@@ -537,6 +555,7 @@ def build_financebench_page_manifest(
     entity_catalog_sha256: str,
     embedding_model: str,
     embedding_calls: int,
+    generation_calls: int = 0,
     split: Literal["dev", "test"] = "dev",
     code_revision: str | None = None,
     freeze_protocol_sha256: str | None = None,
@@ -548,6 +567,8 @@ def build_financebench_page_manifest(
     drilldown_chunks_per_doc: int,
     drilldown_mode: Literal["hybrid", "dense", "bm25"],
     drilldown_merge_mode: Literal["quota", "global_page_score"] = "quota",
+    page_reranker: Literal["none", "local_llm"] = "none",
+    reranker_model: str = "none",
     summary: FinanceBenchPageRunSummary,
     created_at_utc: datetime | None = None,
 ) -> FinanceBenchPageRunManifest:
@@ -561,6 +582,7 @@ def build_financebench_page_manifest(
         entity_catalog_sha256=entity_catalog_sha256,
         embedding_model=embedding_model,
         embedding_calls=embedding_calls,
+        generation_calls=generation_calls,
         code_revision=code_revision,
         freeze_protocol_sha256=freeze_protocol_sha256,
         config={
@@ -573,6 +595,8 @@ def build_financebench_page_manifest(
             "drilldown_chunks_per_doc": drilldown_chunks_per_doc,
             "drilldown_mode": drilldown_mode,
             "drilldown_merge_mode": drilldown_merge_mode,
+            "page_reranker": page_reranker,
+            "reranker_model": reranker_model,
             "cutoffs": "1,3,5",
             "candidate_cutoffs": "5,10,20",
             "metric_contract": "unique_doc_page_v1",

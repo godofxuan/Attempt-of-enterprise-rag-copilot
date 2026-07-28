@@ -20,6 +20,7 @@ from app.external_datasets.financebench_page_eval import (
     summarize_financebench_page_cases,
     verify_financebench_page_run,
 )
+from app.retrieval.page_reranker import PageRerankResult
 
 
 def _case(
@@ -174,6 +175,21 @@ class _MalformedBatchPipeline(_BatchPolicyPipeline):
         if self.failure == "missing":
             return results[:-1]
         return list(reversed(results))
+
+
+class _ReversePageReranker:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def rerank(self, *, question, candidates) -> PageRerankResult:
+        self.calls += 1
+        rows = tuple(reversed(candidates))
+        return PageRerankResult(
+            hits=rows,
+            admitted_count=len(rows),
+            quarantined_count=0,
+            guard_rule_ids=(),
+        )
 
 
 def _evaluated_details():
@@ -333,6 +349,36 @@ def test_financebench_page_eval_global_score_rejects_non_dense_mode() -> None:
         )
 
 
+def test_financebench_page_eval_applies_page_reranker_to_candidate_pool() -> None:
+    broad = _Pipeline([_hit(1, doc_id="doc-a", page_number=90)])
+    focused = _PolicyPipeline(
+        {
+            "policy-doc-a": [
+                _hit(11, doc_id="doc-a", page_number=8, score=0.80),
+                _hit(12, doc_id="doc-a", page_number=2, score=0.70),
+            ]
+        }
+    )
+    reranker = _ReversePageReranker()
+
+    details = evaluate_financebench_page_cases(
+        cases=[_case()],
+        evidence_cases=[_evidence_case()],
+        pipeline=broad,
+        page_drilldown_backend=focused,
+        drilldown_max_documents=1,
+        drilldown_mode="dense",
+        drilldown_merge_mode="global_page_score",
+        page_reranker=reranker,
+    )
+
+    assert reranker.calls == 1
+    assert details[0].page_score.ranked_pages[0].page_number == 2
+    assert details[0].stage_counts["page_reranker_calls"] == 1
+    assert details[0].stage_counts["page_reranker_admitted"] == 2
+    assert details[0].stage_counts["page_reranker_quarantined"] == 0
+
+
 @pytest.mark.parametrize(
     ("failure", "message"),
     [
@@ -487,6 +533,8 @@ def test_financebench_page_run_is_immutable_and_self_verifying(
 
     assert verified.schema_version == "financebench_page_retrieval_run_v2"
     assert verified.config["drilldown_merge_mode"] == "quota"
+    assert verified.config["page_reranker"] == "none"
+    assert verified.generation_calls == 0
     assert verified.summary == summary
     assert set(verified.artifacts) == {"summary.json", "details.jsonl"}
     assert all(item.byte_count > 1 for item in verified.artifacts.values())
