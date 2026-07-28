@@ -221,6 +221,10 @@ class FinQAAdjudicationRunManifest(BaseModel):
     adjudication_code_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
     adjudicator_model: str = Field(min_length=1)
     adjudicator_model_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    runtime_backend: str = Field(
+        default="unspecified",
+        pattern=r"^[A-Za-z0-9._:-]{1,100}$",
+    )
     timeout_seconds: float = Field(gt=0, le=300)
     max_attempts: int = Field(ge=1, le=3)
     summary: FinQAAdjudicationSummary

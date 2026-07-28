@@ -47,6 +47,19 @@
       "sha256": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41"
     }
   },
+  "runtime_amendment": {
+    "status": "FROZEN_BEFORE_COMPLETED_VALIDATION_REVIEW_RUN",
+    "incident": "Ollama 0.32.5 auto-updated from 0.32.4 and its CUDA v12/v13 runner terminated during qwen3-coder:30b warm-up with CUDA shared object initialization failed",
+    "failed_run_artifact_published": false,
+    "minimal_cuda_reproduction": true,
+    "minimal_vulkan_reproduction_passed": true,
+    "baseline_backend": "ollama_0.32.5_cuda_auto",
+    "reviewer_backend": "ollama_0.32.5_vulkan",
+    "adjudicator_backend": "ollama_0.32.5_cuda_auto",
+    "model_or_prompt_changed": false,
+    "quality_success_gate_changed": false,
+    "latency_comparable_to_prior_cuda_review": false
+  },
   "success_gate": {
     "wrong_to_correct_must_exceed_correct_to_wrong": true,
     "execution_accuracy_delta_must_be_positive": true,

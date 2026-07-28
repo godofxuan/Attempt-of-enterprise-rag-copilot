@@ -163,6 +163,13 @@ validation 模型调用前，仅使用 case ID 搜索标准稳定抽样 seed，�
 验证链路的 prompt、模型 digest、run ID 和成功门槛全部保持不变。该集合仍来自
 FinQA dev，只能提供内部零重叠验证，不能声称独立域泛化或替代 frozen test。
 
+运行前 Ollama 从 `0.32.4` 自动升级到 `0.32.5`，30B 在 CUDA v12/v13
+warm-up 中均因 Flash Attention shared-object 初始化失败而退出，且没有发布
+失败 run artifact。相同模型 digest 的最小 Vulkan 请求通过，因此 validation
+reviewer 改用 `ollama_0.32.5_vulkan`，模型、prompt 和质量门槛不变。manifest
+新增向后兼容的 `runtime_backend` 字段；该 run 的质量结果仍可评估，但 latency
+不能与先前 CUDA reviewer 直接比较。
+
 ## 10. 实现位置
 
 - 核心 reviewer、成对 schema、统计和不可变 artifact：

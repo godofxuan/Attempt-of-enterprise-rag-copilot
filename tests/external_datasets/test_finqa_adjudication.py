@@ -321,6 +321,7 @@ def test_adjudication_run_is_immutable_and_reproducible(
         adjudication_code_revision="f" * 40,
         adjudicator_model="judge-test",
         adjudicator_model_sha256="1" * 64,
+        runtime_backend="test_cpu",
         timeout_seconds=120,
         max_attempts=2,
         summary=summary,

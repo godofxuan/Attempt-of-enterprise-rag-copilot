@@ -55,6 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model")
     parser.add_argument("--timeout-seconds", type=float, default=120.0)
     parser.add_argument("--max-attempts", type=int, default=2)
+    parser.add_argument(
+        "--runtime-backend",
+        default="ollama_auto",
+        help="Auditable runtime backend label stored in the run manifest.",
+    )
     parser.add_argument("--source-root", type=Path, default=DEFAULT_SOURCE_ROOT)
     parser.add_argument(
         "--out-root",
@@ -203,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
         adjudication_code_revision=code_revision,
         adjudicator_model=adjudicator_model,
         adjudicator_model_sha256=adjudicator_model_sha256,
+        runtime_backend=args.runtime_backend,
         timeout_seconds=args.timeout_seconds,
         max_attempts=args.max_attempts,
         summary=summary,

@@ -313,6 +313,7 @@ def test_review_run_is_immutable_and_tamper_evident(
         review_code_revision="1" * 40,
         review_model="qwen-test",
         review_model_sha256="2" * 64,
+        runtime_backend="test_cpu",
         timeout_seconds=120,
         max_attempts=2,
         summary=summary,
