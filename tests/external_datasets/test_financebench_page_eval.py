@@ -340,6 +340,33 @@ def test_financebench_page_eval_keeps_dev_and_test_sidecars_separate() -> None:
     assert details[0].passed is True
 
 
+def test_financebench_page_eval_normalizes_same_page_evidence_snippets() -> None:
+    evidence = _evidence_case().model_copy(
+        update={
+            "evidence": [
+                *_evidence_case().evidence,
+                FinanceBenchPreparedEvidence(
+                    doc_id="doc-a",
+                    page_number=2,
+                    evidence_text="A second supporting excerpt.",
+                    evidence_text_full_page="Revenue and a second excerpt.",
+                ),
+            ]
+        }
+    )
+
+    details = evaluate_financebench_page_cases(
+        cases=[_case()],
+        evidence_cases=[evidence],
+        pipeline=_Pipeline([_hit(1, doc_id="doc-a", page_number=2)]),
+    )
+
+    assert len(details[0].page_score.gold_pages) == 1
+    assert details[0].stage_counts["gold_evidence_snippets"] == 2
+    assert details[0].stage_counts["gold_unique_pages"] == 1
+    assert details[0].passed is True
+
+
 def test_financebench_page_freeze_protocol_is_strict(tmp_path: Path) -> None:
     source = (
         Path(__file__).resolve().parents[2]

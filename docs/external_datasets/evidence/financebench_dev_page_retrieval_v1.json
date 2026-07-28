@@ -2,7 +2,7 @@
   "boundaries": {
     "answer_generation": "NOT_RUN",
     "answer_scoring": "NOT_RUN",
-    "frozen_test": "NOT_RUN",
+    "frozen_test": "FAILED_PRECONDITION_NO_RESULT",
     "human_review": "NOT_RUN",
     "oracle_gold_document_diagnostics": "EXCLUDED_FROM_REPORTED_RUNS",
     "result_scope": "development_document_and_page_retrieval_only"

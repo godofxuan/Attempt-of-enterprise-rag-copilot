@@ -617,7 +617,7 @@ dev selected Page Hit@5           48.98% (24/49)
 dev complete Page Recall@5        38.78% (19/49)
 dev macro Page Recall@5           43.88%
 dev page embedding calls          98
-frozen test                       NOT RUN
+frozen test                       FAILED_PRECONDITION / NO RESULT
 answer generation/scoring/review  NOT RUN
 ```
 

@@ -327,8 +327,23 @@ dev 选出的配置写入 tracked freeze protocol：`candidate_k=20`、文档阶
 4. 把 Git commit、protocol SHA-256、dataset/index/entity hashes 写入不可覆盖
    manifest。
 
-当前 test 仍为 `NOT RUN`。冻结协议只限制软件入口，不能密码学证明操作者没有
-手工打开私有 test 文件；这是流程控制的诚实边界。
+冻结协议只限制软件入口，不能密码学证明操作者没有手工打开私有 test 文件；
+这是流程控制的诚实边界。
+
+第一次 test 执行尝试绑定 commit `c815c39`，但在发布任何 summary/details 前以
+`FAILED_PRECONDITION` 停止：
+
+```text
+gold page references must be non-empty and unique
+```
+
+根因不是检索失败，而是 test 有 2/101 题分别包含两个 evidence snippets 指向
+同一 `(doc_id, page_number)`。snippet 可以重复支持同一页，页指标 identity
+必须唯一。修复只发生在数据集适配边界：将 snippet 列表规范化为唯一 page
+references，同时在逐题 stage counts 保留 `gold_evidence_snippets` 和
+`gold_unique_pages`。严格 scorer 仍拒绝调用者直接传入重复 gold page。失败
+尝试没有结果目录、staging 或 aggregate metrics，不能从项目记录中删除后假装
+没有发生；修复后使用新 commit 运行同一冻结检索配置。
 
 ## 9. 代码位置
 

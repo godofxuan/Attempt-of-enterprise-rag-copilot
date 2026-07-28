@@ -326,16 +326,11 @@ def evaluate_financebench_page_cases(
                 "page_drilldown_searches": page_search_count,
                 "page_drilldown_returned": len(page_hits),
             }
+        gold_pages = _unique_page_references(evidence)
         page_score = score_page_retrieval(
             case_id=case.case_id,
             hits=page_hits,
-            gold_pages=[
-                PageReference(
-                    doc_id=item.doc_id,
-                    page_number=item.page_number,
-                )
-                for item in evidence.evidence
-            ],
+            gold_pages=gold_pages,
         )
         document_recall = float(
             evaluated.layer.metrics["document_recall@5"] or 0.0
@@ -357,6 +352,8 @@ def evaluate_financebench_page_cases(
                 stage_counts={
                     **evaluated.observation.result.stage_counts,
                     **page_stage_counts,
+                    "gold_evidence_snippets": len(evidence.evidence),
+                    "gold_unique_pages": len(gold_pages),
                 },
             )
         )
@@ -589,6 +586,21 @@ def _validate_bundle_alignment(
             raise ValueError(
                 f"FinanceBench dev eval/evidence mismatch: {case_id}"
             )
+
+
+def _unique_page_references(
+    evidence: FinanceBenchPreparedCase,
+) -> list[PageReference]:
+    keys = sorted(
+        {
+            (item.doc_id, item.page_number)
+            for item in evidence.evidence
+        }
+    )
+    return [
+        PageReference(doc_id=doc_id, page_number=page_number)
+        for doc_id, page_number in keys
+    ]
 
 
 def _document_drilldown_hits(
