@@ -79,6 +79,24 @@ def test_finqa_loader_validates_hash_schema_and_gold_alignment(
     ]
 
 
+def test_finqa_loader_accepts_a_single_row_table(tmp_path: Path) -> None:
+    payload = _case()
+    payload["table_ori"] = [["employee separations", "2020"]]
+    payload["table"] = [["employee separations", "2020"]]
+    payload["qa"]["gold_inds"] = {
+        "text_0": "Revenue increased during the year."
+    }
+    path = tmp_path / "dev.json"
+    digest = _write(path, [payload])
+
+    cases, _ = load_finqa_split(path, expected_sha256=digest)
+
+    assert cases[0].table == [["employee separations", "2020"]]
+    assert "table_0" in {
+        unit.unit_id for unit in build_finqa_evidence_units(cases[0])
+    }
+
+
 def test_finqa_loader_rejects_duplicate_json_keys(tmp_path: Path) -> None:
     path = tmp_path / "dev.json"
     path.write_text('[{"id":"one","id":"two"}]', encoding="utf-8")

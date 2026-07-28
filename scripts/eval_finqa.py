@@ -49,7 +49,7 @@ DEFAULT_FREEZE_PROTOCOL = (
     / "docs"
     / "external_datasets"
     / "evidence"
-    / "finqa_holdout_protocol_v1.json"
+    / "finqa_holdout_protocol_v2.json"
 )
 FINQA_FROZEN_SOURCE_FILES = (
     "app/agent/safe_calculator.py",

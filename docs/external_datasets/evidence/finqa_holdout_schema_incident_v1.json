@@ -1,0 +1,34 @@
+{
+  "schema_version": "finqa_holdout_schema_incident_v1",
+  "status": "RESOLVED_BEFORE_MODEL_EXECUTION",
+  "attempted_protocol": "finqa_holdout_protocol_v1",
+  "attempted_run_id": "finqa-test-holdout-v1-oracle",
+  "failure_stage": "split_schema_validation_before_sampling",
+  "failure_type": "single_row_table_rejected_by_adapter",
+  "observed_error": "FinQACase.table required at least two rows but the pinned test bytes contain a valid one-row table.",
+  "run_artifact_created": false,
+  "selected_case_ids_computed": false,
+  "model_identity_queried": false,
+  "model_generation_calls": 0,
+  "evaluation_metrics_observed": false,
+  "human_test_content_inspection": false,
+  "test_schema_fact_observed": "At least one test case contains a table with one row.",
+  "remediation": {
+    "code_change": "Allow table and table_ori to contain one or more rows while preserving width, non-empty label, gold-ID, gold-text, byte-hash, duplicate-key, and unique-case validation.",
+    "synthetic_regression_test": "tests/external_datasets/test_finqa.py::test_finqa_loader_accepts_a_single_row_table",
+    "structural_preflight_after_fix": {
+      "status": "PASS",
+      "case_count": 1147,
+      "test_sha256": "831dbfb2e785dbc227f895ce3f24046433467aec67b09db2bd6ac7692a8a30dc",
+      "selected_case_ids_computed": false,
+      "model_generation_calls": 0
+    }
+  },
+  "holdout_policy": {
+    "v1_protocol_must_be_superseded": true,
+    "new_source_hashes_required": true,
+    "parameters_models_and_scoring_unchanged": true,
+    "v2_execution_may_proceed_after_refreeze": true,
+    "incident_must_be_disclosed_with_results": true
+  }
+}

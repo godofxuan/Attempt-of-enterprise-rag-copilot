@@ -81,8 +81,8 @@ class FinQACase(FinQAModel):
     pre_text: list[str]
     post_text: list[str]
     filename: str = Field(min_length=1)
-    table_ori: list[list[str]] = Field(min_length=2)
-    table: list[list[str]] = Field(min_length=2)
+    table_ori: list[list[str]] = Field(min_length=1)
+    table: list[list[str]] = Field(min_length=1)
     qa: FinQAQuestion
     id: str = Field(min_length=1)
     table_retrieved: list[Any]
