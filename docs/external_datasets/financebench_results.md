@@ -291,3 +291,37 @@ embedding、FAISS 全局搜索和 BM25 score 数组。
 3. 实现 FinanceBench 数字答案归一化和公式容差评分；
 4. 为 PDF parse/chunk 增加持久化 cache，消除重启时约 8 分钟的重复解析；
 5. 在 test 运行前继续检查实体目录是否完全由语料元数据生成，防止标签泄漏。
+
+## 11. 只读容器 CI 故障复盘
+
+首次推送 FinanceBench 变更后，普通 Ubuntu 和 Windows 确定性任务通过，但
+`linux-container-contract` 在 `Run deterministic gates inside the image`
+失败。GitHub 原始日志的关键调用链是：
+
+```text
+tokenize_for_bm25
+  -> _configure_jieba_cache
+  -> ensure_dir
+  -> mkdir("/workspace/.private/runtime_cache/jieba")
+  -> OSError: [Errno 30] Read-only file system: "/workspace/.private"
+```
+
+该任务故意使用 `--read-only` 启动非 root 容器，只把 `/tmp` 和测试索引目录
+挂成可写 tmpfs。本地开发环境允许向仓库 D 盘的 `.private` 写缓存，所以普通
+测试无法暴露这个环境差异。一次 jieba 全局初始化失败会影响所有后续 BM25
+调用，因此日志最终显示 144 个 failed 和 355 个 error；这不是 499 个互不
+相关的业务缺陷，而是同一个共享依赖初始化错误造成的级联失败。
+
+修复包含三个互相约束的部分：
+
+1. `Settings.runtime_cache_dir` 在存在绝对 `XDG_CACHE_HOME` 时使用
+   `<XDG_CACHE_HOME>/enterprise-rag`，否则仍使用仓库 D 盘
+   `.private/runtime_cache`；
+2. Docker 基础镜像固定 `XDG_CACHE_HOME=/tmp/xdg-cache`，使 test 和 runtime
+   两个 stage 都兼容只读根文件系统；
+3. 配置测试和容器 contract 测试分别锁定目录选择与镜像环境变量，避免以后
+   只修 CI 命令却遗漏生产 runtime。
+
+本地修复验证包括真实 jieba 首次建缓存、23 个配置/容器定向测试，以及
+2,460 个完整确定性测试。远端 CI 的最终状态以修复提交对应的 GitHub Actions
+run 为准，不能用本地结果代替远端容器证据。

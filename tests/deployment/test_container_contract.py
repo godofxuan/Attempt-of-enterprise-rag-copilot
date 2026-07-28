@@ -26,6 +26,7 @@ def test_runtime_image_is_digest_pinned_and_runs_as_numeric_non_root() -> None:
     assert "COPY . " not in runtime
     assert "HEALTHCHECK" in runtime
     assert "--host\", \"127.0.0.1\"" in runtime
+    assert "XDG_CACHE_HOME=/tmp/xdg-cache" in dockerfile
 
 
 def test_compose_contract_is_single_host_least_privilege_and_digest_only() -> None:

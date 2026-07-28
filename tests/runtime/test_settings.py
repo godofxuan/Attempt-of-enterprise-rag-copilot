@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.config import Settings
+from app.config import BASE_DIR, Settings
 
 
 def test_e5_runtime_setting_defaults_are_bounded() -> None:
@@ -57,6 +57,44 @@ def test_data_dir_override_relocates_derived_runtime_paths(tmp_path) -> None:
     assert settings.indexes_dir == tmp_path / "tenant-data" / "indexes"
     assert settings.v2_indexes_dir == tmp_path / "tenant-data" / "indexes_v2"
     assert settings.sqlite_path == tmp_path / "tenant-data" / "app.db"
+
+
+def test_runtime_cache_uses_absolute_xdg_cache_home(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    xdg_cache_home = tmp_path / "xdg-cache"
+    monkeypatch.delenv("RUNTIME_CACHE_DIR", raising=False)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(xdg_cache_home))
+
+    settings = Settings(_env_file=None)
+
+    assert settings.runtime_cache_dir == xdg_cache_home / "enterprise-rag"
+
+
+def test_runtime_cache_ignores_relative_xdg_cache_home(monkeypatch) -> None:
+    monkeypatch.delenv("RUNTIME_CACHE_DIR", raising=False)
+    monkeypatch.setenv("XDG_CACHE_HOME", "relative-cache")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.runtime_cache_dir == BASE_DIR / ".private" / "runtime_cache"
+
+
+def test_explicit_relative_runtime_cache_is_repository_relative(
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("RUNTIME_CACHE_DIR", raising=False)
+    monkeypatch.setenv("XDG_CACHE_HOME", "/tmp/xdg-cache")
+
+    settings = Settings(
+        _env_file=None,
+        runtime_cache_dir=".private/custom-runtime-cache",
+    )
+
+    assert settings.runtime_cache_dir == (
+        BASE_DIR / ".private" / "custom-runtime-cache"
+    )
 
 
 def test_explicit_derived_path_is_not_overwritten_by_data_dir(tmp_path) -> None:

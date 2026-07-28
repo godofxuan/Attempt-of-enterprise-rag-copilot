@@ -5,7 +5,8 @@ FROM python:3.11.15-slim-bookworm@sha256:28255a3ace7eb4c48bc1b57b90af29e1bc82b4f
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    XDG_CACHE_HOME=/tmp/xdg-cache
 
 RUN groupadd --gid 10001 rag \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin rag

@@ -14,6 +14,15 @@ IDENTITY_CLOCK_SKEW_MAX_SECONDS = 120
 _IDENTITY_AUDIENCE_PATTERN = re.compile(r"[A-Za-z0-9._:/-]{1,200}")
 
 
+def _default_runtime_cache_dir() -> Path:
+    xdg_cache_home = os.getenv("XDG_CACHE_HOME", "").strip()
+    if xdg_cache_home:
+        candidate = Path(xdg_cache_home)
+        if candidate.is_absolute():
+            return candidate / "enterprise-rag"
+    return BASE_DIR / ".private" / "runtime_cache"
+
+
 class Settings(BaseSettings):
     app_name: str = "Enterprise RAG Copilot"
 
@@ -27,7 +36,7 @@ class Settings(BaseSettings):
     lifecycle_private_root: Path = (
         BASE_DIR / ".private" / "lifecycle" / "runtime"
     )
-    runtime_cache_dir: Path = BASE_DIR / ".private" / "runtime_cache"
+    runtime_cache_dir: Path = Field(default_factory=_default_runtime_cache_dir)
     v2_corpus_profile: Literal[
         "demo",
         "benchmark",
@@ -173,6 +182,12 @@ class Settings(BaseSettings):
         ):
             raise ValueError("identity issuer must be a pinned HTTPS URL")
         return value
+
+    @field_validator("runtime_cache_dir")
+    @classmethod
+    def resolve_runtime_cache_dir(cls, value: Path) -> Path:
+        candidate = value if value.is_absolute() else BASE_DIR / value
+        return Path(os.path.abspath(candidate))
 
     @field_validator("identity_audience")
     @classmethod
