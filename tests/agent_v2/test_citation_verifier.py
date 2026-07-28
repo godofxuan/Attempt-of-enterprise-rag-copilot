@@ -50,7 +50,7 @@ def test_missing_citation_is_a_hard_failure() -> None:
     assert result.references_visible_evidence is False
     assert result.lexical_support == 0.0
     assert result.supported is False
-    assert result.unsupported_reason == "missing citation"
+    assert result.unsupported_reason == "missing_citation"
 
 
 def test_unknown_or_denied_reference_is_indistinguishable() -> None:
@@ -69,7 +69,7 @@ def test_unknown_or_denied_reference_is_indistinguishable() -> None:
     assert result.references_visible_evidence is False
     assert result.lexical_support == 0.0
     assert result.supported is False
-    assert result.unsupported_reason == "citation does not reference visible evidence"
+    assert result.unsupported_reason == "invisible_citation"
 
 
 def test_visible_reference_with_lexical_support_passes() -> None:
@@ -105,7 +105,116 @@ def test_visible_reference_without_lexical_overlap_is_not_semantic_support() -> 
     assert result.references_visible_evidence is True
     assert result.lexical_support == 0.0
     assert result.supported is False
-    assert result.unsupported_reason == "citation has no lexical support"
+    assert result.unsupported_reason == "no_lexical_support"
+
+
+def test_one_shared_word_is_insufficient_lexical_support() -> None:
+    result = verify_claims(
+        [
+            Claim(
+                claim_id="claim-1",
+                text="Policy approvals require finance review.",
+                cited_chunk_ids=["chunk-remote"],
+            )
+        ],
+        [
+            hit(
+                matched_text="Policy archives retain signed records.",
+                context_text="Policy archives retain signed records.",
+            )
+        ],
+    )[0]
+
+    assert 0.0 < result.lexical_support < 0.5
+    assert result.supported is False
+    assert result.unsupported_reason == "insufficient_lexical_support"
+
+
+def test_numeric_mismatch_rejects_five_days_against_three_days() -> None:
+    result = verify_claims(
+        [
+            Claim(
+                claim_id="claim-1",
+                text="Employees may work remotely 5 days per month.",
+                cited_chunk_ids=["chunk-remote"],
+            )
+        ],
+        [
+            hit(
+                matched_text="Employees may work remotely 3 days per month.",
+                context_text="Employees may work remotely 3 days per month.",
+            )
+        ],
+    )[0]
+
+    assert result.lexical_support > 0.8
+    assert result.supported is False
+    assert result.unsupported_reason == "numeric_mismatch"
+
+
+def test_amount_mismatch_rejects_8000_against_5000() -> None:
+    result = verify_claims(
+        [
+            Claim(
+                claim_id="claim-1",
+                text="The travel reimbursement limit is 8000 yuan.",
+                cited_chunk_ids=["chunk-remote"],
+            )
+        ],
+        [
+            hit(
+                matched_text="The travel reimbursement limit is 5000 yuan.",
+                context_text="The travel reimbursement limit is 5000 yuan.",
+            )
+        ],
+    )[0]
+
+    assert result.supported is False
+    assert result.unsupported_reason == "numeric_mismatch"
+
+
+def test_negation_mismatch_rejects_allow_against_prohibit() -> None:
+    result = verify_claims(
+        [
+            Claim(
+                claim_id="claim-1",
+                text="Employees may use unapproved suppliers.",
+                cited_chunk_ids=["chunk-remote"],
+            )
+        ],
+        [
+            hit(
+                matched_text="Employees may not use unapproved suppliers.",
+                context_text="Employees may not use unapproved suppliers.",
+            )
+        ],
+    )[0]
+
+    assert result.lexical_support > 0.8
+    assert result.supported is False
+    assert result.unsupported_reason == "negation_mismatch"
+
+
+def test_date_status_mismatch_rejects_effective_against_repealed() -> None:
+    result = verify_claims(
+        [
+            Claim(
+                claim_id="claim-1",
+                text="Policy A became effective on 2026-01-01.",
+                cited_chunk_ids=["chunk-remote"],
+            )
+        ],
+        [
+            hit(
+                matched_text="Policy A was repealed on 2026-01-01.",
+                context_text="Policy A was repealed on 2026-01-01.",
+            )
+        ],
+    )[0]
+
+    assert result.lexical_support >= 0.5
+    assert result.supported is False
+    assert result.unsupported_reason == "date_mismatch"
 
 
 def test_multiple_claims_and_duplicate_citations_are_stable() -> None:

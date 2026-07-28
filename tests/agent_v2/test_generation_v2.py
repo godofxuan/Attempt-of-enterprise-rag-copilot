@@ -544,8 +544,117 @@ def test_critical_claim_with_zero_lexical_support_downgrades_to_partial() -> Non
 
     assert response.mode == "partial"
     assert response.stop_reason == "partial_evidence"
-    assert response.citations[0].supported is False
+    assert response.answer == state.evidence_by_aspect["answer"][0].hit.matched_text
+    assert all(citation.supported for citation in response.citations)
+    assert "9000" not in response.model_dump_json()
     assert response.warnings
+
+
+def test_partial_generation_excludes_unsupported_claim_everywhere() -> None:
+    state = state_with_evidence(include_second=True)
+    unsupported_text = "Policy B allows remote work 5 days per month."
+    chat = CapturingChat(
+        {
+            "answer": (
+                "Policy A allows remote work three days per month. "
+                + unsupported_text
+            ),
+            "claims": [
+                {
+                    "claim_id": "claim-a",
+                    "text": "Policy A allows remote work three days per month.",
+                    "critical": True,
+                    "cited_source_ids": ["S1"],
+                },
+                {
+                    "claim_id": "claim-b",
+                    "text": unsupported_text,
+                    "critical": False,
+                    "cited_source_ids": ["S2"],
+                },
+            ],
+        }
+    )
+
+    response = GenerationV2ResponseBuilder(
+        chat_fn=chat,
+        model="test-model",
+    ).build(
+        question=state.analysis.original_question,
+        state=state,
+        mode="answered",
+        stop_reason="completed",
+        trace={},
+    )
+
+    assert response.mode == "partial"
+    assert response.stop_reason == "partial_evidence"
+    assert response.answer == "Policy A allows remote work three days per month."
+    assert [claim.claim_id for claim in response.claims] == ["claim-a"]
+    assert [citation.claim_id for citation in response.citations] == ["claim-a"]
+    assert [source.chunk_id for source in response.sources] == ["chunk-a"]
+    assert unsupported_text not in response.model_dump_json()
+
+
+def test_all_unsupported_generation_uses_visible_extractive_fallback() -> None:
+    state = state_with_evidence()
+    unsupported_text = "Policy A allows remote work 5 days per month."
+    chat = CapturingChat(valid_payload(claim_text=unsupported_text))
+
+    response = GenerationV2ResponseBuilder(
+        chat_fn=chat,
+        model="test-model",
+    ).build(
+        question=state.analysis.original_question,
+        state=state,
+        mode="answered",
+        stop_reason="completed",
+        trace={},
+    )
+
+    assert response.mode == "partial"
+    assert response.stop_reason == "partial_evidence"
+    assert response.answer == state.evidence_by_aspect["answer"][0].hit.matched_text
+    assert response.claims
+    assert response.citations
+    assert all(citation.supported for citation in response.citations)
+    assert response.sources
+    assert unsupported_text not in response.model_dump_json()
+    assert response.warnings
+
+
+def test_visible_answer_is_rebuilt_from_supported_claims_not_raw_model_prose() -> None:
+    state = state_with_evidence()
+    supported_text = "Policy A allows remote work three days per month."
+    unsupported_raw_prose = "The company also pays a secret 9999 yuan bonus."
+    chat = CapturingChat(
+        {
+            "answer": supported_text + " " + unsupported_raw_prose,
+            "claims": [
+                {
+                    "claim_id": "claim-1",
+                    "text": supported_text,
+                    "critical": True,
+                    "cited_source_ids": ["S1"],
+                }
+            ],
+        }
+    )
+
+    response = GenerationV2ResponseBuilder(
+        chat_fn=chat,
+        model="test-model",
+    ).build(
+        question=state.analysis.original_question,
+        state=state,
+        mode="answered",
+        stop_reason="completed",
+        trace={},
+    )
+
+    assert response.mode == "answered"
+    assert response.answer == supported_text
+    assert unsupported_raw_prose not in response.model_dump_json()
 
 
 def test_generation_never_calls_legacy_retrieval(monkeypatch) -> None:
