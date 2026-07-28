@@ -962,7 +962,12 @@ def _build_program_messages(
         "growth, or percentage change, calculate the signed difference and divide "
         "by the old value; do not stop at the difference. For portion or what-percent "
         "questions, divide the part by the total. For ratios, complete the requested "
-        "comparison. Preserve signs and verify the final step answers the requested "
+        "comparison. Match the exact years, periods, and categories named in the "
+        "question; never substitute another row or period. For cumulative-return "
+        "indices with a 100 baseline, compare gains above 100 rather than raw index "
+        "levels. When averaging source percentages shown as values such as 26, 28, "
+        "and 26, divide the percentage result by 100 so the expression yields the raw "
+        "ratio. Preserve signs and verify the final expression answers the requested "
         "quantity. "
         "Cite only evidence IDs containing operands used. Return only JSON."
     )
