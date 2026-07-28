@@ -213,12 +213,16 @@ def test_finqa_evaluation_separates_answer_retrieval_and_citation() -> None:
     summary = summarize_finqa_cases([row])
 
     assert row.strict_execution_match is True
+    assert row.presentation_tolerance_match is True
     assert row.evidence_recall == 1.0
     assert row.citation_precision == 1.0
     assert row.citation_recall == 1.0
     assert row.grounded_execution_match is True
+    assert row.grounded_presentation_match is True
     assert summary.execution_accuracy == 1.0
+    assert summary.presentation_tolerance_accuracy == 1.0
     assert summary.grounded_execution_accuracy == 1.0
+    assert summary.grounded_presentation_accuracy == 1.0
 
 
 def test_finqa_run_is_atomic_immutable_and_reproducible(
@@ -329,3 +333,34 @@ def test_finqa_run_verifier_rejects_tampering(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="artifact mismatch"):
         verify_finqa_run(run_dir)
+
+
+def test_finqa_v1_rows_migrate_new_metrics_as_not_available() -> None:
+    case = _case()
+    selected = rank_finqa_evidence(case, mode="oracle", top_k=5)
+    answer = FinQAAnswerResult(
+        final_answer="20%",
+        calculation="(120 - 100) / 100",
+        cited_unit_ids=("table_1",),
+        provided_unit_ids=("table_1",),
+        admitted_count=1,
+        quarantined_count=0,
+        guard_rule_ids=(),
+        attempt_count=1,
+        latency_ms=100.0,
+    )
+    payload = evaluate_finqa_case(
+        case,
+        retrieval_mode="oracle",
+        selected_units=selected,
+        answer=answer,
+    ).model_dump(mode="json")
+    payload.pop("presentation_tolerance_match")
+    payload.pop("grounded_presentation_match")
+
+    migrated = finqa_eval.FinQACaseEvaluation.model_validate(payload)
+    summary = summarize_finqa_cases([migrated])
+
+    assert migrated.presentation_tolerance_match is None
+    assert summary.presentation_tolerance_accuracy is None
+    assert summary.grounded_presentation_accuracy is None

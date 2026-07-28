@@ -2,6 +2,7 @@ import pytest
 
 from app.evaluation.numeric_answer import (
     normalize_direct_answer,
+    presentation_tolerance_match,
     strict_execution_match,
 )
 
@@ -54,3 +55,21 @@ def test_strict_execution_match_fails_closed(
     gold: object,
 ) -> None:
     assert not strict_execution_match(predicted, gold)
+
+
+@pytest.mark.parametrize(
+    ("predicted", "gold", "expected"),
+    [
+        ("52.8%", 0.52772, True),
+        ("1.16", 1.15615, True),
+        ("33%", 0.3385, False),
+        ("-20%", 0.19495, False),
+        ("16750000", 16750000.0, True),
+    ],
+)
+def test_presentation_tolerance_is_explicit_and_sign_sensitive(
+    predicted: object,
+    gold: object,
+    expected: bool,
+) -> None:
+    assert presentation_tolerance_match(predicted, gold) is expected

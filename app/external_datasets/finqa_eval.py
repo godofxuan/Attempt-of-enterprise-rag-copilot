@@ -17,6 +17,7 @@ from rank_bm25 import BM25Plus
 
 from app.evaluation.numeric_answer import (
     normalize_direct_answer,
+    presentation_tolerance_match,
     strict_execution_match,
 )
 from app.filesystem import atomic_directory_move
@@ -65,6 +66,12 @@ class FinQAAnswerPayload(BaseModel):
             raise ValueError("FinQA cited candidate IDs must be unique")
         return value
 
+    @field_validator("final_answer")
+    @classmethod
+    def validate_final_answer(cls, value: str) -> str:
+        normalize_direct_answer(value)
+        return value
+
 
 @dataclass(frozen=True)
 class FinQAAnswerResult:
@@ -91,10 +98,12 @@ class FinQACaseEvaluation(BaseModel):
     calculation: str
     answer_parseable: bool
     strict_execution_match: bool
+    presentation_tolerance_match: bool | None = None
     evidence_recall: float
     citation_precision: float
     citation_recall: float
     grounded_execution_match: bool
+    grounded_presentation_match: bool | None = None
     admitted_count: int
     quarantined_count: int
     guard_rule_ids: list[str]
@@ -109,10 +118,20 @@ class FinQASummary(BaseModel):
     retrieval_mode: FinQARetrievalMode
     answer_parse_rate: float = Field(ge=0, le=1)
     execution_accuracy: float = Field(ge=0, le=1)
+    presentation_tolerance_accuracy: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+    )
     evidence_recall: float = Field(ge=0, le=1)
     citation_precision: float = Field(ge=0, le=1)
     citation_recall: float = Field(ge=0, le=1)
     grounded_execution_accuracy: float = Field(ge=0, le=1)
+    grounded_presentation_accuracy: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+    )
     generation_calls: int = Field(ge=0)
     latency_ms_mean: float = Field(ge=0)
     latency_ms_p95: float = Field(ge=0)
@@ -122,7 +141,10 @@ class FinQASummary(BaseModel):
 class FinQARunManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal["finqa_external_run_v1"] = "finqa_external_run_v1"
+    schema_version: Literal[
+        "finqa_external_run_v1",
+        "finqa_external_run_v2",
+    ] = "finqa_external_run_v2"
     run_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
     split: Literal["dev", "test"]
     dataset_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
@@ -324,6 +346,10 @@ def evaluate_finqa_case(
         answer.final_answer,
         case.qa.exe_ans,
     )
+    presentation_match = presentation_tolerance_match(
+        answer.final_answer,
+        case.qa.exe_ans,
+    )
     return FinQACaseEvaluation(
         case_id=case.id,
         retrieval_mode=retrieval_mode,
@@ -334,11 +360,15 @@ def evaluate_finqa_case(
         calculation=answer.calculation,
         answer_parseable=answer_parseable,
         strict_execution_match=execution_match,
+        presentation_tolerance_match=presentation_match,
         evidence_recall=evidence_recall,
         citation_precision=citation_precision,
         citation_recall=citation_recall,
         grounded_execution_match=bool(
             execution_match and citation_recall == 1.0
+        ),
+        grounded_presentation_match=bool(
+            presentation_match and citation_recall == 1.0
         ),
         admitted_count=answer.admitted_count,
         quarantined_count=answer.quarantined_count,
@@ -360,6 +390,16 @@ def summarize_finqa_cases(
     latencies = sorted(row.latency_ms for row in values)
     p95_index = max(0, int(np.ceil(len(latencies) * 0.95)) - 1)
     count = len(values)
+    presentation_matches = [
+        row.presentation_tolerance_match
+        for row in values
+        if row.presentation_tolerance_match is not None
+    ]
+    grounded_presentation_matches = [
+        row.grounded_presentation_match
+        for row in values
+        if row.grounded_presentation_match is not None
+    ]
     return FinQASummary(
         case_count=count,
         retrieval_mode=values[0].retrieval_mode,
@@ -368,6 +408,11 @@ def summarize_finqa_cases(
             row.strict_execution_match for row in values
         )
         / count,
+        presentation_tolerance_accuracy=(
+            sum(presentation_matches) / count
+            if len(presentation_matches) == count
+            else None
+        ),
         evidence_recall=sum(row.evidence_recall for row in values) / count,
         citation_precision=sum(row.citation_precision for row in values)
         / count,
@@ -376,6 +421,11 @@ def summarize_finqa_cases(
             row.grounded_execution_match for row in values
         )
         / count,
+        grounded_presentation_accuracy=(
+            sum(grounded_presentation_matches) / count
+            if len(grounded_presentation_matches) == count
+            else None
+        ),
         generation_calls=sum(row.generation_calls for row in values),
         latency_ms_mean=sum(latencies) / count,
         latency_ms_p95=latencies[p95_index],

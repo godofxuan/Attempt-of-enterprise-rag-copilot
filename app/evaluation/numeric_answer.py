@@ -15,6 +15,8 @@ _NUMERIC = re.compile(
     r"(?P<percent>%)?\s*(?P<close>\))?\s*$"
 )
 _QUANTUM = Decimal("0.00001")
+_PRESENTATION_ABSOLUTE_TOLERANCE = Decimal("0.005")
+_PRESENTATION_RELATIVE_TOLERANCE = Decimal("0.005")
 
 
 def normalize_direct_answer(value: object) -> NormalizedAnswer:
@@ -62,6 +64,22 @@ def strict_execution_match(predicted: object, gold: object) -> bool:
     )
 
 
+def presentation_tolerance_match(predicted: object, gold: object) -> bool:
+    try:
+        normalized_predicted = normalize_direct_answer(predicted)
+        normalized_gold = normalize_direct_answer(gold)
+    except ValueError:
+        return False
+    if isinstance(normalized_predicted, str) or isinstance(normalized_gold, str):
+        return normalized_predicted == normalized_gold
+    difference = abs(normalized_predicted - normalized_gold)
+    tolerance = max(
+        _PRESENTATION_ABSOLUTE_TOLERANCE,
+        abs(normalized_gold) * _PRESENTATION_RELATIVE_TOLERANCE,
+    )
+    return difference <= tolerance
+
+
 def _decimal_from_text(value: str) -> Decimal:
     try:
         result = Decimal(value)
@@ -75,5 +93,6 @@ def _decimal_from_text(value: str) -> Decimal:
 __all__ = [
     "NormalizedAnswer",
     "normalize_direct_answer",
+    "presentation_tolerance_match",
     "strict_execution_match",
 ]
