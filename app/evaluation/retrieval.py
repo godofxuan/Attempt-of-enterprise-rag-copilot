@@ -57,11 +57,15 @@ def evaluate_retrieval_case(
     candidate_k: int = 20,
     analyzer: RuleFirstQueryAnalyzer | None = None,
     access_policy: AccessPolicy | None = None,
+    include_parent: bool | None = None,
+    max_chunks_per_doc: int | None = None,
 ) -> RetrievalEvaluation:
     if top_k < 1 or top_k > 20:
         raise ValueError("top_k must be between 1 and 20")
     if candidate_k < top_k or candidate_k > 200:
         raise ValueError("candidate_k must be between top_k and 200")
+    if max_chunks_per_doc is not None and not 1 <= max_chunks_per_doc <= 10:
+        raise ValueError("max_chunks_per_doc must be between 1 and 10")
     user = eval_user_context(case)
     analysis = (analyzer or RuleFirstQueryAnalyzer()).analyze(case.question, user)
     request = _search_request(
@@ -71,6 +75,8 @@ def evaluate_retrieval_case(
         variant=variant,
         top_k=top_k,
         candidate_k=candidate_k,
+        include_parent_override=include_parent,
+        max_chunks_per_doc_override=max_chunks_per_doc,
     )
     started = time.perf_counter()
     result = pipeline.search(request)
@@ -104,17 +110,19 @@ def _search_request(
     variant: RetrievalVariant,
     top_k: int,
     candidate_k: int,
+    include_parent_override: bool | None,
+    max_chunks_per_doc_override: int | None,
 ) -> SearchRequest:
     if variant in {"production", "hybrid_diversity_parent"}:
         mode = "hybrid"
         filters = analysis.filters
-        include_parent = True
-        max_chunks_per_doc = 2
+        include_parent_default = True
+        max_chunks_per_doc_default = 2
     elif variant == "hybrid_metadata_temporal":
         mode = "hybrid"
         filters = analysis.filters
-        include_parent = False
-        max_chunks_per_doc = min(10, top_k)
+        include_parent_default = False
+        max_chunks_per_doc_default = min(10, top_k)
     else:
         mode = {
             "bm25": "bm25",
@@ -125,8 +133,16 @@ def _search_request(
             temporal_scope="all",
             authoritative_only=False,
         )
-        include_parent = False
-        max_chunks_per_doc = min(10, top_k)
+        include_parent_default = False
+        max_chunks_per_doc_default = min(10, top_k)
+    if include_parent_override is not None:
+        active_include_parent = include_parent_override
+    else:
+        active_include_parent = include_parent_default
+    if max_chunks_per_doc_override is not None:
+        active_max_chunks_per_doc = max_chunks_per_doc_override
+    else:
+        active_max_chunks_per_doc = max_chunks_per_doc_default
     return SearchRequest(
         request_id=f"eval-{case.case_id}",
         query=case.question,
@@ -136,8 +152,8 @@ def _search_request(
         top_k=top_k,
         candidate_k=candidate_k,
         mode=mode,
-        include_parent=include_parent,
-        max_chunks_per_doc=max_chunks_per_doc,
+        include_parent=active_include_parent,
+        max_chunks_per_doc=active_max_chunks_per_doc,
     )
 
 

@@ -1,0 +1,20 @@
+{
+  "configuration": {
+    "candidate_k": 20,
+    "drilldown_chunks_per_doc": 5,
+    "drilldown_max_documents": 1,
+    "drilldown_mode": "dense",
+    "entity_scope": "exact_year_plus_entity_history_v5",
+    "include_parent": true,
+    "max_chunks_per_doc": 2,
+    "metric_contract": "unique_doc_page_v1",
+    "page_drilldown": true,
+    "top_k": 5
+  },
+  "dataset_revision": "cc39aeb4afdf33909ee1412188bf89035950c2eb",
+  "protocol_id": "financebench-page-retrieval-v1",
+  "schema_version": "financebench_page_retrieval_freeze_v1",
+  "selected_dev_run_id": "financebench-page-retrieval-dev-bge-m3-dense-topdoc-v1",
+  "selected_dev_summary_sha256": "83b934478f5196cc545bbc17ae9dcce96cab637bee5a026c5a9a07afe88d535c",
+  "test_execution_policy": "explicit_confirmation_after_clean_committed_evaluator"
+}

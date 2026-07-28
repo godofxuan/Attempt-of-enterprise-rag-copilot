@@ -1,0 +1,251 @@
+try:
+    import _bootstrap  # noqa: F401
+except ModuleNotFoundError:
+    from scripts import _bootstrap  # noqa: F401
+
+import argparse
+import json
+import subprocess
+from dataclasses import replace
+from pathlib import Path
+
+from app.config import get_settings
+from app.evaluation.runtime import build_live_runtime
+from app.external_datasets.financebench import (
+    DEFAULT_PREPARED_ROOT,
+    DEFAULT_PRIVATE_ROOT,
+    DEFAULT_SOURCE_ROOT,
+    build_financebench_entity_catalog,
+    verify_financebench_preparation,
+)
+from app.external_datasets.financebench_page_eval import (
+    build_financebench_page_manifest,
+    evaluate_financebench_page_cases,
+    load_financebench_bundle,
+    load_financebench_page_freeze_protocol,
+    publish_financebench_page_run,
+    summarize_financebench_page_cases,
+)
+from app.retrieval.entity_scope import EntityScopedSearchBackend
+
+
+DEFAULT_INDEX_ROOT = DEFAULT_PRIVATE_ROOT / "indexes"
+DEFAULT_OUT_ROOT = DEFAULT_PRIVATE_ROOT / "eval_runs" / "page_retrieval"
+DEFAULT_FREEZE_PROTOCOL = (
+    Path(__file__).resolve().parent.parent
+    / "docs"
+    / "external_datasets"
+    / "evidence"
+    / "financebench_page_retrieval_freeze_v1.json"
+)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Evaluate FinanceBench dev document retrieval and exact PDF page "
+            "localization without running answer generation."
+        )
+    )
+    parser.add_argument("--run-id", required=True)
+    parser.add_argument("--split", choices=["dev", "test"], default="dev")
+    parser.add_argument("--source-root", type=Path, default=DEFAULT_SOURCE_ROOT)
+    parser.add_argument(
+        "--prepared-root",
+        type=Path,
+        default=DEFAULT_PREPARED_ROOT,
+    )
+    parser.add_argument("--index-root", type=Path, default=DEFAULT_INDEX_ROOT)
+    parser.add_argument("--out-root", type=Path, default=DEFAULT_OUT_ROOT)
+    parser.add_argument("--candidate-k", type=int, default=20)
+    parser.add_argument("--max-chunks-per-doc", type=int, default=2)
+    parser.add_argument(
+        "--include-parent",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--page-drilldown",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument("--drilldown-max-documents", type=int, default=3)
+    parser.add_argument("--drilldown-chunks-per-doc", type=int, default=5)
+    parser.add_argument(
+        "--drilldown-mode",
+        choices=["hybrid", "dense", "bm25"],
+        default="hybrid",
+    )
+    parser.add_argument(
+        "--freeze-protocol",
+        type=Path,
+        default=DEFAULT_FREEZE_PROTOCOL,
+    )
+    parser.add_argument("--execute-frozen-test", action="store_true")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    source_root = args.source_root.resolve()
+    prepared_root = args.prepared_root.resolve()
+    index_root = args.index_root.resolve()
+    out_root = args.out_root.resolve()
+    code_revision = _clean_git_revision()
+    freeze_protocol_sha256 = None
+    if args.split == "test":
+        if not args.execute_frozen_test:
+            raise ValueError(
+                "test split requires explicit --execute-frozen-test confirmation"
+            )
+        protocol, freeze_protocol_sha256 = (
+            load_financebench_page_freeze_protocol(args.freeze_protocol)
+        )
+        _validate_frozen_configuration(args, protocol.configuration)
+    verify_financebench_preparation(
+        source_root=source_root,
+        prepared_root=prepared_root,
+    )
+    cases, evidence_cases, source_hashes = load_financebench_bundle(
+        prepared_root,
+        split=args.split,
+    )
+    settings = get_settings().model_copy(
+        update={"v2_indexes_dir": index_root}
+    )
+    runtime = build_live_runtime(settings)
+    manifest_embedding = runtime.snapshot.version.manifest.embedding.model
+    if manifest_embedding != settings.embedding_model:
+        raise ValueError(
+            "configured embedding model does not match active index manifest: "
+            f"{settings.embedding_model!r} != {manifest_embedding!r}"
+        )
+    catalog = build_financebench_entity_catalog(source_root)
+    raw_pipeline = runtime.pipeline
+    pipeline = EntityScopedSearchBackend(raw_pipeline, catalog)
+    runtime = replace(
+        runtime,
+        variant=(
+            f"{runtime.variant}+financebench-page-localization-v1"
+        ),
+        pipeline=pipeline,
+    )
+    embedding_calls_before = runtime.counters.embedding_calls
+    details = evaluate_financebench_page_cases(
+        cases=cases,
+        evidence_cases=evidence_cases,
+        pipeline=runtime.pipeline,
+        candidate_k=args.candidate_k,
+        max_chunks_per_doc=args.max_chunks_per_doc,
+        include_parent=args.include_parent,
+        split=args.split,
+        page_drilldown_backend=(
+            raw_pipeline if args.page_drilldown else None
+        ),
+        drilldown_max_documents=args.drilldown_max_documents,
+        drilldown_chunks_per_doc=args.drilldown_chunks_per_doc,
+        drilldown_mode=args.drilldown_mode,
+    )
+    embedding_calls = runtime.counters.embedding_calls - embedding_calls_before
+    summary = summarize_financebench_page_cases(details)
+    run_manifest = build_financebench_page_manifest(
+        run_id=args.run_id,
+        source_hashes=source_hashes,
+        index_run_id=runtime.snapshot.version.manifest.run_id,
+        index_manifest_sha256=runtime.snapshot.version.manifest_sha256,
+        entity_catalog_sha256=catalog.canonical_sha256(),
+        embedding_model=settings.embedding_model,
+        embedding_calls=embedding_calls,
+        split=args.split,
+        code_revision=code_revision,
+        freeze_protocol_sha256=freeze_protocol_sha256,
+        candidate_k=args.candidate_k,
+        max_chunks_per_doc=args.max_chunks_per_doc,
+        include_parent=args.include_parent,
+        page_drilldown=args.page_drilldown,
+        drilldown_max_documents=args.drilldown_max_documents,
+        drilldown_chunks_per_doc=args.drilldown_chunks_per_doc,
+        drilldown_mode=args.drilldown_mode,
+        summary=summary,
+    )
+    output = publish_financebench_page_run(
+        root=out_root,
+        manifest=run_manifest,
+        details=details,
+    )
+    print(
+        json.dumps(
+            {
+                "run_id": args.run_id,
+                "split": args.split,
+                "case_count": summary.case_count,
+                "passed_case_count": summary.passed_case_count,
+                "document_recall_at_5_mean": (
+                    summary.document_recall_at_5_mean
+                ),
+                "page_metrics": [
+                    item.model_dump(mode="json")
+                    for item in summary.cutoffs
+                ],
+                "embedding_calls": embedding_calls,
+                "output_dir": str(output),
+                "frozen_test": (
+                    "EXECUTED" if args.split == "test" else "NOT_RUN"
+                ),
+                "answer_generation": "NOT_RUN",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def _clean_git_revision() -> str:
+    root = Path(__file__).resolve().parent.parent
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=no"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if dirty:
+        raise ValueError(
+            "FinanceBench page evaluation requires a clean tracked worktree"
+        )
+    if len(revision) != 40 or any(
+        character not in "0123456789abcdef" for character in revision
+    ):
+        raise ValueError("Git returned an invalid code revision")
+    return revision
+
+
+def _validate_frozen_configuration(args, configuration) -> None:
+    actual = {
+        "top_k": 5,
+        "candidate_k": args.candidate_k,
+        "max_chunks_per_doc": args.max_chunks_per_doc,
+        "include_parent": args.include_parent,
+        "page_drilldown": args.page_drilldown,
+        "drilldown_max_documents": args.drilldown_max_documents,
+        "drilldown_chunks_per_doc": args.drilldown_chunks_per_doc,
+        "drilldown_mode": args.drilldown_mode,
+        "metric_contract": "unique_doc_page_v1",
+        "entity_scope": "exact_year_plus_entity_history_v5",
+    }
+    if actual != configuration.model_dump(mode="json"):
+        raise ValueError(
+            "test split configuration does not match the frozen protocol"
+        )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

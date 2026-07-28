@@ -613,13 +613,18 @@ dev entity-scope v5 Recall@5      100% (49/49)
 dev v5 MRR / nDCG@5               94.56% / 95.97%
 dev baseline / v5 mean latency    743 ms / 799 ms
 dev v5 ACL leakage                0
+dev selected Page Hit@5           48.98% (24/49)
+dev complete Page Recall@5        38.78% (19/49)
+dev macro Page Recall@5           43.88%
+dev page embedding calls          98
 frozen test                       NOT RUN
-page citation / answer scoring    NOT RUN
+answer generation/scoring/review  NOT RUN
 ```
 
 本阶段增加了受字符与条数双预算约束的 Ollama 批量 embedding、模型/语料/chunk
 指纹绑定的原子 `.npy` 分片缓存、损坏批次重算、D 盘 jieba runtime cache、
 语料元数据生成的实体 alias 目录，以及 exact-year + entity-history 双 scope。
 `search_many` 只在单个逻辑请求内共享 query embedding、FAISS 全局结果和 BM25
-scores，不跨用户持久化查询。49/49 是 dev 文档级检索结果，不得表述为 frozen
-test、答案生成、页级引用或生产准确率。
+scores，不跨用户持久化查询。页级 evaluator 进一步发现：找对文档不等于找到
+证据页；当前主要短板是文档内页面排序。49/49 是 dev 文档级检索结果，24/49
+是 dev Page Hit@5，均不得表述为 frozen test、答案生成或生产准确率。

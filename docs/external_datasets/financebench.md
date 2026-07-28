@@ -131,11 +131,46 @@ runs exact-year and entity-history scopes, and merges them deterministically.
 The two scopes share one query embedding, one full FAISS search, and one BM25
 score array. The catalog SHA-256 is recorded in the evaluation manifest.
 
-The current fixed development configuration is `heading/1800/150`,
+The fixed document-level development configuration is `heading/1800/150`,
 `top_k=5`, `candidate_k=20`, and entity-scope v5. Its observed 49-case dev
 result is Recall@3/5 `100%`, MRR `94.56%`, nDCG@5 `95.97%`, mean retrieval
-latency `799 ms`, and zero ACL leakage. These are development retrieval
-metrics only; frozen test and answer/citation scoring remain not run.
+latency `799 ms`, and zero ACL leakage.
+
+## Evaluate exact page localization
+
+The page evaluator separately measures whether retrieved chunks carry the
+FinanceBench gold `(doc_id, page_number)` references:
+
+```powershell
+& '.\.venv\Scripts\python.exe' -m scripts.eval_financebench_pages `
+  --run-id financebench-page-retrieval-dev-bge-m3-dense-topdoc-v1 `
+  --page-drilldown `
+  --drilldown-mode dense `
+  --drilldown-max-documents 1
+```
+
+The selected dev variant preserves document Recall@5 `100%` and records Page
+Hit@5 `48.98%`, complete Page Recall@5 `38.78%`, macro Page Recall@5 `43.88%`,
+98 embedding calls, and `1,108 ms` mean latency. This is page localization,
+not answer accuracy or semantic citation correctness.
+
+The exact test configuration is frozen in
+`docs/external_datasets/evidence/financebench_page_retrieval_freeze_v1.json`.
+The test entry point rejects parameter changes, a dirty tracked worktree, and
+missing explicit confirmation:
+
+```powershell
+& '.\.venv\Scripts\python.exe' -m scripts.eval_financebench_pages `
+  --split test `
+  --execute-frozen-test `
+  --run-id financebench-page-retrieval-test-bge-m3-frozen-v1 `
+  --page-drilldown `
+  --drilldown-mode dense `
+  --drilldown-max-documents 1
+```
+
+Do not run that command while tuning. At this checkpoint, frozen test remains
+`NOT RUN`.
 
 ## Current scoring boundary
 
@@ -145,6 +180,6 @@ upstream page number, exact evidence text, full-page text, answer, and
 justification for a subsequent FinanceBench-specific answer and citation
 scorer.
 
-Do not report the current generic answer score as exact FinanceBench answer
-accuracy. Exact numeric normalization and page-level citation entailment are a
-separate evaluation step.
+Do not report document recall or page localization as FinanceBench answer
+accuracy. Exact numeric normalization, generation, claim-level citation
+entailment, and human review are separate evaluation steps.

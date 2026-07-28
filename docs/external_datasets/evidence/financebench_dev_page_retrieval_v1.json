@@ -1,0 +1,115 @@
+{
+  "boundaries": {
+    "answer_generation": "NOT_RUN",
+    "answer_scoring": "NOT_RUN",
+    "frozen_test": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "oracle_gold_document_diagnostics": "EXCLUDED_FROM_REPORTED_RUNS",
+    "result_scope": "development_document_and_page_retrieval_only"
+  },
+  "dataset": {
+    "case_count": 49,
+    "dataset_manifest_sha256": "41d93347ee04996473a02f2ccc4607d037fa2e691f277ce0801a4710e4f9a251",
+    "dev_eval_sha256": "ce081042437fb49eff865ba51a66bb50e370e269bd3cdd5e617edae3f2a99753",
+    "dev_evidence_sha256": "38b8fdadde007161404ef520f78842f5054444a2b5592929c1e22e87bc3eeb6b",
+    "revision": "cc39aeb4afdf33909ee1412188bf89035950c2eb",
+    "split": "dev"
+  },
+  "freeze": {
+    "protocol_id": "financebench-page-retrieval-v1",
+    "protocol_sha256": "34b1168642653a5f5ef7a700dfbe64d0e54ce87cbd4a0d3586a6168e14ec72e0",
+    "selected_dev_run_id": "financebench-page-retrieval-dev-bge-m3-dense-topdoc-v1",
+    "selected_dev_summary_sha256": "83b934478f5196cc545bbc17ae9dcce96cab637bee5a026c5a9a07afe88d535c"
+  },
+  "index": {
+    "embedding_model": "bge-m3",
+    "entity_catalog_sha256": "7b92868849fa179ff84d2b858820c2719599a772cd4fee864794dc1fd50f7580",
+    "manifest_sha256": "7eae87f4c9ab670a1f10838f553fe2a0a7b53c0ef2958ff950101e7b8305be01",
+    "run_id": "financebench-bge-m3-heading-1800-v1"
+  },
+  "metric_contract": {
+    "cutoffs": [
+      1,
+      3,
+      5
+    ],
+    "identity": "unique_doc_page_v1",
+    "page_locator_coverage_required_for_pass": 1.0
+  },
+  "producer": "enterprise_agentic_rag_v2",
+  "runs": [
+    {
+      "complete_page_recall_at_5": 0.1836734693877551,
+      "document_recall_at_5": 1.0,
+      "embedding_calls": 49,
+      "latency_ms_mean": 828.3467285693813,
+      "macro_page_precision_at_5": 0.03979591836734694,
+      "macro_page_recall_at_5": 0.1836734693877551,
+      "page_hit_at_5": 0.1836734693877551,
+      "run_id": "financebench-page-retrieval-dev-bge-m3-entity-scope-v1",
+      "summary_sha256": "69a940dd781d656ca6f38ae12d6884fc704fa3d078ea387d98a302e806513fbb",
+      "variant": "document_retrieval_pages_without_drilldown"
+    },
+    {
+      "complete_page_recall_at_5": 0.24489795918367346,
+      "document_recall_at_5": 0.9795918367346939,
+      "embedding_calls": 49,
+      "latency_ms_mean": 768.5073734723193,
+      "macro_page_precision_at_5": 0.060204081632653075,
+      "macro_page_recall_at_5": 0.2653061224489796,
+      "page_hit_at_5": 0.2857142857142857,
+      "run_id": "financebench-page-retrieval-dev-bge-m3-depth5-v1",
+      "summary_sha256": "c1ce6a573ab044ca94831cec552ef87d90204d8952bb93e6d5c448620fc39038",
+      "variant": "single_stage_five_chunks_per_document"
+    },
+    {
+      "complete_page_recall_at_5": 0.22448979591836735,
+      "document_recall_at_5": 1.0,
+      "embedding_calls": 163,
+      "latency_ms_mean": 2452.2953346960853,
+      "macro_page_precision_at_5": 0.0489795918367347,
+      "macro_page_recall_at_5": 0.22448979591836735,
+      "page_hit_at_5": 0.22448979591836735,
+      "run_id": "financebench-page-retrieval-dev-bge-m3-drilldown-v1",
+      "summary_sha256": "2a6f9f6d7b4a51a10b309de32556050deb9abe4820059a4ae10c898798488fb9",
+      "variant": "hybrid_document_drilldown_negative_control"
+    },
+    {
+      "complete_page_recall_at_5": 0.30612244897959184,
+      "document_recall_at_5": 1.0,
+      "embedding_calls": 138,
+      "latency_ms_mean": 1331.6917428562692,
+      "macro_page_precision_at_5": 0.08877551020408166,
+      "macro_page_recall_at_5": 0.3673469387755102,
+      "page_hit_at_5": 0.42857142857142855,
+      "run_id": "financebench-page-retrieval-dev-bge-m3-dense-drilldown-v1",
+      "summary_sha256": "a0a2e8c687ea137639dcd96a308a2169b99b63a25b56a5c3f3275fd6e41057d8",
+      "variant": "dense_two_document_drilldown_unbatched"
+    },
+    {
+      "complete_page_recall_at_5": 0.30612244897959184,
+      "document_recall_at_5": 1.0,
+      "embedding_calls": 98,
+      "latency_ms_mean": 1253.7369673444452,
+      "macro_page_precision_at_5": 0.08877551020408166,
+      "macro_page_recall_at_5": 0.3673469387755102,
+      "page_hit_at_5": 0.42857142857142855,
+      "run_id": "financebench-page-retrieval-dev-bge-m3-dense-drilldown-batched-v1",
+      "summary_sha256": "a69e72096f3853abfbac2b41f02957af02eb867b98ff742cf1a19a8c691e971b",
+      "variant": "dense_two_document_drilldown_batched"
+    },
+    {
+      "complete_page_recall_at_5": 0.3877551020408163,
+      "document_recall_at_5": 1.0,
+      "embedding_calls": 98,
+      "latency_ms_mean": 1107.6641020368622,
+      "macro_page_precision_at_5": 0.11020408163265312,
+      "macro_page_recall_at_5": 0.4387755102040816,
+      "page_hit_at_5": 0.4897959183673469,
+      "run_id": "financebench-page-retrieval-dev-bge-m3-dense-topdoc-v1",
+      "summary_sha256": "83b934478f5196cc545bbc17ae9dcce96cab637bee5a026c5a9a07afe88d535c",
+      "variant": "selected_dense_top_document_drilldown"
+    }
+  ],
+  "schema_version": "financebench_dev_page_retrieval_public_evidence_v1"
+}

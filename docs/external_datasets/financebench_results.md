@@ -157,8 +157,11 @@ chunking ablation。
 | dev entity-scope v5 MRR / nDCG@5 | 94.56% / 95.97% |
 | dev entity-scope v5 ACL leakage | 0 |
 | dev baseline / v5 mean retrieval latency | 743 ms / 799 ms |
+| dev selected Page Hit@5 | 48.98% / 24 of 49 |
+| dev selected complete Page Recall@5 | 38.78% / 19 of 49 |
+| dev selected macro Page Recall@5 | 43.88% |
 | frozen test result | NOT RUN |
-| 页级答案/引用评分 | NOT RUN |
+| 答案生成/答案评分/人工引用审核 | NOT RUN |
 
 以上 100% 仅指 49 道 **development retrieval cases** 的文档级
 `Recall@3/5`。它不等于答案准确率、页级引用准确率、冻结 test 成绩或生产流量
@@ -166,6 +169,10 @@ chunking ablation。
 
 可公开审核的脱敏指标与私有 summary 哈希位于
 [`evidence/financebench_dev_retrieval_v1.json`](evidence/financebench_dev_retrieval_v1.json)。
+页级变体、冻结配置和边界位于
+[`evidence/financebench_dev_page_retrieval_v1.json`](evidence/financebench_dev_page_retrieval_v1.json)
+与
+[`evidence/financebench_page_retrieval_freeze_v1.json`](evidence/financebench_page_retrieval_freeze_v1.json)。
 原始 PDF、问题内容和逐题私有输出不会提交到仓库。
 
 ## 6. 批量 embedding 与断点恢复
@@ -248,7 +255,82 @@ accelerate in FY2023?” 的证据来自 `2022Q4_EARNINGS` 中的 2023 前瞻指
 最终采用 exact-year + entity-history 双 scope，并在一次逻辑请求中共享 query
 embedding、FAISS 全局搜索和 BM25 score 数组。
 
-## 8. 代码位置
+## 8. 页级证据定位：从“找对文档”到“找对页”
+
+### 8.1 为什么文档 Recall@5=100% 还不够
+
+文档级 Recall 只检查 top-5 中是否出现 gold document。一份 10-K 可能有 100 到
+250 多页；文档找对但引用页找错，生成器仍可能没有可回答的证据。因此新增独立的
+`unique_doc_page_v1` contract：
+
+- gold identity 是唯一 `(doc_id, page_number)`；
+- `Page Hit@k` 表示前 k 个 chunk 覆盖至少一个 gold page；
+- `complete Page Recall@k` 表示该题全部 gold page 都被覆盖；
+- `macro Page Recall/Precision@k` 先逐题算，再对 49 题平均；
+- `page locator coverage` 检查返回 chunk 是否都有合法页码；
+- 页范围超过 100 页、重复 gold、错误 cutoff 或缺页 locator 均 fail closed。
+
+这套分数不是 LLM judge。页码来自 FinanceBench evidence sidecar，chunk 页码来自
+PDF parser 的 `SourceLocator`，所以是便宜、确定、可复算的 evidence-localization
+评测。它也不判断页面文字是否真的蕴含最终答案，后者仍需答案评分或人工复核。
+
+### 8.2 dev 变体与失败驱动决策
+
+| 变体 | Doc R@5 | Page Hit@5 | Complete Page R@5 | Macro Page R@5 | Embedding calls | Mean latency |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 文档检索原 top-5 chunk | 100% | 18.37% | 18.37% | 18.37% | 49 | 828 ms |
+| 单阶段每文档最多 5 chunk | 97.96% | 28.57% | 24.49% | 26.53% | 49 | 769 ms |
+| hybrid 二阶段 drilldown | 100% | 22.45% | 22.45% | 22.45% | 163 | 2,452 ms |
+| dense 前两文档，未批处理 | 100% | 42.86% | 30.61% | 36.73% | 138 | 1,332 ms |
+| dense 前两文档，批处理 | 100% | 42.86% | 30.61% | 36.73% | 98 | 1,254 ms |
+| **dense 第一文档，冻结候选** | **100%** | **48.98%** | **38.78%** | **43.88%** | **98** | **1,108 ms** |
+
+这里有两个反直觉结果：
+
+1. 页内 `hybrid` 比 dense 差。gold-document oracle 诊断中，BM25 的
+   `Hit@5/10` 均只有 16.33%，而 dense 为 53.06%/67.35%；RRF 会把财报中大量
+   共享的财务术语页面抬高。因此页内阶段使用 dense，而文档阶段仍保留
+   entity-scope hybrid。oracle 只用于归因，没有写入对外正式结果。
+2. 给第二文档保留 1/5 页槽位使 `Hit@5` 从 48.98% 降到 42.86%。文档第一名
+   已经很强，页面预算更适合全部用于 top-1 文档。剩余 25 个 page miss 中，
+   20 个已经找对 top-1 文档但页内排序错，只有 5 个是 gold 文档不在第一名。
+
+解析器不是当前主要瓶颈：63 个 gold page references 都存在对应 chunk；59/63
+的 gold-page chunk 与 evidence text token overlap 至少 0.8。该结果是本地诊断，
+没有包装成正式 holdout 指标。
+
+### 8.3 为什么批处理不会改变排序
+
+前两文档 drilldown 原来逐文档调用 `search()`，同一道题会重复请求 BGE-M3。
+改为 `search_many()` 后，两份 policy-filtered request 共享同一个 query
+embedding 和 FAISS 全局搜索结果，再各自执行 ACL/metadata filter。逐题
+`ranked_doc_ids`、page scores 和 page ranking 与未批处理版完全一致：
+
+```text
+embedding calls       138 -> 98  (-28.99%)
+mean latency          1331.69 -> 1253.74 ms (-5.85%)
+quality/ranking       exactly equal
+```
+
+批量后端必须返回同样数量并保持 `request_id` 顺序；漏结果或乱序直接失败，不能
+静默把 A 文档的页面当成 B 文档结果。
+
+### 8.4 冻结与 test 边界
+
+dev 选出的配置写入 tracked freeze protocol：`candidate_k=20`、文档阶段
+`max_chunks_per_doc=2/include_parent=true`、页阶段 dense、只 drilldown 第一
+文档、返回 5 个 chunk。test CLI 必须：
+
+1. 显式指定 `--split test --execute-frozen-test`；
+2. 与 freeze protocol 精确相等；
+3. 在 tracked worktree 干净时运行；
+4. 把 Git commit、protocol SHA-256、dataset/index/entity hashes 写入不可覆盖
+   manifest。
+
+当前 test 仍为 `NOT RUN`。冻结协议只限制软件入口，不能密码学证明操作者没有
+手工打开私有 test 文件；这是流程控制的诚实边界。
+
+## 9. 代码位置
 
 | 文件 | 本轮职责 |
 | --- | --- |
@@ -258,11 +340,14 @@ embedding、FAISS 全局搜索和 BM25 score 数组。
 | `app/indexing/store.py` | 把批量 provider 接入 staging、验证、原子发布 |
 | `app/retrieval/entity_scope.py` | 通用实体目录、alias 解析、多 scope 和确定性 merge |
 | `app/retrieval/pipeline.py` | `search_many` 请求内共享 embedding、FAISS 和 BM25 计算 |
+| `app/evaluation/page_retrieval.py` | 唯一 doc-page 指标、locator coverage 与失败分类 |
 | `app/external_datasets/financebench.py` | 从固定上游 metadata 构建 FinanceBench entity catalog |
+| `app/external_datasets/financebench_page_eval.py` | dev/test 对齐、二阶段 drilldown、不可覆盖评测证据 |
 | `scripts/build_financebench_index.py` | 真实索引构建、进度输出和 cache summary |
 | `scripts/eval_enterprise_v2.py` | `--entity-scope financebench` 受审计 dev 评测入口 |
+| `scripts/eval_financebench_pages.py` | 页级真实模型评测、冻结参数检查和 provenance |
 
-## 9. 面试时怎样准确表达
+## 10. 面试时怎样准确表达
 
 可以说：
 
@@ -273,8 +358,11 @@ embedding、FAISS 全局搜索和 BM25 score 数组。
 > Recall@5 是 79.59%；失败集中在公司别名和财年定位。增加只由语料 metadata
 > 构建的实体目录与 exact-year/history 双 scope 后，dev Recall@5 达到
 > 100%，MRR 94.56%，ACL 泄露为 0；再通过逻辑请求内复用 dense/BM25 计算，
-> 把延迟从 1,206 ms 降到 799 ms。冻结 test 和页级答案评分尚未运行，所以
-> 我只把这些数字表述为 dev retrieval 结果。
+> 把延迟从 1,206 ms 降到 799 ms。随后我增加页级 evidence-localization
+> contract；dense top-document drilldown 在 dev 达到 Page Hit@5 48.98%、
+> 完整 Page Recall@5 38.78%。批处理把调用数从 138 降到 98 且排序逐题不变。
+> 冻结 test 和答案评分尚未运行，所以我只把这些数字表述为 dev retrieval
+> 结果，并明确页级定位仍是当前主要短板。
 
 不能说：
 
@@ -284,15 +372,15 @@ embedding、FAISS 全局搜索和 BM25 score 数组。
 - “公开数据允许直接重新分发”；
 - “dev 结果保证 frozen test 或答案生成同样有效”。
 
-## 10. 下一步
+## 11. 下一步
 
-1. 冻结 v5 配置和公开证据摘要，再决定是否执行唯一一次 frozen test；
-2. 用 evidence sidecar 实现页级 citation recall/precision；
-3. 实现 FinanceBench 数字答案归一化和公式容差评分；
-4. 为 PDF parse/chunk 增加持久化 cache，消除重启时约 8 分钟的重复解析；
-5. 在 test 运行前继续检查实体目录是否完全由语料元数据生成，防止标签泄漏。
+1. 在干净 commit 上按冻结协议执行 frozen test，不再根据结果调整 v1 参数；
+2. 将剩余 page miss 作为 reranker admission 证据，固定模型/license/延迟预算后
+   在新的 dev protocol 中评估，不回改 v1 test；
+3. 实现 FinanceBench 数字答案归一化、公式容差和 claim-page citation 评分；
+4. 为 PDF parse/chunk 增加持久化 cache，消除重启时约 8 分钟的重复解析。
 
-## 11. 只读容器 CI 故障复盘
+## 12. 只读容器 CI 故障复盘
 
 首次推送 FinanceBench 变更后，普通 Ubuntu 和 Windows 确定性任务通过，但
 `linux-container-contract` 在 `Run deterministic gates inside the image`
