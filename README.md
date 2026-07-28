@@ -242,6 +242,7 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 - [FinanceBench External Evaluation Runbook](docs/external_datasets/financebench.md)
 - [FinanceBench Engineering Results](docs/external_datasets/financebench_results.md)
 - [FinanceBench Page Reranker v2](docs/external_datasets/financebench_reranker_v2.md)
+- [FinQA Numerical Reasoning Track](docs/external_datasets/finqa.md)
 - [Ablation Report](docs/ablation_report.md)
 - [Security Threat Model](docs/security_threat_model.md)
 - [R2-S1 Retrieved-Content Security Design](docs/security/r2_s1/00_scope_and_threat_model.md)
