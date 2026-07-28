@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from app.agent.safe_calculator import (
     DecimalProgram,
+    execute_decimal_expression,
     execute_decimal_program,
 )
 
@@ -63,3 +64,27 @@ def test_decimal_program_rejects_extra_fields_and_step_overflow() -> None:
         )
     with pytest.raises(ValidationError):
         DecimalProgram.model_validate({"steps": [step] * 9})
+
+
+def test_decimal_expression_executes_financial_arithmetic() -> None:
+    result = execute_decimal_expression("(1703 - 1371) / 1703")
+
+    assert result == Decimal("332") / Decimal("1703")
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "__import__('os').system('whoami')",
+        "evidence_01 / evidence_02",
+        "2 ** 8",
+        "[1, 2][0]",
+        "1 / 0",
+        "1e-999999 / 1",
+    ],
+)
+def test_decimal_expression_rejects_non_arithmetic_or_unsafe_input(
+    expression: str,
+) -> None:
+    with pytest.raises(ValueError):
+        execute_decimal_expression(expression)

@@ -147,18 +147,7 @@ def test_local_finqa_program_answerer_executes_calculator_result() -> None:
     def chat(model, messages, *, response_format=None, think=None):
         return json.dumps(
             {
-                "program": {
-                    "steps": [
-                        {
-                            "operation": "subtract",
-                            "arguments": ["120", "100"],
-                        },
-                        {
-                            "operation": "divide",
-                            "arguments": ["#0", "100"],
-                        },
-                    ]
-                },
+                "expression": "(120 - 100) / 100",
                 "cited_candidate_ids": ["evidence-01"],
             }
         )
@@ -171,10 +160,7 @@ def test_local_finqa_program_answerer_executes_calculator_result() -> None:
     assert result.final_answer == "0.2"
     assert result.cited_unit_ids == ("table_1",)
     assert result.calculator_calls == 1
-    assert json.loads(result.calculation)["steps"][1]["arguments"] == [
-        "#0",
-        "100",
-    ]
+    assert result.calculation == "(120 - 100) / 100"
 
 
 def test_local_finqa_program_answerer_counts_failed_calculator_retry() -> None:
@@ -184,27 +170,13 @@ def test_local_finqa_program_answerer_counts_failed_calculator_retry() -> None:
         [
             json.dumps(
                 {
-                    "program": {
-                        "steps": [
-                            {
-                                "operation": "divide",
-                                "arguments": ["1", "0"],
-                            }
-                        ]
-                    },
+                    "expression": "1 / 0",
                     "cited_candidate_ids": ["evidence-01"],
                 }
             ),
             json.dumps(
                 {
-                    "program": {
-                        "steps": [
-                            {
-                                "operation": "divide",
-                                "arguments": ["20", "100"],
-                            }
-                        ]
-                    },
+                    "expression": "20 / 100",
                     "cited_candidate_ids": ["evidence-01"],
                 }
             ),
@@ -219,6 +191,16 @@ def test_local_finqa_program_answerer_counts_failed_calculator_retry() -> None:
     assert result.final_answer == "0.2"
     assert result.attempt_count == 2
     assert result.calculator_calls == 2
+
+
+def test_finqa_program_schema_exposes_only_expression_and_citations() -> None:
+    schema = finqa_eval._program_response_format(["evidence-01"])
+
+    assert schema["properties"]["expression"] == {"type": "string"}
+    assert set(schema["properties"]) == {
+        "expression",
+        "cited_candidate_ids",
+    }
 
 
 def test_local_finqa_answerer_retries_one_invalid_response() -> None:
