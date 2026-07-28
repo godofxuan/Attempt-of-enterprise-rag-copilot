@@ -280,7 +280,7 @@ def _ollama_model_digest(settings, model_identifier: str) -> str:
             timeout=timeout,
             allow_redirects=False,
         ),
-        operation="model identity",
+        operation="chat",
         timeout_seconds=settings.model_request_timeout_seconds,
         max_attempts=settings.model_max_attempts,
         backoff_seconds=settings.model_retry_backoff_ms / 1000.0,

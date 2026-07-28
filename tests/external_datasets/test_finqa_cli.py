@@ -1,6 +1,7 @@
 import argparse
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -76,3 +77,42 @@ def test_finqa_test_protocol_rejects_post_freeze_parameter_change(
             args,
             "qwen3:8b",
         )
+
+
+def test_finqa_model_identity_uses_chat_transport_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed = {}
+
+    class Response:
+        def json(self):
+            return {
+                "models": [
+                    {
+                        "name": "qwen3:8b",
+                        "digest": "a" * 64,
+                    }
+                ]
+            }
+
+    def perform(send, **kwargs):
+        observed.update(kwargs)
+        return SimpleNamespace(response=Response())
+
+    monkeypatch.setattr(eval_finqa, "perform_model_request", perform)
+    monkeypatch.setattr(
+        eval_finqa.requests,
+        "Session",
+        lambda: SimpleNamespace(trust_env=True),
+    )
+    settings = SimpleNamespace(
+        llm_base_url="http://127.0.0.1:11434/v1",
+        model_request_timeout_seconds=12,
+        model_max_attempts=2,
+        model_retry_backoff_ms=100,
+    )
+
+    digest = eval_finqa._ollama_model_digest(settings, "qwen3:8b")
+
+    assert digest == "a" * 64
+    assert observed["operation"] == "chat"
