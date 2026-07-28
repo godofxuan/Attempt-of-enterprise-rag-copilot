@@ -80,6 +80,14 @@ retrieved hit
 
 `expected_answer_signal` 不是 LLM judge，也不进入 hard correctness。它可能把同义改写判为 0，或把表面词重合判为 1。
 
+当前 Generation V2 把模型输出视为 candidate claims。宿主只把通过
+visible-source、最低词汇覆盖、阿拉伯数字、日期/状态和常见否定一致性检查的
+claim 放入最终 `answer/claims/citations/sources`。失败原因使用稳定 code，
+包括 `invisible_citation`、`no_lexical_support`、
+`insufficient_lexical_support`、`numeric_mismatch`、`date_mismatch` 和
+`negation_mismatch`。这些自动检查是 deterministic grounding gate，不是
+semantic entailment、人类事实核验或完整 hallucination prevention。
+
 ## 5. Agent 指标
 
 no-answer 是 post-retrieval outcome，不等于输入 intent 必须为 `no_answer`。例如“制度是否规定 X”合理 intent 是 `completeness`，查证后才得到 `not_found`。
@@ -95,6 +103,11 @@ no-answer 是 post-retrieval outcome，不等于输入 intent 必须为 `no_answ
 | `trace_complete` | aggregate trace schema、sequence、terminal、budget 一致 |
 | `final_outcome_correct` | final mode 与 evaluation label 一致 |
 | `exact_trajectory_contract` | deterministic 辅助 contract，不是 live 唯一成功条件 |
+
+`decomposition_rewrite_correct` 和 `retry_rewrite_decision_correct` 是保留的
+历史评测字段名，不代表当前默认 V2 controller 已实现自动 rewrite/retry。
+当前策略逐 required aspect 执行 `search`；completeness 可以主动 `open`；
+`find` 已实现工具与安全边界，但默认策略不会选择。
 
 ## 6. Security 指标
 

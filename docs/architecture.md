@@ -163,7 +163,8 @@ sequenceDiagram
             L-->>C: coverage, conflicts, recommended action
         end
         C->>G: visible ledger-selected evidence
-        G->>G: structured claims + citation verification
+        G->>G: candidate claims
+        G->>G: deterministic verification + host-side filtering
         G-->>M: answered/partial/refusal/system result
     end
     M->>M: append safe request trace and metrics
@@ -177,10 +178,17 @@ sequenceDiagram
 - deterministic rules identify unsafe intent and stable task shapes;
 - fact/process/comparison/completeness/no-answer become typed `QueryAnalysis`;
 - comparison creates separate entities, search queries, and required aspects;
-- original question remains immutable while search work can be decomposed or rewritten;
+- original question remains immutable while comparison work is decomposed into
+  fixed per-aspect searches;
 - unsafe analysis cannot carry retrieval queries or required aspects.
 
 The controller does not accept an arbitrary model-generated plan. It chooses one action from a fixed `AgentToolName` union and validates action arguments against Pydantic models.
+
+The current default policy is narrower than the tool union: it chooses one
+`search` for each required aspect, and completeness queries may then choose
+`open` for an already visible document. `find` has a typed implementation and
+authorization boundary, but the default controller does not select it. There
+is no automatic query rewrite or retrieval retry in the default V2 path.
 
 ## 5. Retrieval and authorization
 
@@ -213,14 +221,26 @@ The public Agent trace receives only counts, coverage, and recommendation. Aspec
 
 ## 7. Generation and citation verification
 
-`app/agent/generation_v2.py` receives only visible ledger-selected sources. The model returns structured atomic claims and cited source IDs. `app/agent/citation_verifier.py` then verifies that each citation:
+`app/agent/generation_v2.py` receives only visible ledger-selected sources. The
+model returns untrusted candidate claims and cited source IDs. The host never
+returns the model's raw answer directly. `app/agent/citation_verifier.py`
+checks whether each candidate:
 
 - is present;
 - refers to current visible evidence;
-- has lexical support;
-- maps back to a response claim.
+- reaches a minimum lexical support threshold rather than sharing one token;
+- preserves Arabic numbers, percentages, dates, and common lifecycle status;
+- does not have an obvious common negation-direction conflict.
 
-Source-free modes (`unsafe`, `permission`, `not_found`, `system`, `budget`) cannot return sources. Authorization is therefore not delegated to the generator or prompt.
+Only supported claims are used to rebuild `answer`, `claims`, `citations`, and
+`sources`. If every model candidate fails, the host returns an extractive
+`partial` response built from Guard-admitted visible evidence. The model's
+`critical` flag cannot bypass filtering. This is a deterministic grounding
+gate, not semantic entailment or complete fact verification.
+
+Source-free modes (`unsafe`, `permission`, `not_found`, `system`, `budget`)
+cannot return sources. Authorization is therefore not delegated to the
+generator or prompt.
 
 ## 8. Service and observability
 

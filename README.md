@@ -29,15 +29,21 @@ flowchart LR
     T --> RCG["Retrieved-content admission"]
     RCG --> L["Admitted-only evidence ledger"]
     L --> C
-    C --> G["Grounded generation"]
-    G --> V["Claim and citation verification"]
+    C --> G["Candidate claim generation"]
+    G --> V["Deterministic grounding gate + host filtering"]
     V --> API
     API --> O["Safe request trace + metrics"]
     E["Frozen evaluation + load artifacts"] --> S["Sanitized public snapshot"]
     S --> UI
 ```
 
-The Python controller owns tool budgets, terminal states, authorization, and unsafe short-circuits. The local models provide embeddings and grounded text generation; they cannot expand the tool allowlist or bypass ACL checks. See [Architecture](docs/architecture.md) for the runtime sequence and trust boundaries.
+The Python controller owns tool budgets, terminal states, authorization, and unsafe short-circuits. The local models provide embeddings and candidate claims; they cannot expand the tool allowlist, bypass ACL checks, or directly determine the final user-visible answer. The host filters claims against visible evidence and rebuilds the answer from supported claims. See [Architecture](docs/architecture.md) for the runtime sequence and trust boundaries.
+
+The default V2 controller searches once for each required aspect. Completeness
+queries may then open an already visible document. `find` exists as a typed,
+authorized tool boundary, but the default controller does not currently select
+it. The default V2 path also does not perform automatic query rewrite or
+retrieval retry.
 
 ## Demo
 
@@ -83,7 +89,9 @@ The result is a bounded Agentic workflow, not an open-ended autonomous agent. Th
 - Mandatory deterministic retrieved-content admission before Controller state,
   with bounded Unicode, Base64, markup, role, secret, egress, adjacent-split,
   quarantine, and same-pool clean-candidate recovery checks.
-- Claim-level citation verification against visible evidence.
+- Host-side claim filtering with visible-source, lexical, numeric, date, and
+  negation consistency checks. This is a deterministic grounding gate, not
+  semantic entailment certification.
 - Request IDs, safe errors, liveness/readiness, bounded in-memory traces, metrics, model retry counters, and receipt-bound keyed feedback persistence.
 - A trusted identity boundary with fixed RS256/JWKS verification, server-derived
   tenant/region/group context, deployment-wide operator authorization, keyed
@@ -196,6 +204,9 @@ The generator derives documents and evaluation labels from a checked-in fact mod
   `linux-container-contract` job can establish image build/readiness/rollback.
   It does not establish production traffic, high availability, registry
   signing, a real IdP, or a complete OS vulnerability policy.
+- Citation grounding remains intentionally conservative and deterministic. It
+  can reject valid paraphrases and cannot establish full semantic entailment,
+  contradiction coverage, or hallucination immunity.
 - GitHub Actions passed for feature-branch commit `9607e55`; this does not prove branch protection, deployment, production data, or an SLO.
 
 See [Known Limitations](docs/known_limitations.md) for consequences and admission criteria.

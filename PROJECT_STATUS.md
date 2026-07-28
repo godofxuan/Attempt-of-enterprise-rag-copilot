@@ -1,6 +1,6 @@
 # Enterprise Agentic RAG - Current Status
 
-更新时间：2026-07-27（R2-S7 生命周期已完成；R2-S8 G0-G4 质量证据工具完成，真实双人审核仍 NOT RUN）
+更新时间：2026-07-28（引用链 fail-closed 收尾已实现；R2-S8 真实双人审核仍 NOT RUN）
 
 当前最新阶段是 R2-S8 independent quality evidence。项目新增不可覆盖的
 模型/机器结论盲化且参考答案引导的 packet、匿名且严格的双人 submission、
@@ -13,8 +13,33 @@ judge 只能在固定模型/prompt/config 下进行至少 3 次 trial，并对�
 tracked 12 题 dev packet 位于
 `data/v2/quality_review/r2-s8-calibration-v4/`，明确是
 `public_synthetic / not_independent / NOT_RUN`。G5 需要两名真实独立人员，
-Codex 没有填充标签。当前 R2-S8 exact working tree 通过
-`2381 passed / 29 skipped / 3 warnings`，公开审计为 `892/0`。
+Codex 没有填充标签。R2-S8 G0-G4 当时的 exact working tree 通过
+`2381 passed / 29 skipped / 3 warnings`，公开审计为 `892/0`。这是进入本次
+引用收尾前的 R2-S8 历史基线，不是当前候选结果。
+
+## 面试前引用链 fail-closed 收尾
+
+Generation V2 现在只把模型结果视为 candidate claims，不再直接返回
+`generated.answer`。宿主程序先执行 visible citation、最低词汇支持、阿拉伯
+数字、金额/百分比、日期/状态和常见否定方向检查，然后只用 supported claims
+重建 `answer/claims/citations/sources`。任何 unsupported claim 都会被过滤，
+不论模型把它标成 critical 还是 non-critical；部分失败返回 `partial /
+partial_evidence`，全部失败则仅用 Guard 已准入的可见证据构造 extractive
+partial fallback。
+
+这是一道确定性 grounding gate，不是 semantic entailment certification，
+不能声称彻底防止 hallucination。默认 V2 controller 当前逐 required aspect
+选择 `search`，completeness 可以选择 `open`；`find` 有工具和安全边界但默认
+策略不会主动选择，也没有自动 query rewrite/retry。R2-S8 真人双评仍为
+`NOT RUN`。R2-S9 单主机 Linux deployment contract 已完成，但真实 staging
+和 production 仍为 `NOT RUN`。
+
+本次候选的当前本地证据是：citation/generation 目标测试 `31 passed`，
+Agent 与 evaluation 相关回归 `1113 passed / 16 skipped`，frozen
+deterministic test `28/28`，全量 `2428 passed / 30 skipped / 3 warnings`，
+`pip check` 无冲突，`compileall` 通过，公开审计
+`918 candidates / 0 findings`。这些是本地自动化合同，不是人工质量认证、
+生产准确率或无安全漏洞证明；当前精确提交的远端 CI 尚未运行。
 
 Historical accepted baseline marker: R2-S6 versioned corpus expansion.
 
