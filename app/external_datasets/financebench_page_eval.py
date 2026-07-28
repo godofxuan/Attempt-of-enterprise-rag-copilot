@@ -82,6 +82,10 @@ class FinanceBenchPageCaseResult(FinanceBenchPageEvalModel):
     page_search_count: int = Field(default=0, ge=0, le=20)
     page_search_latency_ms: float = Field(default=0.0, ge=0.0)
     page_reranker_latency_ms: float = Field(default=0.0, ge=0.0)
+    page_candidate_scores: list[float] = Field(
+        default_factory=list,
+        max_length=20,
+    )
     stage_counts: dict[str, int] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -90,6 +94,13 @@ class FinanceBenchPageCaseResult(FinanceBenchPageEvalModel):
             raise ValueError("ranked document IDs must be unique")
         if any(value < 0 for value in self.stage_counts.values()):
             raise ValueError("stage counts must be non-negative")
+        if any(not math.isfinite(value) for value in self.page_candidate_scores):
+            raise ValueError("page candidate scores must be finite")
+        if self.page_candidate_scores != sorted(
+            self.page_candidate_scores,
+            reverse=True,
+        ):
+            raise ValueError("page candidate scores must be descending")
         expected_pass = (
             self.document_recall_at_5 == 1.0
             and self.page_score.passed_at_max_cutoff
@@ -359,6 +370,7 @@ def evaluate_financebench_page_cases(
         page_stage_counts: dict[str, int] = {}
         page_candidate_score = None
         page_reranker_score = None
+        page_candidates: list[Any] = []
         if page_drilldown_backend is not None:
             drilldown_started = time.perf_counter()
             page_hits, page_candidates, page_search_count = (
@@ -449,6 +461,10 @@ def evaluate_financebench_page_cases(
                 page_search_count=page_search_count,
                 page_search_latency_ms=page_search_latency_ms,
                 page_reranker_latency_ms=page_reranker_latency_ms,
+                page_candidate_scores=[
+                    _hit_ranking_score(hit)
+                    for hit in page_candidates
+                ],
                 stage_counts={
                     **evaluated.observation.result.stage_counts,
                     **page_stage_counts,
@@ -853,18 +869,12 @@ def _global_page_candidates(
     }
     candidates = [hit for result in focused_results for hit in result]
     for hit in candidates:
-        score = hit.dense_score
-        if score is None:
-            score = hit.fused_score
+        score = _hit_ranking_score(hit)
         if not math.isfinite(score):
             raise ValueError("page drilldown returned a non-finite score")
     candidates.sort(
         key=lambda hit: (
-            -(
-                hit.dense_score
-                if hit.dense_score is not None
-                else hit.fused_score
-            ),
+            -_hit_ranking_score(hit),
             document_order.get(hit.doc_id, len(document_order)),
             hit.chunk_id,
         )
@@ -882,6 +892,14 @@ def _global_page_candidates(
         seen_pages.update(page_keys)
         selected.append(hit)
     return selected
+
+
+def _hit_ranking_score(hit: Any) -> float:
+    return (
+        hit.dense_score
+        if hit.dense_score is not None
+        else hit.fused_score
+    )
 
 
 def _search_hit_page_keys(hit: Any) -> set[tuple[str, int]]:

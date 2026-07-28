@@ -336,6 +336,7 @@ def test_financebench_page_eval_global_page_score_merges_and_deduplicates() -> N
         ("doc-a", 9),
     ]
     assert details[0].stage_counts["page_drilldown_candidates"] == 4
+    assert details[0].page_candidate_scores == [0.95, 0.80, 0.70, 0.60]
 
 
 def test_financebench_page_eval_global_score_rejects_non_dense_mode() -> None:
