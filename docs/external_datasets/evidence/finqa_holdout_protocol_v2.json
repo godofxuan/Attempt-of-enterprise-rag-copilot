@@ -1,15 +1,19 @@
 {
-  "schema_version": "finqa_holdout_protocol_v1",
-  "status": "SUPERSEDED_PRE_EXECUTION",
-  "superseded_by": "finqa_holdout_protocol_v2",
-  "superseded_reason": "The first oracle attempt failed during split schema validation before sampling or model calls; see finqa_holdout_schema_incident_v1.json.",
+  "schema_version": "finqa_holdout_protocol_v2",
+  "status": "FROZEN",
   "frozen_on": "2026-07-28",
-  "frozen_code_parent_revision": "3c2ed21cc1604a99e6e6a445cbea1ef17763b8c9",
+  "frozen_code_parent_revision": "d2abae875f0378d5540bdac6ba7019a0a1160585",
+  "supersedes": "finqa_holdout_protocol_v1",
+  "preexecution_incident": "finqa_holdout_schema_incident_v1.json",
   "repository": "https://github.com/czyssrs/FinQA",
   "dataset_revision": "0f16e2867befa6840783e58be38c9efb9229d742",
   "dataset_license": "CC-BY-4.0",
   "test_sha256": "831dbfb2e785dbc227f895ce3f24046433467aec67b09db2bd6ac7692a8a30dc",
-  "test_labels_loaded_before_freeze": false,
+  "test_labels_loaded_before_original_v1_freeze": false,
+  "test_split_structurally_validated_before_v2_freeze": true,
+  "test_questions_or_answers_human_inspected": false,
+  "test_metrics_observed_before_v2_freeze": false,
+  "model_generation_calls_before_v2_freeze": 0,
   "sample_count": 100,
   "sample_seed": "finqa-test-holdout-v1",
   "sampling_algorithm": "ascending SHA256(sample_seed + ':' + case_id)",
@@ -57,13 +61,13 @@
   "source_file_sha256": {
     "app/agent/safe_calculator.py": "95115a3f4bc046cfea2ab7e19dd4dd171560eeaddd003bafc2e364afa6f4c404",
     "app/evaluation/numeric_answer.py": "22b535913155a2ed3af94a5f71c47832819f73b9f2b9c7c63a029fe908bc3419",
-    "app/external_datasets/finqa.py": "73782d7f7286fa7b8aa7026519f9ebb86741382040ac5751406490913ec9e0df",
+    "app/external_datasets/finqa.py": "0f746ffa34b36b53c95d0d4fee122129e42434686305172f21f187455844c4ea",
     "app/external_datasets/finqa_eval.py": "4f1aea4c06456cf0fbaaa213256e1ce4d08df1b072476e80d678c6b1b0964e34",
     "app/ollama_chat.py": "095a09cbda9279000935b136b68c6ef83a46babac2a516ae49db703acd135b4b",
     "app/runtime/model_transport.py": "0168ddb5f598608332b2ec87e5a40459337799c2cb38794f454e85c128e0b88a",
     "app/runtime/ollama_embeddings.py": "150e1aa0e30f3f6df95ebc032f540431a8dd814efe23c64c880333dead4809d6",
     "app/security/retrieved_content.py": "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2",
-    "scripts/eval_finqa.py": "a8847141eb0f91ab8f71737687cc66e79d41788baa70bde1a8357d58d9237642",
+    "scripts/eval_finqa.py": "af5dccbb795cad4ae9c5df186ccfe121b5515ff285dc50375607a18d07ee0524",
     "scripts/prepare_finqa.py": "d618c7fb3b541ff299eab5c3dd6d2f4e28ee665b62469589f132aa70a94582ac"
   },
   "publication_policy": {
@@ -71,6 +75,7 @@
     "per_case_test_details_private_only": true,
     "public_evidence_aggregate_only": true,
     "rerun_after_test_observation": false,
-    "parameter_change_after_test_observation": false
+    "parameter_change_after_test_observation": false,
+    "schema_incident_disclosed": true
   }
 }

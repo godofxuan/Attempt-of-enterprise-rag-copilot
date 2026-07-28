@@ -13,6 +13,21 @@ from app.external_datasets.finqa import (
 from scripts import eval_finqa
 
 
+def test_repository_finqa_holdout_protocol_v2_is_source_bound() -> None:
+    payload = json.loads(
+        eval_finqa.DEFAULT_FREEZE_PROTOCOL.read_text(encoding="utf-8")
+    )
+
+    assert payload["schema_version"] == "finqa_holdout_protocol_v2"
+    assert payload["status"] == "FROZEN"
+    assert payload["test_split_structurally_validated_before_v2_freeze"] is True
+    assert payload["test_metrics_observed_before_v2_freeze"] is False
+    assert payload["model_generation_calls_before_v2_freeze"] == 0
+    assert payload["sample_count"] == 100
+    assert payload["top_k"] == 10
+    eval_finqa._validate_frozen_source_hashes(payload)
+
+
 def _args(protocol: Path, *, mode: str = "oracle") -> argparse.Namespace:
     return argparse.Namespace(
         freeze_protocol=protocol,
