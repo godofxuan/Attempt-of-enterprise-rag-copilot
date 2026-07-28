@@ -77,6 +77,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="hybrid",
     )
     parser.add_argument(
+        "--drilldown-merge-mode",
+        choices=["quota", "global_page_score"],
+        default="quota",
+    )
+    parser.add_argument(
         "--freeze-protocol",
         type=Path,
         default=DEFAULT_FREEZE_PROTOCOL,
@@ -145,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         drilldown_max_documents=args.drilldown_max_documents,
         drilldown_chunks_per_doc=args.drilldown_chunks_per_doc,
         drilldown_mode=args.drilldown_mode,
+        drilldown_merge_mode=args.drilldown_merge_mode,
     )
     embedding_calls = runtime.counters.embedding_calls - embedding_calls_before
     summary = summarize_financebench_page_cases(details)
@@ -166,6 +172,7 @@ def main(argv: list[str] | None = None) -> int:
         drilldown_max_documents=args.drilldown_max_documents,
         drilldown_chunks_per_doc=args.drilldown_chunks_per_doc,
         drilldown_mode=args.drilldown_mode,
+        drilldown_merge_mode=args.drilldown_merge_mode,
         summary=summary,
     )
     output = publish_financebench_page_run(
@@ -186,6 +193,10 @@ def main(argv: list[str] | None = None) -> int:
                 "page_metrics": [
                     item.model_dump(mode="json")
                     for item in summary.cutoffs
+                ],
+                "page_candidate_metrics": [
+                    item.model_dump(mode="json")
+                    for item in summary.candidate_cutoffs
                 ],
                 "embedding_calls": embedding_calls,
                 "output_dir": str(output),
@@ -229,6 +240,10 @@ def _clean_git_revision() -> str:
 
 
 def _validate_frozen_configuration(args, configuration) -> None:
+    if args.drilldown_merge_mode != "quota":
+        raise ValueError(
+            "test split requires the frozen quota drilldown merge mode"
+        )
     actual = {
         "top_k": 5,
         "candidate_k": args.candidate_k,

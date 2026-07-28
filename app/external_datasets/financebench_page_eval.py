@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import shutil
 import tempfile
@@ -74,6 +75,7 @@ class FinanceBenchPageCaseResult(FinanceBenchPageEvalModel):
     ranked_doc_ids: list[str] = Field(default_factory=list, max_length=20)
     document_recall_at_5: float = Field(ge=0.0, le=1.0)
     page_score: PageRetrievalCaseScore
+    page_candidate_score: PageRetrievalCaseScore | None = None
     passed: bool
     latency_ms: float = Field(ge=0.0)
     page_search_count: int = Field(default=0, ge=0, le=20)
@@ -132,6 +134,10 @@ class FinanceBenchPageRunSummary(FinanceBenchPageEvalModel):
         min_length=1,
         max_length=10,
     )
+    candidate_cutoffs: list[FinanceBenchPageCutoffSummary] = Field(
+        default_factory=list,
+        max_length=10,
+    )
 
     @model_validator(mode="after")
     def validate_summary(self) -> "FinanceBenchPageRunSummary":
@@ -144,6 +150,14 @@ class FinanceBenchPageRunSummary(FinanceBenchPageEvalModel):
             raise ValueError("summary cutoffs must be sorted and unique")
         if any(item.case_count != self.case_count for item in self.cutoffs):
             raise ValueError("cutoff summaries must cover every case")
+        candidate_values = [item.cutoff for item in self.candidate_cutoffs]
+        if candidate_values != sorted(set(candidate_values)):
+            raise ValueError("candidate summary cutoffs must be sorted and unique")
+        if any(
+            item.case_count != self.case_count
+            for item in self.candidate_cutoffs
+        ):
+            raise ValueError("candidate summaries must cover every case")
         return self
 
 
@@ -153,8 +167,11 @@ class FinanceBenchArtifactEvidence(FinanceBenchPageEvalModel):
 
 
 class FinanceBenchPageRunManifest(FinanceBenchPageEvalModel):
-    schema_version: Literal["financebench_page_retrieval_run_v1"] = (
-        "financebench_page_retrieval_run_v1"
+    schema_version: Literal[
+        "financebench_page_retrieval_run_v1",
+        "financebench_page_retrieval_run_v2",
+    ] = (
+        "financebench_page_retrieval_run_v2"
     )
     producer: Literal["enterprise_agentic_rag_v2"] = "enterprise_agentic_rag_v2"
     run_id: str = Field(min_length=1, max_length=200)
@@ -282,6 +299,7 @@ def evaluate_financebench_page_cases(
     drilldown_max_documents: int = 3,
     drilldown_chunks_per_doc: int = 5,
     drilldown_mode: Literal["hybrid", "dense", "bm25"] = "hybrid",
+    drilldown_merge_mode: Literal["quota", "global_page_score"] = "quota",
 ) -> list[FinanceBenchPageCaseResult]:
     if top_k != 5:
         raise ValueError("FinanceBench page v1 requires top_k=5")
@@ -291,6 +309,13 @@ def evaluate_financebench_page_cases(
         raise ValueError("drilldown_max_documents must be between 1 and 5")
     if not 1 <= drilldown_chunks_per_doc <= 10:
         raise ValueError("drilldown_chunks_per_doc must be between 1 and 10")
+    if (
+        drilldown_merge_mode == "global_page_score"
+        and drilldown_mode != "dense"
+    ):
+        raise ValueError(
+            "global_page_score requires comparable dense retrieval scores"
+        )
     _validate_bundle_alignment(cases, evidence_cases, split=split)
     evidence_by_id = {item.case_id: item for item in evidence_cases}
     results: list[FinanceBenchPageCaseResult] = []
@@ -308,25 +333,37 @@ def evaluate_financebench_page_cases(
         page_search_count = 0
         page_search_latency_ms = 0.0
         page_stage_counts: dict[str, int] = {}
+        page_candidate_score = None
         if page_drilldown_backend is not None:
             drilldown_started = time.perf_counter()
-            page_hits, page_search_count = _document_drilldown_hits(
-                request=evaluated.observation.request,
-                document_result=evaluated.observation.result,
-                backend=page_drilldown_backend,
-                max_documents=drilldown_max_documents,
-                chunks_per_doc=drilldown_chunks_per_doc,
-                output_k=top_k,
-                mode=drilldown_mode,
+            page_hits, page_candidates, page_search_count = (
+                _document_drilldown_hits(
+                    request=evaluated.observation.request,
+                    document_result=evaluated.observation.result,
+                    backend=page_drilldown_backend,
+                    max_documents=drilldown_max_documents,
+                    chunks_per_doc=drilldown_chunks_per_doc,
+                    output_k=top_k,
+                    mode=drilldown_mode,
+                    merge_mode=drilldown_merge_mode,
+                )
             )
             page_search_latency_ms = (
                 time.perf_counter() - drilldown_started
             ) * 1000
             page_stage_counts = {
                 "page_drilldown_searches": page_search_count,
+                "page_drilldown_candidates": len(page_candidates),
                 "page_drilldown_returned": len(page_hits),
             }
         gold_pages = _unique_page_references(evidence)
+        if page_drilldown_backend is not None:
+            page_candidate_score = score_page_retrieval(
+                case_id=case.case_id,
+                hits=page_candidates,
+                gold_pages=gold_pages,
+                cutoffs=(5, 10, 20),
+            )
         page_score = score_page_retrieval(
             case_id=case.case_id,
             hits=page_hits,
@@ -341,6 +378,7 @@ def evaluate_financebench_page_cases(
                 ranked_doc_ids=evaluated.observation.ranked_doc_ids,
                 document_recall_at_5=document_recall,
                 page_score=page_score,
+                page_candidate_score=page_candidate_score,
                 passed=document_recall == 1.0
                 and page_score.passed_at_max_cutoff,
                 latency_ms=(
@@ -366,34 +404,23 @@ def summarize_financebench_page_cases(
     rows = list(details)
     if not rows:
         raise ValueError("FinanceBench page summary requires cases")
-    cutoff_values = [item.cutoff for item in rows[0].page_score.cutoffs]
-    if any(
-        [item.cutoff for item in row.page_score.cutoffs] != cutoff_values
+    cutoff_summaries = _summarize_page_scores(
+        [row.page_score for row in rows]
+    )
+    candidate_scores = [
+        row.page_candidate_score
         for row in rows
-    ):
-        raise ValueError("FinanceBench page cases use different cutoffs")
-    cutoff_summaries: list[FinanceBenchPageCutoffSummary] = []
-    for index, cutoff in enumerate(cutoff_values):
-        metrics = [row.page_score.cutoffs[index] for row in rows]
-        page_hits = sum(item.page_hit for item in metrics)
-        complete = sum(item.page_recall == 1.0 for item in metrics)
-        cutoff_summaries.append(
-            FinanceBenchPageCutoffSummary(
-                cutoff=cutoff,
-                case_count=len(rows),
-                page_hit_count=page_hits,
-                complete_page_recall_count=complete,
-                page_hit_rate=page_hits / len(rows),
-                complete_page_recall_rate=complete / len(rows),
-                macro_page_recall=_mean(item.page_recall for item in metrics),
-                macro_page_precision=_mean(
-                    item.page_precision for item in metrics
-                ),
-                macro_page_locator_coverage=_mean(
-                    item.page_locator_coverage for item in metrics
-                ),
-            )
+        if row.page_candidate_score is not None
+    ]
+    if candidate_scores and len(candidate_scores) != len(rows):
+        raise ValueError(
+            "FinanceBench page cases mix candidate and non-candidate scores"
         )
+    candidate_cutoffs = (
+        _summarize_page_scores(candidate_scores)
+        if candidate_scores
+        else []
+    )
     latencies = sorted(item.latency_ms for item in rows)
     passed = sum(item.passed for item in rows)
     return FinanceBenchPageRunSummary(
@@ -406,6 +433,7 @@ def summarize_financebench_page_cases(
         latency_ms_mean=_mean(item.latency_ms for item in rows),
         latency_ms_p95=latencies[_nearest_rank_index(len(latencies), 0.95)],
         cutoffs=cutoff_summaries,
+        candidate_cutoffs=candidate_cutoffs,
     )
 
 
@@ -519,6 +547,7 @@ def build_financebench_page_manifest(
     drilldown_max_documents: int,
     drilldown_chunks_per_doc: int,
     drilldown_mode: Literal["hybrid", "dense", "bm25"],
+    drilldown_merge_mode: Literal["quota", "global_page_score"] = "quota",
     summary: FinanceBenchPageRunSummary,
     created_at_utc: datetime | None = None,
 ) -> FinanceBenchPageRunManifest:
@@ -543,7 +572,9 @@ def build_financebench_page_manifest(
             "drilldown_max_documents": drilldown_max_documents,
             "drilldown_chunks_per_doc": drilldown_chunks_per_doc,
             "drilldown_mode": drilldown_mode,
+            "drilldown_merge_mode": drilldown_merge_mode,
             "cutoffs": "1,3,5",
+            "candidate_cutoffs": "5,10,20",
             "metric_contract": "unique_doc_page_v1",
             "entity_scope": "exact_year_plus_entity_history_v5",
         },
@@ -612,6 +643,7 @@ def _document_drilldown_hits(
     chunks_per_doc: int,
     output_k: int,
     mode: Literal["hybrid", "dense", "bm25"],
+    merge_mode: Literal["quota", "global_page_score"],
 ):
     candidates: list[tuple[str, str]] = []
     seen_docs: set[str] = set()
@@ -644,7 +676,7 @@ def _document_drilldown_hits(
         )
         focused_requests.append(focused_request)
     if not focused_requests:
-        return [], 0
+        return [], [], 0
     search_many = getattr(backend, "search_many", None)
     if callable(search_many):
         raw_results = list(search_many(focused_requests))
@@ -664,8 +696,12 @@ def _document_drilldown_hits(
                 "page drilldown backend returned results out of order"
             )
     focused_results = [list(item.hits) for item in raw_results]
-    selected = _weighted_document_pages(focused_results, output_k)
-    return selected, len(focused_results)
+    page_candidates = _global_page_candidates(focused_results)
+    if merge_mode == "global_page_score":
+        selected = page_candidates[:output_k]
+    else:
+        selected = _weighted_document_pages(focused_results, output_k)
+    return selected, page_candidates, len(focused_results)
 
 
 def _drilldown_request_id(request_id: str, ordinal: int) -> str:
@@ -694,6 +730,97 @@ def _weighted_document_pages(
             ) == quota:
                 break
     return selected[:output_k]
+
+
+def _global_page_candidates(
+    focused_results: Sequence[Sequence[Any]],
+) -> list[Any]:
+    document_order = {
+        hit.doc_id: ordinal
+        for ordinal, result in enumerate(focused_results)
+        for hit in result[:1]
+    }
+    candidates = [hit for result in focused_results for hit in result]
+    for hit in candidates:
+        score = hit.dense_score
+        if score is None:
+            score = hit.fused_score
+        if not math.isfinite(score):
+            raise ValueError("page drilldown returned a non-finite score")
+    candidates.sort(
+        key=lambda hit: (
+            -(
+                hit.dense_score
+                if hit.dense_score is not None
+                else hit.fused_score
+            ),
+            document_order.get(hit.doc_id, len(document_order)),
+            hit.chunk_id,
+        )
+    )
+    selected: list[Any] = []
+    seen_chunks: set[str] = set()
+    seen_pages: set[tuple[str, int]] = set()
+    for hit in candidates:
+        if hit.chunk_id in seen_chunks:
+            continue
+        page_keys = _search_hit_page_keys(hit)
+        if page_keys and all(key in seen_pages for key in page_keys):
+            continue
+        seen_chunks.add(hit.chunk_id)
+        seen_pages.update(page_keys)
+        selected.append(hit)
+    return selected
+
+
+def _search_hit_page_keys(hit: Any) -> set[tuple[str, int]]:
+    locator = hit.locator
+    if locator is None or locator.kind != "page":
+        return set()
+    end = locator.end if locator.end is not None else locator.start
+    if end < locator.start or end - locator.start + 1 > 100:
+        return set()
+    return {
+        (hit.doc_id, page_number)
+        for page_number in range(locator.start, end + 1)
+    }
+
+
+def _summarize_page_scores(
+    scores: Sequence[PageRetrievalCaseScore],
+) -> list[FinanceBenchPageCutoffSummary]:
+    rows = list(scores)
+    if not rows:
+        raise ValueError("FinanceBench page score summary requires cases")
+    cutoff_values = [item.cutoff for item in rows[0].cutoffs]
+    if any(
+        [item.cutoff for item in row.cutoffs] != cutoff_values
+        for row in rows
+    ):
+        raise ValueError("FinanceBench page cases use different cutoffs")
+    summaries: list[FinanceBenchPageCutoffSummary] = []
+    for index, cutoff in enumerate(cutoff_values):
+        metrics = [row.cutoffs[index] for row in rows]
+        page_hits = sum(item.page_hit for item in metrics)
+        complete = sum(item.page_recall == 1.0 for item in metrics)
+        summaries.append(
+            FinanceBenchPageCutoffSummary(
+                cutoff=cutoff,
+                case_count=len(rows),
+                page_hit_count=page_hits,
+                complete_page_recall_count=complete,
+                page_hit_rate=page_hits / len(rows),
+                complete_page_recall_rate=complete / len(rows),
+                macro_page_recall=_mean(item.page_recall for item in metrics),
+                macro_page_precision=_mean(
+                    item.page_precision for item in metrics
+                ),
+                macro_page_locator_coverage=_mean(
+                    item.page_locator_coverage for item in metrics
+                ),
+            )
+        )
+    return summaries
 
 
 def _read_json_array(path: Path) -> list[Any]:
