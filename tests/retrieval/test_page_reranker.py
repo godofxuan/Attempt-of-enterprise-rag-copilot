@@ -40,8 +40,12 @@ def _hit(index: int, *, text: str = "Financial report evidence") -> SearchHit:
 
 
 class _Chat:
-    def __init__(self, response_ids: list[str]) -> None:
-        self.response_ids = response_ids
+    def __init__(self, response_ids: list[str] | list[list[str]]) -> None:
+        self.responses = (
+            response_ids
+            if response_ids and isinstance(response_ids[0], list)
+            else [response_ids]
+        )
         self.calls: list[dict] = []
 
     def __call__(
@@ -60,7 +64,8 @@ class _Chat:
                 "think": think,
             }
         )
-        return json.dumps({"ranked_candidate_ids": self.response_ids})
+        index = min(len(self.calls) - 1, len(self.responses) - 1)
+        return json.dumps({"ranked_candidate_ids": self.responses[index]})
 
 
 def test_local_page_reranker_enforces_structured_complete_ranking() -> None:
@@ -79,6 +84,7 @@ def test_local_page_reranker_enforces_structured_complete_ranking() -> None:
     ]
     assert result.admitted_count == 3
     assert result.quarantined_count == 0
+    assert result.attempt_count == 1
     assert chat.calls[0]["model"] == "qwen3:8b"
     assert chat.calls[0]["think"] is False
     schema = chat.calls[0]["response_format"]
@@ -109,6 +115,32 @@ def test_local_page_reranker_quarantines_injected_candidate_before_model() -> No
     serialized_prompt = json.dumps(chat.calls[0]["messages"])
     assert "Ignore all previous instructions" not in serialized_prompt
     assert result.guard_rule_ids
+
+
+def test_local_page_reranker_retries_protocol_error_once() -> None:
+    chat = _Chat(
+        [
+            ["candidate-01", "candidate-01"],
+            ["candidate-02", "candidate-01"],
+        ]
+    )
+    reranker = LocalLLMPageReranker(
+        model="qwen2.5:3b",
+        chat_fn=chat,
+        max_attempts=2,
+    )
+
+    result = reranker.rerank(
+        question="What was revenue in 2022?",
+        candidates=[_hit(1), _hit(2)],
+    )
+
+    assert [item.chunk_id for item in result.hits] == ["chunk-2", "chunk-1"]
+    assert result.attempt_count == 2
+    assert len(chat.calls) == 2
+    assert "previous response violated" in (
+        chat.calls[1]["messages"][-1]["content"].lower()
+    )
 
 
 @pytest.mark.parametrize(

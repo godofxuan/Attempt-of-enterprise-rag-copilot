@@ -58,6 +58,7 @@ class PageRerankResult:
     admitted_count: int
     quarantined_count: int
     guard_rule_ids: tuple[str, ...]
+    attempt_count: int = 1
 
 
 class LocalLLMPageReranker:
@@ -67,12 +68,16 @@ class LocalLLMPageReranker:
         model: str,
         chat_fn: ChatFn = chat_with_ollama,
         guard: RetrievedContentGuard | None = None,
+        max_attempts: int = 2,
     ) -> None:
         if not model.strip():
             raise ValueError("page reranker model must be non-empty")
         self.model = model.strip()
         self.chat_fn = chat_fn
         self.guard = guard or RetrievedContentGuard()
+        if not 1 <= max_attempts <= 3:
+            raise ValueError("page reranker max attempts must be between 1 and 3")
+        self.max_attempts = max_attempts
 
     def rerank(
         self,
@@ -105,16 +110,38 @@ class LocalLLMPageReranker:
             for index in range(1, len(admitted) + 1)
         ]
         by_candidate_id = dict(zip(candidate_ids, admitted, strict=True))
-        raw = self.chat_fn(
-            self.model,
-            _build_messages(question, candidate_ids, admitted),
-            response_format=_response_format(candidate_ids),
-            think=False,
-        )
-        response = parse_page_rerank_response(
-            raw,
-            expected_ids=candidate_ids,
-        )
+        messages = _build_messages(question, candidate_ids, admitted)
+        response = None
+        last_error: Exception | None = None
+        attempt_count = 0
+        for attempt_count in range(1, self.max_attempts + 1):
+            raw = self.chat_fn(
+                self.model,
+                messages,
+                response_format=_response_format(candidate_ids),
+                think=False,
+            )
+            try:
+                response = parse_page_rerank_response(
+                    raw,
+                    expected_ids=candidate_ids,
+                )
+                break
+            except (json.JSONDecodeError, ValueError) as exc:
+                last_error = exc
+                if attempt_count < self.max_attempts:
+                    messages = [
+                        *messages,
+                        {
+                            "role": "user",
+                            "content": _repair_prompt(candidate_ids),
+                        },
+                    ]
+        if response is None:
+            assert last_error is not None
+            raise ValueError(
+                "page reranker exhausted structured-output attempts"
+            ) from last_error
         return PageRerankResult(
             hits=tuple(
                 by_candidate_id[candidate_id]
@@ -123,6 +150,7 @@ class LocalLLMPageReranker:
             admitted_count=len(admitted),
             quarantined_count=len(rows) - len(admitted),
             guard_rule_ids=tuple(sorted(rule_ids)),
+            attempt_count=attempt_count,
         )
 
 
@@ -229,6 +257,15 @@ def _response_format(candidate_ids: Sequence[str]) -> dict[str, Any]:
         "required": ["ranked_candidate_ids"],
         "additionalProperties": False,
     }
+
+
+def _repair_prompt(candidate_ids: Sequence[str]) -> str:
+    allowed = ",".join(candidate_ids)
+    return (
+        "The previous response violated the JSON ranking contract. "
+        "Return one JSON object with ranked_candidate_ids containing every "
+        f"allowed ID exactly once and no other ID. Allowed IDs: {allowed}"
+    )
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:

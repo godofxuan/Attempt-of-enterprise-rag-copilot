@@ -400,6 +400,7 @@ def evaluate_financebench_page_cases(
                 page_stage_counts.update(
                     {
                         "page_reranker_calls": 1,
+                        "page_reranker_attempts": reranked.attempt_count,
                         "page_reranker_admitted": reranked.admitted_count,
                         "page_reranker_quarantined": (
                             reranked.quarantined_count
@@ -629,6 +630,7 @@ def build_financebench_page_manifest(
     reranker_model: str = "none",
     reranker_timeout_seconds: float | str = "none",
     reranker_dense_head_count: int = 0,
+    reranker_max_attempts: int = 2,
     summary: FinanceBenchPageRunSummary,
     created_at_utc: datetime | None = None,
 ) -> FinanceBenchPageRunManifest:
@@ -659,6 +661,7 @@ def build_financebench_page_manifest(
             "reranker_model": reranker_model,
             "reranker_timeout_seconds": reranker_timeout_seconds,
             "reranker_dense_head_count": reranker_dense_head_count,
+            "reranker_max_attempts": reranker_max_attempts,
             "cutoffs": "1,3,5",
             "candidate_cutoffs": "5,10,20",
             "metric_contract": "unique_doc_page_v1",

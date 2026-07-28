@@ -375,6 +375,7 @@ def test_financebench_page_eval_applies_page_reranker_to_candidate_pool() -> Non
     assert reranker.calls == 1
     assert details[0].page_score.ranked_pages[0].page_number == 2
     assert details[0].stage_counts["page_reranker_calls"] == 1
+    assert details[0].stage_counts["page_reranker_attempts"] == 1
     assert details[0].stage_counts["page_reranker_admitted"] == 2
     assert details[0].stage_counts["page_reranker_quarantined"] == 0
     assert details[0].page_reranker_score is not None
@@ -566,6 +567,7 @@ def test_financebench_page_run_is_immutable_and_self_verifying(
     assert verified.config["drilldown_merge_mode"] == "quota"
     assert verified.config["page_reranker"] == "none"
     assert verified.config["reranker_dense_head_count"] == 0
+    assert verified.config["reranker_max_attempts"] == 2
     assert verified.generation_calls == 0
     assert verified.summary == summary
     assert set(verified.artifacts) == {"summary.json", "details.jsonl"}

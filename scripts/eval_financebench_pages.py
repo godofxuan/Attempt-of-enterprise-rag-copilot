@@ -100,6 +100,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=0,
     )
     parser.add_argument(
+        "--reranker-max-attempts",
+        type=int,
+        default=2,
+    )
+    parser.add_argument(
         "--freeze-protocol",
         type=Path,
         default=DEFAULT_FREEZE_PROTOCOL,
@@ -161,6 +166,8 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("reranker dense head count must be between 0 and 4")
     if args.page_reranker == "none" and args.reranker_dense_head_count:
         raise ValueError("dense head preservation requires a page reranker")
+    if not 1 <= args.reranker_max_attempts <= 3:
+        raise ValueError("reranker max attempts must be between 1 and 3")
     reranker_model = (
         args.reranker_model or settings.evidence_model
         if args.page_reranker == "local_llm"
@@ -187,6 +194,7 @@ def main(argv: list[str] | None = None) -> int:
         LocalLLMPageReranker(
             model=reranker_model,
             chat_fn=tracked_reranker_chat,
+            max_attempts=args.reranker_max_attempts,
         )
         if args.page_reranker == "local_llm"
         else None
@@ -244,6 +252,7 @@ def main(argv: list[str] | None = None) -> int:
             else "none"
         ),
         reranker_dense_head_count=args.reranker_dense_head_count,
+        reranker_max_attempts=args.reranker_max_attempts,
         summary=summary,
     )
     output = publish_financebench_page_run(
