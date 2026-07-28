@@ -297,3 +297,237 @@ planner
 6. 为什么标签质量审计不能变成事后挑选 gold label？
 7. plan-review 为什么必须有 fallback、退化统计和调用预算？
 
+## 21.13 这次 Plan Review 实际改了什么
+
+原有链路是：
+
+```text
+evidence -> 8B planner -> expression -> Calculator -> score
+```
+
+实验链路先变成：
+
+```text
+baseline expression
+  -> reviewer 读取原问题、证据、表达式和 Calculator 结果
+  -> KEEP 或 REVISE
+  -> revised expression 再过 evidence guard
+  -> Calculator 重新执行
+  -> 与同一 baseline 做逐题成对比较
+```
+
+核心代码在：
+
+- `app/external_datasets/finqa_review.py`：review prompt、响应 schema、执行和评分；
+- `scripts/eval_finqa_review.py`：命令行入口与 artifact 门禁；
+- `tests/external_datasets/test_finqa_review.py`：协议和不可变性测试。
+
+`FinQAReviewCaseEvaluation` 为每题保存 baseline/final correctness、review 状态、
+调用数和耗时。状态不是一个含糊的 `failed`，而是：
+
+- `kept`：reviewer 明确保留 baseline；
+- `revised`：提出新表达式，且安全校验和 Calculator 都通过；
+- `fallback_protocol_error`：结构输出、候选引用或 Calculator 协议不合法，保留
+  已验证 baseline；
+- `not_applicable_baseline_error`：baseline 本身没有可 review 的有效表达式。
+
+这里最重要的异常边界是：只有可预期的模型协议错误可以 fallback。Ollama 进程
+退出、HTTP 超时或数据 hash 不一致会继续抛错并终止 run。否则基础设施故障会被
+统计成“模型选择 KEEP”，得到虚假的稳定性。
+
+## 21.14 v1 为什么变差，v2 又为什么没有变好
+
+v1 8B reviewer 在 Hybrid 上：
+
+```text
+strict:             59% -> 55%
+wrong -> correct:   1
+correct -> wrong:   5
+mean latency:       2.08x
+```
+
+逐题检查后发现 planner prompt 明确规定：当问题询问 ratio/percentage 时，模型
+可以输出 raw ratio，统一评分器会处理显示尺度；reviewer prompt 却没有继承这条
+合同。它把一些原本正确的比例又乘以 100。问题不是“8B 智商突然下降”，而是同一
+系统的两个组件使用了不同单位协议。
+
+v2 做了两项修复：
+
+1. 将 raw-ratio、percentage、sign 和 scale 合同完整写入 reviewer；
+2. 要求只有能指出无歧义错误时才 REVISE，否则必须 KEEP。
+
+结果 Hybrid `59% -> 59%`，0 修正/0 退化。它证明 contract 修复消除了系统性
+伤害，但也说明同一个 8B 模型重新阅读相同信息，并不会自动获得新的纠错能力。
+因此“多一轮反思”不能凭架构图被算作质量改进。
+
+## 21.15 30B Proposal 和匿名 8B 仲裁是什么
+
+30B reviewer 能看到更多错误，在 100 题 tuning 上把 strict 从 `59%` 提到
+`61%`，但它修正 5 题的同时改错 3 题。项目没有直接接受所有 proposal，而是增加：
+
+```text
+8B baseline
+  + 30B revised proposal
+  -> 按 SHA256(prompt_version | case_id) 隐藏成 candidate A/B
+  -> 8B adjudicator 只能选择 A 或 B
+  -> 不能生成第三个表达式
+  -> 选中的表达式再由 Calculator 执行
+```
+
+代码位于：
+
+- `app/external_datasets/finqa_adjudication.py`；
+- `scripts/eval_finqa_adjudication.py`；
+- `tests/external_datasets/test_finqa_adjudication.py`。
+
+匿名化解决固定位置偏差：不能让 baseline 永远是 A，也不能告诉 adjudicator
+“B 来自更大的模型”。只允许二选一则限制了能力边界，避免仲裁阶段再引入一个
+未经审查的新算式。只有 30B 真正修改的题才调用 adjudicator，未修改题不浪费
+额外调用。
+
+100 题 tuning 最终为：
+
+```text
+strict:             59% -> 63%
+grounded strict:    52% -> 55%
+wrong -> correct:   4
+correct -> wrong:   0
+McNemar p:          0.125
+mean latency:       3.90x
+```
+
+结果有希望，但 `p=0.125` 没有达到常用 `0.05` 门槛，而且它仍是开发样本。
+
+## 21.16 exact McNemar 在这里衡量什么
+
+这是 paired experiment：baseline 和新策略回答完全相同的题。普通 accuracy
+只看总分，McNemar 只看两种不一致：
+
+- `b = wrong_to_correct`：旧方案错、新方案对；
+- `c = correct_to_wrong`：旧方案对、新方案错。
+
+零假设是改进和退化同样可能。两侧 exact McNemar 用二项分布计算在 `b+c` 个
+变化题中，出现至少这么不平衡的结果有多罕见。tuning 的 `b=4,c=0` 看起来很好，
+但只有 4 个变化样本，`p=0.125`，证据还不够强。
+
+这不代表策略一定无效。它只表示：在当前样本量下，还不能以冻结的 5% 显著性门槛
+排除偶然波动。工业决策还必须同时看退化、grounding、调用成本和延迟，不能只追求
+一个 p 值。
+
+## 21.17 零重叠验证怎样防止继续在 tuning 上讲故事
+
+在任何 validation 模型调用前，项目冻结：
+
+- 50 题 dev cohort；
+- 稳定 seed；
+- selected case IDs SHA-256；
+- 与 tuning 100 题 overlap 为 0；
+- planner/reviewer/adjudicator/BGE-M3 model digest；
+- prompt version、K、attempt budget；
+- 成功门槛。
+
+选 seed 时只使用 case ID 检查重叠，没有读取答案或分数。冻结协议在
+`docs/external_datasets/evidence/finqa_plan_review_validation_protocol_v1.json`。
+
+结果是：
+
+| Stage | Strict | Grounded strict | 修正 | 退化 |
+| --- | ---: | ---: | ---: | ---: |
+| Hybrid baseline | 44% | 32% | - | - |
+| 30B proposal | 48% | 36% | 3 | 1 |
+| 8B adjudicated | 50% | 38% | 3 | 0 |
+
+最终质量方向从 tuning 复现：strict `+6` 点、grounded strict `+6` 点、没有
+正确题退化。但 exact McNemar 是 `0.25`，未达到预冻结 `0.05`。因此公开状态是
+`COMPLETE_NOT_ADOPTED`，默认开关保持关闭，冻结 test 也没有重跑。
+
+注意：这是与 tuning 零重叠的同一 FinQA dev split，不是跨数据集、跨公司或生产
+流量 holdout。它比重复使用 tuning 更可信，但不能被写成跨域泛化。
+
+## 21.18 Ollama/CUDA 故障是怎样定位的
+
+validation 中 Ollama 从 0.32.4 自动升级到 0.32.5 后，`qwen3-coder:30b`
+在 CUDA v13 和 cuda_v12 runner 都于 Flash Attention warm-up 退出，错误包含
+`CUDA shared object initialization failed`。
+
+诊断顺序是：
+
+1. 用最小 prompt 单独调用 30B，仍失败，排除 FinQA 长 prompt 和 JSON schema；
+2. 日志显示模型 tensors 已加载，失败发生在 CUDA kernel warm-up，不像 blob
+   下载损坏；
+3. 分别强制 CUDA v13/v12 backend，错误一致；
+4. 启动独立 Vulkan Ollama endpoint，最小调用成功；
+5. 不改模型 digest、prompt 或质量门槛，用 Vulkan 完成 reviewer；
+6. 在 manifest 新增 `runtime_backend`，明确跨 backend latency 不可比较。
+
+Vulkan 使 validation 最终平均延迟达到 baseline 的 `7.84x`。这个数字能证明
+当前成本不可接受，却不能代表 30B 在正常 CUDA 上也一定慢 7.84 倍。失败 run
+没有发布 artifact；同时暴露出长评测没有 checkpoint/resume，中断后需要重跑已
+完成调用。
+
+## 21.19 为什么没有上线，以及下一阶段做什么
+
+没有上线的原因有三个：
+
+1. 冻结统计门槛失败：`p=0.25 > 0.05`；
+2. 端到端成本过高：generation `2.3x`、Calculator `2.6x`、本次 latency
+   `7.84x`；
+3. 验证仍来自 FinQA dev，没有跨域证据。
+
+下一阶段应先做两项工程工作：
+
+- **runtime uncertainty trigger**：只使用线上可获得信号，例如证据覆盖、表达式
+  operand 是否全部有出处、年份/类别/尺度歧义、planner 自洽结果；不能偷看 gold
+  answer。只有高风险问题调用 30B proposal/adjudication。
+- **resumable evaluation**：每题完成后写 append-only checkpoint，恢复时验证
+  run contract 和逐题 hash，跳过已完成 case；最终 artifact 仍原子发布且不可
+  覆盖。
+
+新的 trigger 不能在当前 validation 上继续反复调。应冻结新 cohort，报告触发率、
+节省的调用数、strict/grounded strict、修正/退化、p 值和正常 CUDA latency。
+
+本阶段最终工程门禁是：
+
+```text
+FinQA focused        63 passed
+full pytest          2592 passed / 30 skipped / 3 warnings
+public audit         978 candidates / 0 findings
+compileall           PASS
+pip check            PASS
+git diff --check     PASS
+```
+
+这些门禁只证明实现、回归和公开数据边界通过，不能把未通过的模型统计门槛改写成
+通过。模型策略状态仍是 `COMPLETE_NOT_ADOPTED`。
+
+## 21.20 这一阶段的面试题与参考答案
+
+### 问：为什么 reviewer 协议错误可以回退，Ollama 失败却不能回退？
+
+答：结构输出错误是已定义的模型能力边界，回退到已验证 baseline 是安全降级；
+Ollama 退出是基础设施故障。如果也静默回退，监控会把“reviewer 根本没运行”统计
+成“reviewer 决定保留”，污染质量和可用性指标。
+
+### 问：匿名 A/B 仲裁怎样减少偏差？
+
+答：baseline 和 proposal 的位置由版本化 hash 决定，adjudicator 看不到来源，
+所以不能因为“A 通常是旧答案”或“30B 应该更好”做选择。它只能从两个已经通过
+Calculator 协议的候选中选一个，不能扩大动作空间。
+
+### 问：strict 提升 6 点，为什么还不采用？
+
+答：50 题上只有 3 个 paired flip，exact McNemar `p=0.25`，没有通过预冻结
+显著性门槛；本次 Vulkan 延迟又是 baseline 的 7.84 倍。工程上线看的是冻结证据、
+退化、成本和故障边界的组合，不是只看百分点。
+
+### 问：v1 regression 给项目带来了什么价值？
+
+答：它定位了 planner/reviewer 数值尺度合同不一致。修复后 v2 消除了 5 个正确题
+退化，并促使项目把 prompt contract、review 状态和 paired regression 变成显式
+测试与指标。负实验改变了系统设计，不是无效工作。
+
+### 问：下一步怎样降低成本又保持收益？
+
+答：先构建不使用 gold label 的 uncertainty trigger，只对高风险题调用 30B；
+同时加入 checkpoint/resume，避免长实验因基础设施故障全部重跑。随后在新冻结
+cohort 上联合测调用率、质量、退化、显著性和正常 CUDA 延迟。

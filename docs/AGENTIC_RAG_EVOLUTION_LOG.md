@@ -506,3 +506,47 @@ Hybrid 41 个错误里有 12 个 retrieval miss 和 21 个 operand signal。结�
 gold program 做机械比较，等价代数改写可能造成假阳性。因此文档称其为 signal，
 不称确定根因。标签质量审计还记录了 dev `answer` 与 `exe_ans` 的不一致，但主分
 继续绑定官方 `exe_ans`。
+
+## 12. 2026-07-29 更新：有界 Plan Review 与候选仲裁
+
+这一阶段没有直接把第二个大模型塞进默认链路，而是先回答一个可证伪问题：
+在同一批问题、同一 baseline 和同一评分器下，review 能否修正错误计划，同时不
+破坏原本正确的计划？
+
+新增两层能力：
+
+1. `app/external_datasets/finqa_review.py` 让 reviewer 只能 KEEP 或提交一条
+   可重新执行的受限表达式；表达式仍经过 AST/Decimal Calculator 和 evidence
+   guard。结构协议失败回退到已验证 baseline，Ollama/网络故障则中断，不能伪装成
+   正常回退。
+2. `app/external_datasets/finqa_adjudication.py` 将 baseline 与 30B proposal
+   匿名随机成 A/B，8B adjudicator 只能二选一，不能生成第三条表达式。这样把
+   “提出候选”和“决定是否采用”分开，并避免固定位置偏差。
+
+第一版 8B reviewer 因遗漏 raw-ratio 合同，将 Hybrid strict 从 `59%` 降至
+`55%`，wrong-to-correct / correct-to-wrong 为 `1/5`。v2 补齐尺度合同并要求
+没有无歧义错误就 KEEP，同模型结果回到 `59%`，但没有修正任何题。30B proposal
+达到 `61%`，仍有 `5/3` 的修正/退化；匿名 8B 仲裁后 tuning 达到 `63%`、
+`4/0`，exact McNemar `p=0.125`。
+
+在调用模型前又冻结了与 tuning 零重叠的 50 题 dev validation。baseline、
+30B proposal、最终仲裁 strict 分别为 `44%`、`48%`、`50%`；最终 grounded
+strict 为 `38%`，修正/退化为 `3/0`。方向得到复现，但预冻结统计门槛要求
+`p<=0.05`，实际为 `0.25`，所以结果为 `COMPLETE_NOT_ADOPTED`。
+
+运行中 Ollama 从 0.32.4 自动升级到 0.32.5，30B 在 CUDA v12/v13 的 Flash
+Attention warm-up 都退出。最小请求也能复现，因此不是 FinQA payload；模型张量
+已经加载，因此也不像 blob 损坏。Vulkan backend 能完成验证，但跨 backend 延迟
+不可与旧 CUDA run 直接比较，最终平均延迟是 baseline 的 `7.84x`。运行 manifest
+因此新增 `runtime_backend`，失败 run 不发布 artifact。
+
+这次负结论保留了完整价值：质量方向不是随机只在 tuning 出现，但统计证据和成本
+都不够，默认路径继续关闭。下一步不是继续全量堆 30B，而是先做不依赖 gold label
+的低成本 uncertainty trigger，并给长评测增加 checkpoint/resume，随后再冻结新
+cohort 验证调用率、质量、退化和真实 CUDA 延迟。
+
+本阶段收口验证：FinQA focused `63 passed`，全仓
+`2592 passed / 30 skipped / 3 warnings`，public audit
+`978 candidates / 0 findings`，`compileall`、`pip check` 和
+`git diff --check` 通过。`0 findings` 只说明当前审计器在候选文件和规则覆盖范围
+内没有命中，不代表模型质量或软件安全没有剩余问题。

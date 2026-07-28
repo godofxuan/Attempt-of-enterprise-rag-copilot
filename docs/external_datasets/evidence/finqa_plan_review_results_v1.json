@@ -1,0 +1,167 @@
+{
+  "schema_version": "finqa_plan_review_public_results_v1",
+  "status": "COMPLETE_NOT_ADOPTED",
+  "scope": "FinQA dev tuning plus zero-overlap dev validation",
+  "frozen_test_reused_or_retuned": false,
+  "decision": {
+    "default_enable_plan_review": false,
+    "default_enable_candidate_adjudication": false,
+    "reason": "Quality direction replicated, but the pre-frozen exact McNemar significance gate failed and end-to-end latency remained unacceptable."
+  },
+  "tuning_cohort": {
+    "case_count": 100,
+    "selected_case_ids_sha256": "ecd5b9668fd8e98ab04c7e65c093abadf568b68de274282ab89e225557f6d5d5",
+    "runs": [
+      {
+        "run_id": "finqa-plan-review-dev-v1-oracle",
+        "strategy": "qwen3_8b_review_v1",
+        "baseline_strict": 0.63,
+        "final_strict": 0.62,
+        "final_grounded_strict": 0.55,
+        "wrong_to_correct": 0,
+        "correct_to_wrong": 1,
+        "mcnemar_exact_p_value": 1.0,
+        "latency_mean_multiplier": 2.082736658898493,
+        "manifest_sha256": "1260bd6898a0be2f5b0d8ead76ad5e2e1aa1b66c62b20aa9a55177ccb111fe2e",
+        "private_details_sha256": "7e7d1868994d386743330b789db73b7ba989b9a9efdfa66eaa7019276c159c22"
+      },
+      {
+        "run_id": "finqa-plan-review-dev-v1-hybrid",
+        "strategy": "qwen3_8b_review_v1",
+        "baseline_strict": 0.59,
+        "final_strict": 0.55,
+        "final_grounded_strict": 0.48,
+        "wrong_to_correct": 1,
+        "correct_to_wrong": 5,
+        "mcnemar_exact_p_value": 0.21875,
+        "latency_mean_multiplier": 2.078159856933526,
+        "manifest_sha256": "f66edd339ecd91530631409d32799ca3573d39828db9f299c34519342ba0b00a",
+        "private_details_sha256": "c541efc93c475a53ae5ffee009fd2b3e9d67dc41b5574d27e65fba0f58cbec7f"
+      },
+      {
+        "run_id": "finqa-plan-review-dev-v2-hybrid",
+        "strategy": "qwen3_8b_conservative_review_v2",
+        "baseline_strict": 0.59,
+        "final_strict": 0.59,
+        "final_grounded_strict": 0.52,
+        "wrong_to_correct": 0,
+        "correct_to_wrong": 0,
+        "mcnemar_exact_p_value": 1.0,
+        "latency_mean_multiplier": 2.054940562984522,
+        "manifest_sha256": "630fa48b9ab15fc93fa16c0ffe01b66a05beaaf852b1c798a8a18b076f88f4d1",
+        "private_details_sha256": "32675e176e3070c7880fdb87cfbdf42a6255793d5fc07fea8758624edee955e5"
+      },
+      {
+        "run_id": "finqa-plan-review-dev-v2-hybrid-qwen3-coder30b",
+        "strategy": "qwen3_coder_30b_review_v2",
+        "baseline_strict": 0.59,
+        "final_strict": 0.61,
+        "final_grounded_strict": 0.54,
+        "wrong_to_correct": 5,
+        "correct_to_wrong": 3,
+        "mcnemar_exact_p_value": 0.7265625,
+        "latency_mean_multiplier": 3.7285049805212718,
+        "manifest_sha256": "5a7cc6381592280894e0ac9dc75e80f54b3e38a0bf55bd0e97fafcebfcb4cf6e",
+        "private_details_sha256": "612a44cce6e23c1af83bd77072982dd9c33f0aa9f8375e6fbc70a21f5fafa160"
+      },
+      {
+        "run_id": "finqa-candidate-adjudication-dev-v1-hybrid",
+        "strategy": "30b_proposal_plus_anonymous_8b_adjudication",
+        "baseline_strict": 0.59,
+        "final_strict": 0.63,
+        "final_grounded_strict": 0.55,
+        "wrong_to_correct": 4,
+        "correct_to_wrong": 0,
+        "mcnemar_exact_p_value": 0.125,
+        "latency_mean_multiplier": 3.9048043039321585,
+        "manifest_sha256": "3d5c9e625c7f9ad8de0cf28b67118669d1acc1cc2bc03d072ae781fabb8e4a46",
+        "private_details_sha256": "9839f51efe794697a3f7f2678f63f37237332501784e4a4684ea154cd5a6b1a8"
+      }
+    ]
+  },
+  "validation_cohort": {
+    "protocol": "finqa_plan_review_validation_protocol_v1",
+    "case_count": 50,
+    "sample_seed": "finqa-plan-review-validation-v1-0742",
+    "selected_case_ids_sha256": "cb99e24ebbea3fba38f0fa00b0b05e5fd327a83306a99fb4d44b2ee3ea0ba2cb",
+    "overlap_with_tuning_case_count": 0,
+    "baseline": {
+      "run_id": "finqa-plan-review-validation-v1-hybrid-baseline",
+      "strict": 0.44,
+      "grounded_strict": 0.32,
+      "evidence_recall": 0.953095238095238,
+      "manifest_sha256": "bed8d8dfd766e31d14583aac4d9142b57c972749506911b33c44a00aca5ffd5e",
+      "private_details_sha256": "554c914140df591a6784f70649679004ad961b37eaff2bce1b5fd843b10f2b0c"
+    },
+    "review": {
+      "run_id": "finqa-plan-review-validation-v1-hybrid-qwen3-coder30b",
+      "runtime_backend": "ollama_0.32.5_vulkan",
+      "strict": 0.48,
+      "grounded_strict": 0.36,
+      "wrong_to_correct": 3,
+      "correct_to_wrong": 1,
+      "mcnemar_exact_p_value": 0.625,
+      "latency_mean_multiplier": 7.506284358795068,
+      "manifest_sha256": "b955c68c2bebb45a8dfd0465c2a65056f4b6b71d20c9ba19be04ccd4f9db602d",
+      "private_details_sha256": "aa15e5e91549bbb32a113d819baee2dfc4767f43bcb04aa6f3bf960ddb7095c6"
+    },
+    "adjudication": {
+      "run_id": "finqa-plan-review-validation-v1-hybrid-adjudicated",
+      "runtime_backend": "ollama_0.32.5_cuda_auto",
+      "strict": 0.5,
+      "grounded_strict": 0.38,
+      "wrong_to_correct": 3,
+      "correct_to_wrong": 0,
+      "proposal_accepted": 11,
+      "baseline_retained": 4,
+      "fallback_protocol_error": 0,
+      "mcnemar_exact_p_value": 0.25,
+      "generation_call_multiplier": 2.3,
+      "calculator_call_multiplier": 2.6,
+      "latency_mean_multiplier": 7.837260227123022,
+      "manifest_sha256": "e1ba71659daabaae45ae26fd31e76d76ef3c477c1b7d9bebfc704fd67778bcb1",
+      "private_details_sha256": "f41fbcc7f13c67ebdfde96029a5e21e9fcd562a6ced8fbb2eef445823377c102"
+    },
+    "gate": {
+      "wrong_to_correct_exceeds_correct_to_wrong": true,
+      "execution_accuracy_delta_positive": true,
+      "grounded_execution_accuracy_non_decreasing": true,
+      "fallback_protocol_error_rate_at_most_0_05": true,
+      "mcnemar_exact_p_value_at_most_0_05": false,
+      "latency_and_calls_reported": true,
+      "overall_pass": false
+    }
+  },
+  "runtime_incident": {
+    "ollama_upgrade": "0.32.4_to_0.32.5",
+    "affected_model": "qwen3-coder:30b",
+    "failed_backend_probes": ["cuda_v13", "cuda_v12"],
+    "error": "CUDA shared object initialization failed during Flash Attention warm-up",
+    "failed_run_artifact_published": false,
+    "workaround_backend": "vulkan",
+    "model_prompt_or_quality_gate_changed": false,
+    "latency_cross_backend_comparable": false
+  },
+  "models": {
+    "qwen3_8b_sha256": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "qwen3_coder_30b_sha256": "06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca",
+    "bge_m3_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab"
+  },
+  "verification": {
+    "finqa_focused_passed": 63,
+    "full_pytest_passed": 2592,
+    "full_pytest_skipped": 30,
+    "full_pytest_warnings": 3,
+    "public_audit_candidates": 978,
+    "public_audit_findings": 0,
+    "compileall": "PASS",
+    "pip_check": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "privacy": {
+    "contains_case_ids": false,
+    "contains_questions_answers_evidence_or_expressions": false,
+    "contains_aggregate_metrics_hashes_and_versions_only": true
+  },
+  "next_stage": "Develop a cheap runtime uncertainty trigger and validate it on a newly frozen cohort before considering any production path."
+}

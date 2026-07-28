@@ -491,3 +491,61 @@ Hybrid 另有 retrieval miss `12`。这把“模型不行”拆成了可以分�
 公开内容无关证据见
 [finqa_dev_diagnostic_v1.json](../external_datasets/evidence/finqa_dev_diagnostic_v1.json)。
 收口门禁为 `2578 passed / 30 skipped / 3 warnings` 和 public audit `968/0`。
+
+## 23. FinQA 有界 Plan Review、匿名候选仲裁与零重叠验证
+
+### 为什么没有直接上线第二个模型
+
+上一阶段发现主要错误信号位于 operand 和 operation plan，但“再调用一次 LLM”
+本身不是改进证据。本阶段先在固定 baseline 上做 paired evaluation，并同时统计
+wrong-to-correct、correct-to-wrong、grounded strict、调用数、延迟和 exact
+McNemar。默认开关只有在预冻结门槛全部通过时才允许开启。
+
+### 新增代码与约束
+
+- `app/external_datasets/finqa_review.py`：版本化 review prompt、受限修改、
+  Calculator 重执行、evidence guard、精确成对统计、不可变 artifact。
+- `scripts/eval_finqa_review.py`：只接受已验证 dev baseline，核对样本顺序、
+  hash、模型 digest 和 clean worktree；test 被拒绝。
+- `app/external_datasets/finqa_adjudication.py`：baseline/proposal 匿名 A/B、
+  hash 决定位置，adjudicator 只能选候选，不能自由生成。
+- `scripts/eval_finqa_adjudication.py`：只处理 reviewer 确实修改的题，协议错误
+  保留 baseline，transport error 继续向上抛出。
+- 两组专用测试覆盖 prompt contract、回退边界、候选随机化、篡改拒绝和原子发布。
+
+### 实验如何改变了设计
+
+8B v1 reviewer 把 Hybrid strict 从 `59%` 降到 `55%`，暴露了 review prompt
+没有完整继承 planner 的 raw-ratio/percentage 合同。v2 修复后不再退化，但同模型
+没有提供新信息，结果保持 `59%`。30B proposal 达到 `61%`，仍有 3 个正确题被
+改错；加入匿名 8B 仲裁后 tuning 达到 `63%`、4 修正/0 退化。
+
+这个 tuning 结果没有直接用于上线。项目先冻结与 tuning case ID 零重叠的 50 题
+dev validation，再运行同一 proposal/adjudication 协议：
+
+| Stage | Strict | Grounded strict | wrong→correct | correct→wrong |
+| --- | ---: | ---: | ---: | ---: |
+| Hybrid baseline | 44% | 32% | - | - |
+| 30B proposal | 48% | 36% | 3 | 1 |
+| 8B adjudicated | 50% | 38% | 3 | 0 |
+
+最终 exact McNemar 为 `p=0.25`，没有达到冻结的 `p<=0.05`；Ollama 0.32.5 的
+CUDA runner 回归又迫使 reviewer 临时使用 Vulkan，平均端到端延迟为 baseline
+的 `7.84x`。因此结论是“质量方向复现，但不采用”，不是“6 点提升已上线”。
+
+### 工业化教训
+
+1. reviewer 必须继承 planner 的全部数值合同，否则“复核”会系统性制造错误。
+2. protocol fallback 只处理可预期的模型结构错误；基础设施故障必须暴露。
+3. proposer 和 adjudicator 分责后仍需独立样本、显著性和成本门禁。
+4. runtime backend 是实验 provenance 的一部分，跨 CUDA/Vulkan 的延迟不能混比。
+5. 长评测尚无 checkpoint/resume；中断会丢失已完成调用，这是下一阶段明确债务。
+
+公开、内容无关证据见
+[finqa_plan_review_results_v1.json](../external_datasets/evidence/finqa_plan_review_results_v1.json)，
+冻结协议见
+[finqa_plan_review_validation_protocol_v1.json](../external_datasets/evidence/finqa_plan_review_validation_protocol_v1.json)。
+
+本阶段最终门禁为 FinQA `63 passed`、全仓
+`2592 passed / 30 skipped / 3 warnings`、public audit
+`978 candidates / 0 findings`，并通过 compile、依赖一致性和 diff 检查。

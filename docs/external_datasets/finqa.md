@@ -210,3 +210,44 @@ Qwen3/BGE-M3 digest、Calculator 协议和 K=10：
 `correct_to_wrong`、grounded strict 不退化、协议回退受控且 exact McNemar
 达到预设证据门槛时，reviewer 才能成为候选默认策略；否则保留负结果，但不接入
 默认链路。
+
+## 12. Plan Review、候选仲裁与零重叠验证结果
+
+第一版让同一个 Qwen3 8B 全题自审，Hybrid strict 从 `59%` 降到 `55%`：
+只修正 1 题，却改错 5 题。逐题诊断发现 reviewer 漏掉 planner 已有的 raw-ratio
+合同，甚至把正确比例乘以 100。v2 补齐比例合同，并规定“无法指出无歧义错误就
+KEEP”，Hybrid 回到 `59%`，但没有新增正确题，说明同模型反思缺少新增信息。
+
+异构 Qwen3-Coder 30B proposal 在 100 题 tuning 上达到 `61%`，但仍有 5 修正 /
+3 退化。随后加入匿名 A/B 仲裁：
+
+1. 30B 只能提出 proposal；
+2. 只有 proposal 改变的题才调用 8B adjudicator；
+3. baseline/proposal 来源隐藏，A/B 位置由 case ID hash 确定；
+4. adjudicator 只能二选一，不能生成第三个算式；
+5. 协议失败回退 baseline，传输失败仍中断整批。
+
+该策略在 tuning 上达到 strict `59% -> 63%`、4 修正 / 0 退化，但 exact McNemar
+为 `0.125`。随后在任何模型调用前冻结一批与 tuning 零重叠的 50 题 dev：
+
+| Stage | Strict | Grounded strict | wrong→correct | correct→wrong |
+| --- | ---: | ---: | ---: | ---: |
+| Hybrid baseline | 44% | 32% | - | - |
+| 30B proposal | 48% | 36% | 3 | 1 |
+| 8B adjudicated | 50% | 38% | 3 | 0 |
+
+质量方向得到复现，但 final exact McNemar 为 `0.25`，未达到预冻结 `0.05`。
+同时 Ollama 从 0.32.4 自动升级到 0.32.5 后，30B 在 CUDA v12/v13 Flash
+Attention warm-up 均退出；Vulkan workaround 可运行，但使本次端到端平均延迟
+达到 baseline 的 `7.84x`。因此 plan review/adjudication 仍不进入默认链路。
+
+机器可读协议和内容无关证据：
+
+- [validation protocol](evidence/finqa_plan_review_validation_protocol_v1.json)
+- [review/adjudication results](evidence/finqa_plan_review_results_v1.json)
+
+收口验证为 FinQA focused `63 passed`、全仓
+`2592 passed / 30 skipped / 3 warnings`、public audit
+`978 candidates / 0 findings`；`compileall`、`pip check` 和
+`git diff --check` 通过。以上回归门禁证明代码和公开边界未被本阶段改坏，不替代
+模型质量门槛。
