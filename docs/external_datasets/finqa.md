@@ -198,3 +198,15 @@ Qwen3/BGE-M3 digest、Calculator 协议和 K=10：
 本阶段收口：相关公开/诊断测试 `107 passed`，全仓库
 `2578 passed / 30 skipped / 3 warnings`，public audit
 `968 candidates / 0 findings`。
+
+## 11. 有界 Plan Review 成对实验
+
+下一阶段不重新生成 baseline，也不修改检索结果，而是对同一批 100 题 dev 的
+不可变 planner 输出增加一次受限审查。运行前冻结的输入、回退语义、成对统计和
+采用门槛见
+[FinQA 有界 Plan Review 成对实验协议](finqa_plan_review_protocol.md)。
+
+该实验明确拒绝 test source run。只有 `wrong_to_correct` 多于
+`correct_to_wrong`、grounded strict 不退化、协议回退受控且 exact McNemar
+达到预设证据门槛时，reviewer 才能成为候选默认策略；否则保留负结果，但不接入
+默认链路。
