@@ -24,9 +24,11 @@ from app.external_datasets.finqa import (
     stable_sample_finqa_cases,
 )
 from app.external_datasets.finqa_eval import (
+    FinQAAnswerProtocolError,
     FinQARunManifest,
     LocalFinQAAnswerer,
     evaluate_finqa_case,
+    evaluate_finqa_protocol_error,
     publish_finqa_run,
     rank_finqa_evidence,
     selected_case_ids_sha256,
@@ -165,18 +167,31 @@ def main(argv: list[str] | None = None) -> int:
                     else None
                 ),
             )
-            answer = answerer.answer(
-                question=case.qa.question,
-                evidence_units=evidence,
-            )
-            rows.append(
-                evaluate_finqa_case(
+            try:
+                answer = answerer.answer(
+                    question=case.qa.question,
+                    evidence_units=evidence,
+                )
+            except FinQAAnswerProtocolError as error:
+                row = evaluate_finqa_protocol_error(
+                    case,
+                    retrieval_mode=args.retrieval_mode,
+                    selected_units=evidence,
+                    error=error,
+                )
+                print(
+                    f"[{index}/{len(selected)}] protocol error: {error.code}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            else:
+                row = evaluate_finqa_case(
                     case,
                     retrieval_mode=args.retrieval_mode,
                     selected_units=evidence,
                     answer=answer,
                 )
-            )
+            rows.append(row)
 
     summary = summarize_finqa_cases(rows)
     if summary.generation_calls != generation_calls:

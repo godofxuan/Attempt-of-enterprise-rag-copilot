@@ -32,6 +32,7 @@ from app.utils import tokenize_for_bm25
 
 
 FinQARetrievalMode = Literal["oracle", "bm25", "dense", "hybrid"]
+FinQAAnswerStatus = Literal["ok", "structured_output_exhausted"]
 EmbedBatch = Callable[[list[str]], np.ndarray]
 MAX_FINQA_EVIDENCE_UNITS = 20
 MAX_FINQA_UNIT_CHARS = 1600
@@ -73,6 +74,27 @@ class FinQAAnswerPayload(BaseModel):
         return value
 
 
+class FinQAAnswerProtocolError(ValueError):
+    code: Literal["structured_output_exhausted"]
+
+    def __init__(
+        self,
+        *,
+        attempt_count: int,
+        latency_ms: float,
+        admitted_count: int,
+        quarantined_count: int,
+        guard_rule_ids: tuple[str, ...],
+    ) -> None:
+        super().__init__("FinQA answerer exhausted structured-output attempts")
+        self.code = "structured_output_exhausted"
+        self.attempt_count = attempt_count
+        self.latency_ms = latency_ms
+        self.admitted_count = admitted_count
+        self.quarantined_count = quarantined_count
+        self.guard_rule_ids = guard_rule_ids
+
+
 @dataclass(frozen=True)
 class FinQAAnswerResult:
     final_answer: str
@@ -96,6 +118,7 @@ class FinQACaseEvaluation(BaseModel):
     cited_unit_ids: list[str]
     final_answer: str
     calculation: str
+    answer_status: FinQAAnswerStatus | None = None
     answer_parseable: bool
     strict_execution_match: bool
     presentation_tolerance_match: bool | None = None
@@ -132,6 +155,11 @@ class FinQASummary(BaseModel):
         ge=0,
         le=1,
     )
+    generation_protocol_error_rate: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+    )
     generation_calls: int = Field(ge=0)
     latency_ms_mean: float = Field(ge=0)
     latency_ms_p95: float = Field(ge=0)
@@ -144,7 +172,8 @@ class FinQARunManifest(BaseModel):
     schema_version: Literal[
         "finqa_external_run_v1",
         "finqa_external_run_v2",
-    ] = "finqa_external_run_v2"
+        "finqa_external_run_v3",
+    ] = "finqa_external_run_v3"
     run_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
     split: Literal["dev", "test"]
     dataset_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
@@ -259,8 +288,12 @@ class LocalFinQAAnswerer:
         latency_ms = (time.perf_counter() - started) * 1000
         if payload is None:
             assert last_error is not None
-            raise ValueError(
-                "FinQA answerer exhausted structured-output attempts"
+            raise FinQAAnswerProtocolError(
+                attempt_count=attempt_count,
+                latency_ms=latency_ms,
+                admitted_count=len(admitted),
+                quarantined_count=len(units) - len(admitted),
+                guard_rule_ids=tuple(sorted(rule_ids)),
             ) from last_error
         return FinQAAnswerResult(
             final_answer=payload.final_answer,
@@ -358,6 +391,7 @@ def evaluate_finqa_case(
         cited_unit_ids=cited_ids,
         final_answer=answer.final_answer,
         calculation=answer.calculation,
+        answer_status="ok",
         answer_parseable=answer_parseable,
         strict_execution_match=execution_match,
         presentation_tolerance_match=presentation_match,
@@ -375,6 +409,41 @@ def evaluate_finqa_case(
         guard_rule_ids=list(answer.guard_rule_ids),
         generation_calls=answer.attempt_count,
         latency_ms=answer.latency_ms,
+    )
+
+
+def evaluate_finqa_protocol_error(
+    case: FinQACase,
+    *,
+    retrieval_mode: FinQARetrievalMode,
+    selected_units: Sequence[FinQAEvidenceUnit],
+    error: FinQAAnswerProtocolError,
+) -> FinQACaseEvaluation:
+    selected_ids = [unit.unit_id for unit in selected_units]
+    gold_ids = list(case.qa.gold_inds)
+    selected_gold = set(selected_ids).intersection(gold_ids)
+    return FinQACaseEvaluation(
+        case_id=case.id,
+        retrieval_mode=retrieval_mode,
+        selected_unit_ids=selected_ids,
+        gold_unit_ids=gold_ids,
+        cited_unit_ids=[],
+        final_answer="",
+        calculation="",
+        answer_status=error.code,
+        answer_parseable=False,
+        strict_execution_match=False,
+        presentation_tolerance_match=False,
+        evidence_recall=len(selected_gold) / len(gold_ids),
+        citation_precision=0.0,
+        citation_recall=0.0,
+        grounded_execution_match=False,
+        grounded_presentation_match=False,
+        admitted_count=error.admitted_count,
+        quarantined_count=error.quarantined_count,
+        guard_rule_ids=list(error.guard_rule_ids),
+        generation_calls=error.attempt_count,
+        latency_ms=error.latency_ms,
     )
 
 
@@ -400,6 +469,11 @@ def summarize_finqa_cases(
         for row in values
         if row.grounded_presentation_match is not None
     ]
+    answer_statuses = [
+        row.answer_status
+        for row in values
+        if row.answer_status is not None
+    ]
     return FinQASummary(
         case_count=count,
         retrieval_mode=values[0].retrieval_mode,
@@ -424,6 +498,11 @@ def summarize_finqa_cases(
         grounded_presentation_accuracy=(
             sum(grounded_presentation_matches) / count
             if len(grounded_presentation_matches) == count
+            else None
+        ),
+        generation_protocol_error_rate=(
+            sum(status != "ok" for status in answer_statuses) / count
+            if len(answer_statuses) == count
             else None
         ),
         generation_calls=sum(row.generation_calls for row in values),
@@ -702,13 +781,16 @@ def _canonical_json_bytes(value: Any) -> bytes:
 __all__ = [
     "EmbedBatch",
     "FinQAAnswerPayload",
+    "FinQAAnswerProtocolError",
     "FinQAAnswerResult",
+    "FinQAAnswerStatus",
     "FinQACaseEvaluation",
     "FinQARetrievalMode",
     "FinQARunManifest",
     "FinQASummary",
     "LocalFinQAAnswerer",
     "evaluate_finqa_case",
+    "evaluate_finqa_protocol_error",
     "parse_finqa_answer_payload",
     "publish_finqa_run",
     "rank_finqa_evidence",

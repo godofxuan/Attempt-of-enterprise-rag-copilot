@@ -6,10 +6,12 @@ import pytest
 
 from app.external_datasets.finqa import FinQACase
 from app.external_datasets.finqa_eval import (
+    FinQAAnswerProtocolError,
     FinQAAnswerResult,
     FinQARunManifest,
     LocalFinQAAnswerer,
     evaluate_finqa_case,
+    evaluate_finqa_protocol_error,
     parse_finqa_answer_payload,
     publish_finqa_run,
     rank_finqa_evidence,
@@ -155,6 +157,70 @@ def test_local_finqa_answerer_retries_one_invalid_response() -> None:
     ).answer(question=case.qa.question, evidence_units=units)
 
     assert result.attempt_count == 2
+
+
+def test_local_finqa_answerer_reports_exhausted_protocol_attempts() -> None:
+    case = _case()
+    units = rank_finqa_evidence(case, mode="oracle", top_k=5)
+
+    with pytest.raises(FinQAAnswerProtocolError) as captured:
+        LocalFinQAAnswerer(
+            model="qwen-test",
+            chat_fn=lambda *args, **kwargs: (
+                '{"final_answer":"L","calculation":"x",'
+                '"cited_candidate_ids":["evidence-01"]}'
+            ),
+            max_attempts=2,
+        ).answer(question=case.qa.question, evidence_units=units)
+
+    assert captured.value.code == "structured_output_exhausted"
+    assert captured.value.attempt_count == 2
+    assert captured.value.admitted_count == 1
+    assert captured.value.quarantined_count == 0
+
+
+def test_local_finqa_answerer_does_not_mask_transport_failures() -> None:
+    case = _case()
+    units = rank_finqa_evidence(case, mode="oracle", top_k=5)
+
+    def unavailable(*args, **kwargs):
+        raise RuntimeError("Ollama unavailable")
+
+    with pytest.raises(RuntimeError, match="Ollama unavailable"):
+        LocalFinQAAnswerer(
+            model="qwen-test",
+            chat_fn=unavailable,
+            max_attempts=2,
+        ).answer(question=case.qa.question, evidence_units=units)
+
+
+def test_finqa_protocol_error_becomes_a_scored_auditable_row() -> None:
+    case = _case()
+    selected = rank_finqa_evidence(case, mode="oracle", top_k=5)
+    error = FinQAAnswerProtocolError(
+        attempt_count=2,
+        latency_ms=125.0,
+        admitted_count=1,
+        quarantined_count=0,
+        guard_rule_ids=(),
+    )
+
+    row = evaluate_finqa_protocol_error(
+        case,
+        retrieval_mode="oracle",
+        selected_units=selected,
+        error=error,
+    )
+    summary = summarize_finqa_cases([row])
+
+    assert row.answer_status == "structured_output_exhausted"
+    assert row.answer_parseable is False
+    assert row.strict_execution_match is False
+    assert row.evidence_recall == 1.0
+    assert row.citation_precision == 0.0
+    assert row.generation_calls == 2
+    assert summary.generation_protocol_error_rate == 1.0
+    assert summary.execution_accuracy == 0.0
 
 
 def test_rank_finqa_evidence_supports_bm25_dense_and_hybrid() -> None:
@@ -357,10 +423,13 @@ def test_finqa_v1_rows_migrate_new_metrics_as_not_available() -> None:
     ).model_dump(mode="json")
     payload.pop("presentation_tolerance_match")
     payload.pop("grounded_presentation_match")
+    payload.pop("answer_status")
 
     migrated = finqa_eval.FinQACaseEvaluation.model_validate(payload)
     summary = summarize_finqa_cases([migrated])
 
     assert migrated.presentation_tolerance_match is None
+    assert migrated.answer_status is None
     assert summary.presentation_tolerance_accuracy is None
     assert summary.grounded_presentation_accuracy is None
+    assert summary.generation_protocol_error_rate is None
