@@ -74,11 +74,19 @@ class FinQASelectiveSuccessGate(BaseModel):
     normal_cuda_required_for_latency_claim: Literal[True] = True
 
 
+class FinQASelectiveReviewRuntimeOptions(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    num_gpu: Literal[5]
+    num_ctx: Literal[4096]
+    num_batch: Literal[512]
+
+
 class FinQASelectiveExecutionProtocol(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal["finqa_selective_execution_protocol_v1"] = (
-        "finqa_selective_execution_protocol_v1"
+    schema_version: Literal["finqa_selective_execution_protocol_v2"] = (
+        "finqa_selective_execution_protocol_v2"
     )
     status: Literal["FROZEN_BEFORE_EXECUTION"]
     frozen_at_utc: str = Field(
@@ -108,6 +116,7 @@ class FinQASelectiveExecutionProtocol(BaseModel):
     adjudicator_model: FinQASelectiveModelIdentity
     embedding_model: FinQASelectiveModelIdentity
     review_prompt_version: Literal["finqa_plan_review_v2"]
+    review_runtime_options: FinQASelectiveReviewRuntimeOptions
     uncertainty_algorithm_version: Literal[
         "finqa_runtime_uncertainty_v1"
     ]
@@ -243,8 +252,8 @@ class FinQASelectiveSummary(BaseModel):
 class FinQASelectiveRunManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal["finqa_selective_run_v1"] = (
-        "finqa_selective_run_v1"
+    schema_version: Literal["finqa_selective_run_v2"] = (
+        "finqa_selective_run_v2"
     )
     selective_run_id: str = Field(
         pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
@@ -276,6 +285,7 @@ class FinQASelectiveRunManifest(BaseModel):
     answer_model_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     review_model: str = Field(min_length=1)
     review_model_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    review_runtime_options: FinQASelectiveReviewRuntimeOptions
     adjudicator_model: str = Field(min_length=1)
     adjudicator_model_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     embedding_model: str = Field(min_length=1)

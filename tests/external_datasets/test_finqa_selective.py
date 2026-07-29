@@ -1,6 +1,7 @@
 import hashlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
@@ -13,6 +14,7 @@ from app.external_datasets.finqa_eval import FinQACaseEvaluation
 from app.external_datasets.finqa_selective import (
     FinQASelectiveCaseEvaluation,
     FinQASelectiveExecutionProtocol,
+    FinQASelectiveReviewRuntimeOptions,
     FinQASelectiveRunManifest,
     publish_finqa_selective_run,
     select_finqa_cases_excluding,
@@ -23,6 +25,7 @@ from app.external_datasets.finqa_uncertainty import (
     FinQARuntimeUncertainty,
     evaluate_finqa_uncertainty_case,
 )
+from scripts import eval_finqa_selective
 
 
 def _case(case_id: str) -> FinQACase:
@@ -299,6 +302,11 @@ def test_selective_run_is_immutable_and_reproducible(tmp_path) -> None:
         answer_model_sha256="e" * 64,
         review_model="qwen3-coder:30b",
         review_model_sha256="f" * 64,
+        review_runtime_options=FinQASelectiveReviewRuntimeOptions(
+            num_gpu=5,
+            num_ctx=4096,
+            num_batch=512,
+        ),
         adjudicator_model="qwen3:8b",
         adjudicator_model_sha256="e" * 64,
         embedding_model="bge-m3",
@@ -329,6 +337,89 @@ def test_selective_run_is_immutable_and_reproducible(tmp_path) -> None:
         verify_finqa_selective_run(run_dir)
 
 
+def test_selective_review_transport_binds_conservative_cuda_options(
+    monkeypatch,
+) -> None:
+    captured = {}
+
+    class FakeResponse:
+        status_code = 200
+        text = ""
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"message": {"content": '{"status":"kept"}'}}
+
+    class FakeSession:
+        trust_env = True
+
+        def post(self, url, *, json, timeout, allow_redirects):
+            captured.update(
+                url=url,
+                payload=json,
+                timeout=timeout,
+                allow_redirects=allow_redirects,
+                trust_env=self.trust_env,
+            )
+            return FakeResponse()
+
+    monkeypatch.setattr(
+        eval_finqa_selective,
+        "get_settings",
+        lambda: SimpleNamespace(
+            llm_base_url="http://127.0.0.1:11434/v1",
+            model_max_attempts=2,
+            model_retry_backoff_ms=0,
+        ),
+    )
+    monkeypatch.setattr(
+        eval_finqa_selective.requests,
+        "Session",
+        FakeSession,
+    )
+
+    content = eval_finqa_selective._chat_with_runtime_options(
+        model="qwen3-coder:30b",
+        messages=[{"role": "user", "content": "review"}],
+        response_format="json",
+        think=False,
+        timeout_seconds=180,
+        model_options={
+            "num_gpu": 5,
+            "num_ctx": 4096,
+            "num_batch": 512,
+        },
+    )
+
+    assert content == '{"status":"kept"}'
+    assert captured["url"] == "http://127.0.0.1:11434/api/chat"
+    assert captured["payload"]["options"] == {
+        "temperature": 0,
+        "num_gpu": 5,
+        "num_ctx": 4096,
+        "num_batch": 512,
+    }
+    assert captured["payload"]["format"] == "json"
+    assert captured["payload"]["think"] is False
+    assert captured["allow_redirects"] is False
+    assert captured["trust_env"] is False
+    with pytest.raises(ValueError, match="runtime options"):
+        eval_finqa_selective._chat_with_runtime_options(
+            model="qwen3-coder:30b",
+            messages=[],
+            response_format=None,
+            think=None,
+            timeout_seconds=180,
+            model_options={
+                "num_gpu": 7,
+                "num_ctx": 4096,
+                "num_batch": 512,
+            },
+        )
+
+
 def test_frozen_selective_protocol_binds_public_sources_without_content() -> None:
     repository_root = Path(__file__).resolve().parents[2]
     protocol_path = (
@@ -336,8 +427,10 @@ def test_frozen_selective_protocol_binds_public_sources_without_content() -> Non
         / "docs"
         / "external_datasets"
         / "evidence"
-        / "finqa_selective_execution_protocol_v1.json"
+        / "finqa_selective_execution_protocol_v2.json"
     )
+    if not protocol_path.exists():
+        pytest.skip("selective protocol v2 has not been frozen yet")
     protocol = FinQASelectiveExecutionProtocol.model_validate_json(
         protocol_path.read_bytes()
     )

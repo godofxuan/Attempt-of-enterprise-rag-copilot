@@ -27,6 +27,7 @@ from app.external_datasets.finqa_selective import (
     FinQASelectiveExecutionProtocol,
     FinQASelectiveExclusionSource,
     FinQASelectiveModelIdentity,
+    FinQASelectiveReviewRuntimeOptions,
     FinQASelectiveSuccessGate,
     case_ids_sha256,
     select_finqa_cases_excluding,
@@ -42,7 +43,7 @@ DEFAULT_OUTPUT = (
     / "docs"
     / "external_datasets"
     / "evidence"
-    / "finqa_selective_execution_protocol_v1.json"
+    / "finqa_selective_execution_protocol_v2.json"
 )
 DEFAULT_EXCLUSION_RUN_IDS = (
     "finqa-v2-diagnostic-dev-v1-hybrid",
@@ -56,6 +57,7 @@ FROZEN_SOURCE_FILES = (
     "app/external_datasets/finqa_selective.py",
     "app/external_datasets/finqa_uncertainty.py",
     "app/evaluation/resumable_checkpoint.py",
+    "app/ollama_chat.py",
     "scripts/eval_finqa_selective.py",
     "scripts/freeze_finqa_selective_protocol.py",
 )
@@ -201,6 +203,11 @@ def main(argv: list[str] | None = None) -> int:
             sha256=embedding_client.model_sha256,
         ),
         review_prompt_version="finqa_plan_review_v2",
+        review_runtime_options=FinQASelectiveReviewRuntimeOptions(
+            num_gpu=5,
+            num_ctx=4096,
+            num_batch=512,
+        ),
         uncertainty_algorithm_version="finqa_runtime_uncertainty_v1",
         pipeline_version="finqa_selective_execution_v1",
         timeout_seconds=args.timeout_seconds,

@@ -1,0 +1,66 @@
+{
+  "schema_version": "finqa_selective_protocol_incident_v1",
+  "status": "SUPERSEDED_BEFORE_COHORT_EXECUTION",
+  "recorded_at_utc": "2026-07-29T04:43:43Z",
+  "affected_protocol": {
+    "path": "docs/external_datasets/evidence/finqa_selective_execution_protocol_v1.json",
+    "sha256": "e947cf00c75fc400608e46253d7d02bce507936675e811bb9df828f1a51ed36b",
+    "selected_case_ids_sha256": "cbb5c205609e618292f9e7465e2ea25803311f99af2a1f686f7674a0930987ae",
+    "selected_case_count": 100
+  },
+  "execution_impact": {
+    "cohort_cases_executed": 0,
+    "checkpoint_rows_written": 0,
+    "model_outputs_for_selected_cohort_observed": false,
+    "sample_selection_changed_by_successor": false
+  },
+  "failure": {
+    "component": "Ollama 0.32.5 CUDA runner",
+    "hardware": "NVIDIA GeForce RTX 5060 8GB",
+    "model": "qwen3-coder:30b",
+    "model_sha256": "06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca",
+    "symptom": "llama-server terminated during CUDA warm-up with exit status 0xc0000409 and CUDA shared object initialization failed",
+    "root_cause_boundary": "The default automatic high partial-offload plan is unstable for this 30B MoE model on the current Ollama, driver, and Blackwell GPU combination. The same model bytes run with a conservative explicit CUDA layer count.",
+    "not_model_blob_corruption": true
+  },
+  "controlled_probes": [
+    {
+      "change": "default automatic CUDA offload",
+      "result": "FAIL"
+    },
+    {
+      "change": "Flash Attention disabled with automatic CUDA offload",
+      "result": "FAIL"
+    },
+    {
+      "change": "num_gpu=10, num_ctx=2048, num_batch=64",
+      "result": "FAIL"
+    },
+    {
+      "change": "num_gpu=1, num_ctx=4096, num_batch=512",
+      "result": "PASS"
+    },
+    {
+      "change": "num_gpu=2, num_ctx=4096, num_batch=512",
+      "result": "PASS"
+    },
+    {
+      "change": "num_gpu=5, num_ctx=4096, num_batch=512",
+      "result": "PASS_REPEATED"
+    },
+    {
+      "change": "num_gpu=7, num_ctx=4096, num_batch=512",
+      "result": "FAIL"
+    },
+    {
+      "change": "application chat transport on the normal 11434 endpoint with num_gpu=5",
+      "result": "PASS"
+    }
+  ],
+  "resolution": {
+    "action": "Freeze a v2 protocol before cohort execution and bind num_gpu=5, num_ctx=4096, and num_batch=512 into every 30B review request, resumable checkpoint contract, and immutable run manifest.",
+    "performance_claim_boundary": "This is CUDA partial offload with most 30B weights resident in CPU memory. Its measured latency is local fallback evidence and must not be presented as full-GPU production latency.",
+    "v1_must_not_be_executed": true
+  },
+  "public_content_boundary": "No question, answer, evidence, expression, case ID, or model response is included."
+}

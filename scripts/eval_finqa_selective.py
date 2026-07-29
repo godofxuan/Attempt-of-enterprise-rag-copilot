@@ -74,7 +74,7 @@ DEFAULT_PROTOCOL = (
     / "docs"
     / "external_datasets"
     / "evidence"
-    / "finqa_selective_execution_protocol_v1.json"
+    / "finqa_selective_execution_protocol_v2.json"
 )
 DEFAULT_OUT_ROOT = DEFAULT_PRIVATE_ROOT / "selective_runs"
 
@@ -212,6 +212,9 @@ def main(argv: list[str] | None = None) -> int:
             "answer_model_sha256": protocol.answer_model.sha256,
             "review_model": protocol.review_model.name,
             "review_model_sha256": protocol.review_model.sha256,
+            "review_runtime_options": (
+                protocol.review_runtime_options.model_dump(mode="json")
+            ),
             "adjudicator_model": protocol.adjudicator_model.name,
             "adjudicator_model_sha256": (
                 protocol.adjudicator_model.sha256
@@ -246,7 +249,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     reviewer = LocalFinQAPlanReviewer(
         model=protocol.review_model.name,
-        chat_fn=_timed_chat(protocol.timeout_seconds),
+        chat_fn=_timed_chat(
+            protocol.timeout_seconds,
+            model_options=protocol.review_runtime_options.model_dump(),
+        ),
         max_attempts=protocol.max_attempts,
         prompt_version=protocol.review_prompt_version,
     )
@@ -404,6 +410,7 @@ def main(argv: list[str] | None = None) -> int:
         answer_model_sha256=protocol.answer_model.sha256,
         review_model=protocol.review_model.name,
         review_model_sha256=protocol.review_model.sha256,
+        review_runtime_options=protocol.review_runtime_options,
         adjudicator_model=protocol.adjudicator_model.name,
         adjudicator_model_sha256=protocol.adjudicator_model.sha256,
         embedding_model=protocol.embedding_model.name,
@@ -483,8 +490,21 @@ def _execute_adjudication(*, case, review, evidence, adjudicator):
     )
 
 
-def _timed_chat(timeout_seconds: float):
+def _timed_chat(
+    timeout_seconds: float,
+    *,
+    model_options: dict[str, int] | None = None,
+):
     def chat(model, messages, *, response_format=None, think=None):
+        if model_options is not None:
+            return _chat_with_runtime_options(
+                model=model,
+                messages=messages,
+                response_format=response_format,
+                think=think,
+                timeout_seconds=timeout_seconds,
+                model_options=model_options,
+            )
         return chat_with_ollama(
             model,
             messages,
@@ -494,6 +514,54 @@ def _timed_chat(timeout_seconds: float):
         )
 
     return chat
+
+
+def _chat_with_runtime_options(
+    *,
+    model: str,
+    messages: list[dict],
+    response_format,
+    think,
+    timeout_seconds: float,
+    model_options: dict[str, int],
+) -> str:
+    if model_options != {
+        "num_gpu": 5,
+        "num_ctx": 4096,
+        "num_batch": 512,
+    }:
+        raise ValueError("FinQA selective review runtime options are invalid")
+    settings = get_settings()
+    origin = parse_pinned_model_endpoint(settings.llm_base_url).origin
+    payload = {
+        "model": model,
+        "messages": messages,
+        "stream": False,
+        "options": {
+            "temperature": 0,
+            **model_options,
+        },
+    }
+    if response_format is not None:
+        payload["format"] = response_format
+    if think is not None:
+        payload["think"] = think
+    session = requests.Session()
+    session.trust_env = False
+    result = perform_model_request(
+        lambda timeout: session.post(
+            f"{origin}/api/chat",
+            json=payload,
+            timeout=timeout,
+            allow_redirects=False,
+        ),
+        operation="chat",
+        timeout_seconds=timeout_seconds,
+        max_attempts=settings.model_max_attempts,
+        backoff_seconds=settings.model_retry_backoff_ms / 1000.0,
+    )
+    data = result.response.json()
+    return data["message"]["content"]
 
 
 def _load_protocol_exclusions(
