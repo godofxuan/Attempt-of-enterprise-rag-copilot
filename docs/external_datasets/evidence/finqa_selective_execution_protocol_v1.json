@@ -1,0 +1,80 @@
+{
+  "schema_version": "finqa_selective_execution_protocol_v1",
+  "status": "FROZEN_BEFORE_EXECUTION",
+  "frozen_at_utc": "2026-07-29T04:29:04Z",
+  "freeze_parent_revision": "65257e9971a19c58b9b361684f787e86190d6e77",
+  "dataset_revision": "0f16e2867befa6840783e58be38c9efb9229d742",
+  "split": "dev",
+  "split_sha256": "a847fb7e0d61a3125a1e2909852df6b89f1ee64d2c5ff1bf689e332214deee51",
+  "sample_seed": "finqa-selective-execution-v1-20260729",
+  "sample_count": 100,
+  "selected_case_ids_sha256": "cbb5c205609e618292f9e7465e2ea25803311f99af2a1f686f7674a0930987ae",
+  "excluded_case_count": 150,
+  "excluded_case_ids_sha256": "a15bac665e9b51156aef9a217bd23fbdadae49f26839f603ef5de65a350fc153",
+  "overlap_with_excluded_case_count": 0,
+  "exclusion_sources": [
+    {
+      "run_id": "finqa-v2-diagnostic-dev-v1-hybrid",
+      "manifest_sha256": "8c163ab47040816aef8d68131fce94713fa7e4015ae9f554650edbff9ee4b38f",
+      "details_sha256": "ed514688a0821158d00bd13d5c291245d7d99d23db824a177d447d550a6efc00",
+      "selected_case_ids_sha256": "ecd5b9668fd8e98ab04c7e65c093abadf568b68de274282ab89e225557f6d5d5",
+      "selected_case_count": 100
+    },
+    {
+      "run_id": "finqa-plan-review-validation-v1-hybrid-baseline",
+      "manifest_sha256": "bed8d8dfd766e31d14583aac4d9142b57c972749506911b33c44a00aca5ffd5e",
+      "details_sha256": "554c914140df591a6784f70649679004ad961b37eaff2bce1b5fd843b10f2b0c",
+      "selected_case_ids_sha256": "cb99e24ebbea3fba38f0fa00b0b05e5fd327a83306a99fb4d44b2ee3ea0ba2cb",
+      "selected_case_count": 50
+    }
+  ],
+  "retrieval_mode": "hybrid",
+  "top_k": 10,
+  "answer_strategy": "program",
+  "answer_model": {
+    "name": "qwen3:8b",
+    "sha256": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41"
+  },
+  "review_model": {
+    "name": "qwen3-coder:30b",
+    "sha256": "06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca"
+  },
+  "adjudicator_model": {
+    "name": "qwen3:8b",
+    "sha256": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41"
+  },
+  "embedding_model": {
+    "name": "bge-m3",
+    "sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab"
+  },
+  "review_prompt_version": "finqa_plan_review_v2",
+  "uncertainty_algorithm_version": "finqa_runtime_uncertainty_v1",
+  "pipeline_version": "finqa_selective_execution_v1",
+  "timeout_seconds": 180.0,
+  "max_attempts": 2,
+  "shadow_full_strategy": true,
+  "runtime_backend_requirement": "normal_cuda_no_vulkan",
+  "success_gate": {
+    "selective_strict_at_least_baseline": true,
+    "selective_grounded_strict_at_least_baseline": true,
+    "correct_to_wrong_max": 0,
+    "trigger_rate_max": 0.75,
+    "generation_call_reduction_min": 0.2,
+    "calculator_call_reduction_min": 0.2,
+    "exact_mcnemar_p_value_max": 0.05,
+    "observed_selective_latency_required": true,
+    "normal_cuda_required_for_latency_claim": true
+  },
+  "source_sha256": {
+    "app/external_datasets/finqa.py": "0f746ffa34b36b53c95d0d4fee122129e42434686305172f21f187455844c4ea",
+    "app/external_datasets/finqa_adjudication.py": "cc1127b0a78b5560d9ea836f72798ebce54c8044f44a96df8cd2cdeed48d11fc",
+    "app/external_datasets/finqa_eval.py": "4f1aea4c06456cf0fbaaa213256e1ce4d08df1b072476e80d678c6b1b0964e34",
+    "app/external_datasets/finqa_review.py": "c3b4d37754cce7eb5ef964a1291f384bf35c9bb9b0ecfb58a0385d612abc12e1",
+    "app/external_datasets/finqa_selective.py": "ac5146ee7e307fbf2b595c0ad8f8e01e16ee17f545880b660c7952cd4cd4771c",
+    "app/external_datasets/finqa_uncertainty.py": "19908c3ae7198de9f92bf5572b534c5f73f37badee9bc8a2625d9d66b497e85e",
+    "app/evaluation/resumable_checkpoint.py": "1cb5a41e625f3ed8bf44827b5f40cee35d8b49ca606bd20202f4ff0de83bb822",
+    "scripts/eval_finqa_selective.py": "fda1b3fb7fb38116247b141c5a73405226ba8804a0c59165e428a80ac35dca5d",
+    "scripts/freeze_finqa_selective_protocol.py": "36089caad19aa42ce50f16325bd0056a6aebae8319a50228977167b5ab76a03d"
+  },
+  "public_content_boundary": "aggregate_metrics_hashes_and_versions_only"
+}

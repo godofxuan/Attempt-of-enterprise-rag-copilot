@@ -1,4 +1,6 @@
 import hashlib
+import json
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -10,6 +12,7 @@ from app.external_datasets.finqa_adjudication import (
 from app.external_datasets.finqa_eval import FinQACaseEvaluation
 from app.external_datasets.finqa_selective import (
     FinQASelectiveCaseEvaluation,
+    FinQASelectiveExecutionProtocol,
     FinQASelectiveRunManifest,
     publish_finqa_selective_run,
     select_finqa_cases_excluding,
@@ -324,3 +327,53 @@ def test_selective_run_is_immutable_and_reproducible(tmp_path) -> None:
     (run_dir / "summary.json").write_text("{}\n", encoding="utf-8")
     with pytest.raises(ValueError, match="artifact mismatch"):
         verify_finqa_selective_run(run_dir)
+
+
+def test_frozen_selective_protocol_binds_public_sources_without_content() -> None:
+    repository_root = Path(__file__).resolve().parents[2]
+    protocol_path = (
+        repository_root
+        / "docs"
+        / "external_datasets"
+        / "evidence"
+        / "finqa_selective_execution_protocol_v1.json"
+    )
+    protocol = FinQASelectiveExecutionProtocol.model_validate_json(
+        protocol_path.read_bytes()
+    )
+
+    assert protocol.status == "FROZEN_BEFORE_EXECUTION"
+    assert protocol.excluded_case_count == 150
+    assert protocol.sample_count == 100
+    assert protocol.overlap_with_excluded_case_count == 0
+    assert protocol.runtime_backend_requirement == "normal_cuda_no_vulkan"
+    for relative_path, expected_sha256 in protocol.source_sha256.items():
+        assert (
+            hashlib.sha256(
+                (repository_root / relative_path).read_bytes()
+            ).hexdigest()
+            == expected_sha256
+        )
+    payload = json.loads(protocol_path.read_text(encoding="utf-8"))
+
+    def collect_keys(value):
+        if isinstance(value, dict):
+            return set(value) | {
+                key
+                for child in value.values()
+                for key in collect_keys(child)
+            }
+        if isinstance(value, list):
+            return {
+                key for child in value for key in collect_keys(child)
+            }
+        return set()
+
+    assert not {
+        "question",
+        "answer",
+        "exe_ans",
+        "program",
+        "calculation",
+        "case_id",
+    } & collect_keys(payload)
