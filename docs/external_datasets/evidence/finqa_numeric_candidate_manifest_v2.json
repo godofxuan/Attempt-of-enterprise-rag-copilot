@@ -1,0 +1,48 @@
+{
+  "candidate_count": 9,
+  "candidate_id_set_sha256": "617adf9e0d508a1b3f9aebd45e05f9ac3b81182d0aef9e0ed5ab79a44dff1ae9",
+  "counts_by_role": {
+    "operand": 6,
+    "ordinal": 1,
+    "page_number": 1,
+    "period_label": 1
+  },
+  "counts_by_scale": {
+    "basis_point": 1,
+    "million": 1,
+    "one": 6,
+    "percent": 1
+  },
+  "counts_by_source_kind": {
+    "table_cell": 3,
+    "text": 6
+  },
+  "counts_by_unit": {
+    "ratio": 2,
+    "shares": 1,
+    "unknown": 4,
+    "usd": 2
+  },
+  "extraction_config_sha256": "b020781bed80ebae5d1baf60fe67ad43daffae0fe81899dd5f4c50144bf11c71",
+  "extraction_version": "finqa_numeric_candidate_v1",
+  "extractor_source_sha256": "339d0082c85eb8f69b93c2745224664336ea19e09dfe2b972733eecca41ec9cc",
+  "missing_metadata_counts": {
+    "column_header": 6,
+    "entity": 9,
+    "fiscal_year": 3,
+    "metric": 6,
+    "period": 3,
+    "row_header": 6,
+    "scale_unknown": 0,
+    "table_id": 6,
+    "unit_unknown": 4
+  },
+  "rejected_noise_counts": {
+    "non_operand_ordinal": 1,
+    "non_operand_page_number": 1
+  },
+  "schema_version": "finqa_numeric_candidate_manifest_v1",
+  "source_artifact_sha256": "1e48e9441476427fb8e8321f8fac1ff8d9edd4aba5fa33f56cf4a5203e7e2624",
+  "source_record_count": 6,
+  "status": "SYNTHETIC_CONTRACT_ONLY"
+}

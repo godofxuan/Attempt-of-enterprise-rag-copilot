@@ -1073,6 +1073,203 @@ FinQA 使用已经结构化的 JSON 表格，所以 Gate B 能可靠取得 row/c
 - 公开 manifest 可以复算且不泄露评测内容；
 - 全仓 `2632 passed / 29 skipped / 10 xfailed`。
 
-10 个 `xfailed` 是下一阶段 Gate C 的 typed planner/compiler 合同。它们使用
-`strict xfail`：Gate C 一旦意外通过，CI 会报 XPASS，提醒开发者正式移除待实现
-标记并完成验收。
+Gate B 收口时的 10 个 `xfailed` 是当时尚未实现的 Gate C
+typed planner/compiler 合同。它们先使用 `strict xfail` 防止未来实现被悄悄忽略；
+Gate C 完成后已移除标记并全部转为普通 pass。
+
+## 21.37 Gate C：模型为什么只能选 ID，宿主怎样证明程序可执行
+
+### 从“表达式字符串”变成“受限 AST”
+
+Gate B 让每个财务数字有了 candidate ID，Gate C 继续禁止模型把数字复制回自由
+表达式。模型现在只能输出：
+
+```json
+{
+  "dsl_version": "finqa_typed_financial_dsl_v1",
+  "steps": [
+    {
+      "step_id": "step-01",
+      "operation": "SUB",
+      "arguments": [
+        {"candidate_id": "num-...new"},
+        {"candidate_id": "num-...old"}
+      ]
+    }
+  ],
+  "output_step_id": "step-01"
+}
+```
+
+每个 argument 只能是：
+
+```text
+CandidateRef(candidate_id)
+StepRef(previous_step_id)
+```
+
+不存在 `literal`、`expression` 或 Python 代码字段。因此模型负责“选哪个数、做什么
+操作”，宿主负责“这些数是否允许被选、这个操作是否合法、最后怎样计算”。
+
+### JSON Schema 为什么不是安全边界
+
+Ollama 的 structured output 能提高格式成功率，但模型、服务版本或 fake client
+仍可能返回不符合 schema 的 JSON。项目不会因为给了 response schema 就直接相信
+结果，而会再次执行：
+
+```text
+raw response
+  -> duplicate-key-safe JSON parser
+  -> Pydantic extra=forbid
+  -> literal/operation/size checks
+  -> candidate lookup
+  -> admitted evidence check
+  -> financial compatibility check
+  -> Decimal compiler
+```
+
+所以 structured output 是可靠性工具，宿主 validator 才是 correctness 和安全边界。
+
+### Validator 具体检查什么
+
+固定顺序包括：
+
+1. payload、step 和 argument 是否超预算；
+2. operation 是否在七个允许项中；
+3. 是否出现 literal、裸数字、expression 或额外字段；
+4. candidate 是否存在且 ID 唯一；
+5. step ID 是否从 `step-01` 连续编号；
+6. StepRef 是否只引用已经完成的前序步骤；
+7. raw text、字符跨度和 hash 是否一致；
+8. normalized value、unit、scale 和 sign 能否从 raw text 重新抽取出来；
+9. evidence 是否属于 admitted set；
+10. candidate role 是否为 operand；
+11. 年份、metric、entity、unit、scale、方向是否兼容；
+12. arity、零除、Decimal 精度、结果大小和输出单位是否正确。
+
+这里第 8 项是实现审查时补出的重要约束。只检查 `"120"` 的 hash 还不够，因为有人
+可能保留原文和 hash，却把 `normalized_value` 改成 `121`。现在 validator 会对精确
+原文重新运行 Gate B extractor，再比较结构化值。
+
+### 七个 operation 怎样计算
+
+```text
+ADD(a,b)                 a + b
+SUB(a,b)                 a - b
+MUL(a,b)                 a * b，至少一个参数必须是 ratio
+DIV(a,b)                 a / b，b 不能为 0
+PERCENT_CHANGE(new,old)  (new - old) / old
+RATIO(part,total)        part / total
+AVERAGE(a,b,...)         sum / 参数个数
+```
+
+ADD、SUB、AVERAGE 和 PERCENT_CHANGE 会检查 metric/entity 与单位兼容。DIV/RATIO
+检查单位能否形成允许的比值。V1 不实现通用量纲代数，所以 `USD/share` 等复合单位
+仍是明确限制。
+
+### 多步程序怎样工作
+
+例如先算差值，再除以旧值：
+
+```text
+step-01 = SUB(new_candidate, old_candidate)
+step-02 = DIV(step-01, old_candidate)
+output  = step-02
+```
+
+StepRef 只能向后引用已完成步骤。`step-02` 引用 `step-03` 会在执行前报
+`forward_step_reference`。每一步的 Decimal 值都会进入不可变 `step_values`，
+最终结果还保留全部 candidate/evidence 来源闭包。
+
+中间结果还必须保留“它代表什么”。例如：
+
+```text
+step-01 = MUL(100 USD revenue, 0.5 ratio)  -> 50 USD revenue
+step-02 = ADD(step-01, 25 USD revenue)     -> 75 USD revenue
+```
+
+最初实现只保留了 step-01 的数值和单位，丢掉 `revenue/company` 元数据，导致
+step-02 被当成“已知 revenue + 未知 metric”而保守拒绝。现在 MUL/DIV 会从承担
+实际量纲的 operand 传播 metric/entity，并由两步回归测试证明结果和来源闭包正确。
+
+### 为什么不用 float、eval 或 exec
+
+compiler 通过 operation 分支直接调用 `Decimal` 运算，没有把字符串交给 Python。
+测试会解析源码 AST，确认没有直接调用 `eval` 或 `exec`。Decimal context 精度固定
+为 50，绝对值上限为 `1e30`，避免模型构造超大计算消耗资源。
+
+### Typed Planner 做了什么
+
+新类位于：
+
+```text
+app/external_datasets/finqa_typed_planner.py
+```
+
+它和旧 `LocalFinQAProgramAnswerer` 并存，不会修改旧实验含义。输入包括问题、admitted
+候选、可选的 admitted evidence context 和 `FinancialQuestionIntent`。输出 schema
+只列出允许 candidate ID 和 StepRef。
+
+第一次输出若被宿主拒绝，默认最多修复一次。repair prompt 只告诉模型稳定 failure
+reason 和 candidate allowlist，不提供 gold program 或正确答案。连续失败后抛出
+`TypedPlannerProtocolError`，记录 attempts、latency 和最后原因。
+
+### Intent 为什么仍是有限能力
+
+当前 deterministic intent extractor 只识别明确词语：
+
+```text
+percentage change / growth rate -> PERCENT_CHANGE
+average / mean                  -> AVERAGE
+ratio / what percent            -> RATIO
+difference / absolute change    -> SUB
+total / sum / combined          -> ADD
+product / multiply              -> MUL
+divide / quotient / per         -> DIV
+```
+
+它不会凭空猜 metric 和 entity。百分比变化必须出现两个明确年份，否则
+`ambiguous_intent`。这保证可复现和保守，但不能宣称已经理解所有自然语言财务问题。
+
+### 实现与验收过程中发现的六个工程问题
+
+1. provenance hash 不能证明 normalized value 正确，因此加入确定性重建检查；
+2. `frozen=True` 不会递归冻结普通 dict，因此 `step_values` 改成运行时只读 mapping，
+   序列化时仍输出 JSON object；
+3. Gate C 修改了与 extractor 同文件的源码 hash，不能覆盖 Gate B manifest v1。
+   项目保留 v1 原字节并新增 v2，测试要求两版 candidate set、配置和 fixture hash
+   完全一致。
+4. 只检查 candidate ID 格式还不够，攻击者或错误代码可以换一个合法形状的 ID。
+   Validator 现在会从 source/evidence、表格坐标、原文 span、值、单位、scale 和
+   role 重新计算 candidate ID；单候选 ID 替换会在执行前失败。
+5. 金额与 ratio 计算后的中间状态曾丢失 metric/entity，合法多步程序被误拒；
+   现在从有量纲 operand 传播元数据，并新增真实两步执行回归。
+6. 为避免写 C 盘，把 pytest `--basetemp` 放到 `.tmp` 后，四个 JWT/JWKS 测试按
+   安全策略拒绝了私钥路径。正确修复不是放宽“私有身份文件必须位于 `.private`”
+   的规则，而是把 D 盘测试临时根放到项目 `.private` 下。受影响的 18 个测试随后
+   全部通过。
+
+### 本阶段能说什么、不能说什么
+
+可以说：
+
+> 实现 reference-only typed financial DSL、candidate/admission/provenance 与
+> temporal/unit compatibility validator，以及无 eval/exec 的 Decimal compiler；
+> 用 fake model 和结构化 FinQA 表格验证 bounded repair 与端到端执行。
+
+不能说：
+
+> FinQA 准确率已经提高。
+
+Gate C 没有运行真实模型、disclosed dev 或 frozen test。它证明机制满足合同，不证明
+模型在新样本上会更常选对程序。效果判断必须等 Gate E retrospective 和 Gate F
+confirmatory protocol。
+
+最终门禁为：
+
+```text
+Gate C focused     43 passed
+external datasets  162 passed
+full repository    2674 passed / 30 skipped / 0 xfailed
+public audit       1006 candidates / 0 findings
+```

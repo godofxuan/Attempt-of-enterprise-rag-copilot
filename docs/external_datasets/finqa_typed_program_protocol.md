@@ -1,6 +1,6 @@
 # FinQA Temporal Operand Alignment and Typed Financial Program Protocol
 
-Status: `GATE_B_NUMERIC_CANDIDATE_EXTRACTION_IMPLEMENTED_LOCAL_UNPUSHED`
+Status: `GATE_C_TYPED_PLANNER_VALIDATOR_COMPILER_IMPLEMENTED_LOCAL_UNPUSHED`
 
 Baseline revision:
 `d2a6bf945b5d3c724ed03aa6288fb609f5bc54cd`
@@ -734,3 +734,187 @@ multi-column layout model, repeated-header removal, or cross-page table
 stitching. DOCX/HTML/CSV/JSONL tables retain explicit rows and headers, and the
 chunker repeats table headers, but raw PDF cross-page tables require a separate
 layout-aware ingestion stage and cell-level evaluation.
+
+## 17. Gate C implementation record
+
+Gate C was approved after Gate B commit `b63c87e`. This stage implements the
+typed planner boundary, compatibility validator, and deterministic Decimal
+compiler. It does not run a real model, tune prompts on disclosed cases,
+implement multiple-program ranking, or publish an answer-quality result.
+
+### 17.1 New files and changed contracts
+
+| File | Gate C responsibility |
+| --- | --- |
+| `app/external_datasets/finqa_typed_program.py` | Candidate/step reference schemas, typed DSL, stable validation errors, compatibility validation, Decimal execution, immutable result/provenance/diagnostics |
+| `app/external_datasets/finqa_typed_planner.py` | Deterministic minimal intent extraction, reference-only prompt/schema, bounded retry, fake/live-compatible chat boundary |
+| `tests/external_datasets/test_finqa_typed_program.py` | Schema, literal, provenance, admission, temporal, metric, unit, scale, sign, direction, step, budget, differential, immutability, and no-eval contracts |
+| `tests/external_datasets/test_finqa_typed_planner.py` | Intent, prompt/schema, retry/exhaustion, allowlist, context budget, parser, and full structured-table fake-model integration |
+| `tests/external_datasets/red/test_finqa_typed_program.py` | All 12 Gate A RED contracts are now normal green tests |
+| `docs/external_datasets/evidence/finqa_numeric_candidate_manifest_v2.json` | Current source binding without overwriting the historical Gate B manifest |
+
+The historical `LocalFinQAProgramAnswerer` and its literal-expression protocol
+remain unchanged. The new planner is a separate class and can therefore be
+compared against the old answerer instead of silently changing a frozen
+baseline.
+
+### 17.2 Runtime path
+
+```text
+runtime question
+  -> deterministic FinancialQuestionIntent (unknown fields remain unknown)
+  -> admitted NumericCandidate allowlist
+  -> typed-planner prompt + JSON Schema
+  -> model emits candidate/previous-step references only
+  -> host parses duplicate-key-safe JSON
+  -> host parses extra=forbid TypedProgram
+  -> host validates candidate and evidence closure
+  -> host validates financial compatibility
+  -> host executes approved AST with Decimal
+  -> immutable result + step values + provenance + diagnostics
+```
+
+The JSON Schema improves model reliability but is not trusted as the security
+boundary. A fake or non-conforming model can return any bytes; the host repeats
+all schema, identity, admission, compatibility, and resource checks.
+
+### 17.3 Fixed validation order
+
+The fail-closed boundary checks:
+
+1. canonical JSON size, step/argument budgets, operation allowlist, and strict
+   DSL schema;
+2. absence of raw numeric values, `literal`, `value`, `number`, `expression`,
+   and extra fields;
+3. unique candidates, contiguous step IDs, backward-only step references, and
+   final output-step identity;
+4. exact raw-text span/hash and deterministic reconstruction of normalized
+   value, unit, scale, and sign;
+5. candidate membership in the admitted evidence set and `role=operand`;
+6. target/start/end period compatibility;
+7. requested and cross-operand metric/entity compatibility;
+8. unit and scale compatibility;
+9. directional operand order and operation arity;
+10. zero denominator, Decimal precision/magnitude budget, and output unit/scale.
+
+Errors expose only a stable `reason` and bounded message. The validator never
+reads gold programs, answers, strict correctness, retrieval labels, or paired
+transitions.
+
+### 17.4 DSL and execution behavior
+
+V1 permits only:
+
+```text
+ADD SUB MUL DIV PERCENT_CHANGE RATIO AVERAGE
+```
+
+All steps are `step-01` through `step-08`. Arguments are exactly one
+`CandidateRef` or one earlier `StepRef`. `PERCENT_CHANGE(new, old)` calculates
+`(new-old)/old`; division checks zero before execution. ADD/SUB/AVERAGE require
+compatible units and metrics. Multiplication requires at least one
+dimensionless ratio. Division admits equal units or a ratio denominator.
+
+Execution uses a local Decimal context with precision 50 and a magnitude
+budget of `1e30`. Every intermediate result is retained in an immutable mapping.
+The final result includes ordered candidate/evidence closure, program hash,
+validation hash, counts, precision, and compiler/validator versions.
+
+### 17.5 Typed Planner boundary
+
+`LocalFinQATypedProgramPlanner` receives only:
+
+- the runtime question;
+- admitted operand candidates;
+- an optional bounded map of already-admitted evidence text;
+- a runtime-only `FinancialQuestionIntent`.
+
+Its response schema has no literal or expression field. A failed host
+validation may trigger at most two attempts by default and three by hard
+limit. The repair message contains the stable reason and candidate allowlist,
+not gold data or the correct program.
+
+The deterministic intent extractor is intentionally conservative. It
+recognizes explicit signals for percent change, average, ratio, difference,
+sum, multiplication, and division. It derives percent-change direction from
+two explicit periods. It does not invent metric/entity labels from free text.
+An unrecognized operation fails as `ambiguous_intent`.
+
+### 17.6 Additional failures found during Gate C
+
+Six review and verification findings changed the implementation or the
+acceptance procedure:
+
+1. A valid raw-text hash did not by itself prove that `normalized_value` came
+   from that text. The validator now reruns the deterministic extractor over
+   the exact span and compares value, unit, scale, and sign before execution.
+2. Pydantic `frozen=True` did not make the nested `step_values` dictionary
+   immutable. The result now uses the repository's frozen-mapping pattern with
+   a JSON serializer.
+3. Adding validator/compiler code changed the source hash recorded by the Gate
+   B candidate manifest. Gate B v1 was not overwritten. Its byte SHA remains
+   `b24813f5310ba132fa68e9da7502398750ec06d36d0747750971357abc450b01`;
+   v2 binds the current source while tests require the candidate-ID-set,
+   extraction-config, and fixture hashes to remain unchanged.
+4. A syntactically valid but substituted `candidate_id` was not recomputed at
+   the execution boundary. The validator now derives the ID again from the
+   canonical source identity and rejects a mismatch before program execution.
+5. `MUL(amount, ratio)` and `DIV(amount, ratio)` originally lost the
+   value-carrying operand's metric/entity metadata. A following compatible
+   `ADD` could therefore fail closed. The compiler now propagates metadata from
+   the value-carrying state and a valid two-step regression proves the behavior.
+6. Moving pytest's base directory to `.tmp` caused four trusted-identity tests
+   to reject temporary JWKS/HMAC paths outside `.private`. The security rule was
+   not weakened; final D-drive verification used a `.private` temporary root.
+
+### 17.7 Deterministic evidence
+
+The focused Gate C contracts include:
+
+- all 12 original Gate A RED cases;
+- four forbidden literal shapes and extra-field/unknown-operation rejection;
+- candidate ID, provenance, normalized-value, sign, and admission tampering;
+- non-operand, unknown-period, unknown-metric, unit, and scale failures;
+- forward/duplicate/missing steps, arity, payload, prompt, context, and
+  magnitude budgets;
+- independent Decimal reference comparisons over generated value pairs;
+- stable program/validation hashes and immutable intermediate values;
+- AST inspection proving no direct `eval` or `exec` call;
+- fake-model success, bounded repair, bounded exhaustion, allowlist filtering,
+  an end-to-end structured FinQA table path, and a valid two-step
+  amount-ratio-addition path.
+
+No real Ollama call, disclosed dev evaluation, frozen test run, or accuracy
+comparison occurred in Gate C.
+
+### 17.8 Current limitations
+
+- intent extraction is a narrow deterministic heuristic, not a complete
+  financial semantic parser;
+- text candidates without explicit metric/period metadata may fail closed;
+- V1 emits canonical base-unit results only;
+- dimensional algebra is intentionally limited and does not represent compound
+  units such as USD/share;
+- `part_over_total` semantic roles are not independently typed yet;
+- one typed program is attempted at a time; multiple-program verification is
+  Gate D;
+- planner retry state is in-process and is not yet an immutable resumable model
+  run;
+- raw PDF layout and cross-page table recovery remain outside this layer.
+
+### 17.9 Gate C verification
+
+```text
+Gate C focused tests       43 passed
+external-dataset tests     162 passed
+full repository tests      2674 passed / 30 skipped / 0 xfailed / 3 warnings
+manifest byte check        PASS
+Gate B v1 immutability     PASS
+Gate B/C candidate parity PASS
+compileall                 PASS
+git diff --check           PASS
+public repository audit    1006 candidates / 0 findings
+```
+
+The three warnings are the pre-existing SWIG deprecation warnings. Gate C adds
+no dependency and leaves the worktree free of private model or dataset output.

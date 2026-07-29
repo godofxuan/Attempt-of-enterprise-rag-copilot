@@ -674,3 +674,37 @@ layout recovery, and cross-page table stitching also remain outside Gate B.
 The detailed contract, implementation decisions, failed attempts, and
 verification commands are recorded in
 [finqa_typed_program_protocol.md](../external_datasets/finqa_typed_program_protocol.md).
+
+## 27. FinQA Gate C: reference-only planning and host execution
+
+Gate C replaced the proposed free-literal intervention path with a separate,
+versioned typed planner. The historical literal-expression answerer remains
+unchanged for future controlled comparison.
+
+The model-facing schema now permits only candidate references and backward
+step references over seven financial operations. The host independently
+validates strict schema, literal absence, provenance, deterministic numeric
+reconstruction, admitted evidence, candidate role, temporal/metric/unit/scale/
+sign compatibility, direction, arity, zero division, and resource budgets.
+Only a validated AST reaches the fixed-precision Decimal compiler.
+
+Implementation review found and fixed five non-obvious defects: normalized
+values were not initially re-bound to raw text; candidate IDs were not
+recomputed at the execution boundary; frozen Pydantic models still contained a
+mutable step-value dictionary; value-ratio intermediate steps lost
+metric/entity metadata; and adding Gate C code invalidated the extractor source
+hash recorded by the Gate B manifest. The first four were hardened in code.
+The Gate B manifest remains byte-immutable, and a new v2 source binding proves
+the candidate identity set did not change.
+
+Verification also exposed a correct interaction with the trusted identity
+boundary: pytest JWKS/HMAC fixtures were rejected when a custom D-drive
+`--basetemp` was outside `.private`. The acceptance run moved the temporary
+root under `.private` instead of weakening the private-path rule. Gate C closed
+with 43 focused tests, 162 external-dataset tests, and a D-drive full run of
+2674 passes, 30 conditional skips, and zero failures.
+
+Gate C uses deterministic tests and a fake chat boundary only. It adds no real
+model score and makes no accuracy-improvement claim. Multiple programs,
+retrospective diagnostics, and a separately frozen confirmatory cohort remain
+later gates.

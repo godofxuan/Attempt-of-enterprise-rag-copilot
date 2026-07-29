@@ -4,10 +4,21 @@ import hashlib
 import json
 import re
 from collections import Counter
-from decimal import Decimal, InvalidOperation
+from collections.abc import Mapping
+from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation, localcontext
+from types import MappingProxyType
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from app.external_datasets.finqa import FinQACase
 
@@ -40,6 +51,57 @@ FinancialScale = Literal[
     "basis_point",
     "unknown",
 ]
+TypedFinancialOperation = Literal[
+    "ADD",
+    "SUB",
+    "MUL",
+    "DIV",
+    "PERCENT_CHANGE",
+    "RATIO",
+    "AVERAGE",
+]
+FailureReason = Literal[
+    "missing_candidate",
+    "duplicate_candidate",
+    "temporal_mismatch",
+    "metric_mismatch",
+    "unit_mismatch",
+    "scale_mismatch",
+    "sign_mismatch",
+    "direction_mismatch",
+    "literal_only_operand",
+    "unsupported_operation",
+    "invalid_arity",
+    "divide_by_zero",
+    "missing_provenance",
+    "unadmitted_source",
+    "invalid_candidate_role",
+    "forward_step_reference",
+    "duplicate_step_id",
+    "missing_output_step",
+    "budget_exceeded",
+    "ambiguous_intent",
+    "invalid_program_schema",
+]
+
+DSL_VERSION = "finqa_typed_financial_dsl_v1"
+VALIDATOR_VERSION = "finqa_typed_program_validator_v1"
+COMPILER_VERSION = "finqa_typed_program_compiler_v1"
+MAX_PROGRAM_STEPS = 8
+MAX_PROGRAM_ARGUMENTS = 8
+MAX_PROGRAM_PAYLOAD_BYTES = 16_384
+MAX_PROGRAM_CANDIDATES = 128
+MAX_PROGRAM_ABSOLUTE_VALUE = Decimal("1e30")
+PROGRAM_DECIMAL_PRECISION = 50
+_OPERATIONS = {
+    "ADD",
+    "SUB",
+    "MUL",
+    "DIV",
+    "PERCENT_CHANGE",
+    "RATIO",
+    "AVERAGE",
+}
 
 _EXTRACTION_CONFIG = {
     "candidate_id_hex_chars": 20,
@@ -135,6 +197,25 @@ class _StrictFrozenModel(BaseModel):
         frozen=True,
         str_strip_whitespace=True,
     )
+
+
+class _FrozenMapping(Mapping[str, Decimal]):
+    __slots__ = ("_data",)
+
+    def __init__(self, values: Mapping[str, Decimal]) -> None:
+        self._data = MappingProxyType(dict(values))
+
+    def __getitem__(self, key: str) -> Decimal:
+        return self._data[key]
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __deepcopy__(self, _memo):
+        return self
 
 
 class ProvenanceSpan(_StrictFrozenModel):
@@ -237,7 +318,7 @@ class NumericCandidateManifest(_StrictFrozenModel):
 
 
 class FinancialQuestionIntent(_StrictFrozenModel):
-    operation_intent: str = Field(min_length=1, max_length=64)
+    operation_intent: TypedFinancialOperation
     metric: str | None = Field(default=None, max_length=512)
     entity: str | None = Field(default=None, max_length=512)
     target_period: str | None = Field(default=None, max_length=128)
@@ -255,11 +336,108 @@ class FinancialQuestionIntent(_StrictFrozenModel):
         "finqa_financial_question_intent_v1"
     ] = "finqa_financial_question_intent_v1"
 
+    @model_validator(mode="after")
+    def validate_period_contract(self) -> FinancialQuestionIntent:
+        if (self.start_period is None) != (self.end_period is None):
+            raise ValueError("start_period and end_period must be provided together")
+        if self.target_period is not None and self.start_period is not None:
+            raise ValueError(
+                "target_period cannot be combined with start/end periods"
+            )
+        return self
+
 
 class TypedProgramValidationError(ValueError):
-    def __init__(self, reason: str, message: str) -> None:
+    def __init__(self, reason: FailureReason, message: str) -> None:
         self.reason = reason
         super().__init__(message)
+
+
+class CandidateRef(_StrictFrozenModel):
+    candidate_id: str = Field(pattern=r"^num-[0-9a-f]{20}$")
+
+
+class StepRef(_StrictFrozenModel):
+    step_id: str = Field(pattern=r"^step-0[1-8]$")
+
+
+OperandRef = CandidateRef | StepRef
+
+
+class TypedProgramStep(_StrictFrozenModel):
+    step_id: str = Field(pattern=r"^step-0[1-8]$")
+    operation: TypedFinancialOperation
+    arguments: tuple[OperandRef, ...] = Field(
+        min_length=2,
+        max_length=MAX_PROGRAM_ARGUMENTS,
+    )
+
+
+class TypedProgram(_StrictFrozenModel):
+    dsl_version: Literal[
+        "finqa_typed_financial_dsl_v1"
+    ] = DSL_VERSION
+    steps: tuple[TypedProgramStep, ...] = Field(
+        min_length=1,
+        max_length=MAX_PROGRAM_STEPS,
+    )
+    output_step_id: str = Field(pattern=r"^step-0[1-8]$")
+
+
+class ValidatedTypedProgram(_StrictFrozenModel):
+    program: TypedProgram
+    candidate_ids: tuple[str, ...]
+    evidence_ids: tuple[str, ...]
+    validation_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    validator_version: Literal[
+        "finqa_typed_program_validator_v1"
+    ] = VALIDATOR_VERSION
+
+
+class TypedProgramDiagnostics(_StrictFrozenModel):
+    validation_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    step_count: int = Field(ge=1, le=MAX_PROGRAM_STEPS)
+    candidate_count: int = Field(ge=1, le=MAX_PROGRAM_CANDIDATES)
+    evidence_count: int = Field(ge=1, le=MAX_PROGRAM_CANDIDATES)
+    decimal_precision: Literal[50] = PROGRAM_DECIMAL_PRECISION
+    warnings: tuple[str, ...] = ()
+
+
+class TypedProgramResult(_StrictFrozenModel):
+    value: Decimal
+    unit: FinancialUnit
+    output_step_id: str = Field(pattern=r"^step-0[1-8]$")
+    step_values: Mapping[str, Decimal]
+    candidate_ids: tuple[str, ...]
+    evidence_ids: tuple[str, ...]
+    program_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    diagnostics: TypedProgramDiagnostics
+    validator_version: Literal[
+        "finqa_typed_program_validator_v1"
+    ] = VALIDATOR_VERSION
+    compiler_version: Literal[
+        "finqa_typed_program_compiler_v1"
+    ] = COMPILER_VERSION
+
+    @field_validator("step_values")
+    @classmethod
+    def validate_step_values(
+        cls,
+        value: Mapping[str, Decimal],
+    ) -> Mapping[str, Decimal]:
+        if not value or any(
+            not re.fullmatch(r"step-0[1-8]", step_id)
+            for step_id in value
+        ):
+            raise ValueError("step values contain an invalid step ID")
+        return _FrozenMapping(value)
+
+    @field_serializer("step_values")
+    def serialize_step_values(
+        self,
+        value: Mapping[str, Decimal],
+    ) -> dict[str, Decimal]:
+        return dict(value)
 
 
 def _canonical_decimal(value: Decimal) -> str:
@@ -842,18 +1020,845 @@ def build_numeric_candidate_manifest(
     )
 
 
-def compile_and_execute_typed_program(
-    *args: object,
-    **kwargs: object,
+@dataclass(frozen=True)
+class _ValueState:
+    value: Decimal
+    unit: FinancialUnit
+    metric: str | None
+    entity: str | None
+    periods: frozenset[str]
+    candidate_ids: tuple[str, ...]
+    evidence_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _ValidatedExecution:
+    validated: ValidatedTypedProgram
+    step_states: dict[str, _ValueState]
+
+
+def _raise_validation(
+    reason: FailureReason,
+    message: str,
 ) -> None:
-    raise NotImplementedError(
-        "Gate C is not implemented: typed planner validation and execution "
-        "remain outside the approved Gate B candidate-extraction scope"
+    raise TypedProgramValidationError(reason, message)
+
+
+def _canonical_json_bytes(value: object) -> bytes:
+    return (
+        json.dumps(
+            value,
+            allow_nan=False,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("utf-8")
+
+
+def _ordered_unique(values: tuple[str, ...] | list[str]) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(values))
+
+
+def _argument_contains_literal(argument: object) -> bool:
+    if isinstance(argument, (bool, int, float, Decimal)):
+        return True
+    if isinstance(argument, str):
+        return bool(re.fullmatch(r"[+-]?(?:\d+(?:\.\d+)?|\.\d+)", argument))
+    if not isinstance(argument, dict):
+        return False
+    if set(argument).intersection({"literal", "value", "expression", "number"}):
+        return True
+    return any(
+        isinstance(value, (bool, int, float, Decimal))
+        for value in argument.values()
+    )
+
+
+def _parse_typed_program(planner_payload: object) -> TypedProgram:
+    if isinstance(planner_payload, TypedProgram):
+        return planner_payload
+    try:
+        payload_bytes = _canonical_json_bytes(planner_payload)
+    except (TypeError, ValueError) as exc:
+        _raise_validation(
+            "invalid_program_schema",
+            "planner payload is not canonical JSON",
+        )
+        raise AssertionError from exc
+    if len(payload_bytes) > MAX_PROGRAM_PAYLOAD_BYTES:
+        _raise_validation(
+            "budget_exceeded",
+            "planner payload exceeds the byte budget",
+        )
+    if not isinstance(planner_payload, dict):
+        _raise_validation(
+            "invalid_program_schema",
+            "planner payload must be an object",
+        )
+    steps = planner_payload.get("steps")
+    if not isinstance(steps, (list, tuple)):
+        _raise_validation(
+            "invalid_program_schema",
+            "planner payload must contain a step list",
+        )
+    if len(steps) > MAX_PROGRAM_STEPS:
+        _raise_validation("budget_exceeded", "program has too many steps")
+    if not steps:
+        _raise_validation("invalid_program_schema", "program has no steps")
+    for step in steps:
+        if not isinstance(step, dict):
+            _raise_validation(
+                "invalid_program_schema",
+                "each program step must be an object",
+            )
+        operation = step.get("operation")
+        if operation not in _OPERATIONS:
+            _raise_validation(
+                "unsupported_operation",
+                "program contains an unsupported operation",
+            )
+        arguments = step.get("arguments")
+        if not isinstance(arguments, (list, tuple)):
+            _raise_validation(
+                "invalid_arity",
+                "program step arguments must be a list",
+            )
+        if len(arguments) > MAX_PROGRAM_ARGUMENTS:
+            _raise_validation(
+                "budget_exceeded",
+                "program step has too many arguments",
+            )
+        if not 2 <= len(arguments) <= MAX_PROGRAM_ARGUMENTS:
+            _raise_validation(
+                "invalid_arity",
+                "program operation has invalid arity",
+            )
+        if any(_argument_contains_literal(argument) for argument in arguments):
+            _raise_validation(
+                "literal_only_operand",
+                "program arguments must reference candidates or previous steps",
+            )
+    try:
+        return TypedProgram.model_validate(planner_payload)
+    except ValidationError as exc:
+        if "output_step_id" not in planner_payload:
+            _raise_validation(
+                "missing_output_step",
+                "program does not declare an output step",
+            )
+        _raise_validation(
+            "invalid_program_schema",
+            "program does not match the typed DSL schema",
+        )
+        raise AssertionError from exc
+
+
+def _validated_candidates(
+    candidates: list[NumericCandidate] | tuple[NumericCandidate, ...],
+) -> dict[str, NumericCandidate]:
+    if len(candidates) > MAX_PROGRAM_CANDIDATES:
+        _raise_validation(
+            "budget_exceeded",
+            "candidate set exceeds the validator budget",
+        )
+    by_id: dict[str, NumericCandidate] = {}
+    identity_fingerprints: set[bytes] = set()
+    for candidate in candidates:
+        try:
+            expected_sign = (
+                -1
+                if candidate.normalized_value < 0
+                else (1 if candidate.normalized_value > 0 else 0)
+            )
+            if candidate.sign != expected_sign:
+                _raise_validation(
+                    "sign_mismatch",
+                    "candidate sign is inconsistent with its value",
+                )
+            raw_text = candidate.raw_text
+            provenance = candidate.provenance_span
+            if (
+                provenance.end - provenance.start != len(raw_text)
+                or provenance.text_sha256
+                != hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+            ):
+                _raise_validation(
+                    "missing_provenance",
+                    "candidate provenance is invalid",
+                )
+        except AttributeError as exc:
+            _raise_validation(
+                "missing_provenance",
+                "candidate provenance is missing",
+            )
+            raise AssertionError from exc
+        try:
+            checked = NumericCandidate.model_validate(
+                candidate.model_dump(mode="python")
+            )
+        except (AttributeError, ValidationError, ValueError) as exc:
+            _raise_validation(
+                "missing_provenance",
+                "candidate provenance is invalid",
+            )
+            raise AssertionError from exc
+        try:
+            reconstructed = extract_numeric_candidates(
+                source_id=checked.source_id,
+                evidence_id=checked.evidence_id,
+                text=checked.raw_text,
+                kind=checked.source_kind,
+                table_id=checked.table_id,
+                row_header=checked.row_header,
+                column_header=checked.column_header,
+                unit_hint=(
+                    None if checked.unit == "unknown" else checked.unit
+                ),
+            )
+        except ValueError as exc:
+            _raise_validation(
+                "missing_provenance",
+                "candidate value cannot be reconstructed from source text",
+            )
+            raise AssertionError from exc
+        reconstructed_exact = next(
+            (
+                item
+                for item in reconstructed
+                if item.provenance_span.start == 0
+                and item.provenance_span.end == len(checked.raw_text)
+            ),
+            None,
+        )
+        if reconstructed_exact is None:
+            _raise_validation(
+                "missing_provenance",
+                "candidate value is not bound to the complete source span",
+            )
+        if reconstructed_exact.normalized_value != checked.normalized_value:
+            _raise_validation(
+                "missing_provenance",
+                "candidate normalized value does not match source text",
+            )
+        if reconstructed_exact.unit != checked.unit:
+            _raise_validation(
+                "unit_mismatch",
+                "candidate unit does not match source text",
+            )
+        if reconstructed_exact.scale != checked.scale:
+            _raise_validation(
+                "scale_mismatch",
+                "candidate scale does not match source text",
+            )
+        if reconstructed_exact.sign != checked.sign:
+            _raise_validation(
+                "sign_mismatch",
+                "candidate sign does not match source text",
+            )
+        identity_fingerprint = _canonical_json_bytes(
+            {
+                "column_header": checked.column_header,
+                "evidence_id": checked.evidence_id,
+                "normalized_value": _canonical_decimal(
+                    checked.normalized_value
+                ),
+                "provenance_span": checked.provenance_span.model_dump(
+                    mode="json"
+                ),
+                "role": checked.role,
+                "row_header": checked.row_header,
+                "scale": checked.scale,
+                "sign": checked.sign,
+                "source_id": checked.source_id,
+                "source_kind": checked.source_kind,
+                "table_id": checked.table_id,
+                "unit": checked.unit,
+            }
+        )
+        if identity_fingerprint in identity_fingerprints:
+            _raise_validation(
+                "duplicate_candidate",
+                "candidate set contains duplicate source identities",
+            )
+        identity_fingerprints.add(identity_fingerprint)
+        expected_candidate_id = _candidate_identity(
+            source_id=checked.source_id,
+            evidence_id=checked.evidence_id,
+            source_kind=checked.source_kind,
+            table_id=checked.table_id,
+            row_header=checked.row_header,
+            column_header=checked.column_header,
+            provenance_span=checked.provenance_span,
+            normalized_value=checked.normalized_value,
+            unit=checked.unit,
+            scale=checked.scale,
+            sign=checked.sign,
+            role=checked.role,
+        )
+        if checked.candidate_id != expected_candidate_id:
+            _raise_validation(
+                "missing_provenance",
+                "candidate ID is not bound to its canonical source identity",
+            )
+        if checked.candidate_id in by_id:
+            _raise_validation(
+                "duplicate_candidate",
+                "candidate set contains duplicate IDs",
+            )
+        by_id[checked.candidate_id] = checked
+    return by_id
+
+
+def _static_program_closure(
+    program: TypedProgram,
+    candidate_by_id: dict[str, NumericCandidate],
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    seen_steps: set[str] = set()
+    candidate_ids: list[str] = []
+    evidence_ids: list[str] = []
+    for ordinal, step in enumerate(program.steps, start=1):
+        if step.step_id in seen_steps:
+            _raise_validation(
+                "duplicate_step_id",
+                "program contains a duplicate step ID",
+            )
+        if step.step_id != f"step-{ordinal:02d}":
+            _raise_validation(
+                "invalid_program_schema",
+                "step IDs must be contiguous and ordered",
+            )
+        for argument in step.arguments:
+            if isinstance(argument, StepRef):
+                if argument.step_id not in seen_steps:
+                    _raise_validation(
+                        "forward_step_reference",
+                        "step reference must point to an earlier step",
+                    )
+                continue
+            candidate = candidate_by_id.get(argument.candidate_id)
+            if candidate is None:
+                _raise_validation(
+                    "missing_candidate",
+                    "program references an unknown candidate",
+                )
+            candidate_ids.append(candidate.candidate_id)
+            evidence_ids.append(candidate.evidence_id)
+        seen_steps.add(step.step_id)
+    if (
+        program.output_step_id not in seen_steps
+        or program.output_step_id != program.steps[-1].step_id
+    ):
+        _raise_validation(
+            "missing_output_step",
+            "output must reference the final completed step",
+        )
+    return _ordered_unique(candidate_ids), _ordered_unique(evidence_ids)
+
+
+def _metadata_key(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = " ".join(
+        "".join(
+            character if character.isalnum() else " "
+            for character in value.casefold()
+        ).split()
+    )
+    return normalized or None
+
+
+def _candidate_period(candidate: NumericCandidate) -> str | None:
+    if candidate.period is not None:
+        return candidate.period.casefold().strip()
+    if candidate.fiscal_year is not None:
+        return str(candidate.fiscal_year)
+    return None
+
+
+def _validate_candidate_contracts(
+    *,
+    candidate_ids: tuple[str, ...],
+    candidate_by_id: dict[str, NumericCandidate],
+    admitted_evidence_ids: set[str],
+    intent: FinancialQuestionIntent,
+) -> None:
+    if len(admitted_evidence_ids) > MAX_PROGRAM_CANDIDATES:
+        _raise_validation(
+            "budget_exceeded",
+            "admitted evidence set exceeds the validator budget",
+        )
+    if any(
+        not isinstance(evidence_id, str)
+        or not evidence_id
+        or len(evidence_id) > 512
+        or any(ord(character) < 32 for character in evidence_id)
+        for evidence_id in admitted_evidence_ids
+    ):
+        _raise_validation(
+            "budget_exceeded",
+            "admitted evidence identity violates the validator budget",
+        )
+    used = [candidate_by_id[candidate_id] for candidate_id in candidate_ids]
+    for candidate in used:
+        if candidate.evidence_id not in admitted_evidence_ids:
+            _raise_validation(
+                "unadmitted_source",
+                "candidate is not from admitted evidence",
+            )
+        if candidate.role != "operand":
+            _raise_validation(
+                "invalid_candidate_role",
+                "non-operand candidate cannot enter a program",
+            )
+
+    allowed_periods: set[str] | None = None
+    if intent.target_period is not None:
+        allowed_periods = {intent.target_period.casefold().strip()}
+    elif intent.start_period is not None and intent.end_period is not None:
+        allowed_periods = {
+            intent.start_period.casefold().strip(),
+            intent.end_period.casefold().strip(),
+        }
+    if allowed_periods is not None:
+        for candidate in used:
+            period = _candidate_period(candidate)
+            if period is None:
+                _raise_validation(
+                    "ambiguous_intent",
+                    "candidate period is unknown for a period-bound question",
+                )
+            if period not in allowed_periods:
+                _raise_validation(
+                    "temporal_mismatch",
+                    "candidate period is incompatible with the question",
+                )
+
+    requested_metric = _metadata_key(intent.metric)
+    if requested_metric is not None:
+        for candidate in used:
+            candidate_metric = _metadata_key(candidate.metric)
+            if candidate_metric is None:
+                _raise_validation(
+                    "ambiguous_intent",
+                    "candidate metric is unknown for a metric-bound question",
+                )
+            if candidate_metric != requested_metric:
+                _raise_validation(
+                    "metric_mismatch",
+                    "candidate metric is incompatible with the question",
+                )
+    requested_entity = _metadata_key(intent.entity)
+    if requested_entity is not None:
+        for candidate in used:
+            candidate_entity = _metadata_key(candidate.entity)
+            if (
+                candidate_entity is not None
+                and candidate_entity != requested_entity
+            ):
+                _raise_validation(
+                    "metric_mismatch",
+                    "candidate entity is incompatible with the question",
+                )
+    for candidate in used:
+        if candidate.scale == "unknown":
+            _raise_validation(
+                "scale_mismatch",
+                "candidate scale is unknown",
+            )
+        expected_sign = (
+            -1
+            if candidate.normalized_value < 0
+            else (1 if candidate.normalized_value > 0 else 0)
+        )
+        if candidate.sign != expected_sign:
+            _raise_validation(
+                "sign_mismatch",
+                "candidate sign is inconsistent with its value",
+            )
+
+
+def _candidate_state(candidate: NumericCandidate) -> _ValueState:
+    period = _candidate_period(candidate)
+    return _ValueState(
+        value=candidate.normalized_value,
+        unit=candidate.unit,
+        metric=candidate.metric,
+        entity=candidate.entity,
+        periods=frozenset(() if period is None else (period,)),
+        candidate_ids=(candidate.candidate_id,),
+        evidence_ids=(candidate.evidence_id,),
+    )
+
+
+def _same_metadata(
+    states: tuple[_ValueState, ...],
+    attribute: Literal["metric", "entity"],
+) -> str | None:
+    values = [getattr(state, attribute) for state in states]
+    known = {
+        key
+        for value in values
+        if (key := _metadata_key(value)) is not None
+    }
+    if len(known) > 1:
+        _raise_validation(
+            "metric_mismatch",
+            f"operation arguments have incompatible {attribute}",
+        )
+    if known and any(value is None for value in values):
+        _raise_validation(
+            "ambiguous_intent",
+            f"operation arguments have incomplete {attribute} metadata",
+        )
+    return next((value for value in values if value is not None), None)
+
+
+def _shared_metadata(
+    states: tuple[_ValueState, ...],
+    attribute: Literal["metric", "entity"],
+) -> str | None:
+    known = [
+        (value, _metadata_key(value))
+        for state in states
+        if (value := getattr(state, attribute)) is not None
+    ]
+    if len(known) != len(states):
+        return None
+    keys = {key for _, key in known if key is not None}
+    if len(keys) != 1:
+        return None
+    return known[0][0]
+
+
+def _same_unit(states: tuple[_ValueState, ...]) -> FinancialUnit:
+    units = {state.unit for state in states}
+    if len(units) != 1:
+        _raise_validation(
+            "unit_mismatch",
+            "operation arguments have incompatible units",
+        )
+    return states[0].unit
+
+
+def _validate_arity(
+    operation: TypedFinancialOperation,
+    argument_count: int,
+) -> None:
+    if operation == "AVERAGE":
+        valid = 2 <= argument_count <= MAX_PROGRAM_ARGUMENTS
+    else:
+        valid = argument_count == 2
+    if not valid:
+        _raise_validation(
+            "invalid_arity",
+            "operation has an invalid argument count",
+        )
+
+
+def _validate_direction(
+    *,
+    operation: TypedFinancialOperation,
+    states: tuple[_ValueState, ...],
+    intent: FinancialQuestionIntent,
+) -> None:
+    if operation == "PERCENT_CHANGE" and intent.direction == "none":
+        _raise_validation(
+            "ambiguous_intent",
+            "percent change requires an explicit direction",
+        )
+    if (
+        intent.start_period is None
+        or intent.end_period is None
+        or intent.direction not in {"new_over_old", "old_over_new"}
+        or operation not in {"SUB", "DIV", "PERCENT_CHANGE", "RATIO"}
+    ):
+        return
+    start = intent.start_period.casefold().strip()
+    end = intent.end_period.casefold().strip()
+    expected = (
+        (end, start)
+        if intent.direction == "new_over_old"
+        else (start, end)
+    )
+    actual: list[str] = []
+    for state in states[:2]:
+        if len(state.periods) != 1:
+            _raise_validation(
+                "ambiguous_intent",
+                "directional operand has ambiguous period metadata",
+            )
+        actual.append(next(iter(state.periods)))
+    if tuple(actual) != expected:
+        _raise_validation(
+            "direction_mismatch",
+            "operand order is incompatible with the requested direction",
+        )
+
+
+def _merge_state(
+    *,
+    value: Decimal,
+    unit: FinancialUnit,
+    states: tuple[_ValueState, ...],
+    metric: str | None,
+    entity: str | None,
+) -> _ValueState:
+    if not value.is_finite() or abs(value) > MAX_PROGRAM_ABSOLUTE_VALUE:
+        _raise_validation(
+            "budget_exceeded",
+            "program result exceeds the Decimal magnitude budget",
+        )
+    return _ValueState(
+        value=value,
+        unit=unit,
+        metric=metric,
+        entity=entity,
+        periods=frozenset().union(*(state.periods for state in states)),
+        candidate_ids=_ordered_unique(
+            [
+                candidate_id
+                for state in states
+                for candidate_id in state.candidate_ids
+            ]
+        ),
+        evidence_ids=_ordered_unique(
+            [
+                evidence_id
+                for state in states
+                for evidence_id in state.evidence_ids
+            ]
+        ),
+    )
+
+
+def _execute_step(
+    *,
+    operation: TypedFinancialOperation,
+    states: tuple[_ValueState, ...],
+    intent: FinancialQuestionIntent,
+) -> _ValueState:
+    _validate_arity(operation, len(states))
+    _validate_direction(operation=operation, states=states, intent=intent)
+    metric: str | None = None
+    entity: str | None = None
+    if operation in {"ADD", "SUB", "PERCENT_CHANGE", "AVERAGE"}:
+        metric = _same_metadata(states, "metric")
+        entity = _same_metadata(states, "entity")
+    values = tuple(state.value for state in states)
+    if operation == "ADD":
+        unit = _same_unit(states)
+        value = values[0] + values[1]
+    elif operation == "SUB":
+        unit = _same_unit(states)
+        value = values[0] - values[1]
+    elif operation == "AVERAGE":
+        unit = _same_unit(states)
+        value = sum(values, start=Decimal("0")) / Decimal(len(values))
+    elif operation == "PERCENT_CHANGE":
+        _same_unit(states)
+        if values[1] == 0:
+            _raise_validation("divide_by_zero", "old value must not be zero")
+        unit = "ratio"
+        value = (values[0] - values[1]) / values[1]
+    elif operation in {"DIV", "RATIO"}:
+        if values[1] == 0:
+            _raise_validation("divide_by_zero", "denominator must not be zero")
+        if states[0].unit == states[1].unit:
+            unit = "ratio"
+            metric = _shared_metadata(states, "metric")
+            entity = _shared_metadata(states, "entity")
+        elif states[1].unit == "ratio":
+            unit = states[0].unit
+            metric = states[0].metric
+            entity = states[0].entity
+        else:
+            _raise_validation(
+                "unit_mismatch",
+                "division arguments do not form an admitted unit ratio",
+            )
+        value = values[0] / values[1]
+    else:
+        left, right = states
+        if left.unit == "ratio" and right.unit == "ratio":
+            unit = "ratio"
+        elif left.unit == "ratio":
+            unit = right.unit
+        elif right.unit == "ratio":
+            unit = left.unit
+        else:
+            _raise_validation(
+                "unit_mismatch",
+                "multiplication requires at least one dimensionless argument",
+            )
+        value_states = tuple(
+            state for state in states if state.unit != "ratio"
+        )
+        if len(value_states) == 1:
+            metric = value_states[0].metric
+            entity = value_states[0].entity
+        else:
+            metric = _shared_metadata(states, "metric")
+            entity = _shared_metadata(states, "entity")
+        value = values[0] * values[1]
+    return _merge_state(
+        value=value,
+        unit=unit,
+        states=states,
+        metric=metric,
+        entity=entity,
+    )
+
+
+def _validate_and_execute(
+    *,
+    planner_payload: object,
+    candidates: list[NumericCandidate] | tuple[NumericCandidate, ...],
+    admitted_evidence_ids: set[str],
+    intent: FinancialQuestionIntent,
+) -> _ValidatedExecution:
+    try:
+        intent = FinancialQuestionIntent.model_validate(
+            intent.model_dump(mode="python")
+        )
+    except (AttributeError, ValidationError, ValueError) as exc:
+        _raise_validation(
+            "ambiguous_intent",
+            "question intent does not satisfy its runtime contract",
+        )
+        raise AssertionError from exc
+    program = _parse_typed_program(planner_payload)
+    candidate_by_id = _validated_candidates(candidates)
+    candidate_ids, evidence_ids = _static_program_closure(
+        program,
+        candidate_by_id,
+    )
+    _validate_candidate_contracts(
+        candidate_ids=candidate_ids,
+        candidate_by_id=candidate_by_id,
+        admitted_evidence_ids=set(admitted_evidence_ids),
+        intent=intent,
+    )
+    output_step = program.steps[-1]
+    if output_step.operation != intent.operation_intent:
+        _raise_validation(
+            "unsupported_operation",
+            "output operation does not match the question intent",
+        )
+
+    step_states: dict[str, _ValueState] = {}
+    with localcontext() as decimal_context:
+        decimal_context.prec = PROGRAM_DECIMAL_PRECISION
+        for step in program.steps:
+            argument_states = tuple(
+                (
+                    step_states[argument.step_id]
+                    if isinstance(argument, StepRef)
+                    else _candidate_state(
+                        candidate_by_id[argument.candidate_id]
+                    )
+                )
+                for argument in step.arguments
+            )
+            step_states[step.step_id] = _execute_step(
+                operation=step.operation,
+                states=argument_states,
+                intent=intent,
+            )
+    output_state = step_states[program.output_step_id]
+    if (
+        intent.requested_unit != "unknown"
+        and output_state.unit != intent.requested_unit
+    ):
+        _raise_validation(
+            "unit_mismatch",
+            "program output unit does not match the question intent",
+        )
+    if intent.requested_scale not in {"one", "unknown"}:
+        _raise_validation(
+            "scale_mismatch",
+            "V1 compiler emits canonical base-unit results only",
+        )
+    validation_payload = {
+        "admitted_evidence_ids": sorted(admitted_evidence_ids),
+        "candidates": [
+            candidate_by_id[candidate_id].model_dump(mode="json")
+            for candidate_id in candidate_ids
+        ],
+        "intent": intent.model_dump(mode="json"),
+        "program": program.model_dump(mode="json"),
+        "validator_version": VALIDATOR_VERSION,
+    }
+    validated = ValidatedTypedProgram(
+        program=program,
+        candidate_ids=candidate_ids,
+        evidence_ids=evidence_ids,
+        validation_sha256=hashlib.sha256(
+            _canonical_json_bytes(validation_payload)
+        ).hexdigest(),
+    )
+    return _ValidatedExecution(validated=validated, step_states=step_states)
+
+
+def validate_typed_program(
+    *,
+    planner_payload: object,
+    candidates: list[NumericCandidate] | tuple[NumericCandidate, ...],
+    admitted_evidence_ids: set[str],
+    intent: FinancialQuestionIntent,
+) -> ValidatedTypedProgram:
+    return _validate_and_execute(
+        planner_payload=planner_payload,
+        candidates=candidates,
+        admitted_evidence_ids=admitted_evidence_ids,
+        intent=intent,
+    ).validated
+
+
+def compile_and_execute_typed_program(
+    *,
+    planner_payload: object,
+    candidates: list[NumericCandidate] | tuple[NumericCandidate, ...],
+    admitted_evidence_ids: set[str],
+    intent: FinancialQuestionIntent,
+) -> TypedProgramResult:
+    execution = _validate_and_execute(
+        planner_payload=planner_payload,
+        candidates=candidates,
+        admitted_evidence_ids=admitted_evidence_ids,
+        intent=intent,
+    )
+    program = execution.validated.program
+    output = execution.step_states[program.output_step_id]
+    program_sha256 = hashlib.sha256(
+        _canonical_json_bytes(program.model_dump(mode="json"))
+    ).hexdigest()
+    return TypedProgramResult(
+        value=output.value,
+        unit=output.unit,
+        output_step_id=program.output_step_id,
+        step_values={
+            step.step_id: execution.step_states[step.step_id].value
+            for step in program.steps
+        },
+        candidate_ids=output.candidate_ids,
+        evidence_ids=output.evidence_ids,
+        program_sha256=program_sha256,
+        diagnostics=TypedProgramDiagnostics(
+            validation_sha256=execution.validated.validation_sha256,
+            step_count=len(program.steps),
+            candidate_count=len(output.candidate_ids),
+            evidence_count=len(output.evidence_ids),
+        ),
     )
 
 
 __all__ = [
     "CANDIDATE_MANIFEST_VERSION",
+    "COMPILER_VERSION",
+    "CandidateRef",
+    "DSL_VERSION",
     "EXTRACTION_CONFIG_SHA256",
     "EXTRACTION_VERSION",
     "FinancialQuestionIntent",
@@ -862,11 +1867,19 @@ __all__ = [
     "NumericCandidateManifest",
     "NumericCandidateSource",
     "ProvenanceSpan",
+    "StepRef",
+    "TypedProgram",
+    "TypedProgramDiagnostics",
+    "TypedProgramResult",
+    "TypedProgramStep",
     "TypedProgramValidationError",
+    "VALIDATOR_VERSION",
+    "ValidatedTypedProgram",
     "build_numeric_candidate_manifest",
     "build_finqa_numeric_sources",
     "compile_and_execute_typed_program",
     "extract_finqa_numeric_candidates",
     "extract_numeric_candidate_corpus",
     "extract_numeric_candidates",
+    "validate_typed_program",
 ]

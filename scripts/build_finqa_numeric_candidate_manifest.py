@@ -31,7 +31,7 @@ DEFAULT_OUTPUT = (
     / "docs"
     / "external_datasets"
     / "evidence"
-    / "finqa_numeric_candidate_manifest_v1.json"
+    / "finqa_numeric_candidate_manifest_v2.json"
 )
 
 

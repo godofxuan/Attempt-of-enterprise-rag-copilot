@@ -217,3 +217,16 @@ OCR, table detection, merged-cell reconstruction, multi-column reading-order
 recovery, repeated-header removal, or cross-page table stitching. Therefore
 the project cannot claim robust raw annual-report table extraction or
 cross-page financial-table reasoning.
+
+Gate C now implements a separate reference-only typed planner, deterministic
+compatibility validator, and Decimal compiler. The old literal-expression
+answerer remains the historical baseline. Gate C is deterministic mechanism
+evidence only: no real model or new cohort was run, so it does not establish an
+accuracy improvement.
+
+The current intent extractor recognizes only explicit operation and year
+patterns. Unknown text metric/entity metadata may cause fail-closed rejection.
+The V1 unit system supports base units and ratios but not general compound-unit
+algebra, and it cannot independently prove semantic `part_over_total` roles.
+Multiple-program verification, resumable live planner runs, retrospective
+diagnostics, and confirmatory evaluation remain later gates.
