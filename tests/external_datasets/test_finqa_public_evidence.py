@@ -182,3 +182,95 @@ def test_finqa_uncertainty_evidence_and_protocol_erratum_are_consistent() -> Non
             stack.extend(value.values())
         elif isinstance(value, list):
             stack.extend(value)
+
+
+def test_finqa_selective_execution_evidence_is_reproducible_and_private() -> None:
+    protocol_path = (
+        EVIDENCE_ROOT / "finqa_selective_execution_protocol_v2.json"
+    )
+    incident_path = (
+        EVIDENCE_ROOT
+        / "finqa_selective_execution_protocol_v1_incident.json"
+    )
+    result_path = (
+        EVIDENCE_ROOT / "finqa_selective_execution_results_v1.json"
+    )
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    incident = json.loads(incident_path.read_text(encoding="utf-8"))
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+
+    assert result["status"] == "COMPLETE_NOT_ADOPTED"
+    assert result["decision"]["enable_default_production_routing"] is False
+    assert result["frozen_gate_evaluation"][
+        "overall_adoption_gate_passed"
+    ] is False
+    assert hashlib.sha256(protocol_path.read_bytes()).hexdigest() == (
+        result["protocol"]["sha256"]
+    )
+    assert hashlib.sha256(incident_path.read_bytes()).hexdigest() == (
+        result["protocol"]["superseded_v1_incident_sha256"]
+    )
+    assert incident["execution_impact"]["cohort_cases_executed"] == 0
+    assert incident["execution_impact"]["checkpoint_rows_written"] == 0
+    assert (
+        incident["affected_protocol"]["selected_case_ids_sha256"]
+        == protocol["selected_case_ids_sha256"]
+        == result["dataset"]["selected_case_ids_sha256"]
+    )
+    assert protocol["review_runtime_options"] == {
+        "num_gpu": 5,
+        "num_ctx": 4096,
+        "num_batch": 512,
+    }
+    for relative, expected in protocol["source_sha256"].items():
+        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == (
+            expected
+        )
+
+    quality = result["quality"]
+    cost = result["routing_and_cost"]
+    latency = result["observed_latency"]
+    assert quality["selective_strict"] - quality["baseline_strict"] == (
+        pytest.approx(0.02)
+    )
+    assert (
+        quality["selective_grounded_strict"]
+        - quality["baseline_grounded_strict"]
+        == pytest.approx(0.02)
+    )
+    assert cost["generation_call_reduction"] == pytest.approx(
+        1
+        - cost["incremental_generation_calls"]
+        / cost["full_strategy_incremental_generation_calls"]
+    )
+    assert cost["calculator_call_reduction"] == pytest.approx(
+        1
+        - cost["incremental_calculator_calls"]
+        / cost["full_strategy_incremental_calculator_calls"]
+    )
+    assert latency["selective_to_shadow_full_ratio"] == pytest.approx(
+        latency["selective_ms_total"]
+        / latency["shadow_full_experiment_ms_total"]
+    )
+    assert latency["selective_reduction_vs_shadow_full"] == pytest.approx(
+        1 - latency["selective_to_shadow_full_ratio"]
+    )
+    assert result["resume_incident"]["recovered_checkpoint_rows"] == 26
+    assert result["resume_incident"]["final_checkpoint_rows"] == 100
+
+    forbidden_keys = {
+        "case_id",
+        "question",
+        "answer",
+        "expression",
+        "calculation",
+        "evidence",
+    }
+    stack = [result, protocol, incident]
+    while stack:
+        value = stack.pop()
+        if isinstance(value, dict):
+            assert forbidden_keys.isdisjoint(value)
+            stack.extend(value.values())
+        elif isinstance(value, list):
+            stack.extend(value)

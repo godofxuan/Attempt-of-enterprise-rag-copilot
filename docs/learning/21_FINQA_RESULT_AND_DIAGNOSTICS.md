@@ -679,3 +679,267 @@ compileall / pip / diff       PASS / PASS / PASS
 ```
 
 这些工程门禁不改变模型采用结论：成本过滤 gate 通过，默认生产路由仍关闭。
+
+## 21.26 这次效果到底有没有提升
+
+有“方向性提升”，但没有达到“可以默认启用”的证据等级。
+
+新的 100 题与此前 100 题 tuning、50 题 validation 的 case ID 完全不重叠。结果：
+
+```text
+baseline strict              53%
+selective strict             55%   (+2 percentage points)
+baseline grounded strict     38%
+selective grounded strict    40%   (+2 percentage points)
+wrong -> correct             3
+correct -> wrong             1
+exact McNemar p              0.625
+```
+
+这里的 `+2 percentage points` 是“百分点”，不是相对提升 2%。100 题中多对 2 题，
+相对 baseline strict 的提升约为 `2/53=3.77%`，但项目不使用这个更容易误导的写法。
+
+为什么不能只看 `55 > 53`？因为同一批题上既有 3 个错误被修正，也有 1 个正确
+答案被改错。配对 McNemar 检验关心的正是这两个不一致方向。`p=0.625` 表示目前
+样本不足以支持“改进不是偶然波动”的强声明；它不表示系统有 62.5% 概率无效，
+也不表示 baseline 有 62.5% 概率更好。
+
+## 21.27 这次真正新增了哪条运行链路
+
+历史 uncertainty 实验只是读取已有 full-review artifact，计算“如果当时跳过这些
+题会省多少”。这次新增的 `eval_finqa_selective.py` 在模型调用发生之前决定路线：
+
+```text
+question
+  -> hybrid retrieval
+  -> 8B planner + Calculator
+  -> runtime uncertainty
+       -> low risk: baseline final
+       -> high risk: 30B review
+            -> KEEP: baseline final
+            -> revised: anonymous 8B A/B adjudication
+  -> production final frozen
+  -> shadow full evaluation for untriggered cases
+```
+
+要特别理解三点：
+
+1. trigger 不能读取 gold program、正确答案或本题 strict 分数，否则是标签泄漏；
+2. shadow 只能在 production final 固定后运行，否则会污染线上策略；
+3. reviewer 不是直接写最终数字，而是提交受限表达式，仍由 Calculator 执行并
+   经过 evidence grounding。
+
+### `FinQASelectiveCaseEvaluation` 为什么字段很多
+
+逐题 schema 同时保存：
+
+- baseline 的表达式、执行结果、正确性、调用数和延迟；
+- uncertainty score、原因和触发决定；
+- production review/adjudication 是否实际执行；
+- production final route 和结果；
+- shadow review/adjudication 是否执行及其反事实结果；
+- 各阶段延迟分区和总延迟。
+
+这些字段不是为了“技术堆叠”，而是为了让聚合指标能够从逐题事实重算。例如记录
+若声称 `route=baseline`，却又声称 production adjudication 已执行，Pydantic
+校验会直接拒绝；若各阶段毫秒数加起来不等于 total，也会拒绝。
+
+### 为什么同时有 production arm 和 shadow arm
+
+production arm 回答“这条选择性策略实际上会输出什么、付出多少调用”。shadow arm
+回答“被 trigger 跳过的题如果仍做全量复核，会不会错过修正”。没有 shadow，
+我们只能看到 selective 得分，无法计算 beneficial capture；让 shadow 影响 final，
+又会把选择性策略伪装成全量策略。
+
+## 21.28 100 题是怎样冻结的
+
+`freeze_finqa_selective_protocol.py` 做以下顺序：
+
+1. 校验 FinQA revision、dev 文件 SHA-256 和总题数 `883`；
+2. 读取旧 tuning/validation 样本，只提取其 case ID；
+3. 建立排除集合，共 `150` 个唯一 case；
+4. 用固定 seed 在剩余题中确定性选 100 题；
+5. 写入 selected case IDs 的集合 hash，而不公开 case ID；
+6. 写入模型 digest、源码 hash、runtime 参数、成功门槛；
+7. 在任何正式模型调用前提交协议。
+
+选中集合 hash 为：
+
+```text
+cbb5c205609e618292f9e7465e2ea25803311f99af2a1f686f7674a0930987ae
+```
+
+这个 hash 不是用来从 hash 还原题目，而是以后核对“运行的是否仍是同一集合”。
+
+## 21.29 30B CUDA 故障是怎样诊断和修复的
+
+症状是 `qwen3-coder:30b` 在 Ollama `0.32.5` 上退出，底层出现
+`CUDA error: shared object initialization failed`。诊断没有直接改业务代码，
+而是按“最小复现 -> 单变量探针 -> 集成复验”推进：
+
+1. 用最小 chat 请求仍失败，排除 FinQA prompt 和 JSON schema；
+2. 关闭 Flash Attention 后仍失败，只是失败点从 attention 移到 `MUL_MAT`；
+3. 改变 GPU offload layers：`num_gpu=10/7` 失败，`1/2/5` 成功；
+4. 选择保守的 `num_gpu=5`，而不是继续逼近不稳定阈值；
+5. 固定 `num_ctx=4096`、`num_batch=512`；
+6. 在正式 11434 endpoint 用完整 application request 再验证。
+
+运行时观测：
+
+```text
+qwen3:8b           100% GPU
+bge-m3             100% GPU
+qwen3-coder:30b     89% CPU / 11% GPU
+```
+
+所以“修复”的准确含义是：通过受控 partial offload 恢复稳定执行。它不是找到
+Ollama/CUDA 底层 bug，也不是让 30B 变成 full-GPU。因为 8GB 显存无法容纳该模型
+的完整运行工作集，绝大部分计算仍在 CPU，延迟不能外推到生产 GPU。
+
+### 为什么没有把 options 直接加到共享 `ollama_chat.py`
+
+第一次实现尝试修改共享 Ollama client，旧 frozen FinQA holdout 的源码 hash 测试
+立即失败。这不是“测试太严格”，而是旧证据明确绑定了那个文件的字节。继续修改会
+让历史运行无法再证明对应哪份源码。
+
+最终做法是恢复共享文件原字节，只在新的 selective CLI 的 30B review 调用边界
+传入 runtime options。这样：
+
+- 旧 holdout 的 source binding 不变；
+- 新协议能精确记录新参数；
+- 影响范围只限这次实验；
+- 将来通用化必须另起版本化 client contract，不能悄悄改变历史语义。
+
+## 21.30 为什么保留 v1 incident，而不是改掉 v1
+
+最初 v1 协议在发现 CUDA 问题前已冻结。好消息是它还没有执行任何 selected case：
+
+```text
+selected cases executed       0
+checkpoint rows               0
+model outputs observed        0
+```
+
+因此可以在不看结果的前提下保留同一批 100 题，新增 runtime options 后冻结 v2。
+项目发布 append-only incident，记录 v1 hash、失败探针和 superseded 原因；v2 再
+绑定 incident hash。这样审计者可以看见“先出过问题，后来怎样修”，而不是看到
+一份看似从未出错的完美历史。
+
+## 21.31 成本和延迟怎样理解
+
+真实 selective 运行：
+
+```text
+eligible / triggered                96 / 63
+route baseline/reviewed/adjudicated 37 / 41 / 22
+incremental generation calls        85 vs full 125  (-32.00%)
+incremental Calculator calls        107 vs full 154 (-30.52%)
+selective mean / p95                9.02s / 15.24s
+selective total                     902.33s
+shadow-full experiment total        1184.61s
+selective reduction                 23.83%
+```
+
+`eligible=96` 是因为 4 题 baseline 输出无法按协议解析，不能进入正常数值 review
+流程。`triggered=63` 按完整 100 题是 63%，按 eligible 题则是 65.63%；冻结协议
+选择报告前者，避免事后改变分母。
+
+generation 和 Calculator 的“增量”只统计 baseline 之后 review/adjudication
+新增的调用；baseline 本来就必须执行，不能把它算成 router 节省。
+
+`23.83%` 是同一运行、同一机器、同一 cohort 内 selective 与隔离 shadow-full
+对照的总时间差。它不是并发服务 p95，不包含生产队列、网络、冷启动或多用户负载。
+
+## 21.32 为什么质量、成本部分提升仍不采用
+
+预冻结门槛包括：
+
+```text
+strict 不低于 baseline                  PASS
+grounded strict 不低于 baseline         PASS
+correct -> wrong 必须为 0               FAIL (1)
+trigger rate <= 75%                     PASS
+generation reduction >= 20%             PASS
+Calculator reduction >= 20%             PASS
+exact McNemar p <= 0.05                 FAIL (0.625)
+真实 selective latency 存在             PASS
+full-GPU latency evidence 存在           FAIL
+```
+
+`overall_adoption_gate_passed=false` 是这些条件的合取结果。工程上最重要的不是想办法
+解释掉失败项，而是保持默认开关关闭，并把失败转成下一轮可检验假设。
+
+## 21.33 断点恢复这次不是模拟测试
+
+正式运行第一次在 26 题完成后退出，exit code 为 `0x40010004`，没有 Python
+traceback。没有证据能确定是谁终止，所以文档只写 external interruption。
+
+第二次执行完全相同命令时：
+
+1. 读取 checkpoint contract；
+2. 核对 protocol、data、sample、model、runtime 和 code revision；
+3. 按顺序重算 26 个 row hash 与 chain link；
+4. 输出 `resuming after 26/100 completed cases`；
+5. 从第 27 题继续；
+6. 完成 100 题后发布并 seal。
+
+这能写进简历，因为它是一次真实故障恢复证据。但准确范围是“单机逐题评测可恢复”，
+不是“分布式 exactly-once”或“生产容灾”。
+
+## 21.34 下一版从哪里改，但不能在哪里验证
+
+聚合错误分析得到三个研发方向：
+
+1. literal-only、zero-operation baseline 也可能漏掉必要加法，考虑加入低成本
+   arithmetic-plan risk signal；
+2. 百分比变化先检查时间方向与 operand alignment，再允许 revised proposal；
+3. 4 个 baseline protocol error 说明 planner JSON/表达式可靠性仍需提高。
+
+但这 100 题已经被查看。正确做法是在旧的已揭示 tuning/validation cohort 上开发，
+然后换另一批未见 FinQA dev 或不同公开金融 QA 数据集确认。错误做法是在本次 100
+题上加规则，跑到 56% 后把 56% 写成独立验证。
+
+## 21.35 简历够不够，以及怎样写
+
+对 AI Agent 开发岗实习，项目已经有可展示价值，主要价值不应只写“准确率 55%”，
+而应写出你解决了 Agent 系统中的可测量决策、成本和可靠性问题。
+
+推荐表述：
+
+> 为金融数值 RAG 构建 runtime-only 风险路由、30B 有界复核与匿名 8B 候选仲裁；
+> 在新零重叠 100 题 FinQA cohort 上将 strict/grounded strict 从 53%/38%
+> 提升到 55%/40%，同时减少 32.0%/30.5% 的增量生成/计算器调用；因 1 个退化和
+> McNemar p=0.625 未通过预注册门槛，保持默认关闭。
+
+第二条可以写工程可靠性：
+
+> 实现绑定数据、样本、模型 digest、代码 SHA 与 runtime 的 hash-chained 逐题
+> checkpoint；一次正式运行中断后恢复已完成 26/100 题并完成不可变发布与 seal，
+> 避免重复模型调用。
+
+这两条比“实现 Agentic RAG，准确率提升”更可信，因为数字、边界和不采用结论都能
+在公开 protocol/results 与测试中核验。
+
+### 面试题：为什么有 shadow full arm？
+
+答：router 跳过低风险题后，线上只能看到 selective 结果，不知道跳过的题是否本可
+被 30B 修正。shadow 在 production final 固定后补跑 full strategy，用来计算
+beneficial capture 和真实成本差；它不能影响 production output，避免评测泄漏。
+
+### 面试题：为什么 `p=0.625` 还值得保留这项工作？
+
+答：它否定的是“已证明稳定质量提升”，不是工程本身。实验仍证明了端到端路由、
+约三成调用节省、23.83% 同运行时间差和真实断点恢复；同时暴露了 1 个退化与漏捕获
+模式，为下一轮设计提供受约束假设。可信项目需要能发布负结论。
+
+### 面试题：为什么 30B 不直接全量复核？
+
+答：全量复核在新 cohort 只比 selective 多对 1 题，却需要更多增量调用和时间。
+但 selective 又漏掉了这个修正，所以当前正确决策是继续研究 router，而不是仅凭
+成本或质量一方开启默认路径。
+
+### 面试题：模型更大为什么仍会改错？
+
+答：更大模型增加了候选多样性，不保证数值方向、单位和时间语义总正确。项目让
+30B 只提 proposal，再由匿名 8B 二选一，并保留 Calculator/evidence guard；本次
+仍出现 temporal direction 退化，说明仲裁也需要独立校准，不能把模型规模当保证。

@@ -1,0 +1,135 @@
+{
+  "schema_version": "finqa_selective_execution_public_results_v1",
+  "status": "COMPLETE_NOT_ADOPTED",
+  "decision": {
+    "enable_default_production_routing": false,
+    "resume_claim_allowed": true,
+    "quality_improvement_claim_allowed": "DIRECTIONAL_ONLY_NOT_STATISTICALLY_SIGNIFICANT",
+    "cost_reduction_claim_allowed": true,
+    "full_gpu_latency_claim_allowed": false,
+    "reason": "The selective path improved strict and grounded strict by two percentage points and reduced calls, but it produced one regression, captured only three of four full-strategy fixes, and had exact McNemar p=0.625."
+  },
+  "protocol": {
+    "path": "docs/external_datasets/evidence/finqa_selective_execution_protocol_v2.json",
+    "sha256": "f403ff7a25e4f09d5b2a956bfeeee11ef0c15a77fc07a4d01867067c21f695fc",
+    "superseded_v1_incident_path": "docs/external_datasets/evidence/finqa_selective_execution_protocol_v1_incident.json",
+    "superseded_v1_incident_sha256": "b4cbca0dce01da649c3a28799dc7731830c82ea25fe9b11284a20b572b53ec64"
+  },
+  "dataset": {
+    "revision": "0f16e2867befa6840783e58be38c9efb9229d742",
+    "split": "dev",
+    "split_sha256": "a847fb7e0d61a3125a1e2909852df6b89f1ee64d2c5ff1bf689e332214deee51",
+    "source_case_count": 883,
+    "excluded_prior_case_count": 150,
+    "selected_case_count": 100,
+    "selected_case_ids_sha256": "cbb5c205609e618292f9e7465e2ea25803311f99af2a1f686f7674a0930987ae",
+    "overlap_with_prior_tuning_and_validation": 0,
+    "holdout_status": "NEW_ZERO_OVERLAP_DEV_VALIDATION_NOW_DISCLOSED"
+  },
+  "private_run_binding": {
+    "run_id": "finqa-selective-execution-v1-new100",
+    "manifest_sha256": "07ea98858bc1dac7c5f0806acd24c2be8cc9b7e717d320754b740c55d0ee1d2a",
+    "details_sha256": "ba24e6a0a889a9b0b2cb9af8c585b713b7fa7974380e566eb283a1db0eac3ced",
+    "summary_sha256": "a385ee7f80958618b530f6fe2729decc687d7340b6e76ee80bf02551a6471523",
+    "code_revision": "6112b543245232f78887142cfcbb309f1e2ee882",
+    "checkpoint_record_count": 100,
+    "checkpoint_sealed": true
+  },
+  "runtime": {
+    "ollama_version": "0.32.5",
+    "gpu": "NVIDIA GeForce RTX 5060 8GB",
+    "backend_label": "ollama_0.32.5_cuda_partial_ngl5_rtx5060",
+    "review_model": "qwen3-coder:30b",
+    "review_model_sha256": "06c1097efce0431c2045fe7b2e5108366e43bee1b4603a7aded8f21689e90bca",
+    "review_num_gpu_layers": 5,
+    "review_context": 4096,
+    "review_batch": 512,
+    "observed_processor_split": "89% CPU / 11% GPU for the 30B reviewer",
+    "latency_claim_boundary": "Observed local CUDA partial-offload latency, not full-GPU production latency."
+  },
+  "quality": {
+    "baseline_answer_parse_rate": 0.96,
+    "baseline_generation_protocol_error_rate": 0.04,
+    "baseline_strict": 0.53,
+    "selective_strict": 0.55,
+    "full_strategy_strict": 0.56,
+    "baseline_grounded_strict": 0.38,
+    "selective_grounded_strict": 0.4,
+    "full_strategy_grounded_strict": 0.4,
+    "selective_wrong_to_correct": 3,
+    "selective_correct_to_wrong": 1,
+    "full_strategy_wrong_to_correct": 4,
+    "full_strategy_correct_to_wrong": 1,
+    "beneficial_case_capture_rate": 0.75,
+    "exact_mcnemar_p_value": 0.625
+  },
+  "routing_and_cost": {
+    "eligible_case_count": 96,
+    "triggered_case_count": 63,
+    "trigger_rate": 0.63,
+    "production_review_case_count": 63,
+    "production_adjudication_case_count": 22,
+    "shadow_review_case_count": 33,
+    "shadow_adjudication_case_count": 7,
+    "route_counts": {
+      "baseline": 37,
+      "reviewed_kept": 41,
+      "adjudicated": 22
+    },
+    "incremental_generation_calls": 85,
+    "full_strategy_incremental_generation_calls": 125,
+    "generation_call_reduction": 0.32,
+    "incremental_calculator_calls": 107,
+    "full_strategy_incremental_calculator_calls": 154,
+    "calculator_call_reduction": 0.30519480519480524
+  },
+  "observed_latency": {
+    "selective_ms_mean": 9023.293858000057,
+    "selective_ms_p95": 15237.002399999938,
+    "selective_ms_total": 902329.3858000058,
+    "shadow_full_experiment_ms_total": 1184609.1144000136,
+    "shadow_full_experiment_ms_mean": 11846.091144000136,
+    "selective_to_shadow_full_ratio": 0.7617106561407995,
+    "selective_reduction_vs_shadow_full": 0.23828934385920053
+  },
+  "frozen_gate_evaluation": {
+    "selective_strict_at_least_baseline": true,
+    "selective_grounded_strict_at_least_baseline": true,
+    "correct_to_wrong_at_most_zero": false,
+    "trigger_rate_at_most_0_75": true,
+    "generation_call_reduction_at_least_0_20": true,
+    "calculator_call_reduction_at_least_0_20": true,
+    "exact_mcnemar_p_value_at_most_0_05": false,
+    "observed_selective_latency_present": true,
+    "full_gpu_latency_evidence_present": false,
+    "overall_adoption_gate_passed": false
+  },
+  "resume_incident": {
+    "first_process_exit_code_hex": "0x40010004",
+    "python_traceback_observed": false,
+    "completed_checkpoint_rows_before_exit": 26,
+    "resume_message": "resuming after 26/100 completed cases",
+    "recovered_checkpoint_rows": 26,
+    "final_checkpoint_rows": 100,
+    "final_run_verified_and_sealed": true
+  },
+  "aggregate_error_analysis": {
+    "missed_beneficial_case_count": 1,
+    "missed_pattern": "A literal-only zero-operation baseline omitted an additive adjustment needed to convert a net amount to a gross amount.",
+    "regression_case_count": 1,
+    "regression_pattern": "The reviewer reversed a temporal percentage-change direction and the anonymous adjudicator accepted it; the benchmark annotation is also directionally ambiguous.",
+    "future_design_candidates": [
+      "Treat literal-only arithmetic plans as a review-risk signal, calibrated on prior training cohorts rather than this disclosed validation.",
+      "Add temporal operand-alignment checks before accepting revised percentage-change expressions.",
+      "Improve planner protocol reliability for the four unparseable baseline cases."
+    ],
+    "no_post_result_rule_change_applied": true
+  },
+  "privacy": {
+    "raw_dev_data_published": false,
+    "case_ids_published": false,
+    "questions_answers_evidence_or_expressions_published": false,
+    "private_run_or_checkpoint_artifacts_published": false
+  },
+  "next_stage": "Use prior disclosed cohorts for trigger-v2 and temporal-consistency development, then freeze another untouched dev cohort or a separate public financial QA dataset for confirmation. Do not rerun FinQA test."
+}

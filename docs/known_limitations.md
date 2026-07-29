@@ -24,7 +24,7 @@ another malicious process on the same host. Manifest and journal SHA-256
 bindings detect non-coordinated corruption, not a process that already has the
 same account's identity-directory write authority.
 
-最后更新：2026-07-28
+最后更新：2026-07-29
 
 本文使用三个状态：`FAILED` 表示已运行且未通过；`NOT RUN` 表示没有满足协议的 fixture/依赖或实验；“未实现”表示代码能力不存在。`NOT RUN` 不能写成通过。
 
@@ -40,7 +40,7 @@ same account's identity-directory write authority.
 | Reranker | FinanceBench dev 已运行 guarded qwen3/qwen2.5 listwise reranker；dev-selected qwen3 cascade 为 Page Hit@5 `53.06%`、Macro Page Recall@5 `46.94%`、`13/49` reranks、mean/p95 `2.46s/5.95s` | 这是页面定位 dev 结果，不是答案准确率；阈值在同一 dev 上选择，旧 test 已被分析，不能用于 v2 泛化声明；qwen3 全量 p95 `45.12s`，qwen2.5 质量低于 dense baseline | 冻结当前配置、模型 digest 和门禁，在新的独立 holdout 上同时验证 page、answer、citation、调用率和 latency，再决定是否接入默认在线路由 |
 | FinQA numerical quality | 固定 100 题 test 样本上，oracle strict `52%` / grounded strict `45%`；hybrid K=10 strict `44%` / grounded strict `40%` / evidence recall `93.5%`；v1 schema incident 在抽样和模型调用前发生并已公开 | 结果证明 Calculator 协议比 dev direct/typed-step 基线稳定，但也显示 20 题 dev pilot 明显乐观；这不是完整 FinQA test、SOTA、跨模型或生产财务可靠性 | 保留 v2 frozen protocol 和内容无关证据；后续只能建立新的独立协议，扩展模型/域/样本并增加双人语义审核，不能重调本次 test |
 | FinQA failure attribution | 新 100 题 dev 诊断将失败分成 retrieval、protocol、unsupported operation、operand、operation-plan 与 composition/scale signal；Oracle/Hybrid strict 为 `63%/59%` | operand/operation 依赖 gold program 的机械比较，等价改写可能产生假阳性；dev `answer` 与 `exe_ans` 也有可测量的不一致；它不是人工语义根因判断，也不是新 holdout | 保留逐题私有 artifact 与公开聚合 hash；下一步在 dev 上成对评估有界 plan-review，并同时量化退化、成本与延迟 |
-| FinQA plan review | 30B proposal + anonymous 8B adjudication 在 100 题 tuning 上 strict `59% -> 63%`，在零重叠 50 题 dev validation 上 `44% -> 50%`、grounded `32% -> 38%`，validation 为 3 修正 / 0 退化；runtime-only trigger 以 62% 触发率保留全部已观察修正，并将反事实 generation/calculator 增量减少 `35.38%/33.75%` | validation exact McNemar `p=0.25` 未达预冻结 `0.05`；trigger validation 是已揭示 cohort 的二次使用，调用节省来自不可变逐题计数但未真实执行 selective wall-clock；Ollama 0.32.5 CUDA 回归仍未关闭 | 默认路径保持关闭；在新的冻结 cohort 上真实执行 selective pipeline，同时验证统计证据、退化率、触发率和正常 CUDA 延迟 |
+| FinQA selective review | 旧 100 题 tuning 与 50 题 validation 证明方向后，项目在新的零重叠 100 题 dev cohort 上真实执行 selective pipeline：strict `53% -> 55%`、grounded `38% -> 40%`，3 修正 / 1 退化，触发率 `63%`，增量 generation/Calculator 调用减少 `32.00%/30.52%`；observed selective 总时间比同批隔离 shadow-full arm 低 `23.83%` | exact McNemar `p=0.625` 未达 `0.05`，1 个 correct-to-wrong 违反零退化门槛，只捕获 full strategy 4 个修正中的 3 个；30B 仅为 `num_gpu=5` 的部分 CUDA offload，观测为 `89% CPU / 11% GPU`，不能外推 full-GPU 或生产延迟 | 默认路径保持关闭；只能在既有已揭示开发 cohort 上研发 trigger-v2/temporal consistency，再冻结新的独立 cohort 或另一公开金融 QA 数据集确认；不得回到已揭示 test 调参 |
 | Human review | `NOT RUN`；50 行、8 个人工判断列保持空白 | 自动 claim/citation/required-fact checks 不能替代语义和可用性评分 | 本人按冻结 rubric 完成 review；若用于正式质量结论，再增加第二 reviewer、分歧仲裁和 agreement 记录 |
 | Authentication/authorization | 本地 RS256 JWT/JWKS、server-derived Principal、operator route role 和文档 ACL 已实现；身份源仍是本地模拟，不是真实 IdP | Streamlit/API 只允许本机演示；不能声称已接 SSO、revocation、SCIM 或企业 policy admin | 接真实 OIDC discovery/JWKS cache、HTTPS、secret manager、tenant-scoped operator policy 和 change audit |
 | Index updates | immutable rebuild + activate；没有 incremental upsert/delete | 文档变化需要新 run，不能承诺低延迟同步 | 定义 document tombstone/version contract、idempotency、rollback 和 consistency tests |

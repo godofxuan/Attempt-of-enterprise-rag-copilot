@@ -51,6 +51,7 @@ Git 提交是“发生过什么”的不可变骨架，工程日志是“为什�
 | 2026-07-27 | R2-S8 | 独立人工质量证据工作流 | `d7578e4` 至 `c95f9ff` |
 | 2026-07-27 | R2-S9 | Linux 容器、readiness、回滚、SBOM 和 CI 收口 | `7edff9b` 至 `9517266` |
 | 2026-07-28 | FinanceBench page reranker v2 | 候选/最终指标拆分、guarded Qwen 重排、dense-head 融合、置信度 cascade 与成本评测 | `f33e2ab` 至 `daefac1` |
+| 2026-07-29 | FinQA selective execution | 新零重叠 cohort、真实选择性执行、shadow full 对照、部分 CUDA 修复与断点恢复 | `65257e9` 至 `6112b54` |
 
 ## 4. 阶段 0：从空仓库到固定式 RAG MVP
 
@@ -589,3 +590,60 @@ CUDA runner 回归又迫使 reviewer 临时使用 Vulkan，平均端到端延迟
 
 本阶段收口为 `73` 个 FinQA/checkpoint focused tests、全仓
 `2602 passed / 30 skipped / 3 warnings`、public audit `986/0`。
+
+## 25. FinQA 真实 Selective Execution、Partial CUDA 与恢复证据
+
+### 为什么还需要再跑一个新 cohort
+
+上一阶段只在历史逐题 artifact 上计算“如果跳过 30B 会省多少”，没有真实执行
+选择性路径，也没有可比较的 wall-clock。为了避免二次使用 validation 继续产生
+乐观结论，本阶段先排除旧 tuning `100` 题和 validation `50` 题，再冻结新的
+零重叠 100 题 dev cohort。
+
+### 实现边界
+
+- trigger 在任何 30B 调用前执行，且函数签名不接收 gold label；
+- 未触发题的 production final 直接固定为 baseline；
+- 触发题才执行 30B bounded review，只有 proposal 改变才执行匿名 8B adjudication；
+- 未触发题的 shadow full arm 只能在 production final 固定后执行；
+- production/shadow route、调用数和 latency partition 由 schema 重新计算；
+- checkpoint contract 绑定 protocol、sample、model、runtime 和 code SHA；
+- public artifact 只有聚合结果和 hash，不含 case ID、问题、答案、证据或表达式。
+
+### v1 incident 与 v2
+
+v1 在模型调用前冻结，但 Ollama `0.32.5` 的默认 30B CUDA 请求失败。受控探针排除
+prompt 和 Flash Attention 单点原因，并将稳定范围收紧到保守的 `num_gpu=5`。
+因为 v1 尚未执行任何 selected case，项目保留原文件、发布 incident，再用完全
+相同样本冻结 v2；没有事后重抽更有利题目。正式运行是 `89% CPU / 11% GPU` 的
+partial offload，不是 full-GPU。
+
+### 结果与采用决策
+
+| Metric | Baseline | Selective | Shadow full |
+| --- | ---: | ---: | ---: |
+| Strict | 53% | 55% | 56% |
+| Grounded strict | 38% | 40% | 40% |
+| wrong→correct / correct→wrong | - | 3 / 1 | 4 / 1 |
+| Mean observed latency | 2.36s | 9.02s | 11.85s |
+
+trigger rate 为 `63%`；增量 generation/Calculator calls 减少
+`32.00%/30.52%`；selective 总时间比隔离 shadow-full arm 低 `23.83%`。
+但是 exact McNemar `p=0.625`，1 个退化违反冻结门槛，beneficial capture 只有
+`75%`，也没有 full-GPU latency，因此默认路由不启用。
+
+### 真实中断恢复
+
+第一次进程在 26 条 checkpoint 后退出且没有 Python traceback。相同命令重启时
+验证完整 contract/hash chain，输出 `resuming after 26/100 completed cases`，
+从第 27 题继续并完成 immutable publish/seal。可以据此声称“单机长评测逐题恢复”，
+不能声称分布式 exactly-once 或生产容灾。
+
+公开证据：
+
+- [v2 frozen protocol](../external_datasets/evidence/finqa_selective_execution_protocol_v2.json)
+- [aggregate result](../external_datasets/evidence/finqa_selective_execution_results_v1.json)
+- [v1 incident](../external_datasets/evidence/finqa_selective_execution_protocol_v1_incident.json)
+
+完整初学者解释与面试问答见
+[第 21 章](../learning/21_FINQA_RESULT_AND_DIAGNOSTICS.md)。

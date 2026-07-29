@@ -581,3 +581,44 @@ cohort 对新 trigger 的二次使用，源策略 `p=0.25` 仍未通过。因此
 最终门禁：FinQA/checkpoint `73 passed`，全仓
 `2602 passed / 30 skipped / 3 warnings`，public audit
 `986 candidates / 0 findings`，compileall、pip check 和 diff check 通过。
+
+## 14. 2026-07-29 更新：真实 Selective Execution 与故障恢复
+
+第 13 阶段的成本结果仍是反事实。本阶段新增独立 selective runner，让 runtime
+trigger 真正在 30B 调用前决定生产路线，并在 production final 固定后才对未触发题
+运行 shadow full arm。shadow 用于测量漏捕获和全量成本，不能改写生产结果。
+
+代码新增：
+
+- `app/external_datasets/finqa_selective.py`：逐题/聚合 schema、route 与 latency
+  不变量、不可变发布和验证；
+- `scripts/eval_finqa_selective.py`：baseline、trigger、review、adjudication、
+  shadow、checkpoint 的端到端编排；
+- `scripts/freeze_finqa_selective_protocol.py`：排除旧 150 题后确定性冻结新 100 题；
+- `tests/external_datasets/test_finqa_selective.py`：验证标签隔离、shadow 隔离、
+  路由约束、恢复和篡改拒绝。
+
+v1 protocol 冻结后，Ollama `0.32.5` 的 30B 默认 CUDA request 退出。最小请求和
+关闭 Flash Attention 都不能解决；受控 `num_gpu` 探针显示 1/2/5 layers 稳定、
+7/10 失败。项目没有改写 v1，而是发布零 case/零 checkpoint/零输出 incident，
+再冻结相同样本、`num_gpu=5`、`num_ctx=4096`、`num_batch=512` 的 v2。正式观测
+30B 为 `89% CPU / 11% GPU`，只允许称 partial CUDA offload。
+
+新零重叠 100 题运行结果：
+
+- strict `53% -> 55%`，grounded strict `38% -> 40%`；
+- 3 修正 / 1 退化，full shadow 为 4 修正 / 1 退化；
+- trigger `63%`，beneficial capture `75%`；
+- generation/Calculator 增量调用减少 `32.00%/30.52%`；
+- selective mean/p95 `9.02s/15.24s`；
+- 同运行 selective 总时间比隔离 shadow-full arm 低 `23.83%`；
+- exact McNemar `p=0.625`。
+
+第一次正式进程在 26 题后无 Python traceback 退出；相同命令验证 contract 和 hash
+chain 后从第 27 题继续，最终发布 100 题并 seal。故障原因保持 unknown，不从 exit
+code 推断。
+
+结果为 `COMPLETE_NOT_ADOPTED`：质量有方向性提升、调用和时间减少、恢复能力得到
+真实证明，但零退化、beneficial capture、显著性和 full-GPU latency 门槛未全部
+通过。下一版只能在旧开发 cohort 上研发 temporal alignment、literal-only risk
+和 protocol reliability，再用新独立数据确认。
