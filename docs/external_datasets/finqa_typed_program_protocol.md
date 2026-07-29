@@ -1,6 +1,6 @@
 # FinQA Temporal Operand Alignment and Typed Financial Program Protocol
 
-Status: `GATE_A_DESIGN_AND_RED_TESTS_ONLY`
+Status: `GATE_B_NUMERIC_CANDIDATE_EXTRACTION_IMPLEMENTED_LOCAL_UNPUSHED`
 
 Baseline revision:
 `d2a6bf945b5d3c724ed03aa6288fb609f5bc54cd`
@@ -606,3 +606,131 @@ does not exist until Gate B/C is approved
 This is intentional TDD red state. It is not an implementation regression and
 must not be pushed into normal CI before Gate B is approved and the missing
 module starts turning these contracts green.
+
+## 16. Gate B implementation record
+
+Gate B was approved after Gate A commit `904c129`. This stage implements only
+deterministic numeric-candidate extraction and redacted candidate evidence. It
+does not implement a typed planner, compatibility validator, compiler,
+multi-program ranking, or any model-backed experiment.
+
+### 16.1 Files and responsibilities
+
+| File | Gate B responsibility |
+| --- | --- |
+| `app/external_datasets/finqa_typed_program.py` | Strict candidate/source/provenance models, Decimal normalization, stable IDs, FinQA cell adapter, corpus aggregation, redacted manifest projection |
+| `tests/external_datasets/test_finqa_numeric_candidates.py` | Format matrix, table-header inheritance, temporal ambiguity, noise roles, stable identity, admitted evidence, and deterministic generated cases |
+| `scripts/build_finqa_numeric_candidate_manifest.py` | Duplicate-key-safe fixture loading, exact source-byte hashing, atomic no-overwrite publication, and byte-for-byte verification |
+| `data/v2/public/finqa_numeric_candidates/source_fixture.json` | Synthetic public mechanism fixture; it is not a FinQA development or test result |
+| `docs/external_datasets/evidence/finqa_numeric_candidate_manifest_v1.json` | Redacted, independently recomputable candidate manifest |
+| `tests/external_datasets/test_finqa_numeric_candidate_manifest.py` | Checked-in evidence recomputation and CLI behavior |
+| `tests/external_datasets/red/test_finqa_typed_program.py` | Two Gate B extraction contracts are green; ten Gate C contracts are strict expected failures |
+
+### 16.2 Implemented data flow
+
+```text
+FinQA structured JSON table
+  -> inspect only admitted evidence row IDs
+  -> keep each data cell separate
+  -> attach explicit table ID, row header, and column header
+  -> deterministic lexical extraction
+  -> Decimal base-unit normalization
+  -> exact character-span provenance
+  -> source-bound stable candidate ID
+  -> private in-memory candidate corpus
+  -> aggregate-only public manifest
+```
+
+The FinQA adapter intentionally bypasses the historical row-to-sentence
+flattening for candidate extraction. For example, the two values in:
+
+```text
+["Revenue", "$120 million", "$100 million"]
+```
+
+remain separate candidates bound to `Revenue/2020` and `Revenue/2019`.
+The model is not asked to recover those coordinates from prose.
+
+### 16.3 Normalization and uncertainty semantics
+
+- currency glyphs/codes, comma grouping, explicit scale suffixes, percent,
+  basis points, leading minus, and parenthesized negatives are normalized with
+  `Decimal`;
+- table cells inherit period and metric only from explicit row/column headers;
+- text operands inherit a period only when their bounded clause contains one
+  unique explicit year;
+- ambiguous multi-year text keeps period and fiscal year unknown;
+- page numbers, ordinals, and year labels receive non-operand roles;
+- unknown entity, metric, period, or unit values remain unknown;
+- contradictory unit or scale evidence fails closed;
+- candidate identity binds extraction version, source/evidence identity,
+  table coordinates, exact span/hash, normalized value, unit, scale, sign, and
+  role. It never depends on list position.
+
+The deterministic generated-case contract is used instead of adding an
+unpinned Hypothesis dependency. It checks repeated extraction, formatting,
+normalization, provenance, and stable-ID invariants over a fixed format
+matrix.
+
+### 16.4 Failures found while implementing Gate B
+
+The first format test run produced two failures:
+
+1. The numeric boundary rejected `42.` at normal sentence end because the
+   decimal-safety check treated every trailing period as part of a malformed
+   decimal.
+2. The generic number matcher did not find the year in `FY2020` because the
+   preceding `Y` correctly blocked an ordinary word-adjacent number.
+
+The fix did not globally relax boundaries. A trailing period/comma is now
+rejected only when it is followed by another digit, and explicit years have a
+separate bounded period-label scan. The focused suite changed from
+`14 passed / 2 failed` to `16 passed`, then to `20 passed` after the FinQA cell
+adapter and manifest tests were added.
+
+### 16.5 Public evidence
+
+The synthetic manifest reports:
+
+```text
+source records        6
+numeric candidates    9
+roles                 operand 6 / ordinal 1 / page_number 1 / period_label 1
+source kinds          table_cell 3 / text 6
+units                 usd 2 / ratio 2 / shares 1 / unknown 4
+audit                 1002 candidates / 0 findings
+```
+
+It contains no source text, case ID, evidence ID, candidate ID, question,
+answer, or gold program. `candidate_id_set_sha256` permits set-level integrity
+checking without publishing individual identifiers.
+
+### 16.6 Verification
+
+```text
+Gate B focused tests        20 passed
+external-dataset tests      119 passed / 10 xfailed
+full repository tests       2632 passed / 29 skipped / 10 xfailed / 3 warnings
+manifest byte check         PASS
+compileall                  PASS
+git diff --check            PASS
+public repository audit     1002 candidates / 0 findings
+```
+
+The three warnings are pre-existing SWIG deprecation warnings. The ten strict
+expected failures are the unimplemented Gate C planner/compiler contracts.
+They are strict so an unexpected pass fails CI until Gate C is formally
+implemented and the pending marker is removed.
+
+### 16.7 Claim and parser boundary
+
+Gate B proves deterministic extraction behavior on unit tests and a synthetic
+public fixture. It does not show that FinQA answer accuracy improved. No model,
+disclosed dev result, frozen test result, or confirmatory cohort was run.
+
+It also does not solve raw-document layout recovery. The current PDF parser
+keeps page locators but has no OCR, table detector, merged-cell reconstruction,
+multi-column layout model, repeated-header removal, or cross-page table
+stitching. DOCX/HTML/CSV/JSONL tables retain explicit rows and headers, and the
+chunker repeats table headers, but raw PDF cross-page tables require a separate
+layout-aware ingestion stage and cell-level evaluation.

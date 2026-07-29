@@ -943,3 +943,136 @@ beneficial capture 和真实成本差；它不能影响 production output，避�
 答：更大模型增加了候选多样性，不保证数值方向、单位和时间语义总正确。项目让
 30B 只提 proposal，再由匿名 8B 二选一，并保留 Calculator/evidence guard；本次
 仍出现 temporal direction 退化，说明仲裁也需要独立校准，不能把模型规模当保证。
+
+## 21.36 Gate A/B：为什么先把财务数字变成有身份的候选
+
+### 旧方法哪里不够
+
+旧 planner 看到一段证据后，直接输出：
+
+```json
+{
+  "expression": "(120 - 100) / 100",
+  "cited_candidate_ids": ["evidence-01"]
+}
+```
+
+`evidence-01` 可能同时包含多个年份、多个指标和多个数字。宿主程序能检查表达式
+是否可计算，却不能回答：
+
+- `120` 到底来自 2020 还是 2019；
+- 它是 revenue 还是 headcount；
+- 单位是美元、百万美元还是百分比；
+- 它是否真的出现在已准入证据中；
+- 括号是运算分组还是财报里的负数表示。
+
+这也是为什么 Oracle evidence 仍会有大量错误：证据已经给对了，模型仍可能从正确
+证据中复制错误的 operand。
+
+### Gate A 做了什么
+
+Gate A 没有立刻写实现，而是先在
+`docs/external_datasets/finqa_typed_program_protocol.md` 冻结合同，并在
+`tests/external_datasets/red/test_finqa_typed_program.py` 写 12 个失败测试。
+
+这些测试先规定未来系统必须拒绝错误年份、错误 metric、方向颠倒、未准入来源和
+模型凭空生成的 literal，也必须正确处理 thousand/million、百分比、括号负数、
+多步引用和等价程序。这样后续实现不能为了让某个已知样本通过而偷偷改变问题定义。
+
+### Gate B 的新数据流
+
+核心实现位于：
+
+```text
+app/external_datasets/finqa_typed_program.py
+```
+
+数据流是：
+
+```text
+FinQA 原始二维表
+  -> 只读取 admitted evidence row
+  -> 每个 data cell 独立处理
+  -> 继承明确的 row header / column header
+  -> Decimal 标准化
+  -> 精确字符跨度与原文 hash
+  -> 稳定 candidate_id
+  -> NumericCandidate
+```
+
+例如：
+
+```text
+header = ["", "2020", "2019"]
+row    = ["Revenue", "$120 million", "$100 million"]
+```
+
+不会再只依赖模型阅读一整句，而会形成两个不同候选：
+
+```text
+candidate A: Revenue / 2020 / USD / million / 120000000
+candidate B: Revenue / 2019 / USD / million / 100000000
+```
+
+候选 ID 绑定来源文档、evidence、表格坐标、字符位置、原文 hash、标准化值、单位、
+scale、sign 和 role。它不使用列表序号，所以相同输入重复执行会得到相同 ID；相同
+数值来自不同文档或不同单元格时不会被错误合并。
+
+### 为什么用 Decimal
+
+二进制浮点不能精确表示很多十进制小数。财务程序如果用 `float`，可能产生
+`0.1 + 0.2 != 0.3` 一类误差。Gate B 使用 `Decimal`，并规定：
+
+```text
+$2.5 million -> 2500000
+12%          -> 0.12
+35 bps       -> 0.0035
+(120)        -> -120
+```
+
+标准化值用于计算，但候选仍保留原始 scale、unit 和 provenance，不能只剩一个脱离
+来源的数字。
+
+### 哪些字段宁可不知道也不能猜
+
+表格候选只从明确的行列标题继承 metric 和 period。普通文本只有在同一受限句段内
+出现唯一年份时才绑定年份；如果一句话同时出现 2019 和 2020，候选 period 保持
+`None`。entity、unit 等无法从显式结构确定时同样保持 `None/unknown`。
+
+`2020` 被标成 `period_label`，`Page 12` 被标成 `page_number`，`3rd` 被标成
+`ordinal`。它们可以保留用于审计，但不能默认进入未来的计算程序。
+
+### 实现时发现了什么错误
+
+第一次格式测试是 `14 passed / 2 failed`：
+
+1. 正则为了防止错误小数，把句末 `42.` 也当成非法数字；
+2. `FY2020` 的年份紧邻字母，普通数字边界没有匹配。
+
+修复没有把规则整体放宽。代码只在句点或逗号后面仍是数字时阻止匹配，并为显式年份
+增加独立的 period-label 扫描。最终 Gate B focused tests 为 `20 passed`。
+
+### 表格和跨页问题解决到什么程度
+
+FinQA 使用已经结构化的 JSON 表格，所以 Gate B 能可靠取得 row/column header。
+企业接入层对 DOCX、HTML、CSV、JSONL 也保存结构化表格，chunk 时会重复表头。
+
+但原始 PDF 目前只是逐页抽取文本并保留 page locator。项目尚未实现 OCR、PDF
+表格检测、合并单元格恢复、双栏阅读顺序、重复页眉清理和跨页表格拼接。因此不能在
+面试中说“已经解决跨页 PDF 表格”；准确说法是“已解决结构化表格进入财务候选层后
+的单元格语义对齐，原始 PDF layout recovery 是明确 backlog”。
+
+### 这个阶段能不能说准确率提升
+
+不能。Gate B 没有运行 LLM，也没有重跑 disclosed dev 或 frozen test。它证明的是：
+
+- 候选抽取是确定性的；
+- 财务格式标准化符合合同；
+- 来源和表格坐标不会丢；
+- 噪声数字不会默认成为 operand；
+- 公开 manifest 可以复算且不泄露评测内容；
+- 全仓 `2632 passed / 29 skipped / 10 xfailed`。
+
+10 个 `xfailed` 是下一阶段 Gate C 的 typed planner/compiler 合同。它们使用
+`strict xfail`：Gate C 一旦意外通过，CI 会报 XPASS，提醒开发者正式移除待实现
+标记并完成验收。

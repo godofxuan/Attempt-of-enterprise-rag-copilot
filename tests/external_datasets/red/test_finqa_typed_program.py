@@ -7,6 +7,12 @@ from importlib import import_module
 import pytest
 
 
+gate_c_pending = pytest.mark.xfail(
+    strict=True,
+    reason="Gate C typed planner/compiler is not implemented",
+)
+
+
 def _typed_program_api():
     try:
         return import_module("app.external_datasets.finqa_typed_program")
@@ -116,6 +122,7 @@ def _run(api, payload, candidates, intent, admitted=None):
     )
 
 
+@gate_c_pending
 def test_adjacent_year_operand_is_rejected() -> None:
     api = _typed_program_api()
     revenue_2019 = _candidate(
@@ -157,6 +164,7 @@ def test_adjacent_year_operand_is_rejected() -> None:
     assert error.value.reason == "temporal_mismatch"
 
 
+@gate_c_pending
 def test_same_year_different_metric_is_rejected() -> None:
     api = _typed_program_api()
     revenue = _candidate(api, seed="revenue", value="120")
@@ -191,6 +199,7 @@ def test_same_year_different_metric_is_rejected() -> None:
     assert error.value.reason == "metric_mismatch"
 
 
+@gate_c_pending
 def test_percent_change_rejects_reversed_2019_2020_direction() -> None:
     api = _typed_program_api()
     old = _candidate(
@@ -235,6 +244,7 @@ def test_percent_change_rejects_reversed_2019_2020_direction() -> None:
     assert error.value.reason == "direction_mismatch"
 
 
+@gate_c_pending
 def test_thousand_and_million_values_use_canonical_scale() -> None:
     api = _typed_program_api()
     million = api.extract_numeric_candidates(
@@ -278,6 +288,7 @@ def test_thousand_and_million_values_use_canonical_scale() -> None:
     assert result.unit == "usd"
 
 
+@gate_c_pending
 def test_percent_and_decimal_ratio_normalize_consistently() -> None:
     api = _typed_program_api()
     percent = api.extract_numeric_candidates(
@@ -340,6 +351,7 @@ def test_parenthesized_number_preserves_negative_sign() -> None:
     ).hexdigest()
 
 
+@gate_c_pending
 def test_model_generated_literal_is_rejected() -> None:
     api = _typed_program_api()
     revenue = _candidate(api, seed="literal-revenue", value="120")
@@ -367,6 +379,7 @@ def test_model_generated_literal_is_rejected() -> None:
     assert error.value.reason == "literal_only_operand"
 
 
+@gate_c_pending
 def test_candidate_from_non_admitted_evidence_is_rejected() -> None:
     api = _typed_program_api()
     admitted = _candidate(
@@ -431,6 +444,7 @@ def test_equal_values_from_different_sources_have_distinct_ids() -> None:
     )
 
 
+@gate_c_pending
 def test_previous_step_reference_executes_multistep_program() -> None:
     api = _typed_program_api()
     new = _candidate(api, seed="step-new", value="120")
@@ -474,6 +488,7 @@ def test_previous_step_reference_executes_multistep_program() -> None:
     assert result.value == Decimal("0.2")
 
 
+@gate_c_pending
 def test_divide_by_zero_fails_closed() -> None:
     api = _typed_program_api()
     numerator = _candidate(api, seed="numerator", value="120")
@@ -502,6 +517,7 @@ def test_divide_by_zero_fails_closed() -> None:
     assert error.value.reason == "divide_by_zero"
 
 
+@gate_c_pending
 def test_equivalent_commutative_programs_are_both_valid() -> None:
     api = _typed_program_api()
     first = _candidate(api, seed="equivalent-a", value="10")

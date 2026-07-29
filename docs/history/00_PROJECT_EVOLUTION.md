@@ -647,3 +647,30 @@ trigger rate 为 `63%`；增量 generation/Calculator calls 减少
 
 完整初学者解释与面试问答见
 [第 21 章](../learning/21_FINQA_RESULT_AND_DIAGNOSTICS.md)。
+
+## 26. FinQA typed-program protocol: Gate A and Gate B
+
+The selective-execution result showed that retrieval was not the only
+bottleneck: Oracle evidence still had operand, operation, scale, and
+composition error signals. Gate A therefore froze a typed financial-program
+design and 12 executable RED contracts before implementation.
+
+Gate B added a model-free numeric-candidate layer. FinQA table values now enter
+this new layer as individual cells with explicit row/column metadata instead
+of relying on the historical row-to-sentence representation. The extractor
+normalizes financial notation with `Decimal`, keeps exact span provenance,
+creates source-bound stable IDs, marks page/ordinal/year tokens as non-operands,
+and leaves ambiguous metadata unknown.
+
+The public evidence is a synthetic aggregate-only candidate manifest. It is
+recomputed from exact fixture bytes and contains no real FinQA question,
+answer, case ID, evidence ID, source text, gold program, or individual
+candidate ID. Gate B closed with 20 focused tests, 119 external-dataset tests
+plus 10 strict Gate C expected failures, 2632 full-suite passes, and a
+1002-candidate public audit with zero findings.
+
+This stage did not run a model or publish an accuracy improvement. Raw PDF OCR,
+layout recovery, and cross-page table stitching also remain outside Gate B.
+The detailed contract, implementation decisions, failed attempts, and
+verification commands are recorded in
+[finqa_typed_program_protocol.md](../external_datasets/finqa_typed_program_protocol.md).

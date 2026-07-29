@@ -1,0 +1,51 @@
+[
+  {
+    "source_id": "synthetic-income-statement",
+    "evidence_id": "cell-revenue-2020",
+    "text": "$2.5 million",
+    "kind": "table_cell",
+    "table_id": "table-income",
+    "row_header": "Revenue",
+    "column_header": "FY2020",
+    "unit_hint": "usd"
+  },
+  {
+    "source_id": "synthetic-income-statement",
+    "evidence_id": "cell-net-income-2019",
+    "text": "(300)",
+    "kind": "table_cell",
+    "table_id": "table-income",
+    "row_header": "Net income",
+    "column_header": "FY2019",
+    "unit_hint": "usd"
+  },
+  {
+    "source_id": "synthetic-income-statement",
+    "evidence_id": "cell-margin-2020",
+    "text": "12%",
+    "kind": "table_cell",
+    "table_id": "table-income",
+    "row_header": "Operating margin",
+    "column_header": "FY2020",
+    "unit_hint": "ratio"
+  },
+  {
+    "source_id": "synthetic-notes",
+    "evidence_id": "note-page",
+    "text": "Page 12 reports a 35 bps change in FY2020.",
+    "kind": "text"
+  },
+  {
+    "source_id": "synthetic-notes",
+    "evidence_id": "note-ordinal",
+    "text": "The 3rd appendix lists 42 shares.",
+    "kind": "text",
+    "unit_hint": "shares"
+  },
+  {
+    "source_id": "synthetic-notes",
+    "evidence_id": "note-unknown",
+    "text": "The reported amount was 7.",
+    "kind": "text"
+  }
+]

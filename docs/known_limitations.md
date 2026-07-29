@@ -201,3 +201,19 @@ material to reviewers. It supports consistent criterion-based grading but is
 not a verdict-blind study and may anchor refusal judgements. Reviewer HMACs use
 one coordinator-held campaign pepper to detect duplicate normalized IDs, but
 the operator must still verify that two actual people participated.
+
+## 10. FinQA typed-program and layout boundary
+
+Gate B implements deterministic FinQA numeric-candidate extraction from
+structured JSON text and table cells. It preserves explicit row/column headers,
+normalizes financial formats with `Decimal`, assigns non-operand roles to
+period labels/page numbers/ordinals, and publishes a synthetic aggregate-only
+manifest. This is mechanism evidence, not answer-quality evidence.
+
+The typed planner, compatibility validator, compiler, multiple-program
+verification, retrospective run, and confirmatory run remain unimplemented.
+The current PDF parser preserves per-page text locators but does not perform
+OCR, table detection, merged-cell reconstruction, multi-column reading-order
+recovery, repeated-header removal, or cross-page table stitching. Therefore
+the project cannot claim robust raw annual-report table extraction or
+cross-page financial-table reasoning.
