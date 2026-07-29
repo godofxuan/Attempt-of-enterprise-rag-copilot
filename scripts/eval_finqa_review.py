@@ -15,6 +15,10 @@ import requests
 
 from app.config import get_settings
 from app.evaluation.ollama_evaluation_lock import evaluation_lock
+from app.evaluation.resumable_checkpoint import (
+    ResumableCaseCheckpoint,
+    run_resumable_cases,
+)
 from app.external_datasets.finqa import (
     DEFAULT_PRIVATE_ROOT,
     DEFAULT_SOURCE_ROOT,
@@ -30,12 +34,14 @@ from app.external_datasets.finqa_diagnostics import (
 from app.external_datasets.finqa_eval import selected_case_ids_sha256
 from app.external_datasets.finqa_review import (
     FINQA_REVIEW_PROMPT_VERSION,
+    FinQAReviewCaseEvaluation,
     FinQAReviewRunManifest,
     LocalFinQAPlanReviewer,
     evaluate_finqa_review_case,
     preserve_unreviewable_finqa_case,
     publish_finqa_review_run,
     summarize_finqa_review_cases,
+    verify_finqa_review_run,
 )
 from app.ollama_chat import chat_with_ollama
 from app.runtime.model_transport import perform_model_request
@@ -68,6 +74,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--source-root", type=Path, default=DEFAULT_SOURCE_ROOT)
     parser.add_argument("--out-root", type=Path, default=DEFAULT_REVIEW_ROOT)
+    parser.add_argument(
+        "--checkpoint-root",
+        type=Path,
+        help=(
+            "Private append-only checkpoint root. Defaults beside out-root."
+        ),
+    )
     return parser
 
 
@@ -115,6 +128,52 @@ def main(argv: list[str] | None = None) -> int:
     settings = get_settings()
     review_model = args.model or settings.evidence_model
     review_model_sha256 = _ollama_model_digest(settings, review_model)
+    source_manifest_sha256 = hashlib.sha256(
+        (Path(args.source_run_dir).resolve() / "manifest.json").read_bytes()
+    ).hexdigest()
+    checkpoint_root = (
+        args.checkpoint_root.resolve()
+        if args.checkpoint_root is not None
+        else args.out_root.resolve().parent / "checkpoints" / "review"
+    )
+    checkpoint = ResumableCaseCheckpoint.open(
+        root=checkpoint_root,
+        run_id=args.review_run_id,
+        contract={
+            "kind": "finqa_review",
+            "source_run_id": source_manifest.run_id,
+            "source_manifest_sha256": source_manifest_sha256,
+            "source_details_sha256": details_sha256,
+            "dataset_revision": source_manifest.dataset_revision,
+            "split_sha256": source_manifest.split_sha256,
+            "selected_case_ids_sha256": (
+                source_manifest.selected_case_ids_sha256
+            ),
+            "selected_case_count": source_manifest.selected_case_count,
+            "retrieval_mode": source_manifest.retrieval_mode,
+            "source_code_revision": source_manifest.code_revision,
+            "review_code_revision": review_revision,
+            "review_prompt_version": args.prompt_version,
+            "review_model": review_model,
+            "review_model_sha256": review_model_sha256,
+            "runtime_backend": args.runtime_backend,
+            "timeout_seconds": args.timeout_seconds,
+            "max_attempts": args.max_attempts,
+        },
+        expected_case_ids=[case.id for case in selected],
+    )
+    rows = checkpoint.load_rows(FinQAReviewCaseEvaluation)
+    if rows:
+        print(
+            f"resuming after {len(rows)}/{len(selected)} completed cases",
+            file=sys.stderr,
+            flush=True,
+        )
+    final_dir = args.out_root.resolve() / args.review_run_id
+    if final_dir.exists() and len(rows) != len(selected):
+        raise ValueError(
+            "final FinQA review run exists but checkpoint is incomplete"
+        )
 
     def review_chat(
         model,
@@ -137,49 +196,49 @@ def main(argv: list[str] | None = None) -> int:
         max_attempts=args.max_attempts,
         prompt_version=args.prompt_version,
     )
-    rows = []
+    def evaluate_case(index, case):
+        print(
+            f"[{index + 1}/{len(selected)}] reviewing {case.id}",
+            file=sys.stderr,
+            flush=True,
+        )
+        baseline = evaluations_by_id[case.id]
+        if baseline.answer_status != "ok" or not baseline.calculation:
+            return preserve_unreviewable_finqa_case(baseline)
+        units_by_id = {
+            unit.unit_id: unit for unit in build_finqa_evidence_units(case)
+        }
+        try:
+            selected_units = [
+                units_by_id[unit_id]
+                for unit_id in baseline.selected_unit_ids
+            ]
+        except KeyError as exc:
+            raise ValueError(
+                "FinQA plan review baseline references missing evidence"
+            ) from exc
+        review = reviewer.review(
+            question=case.qa.question,
+            evidence_units=selected_units,
+            baseline=baseline,
+        )
+        return evaluate_finqa_review_case(
+            case,
+            baseline=baseline,
+            selected_units=selected_units,
+            review=review,
+        )
+
     lock_root = Path(settings.runtime_cache_dir).resolve() / "evaluation_locks"
     with evaluation_lock(settings.llm_base_url, lock_root=lock_root):
-        for index, case in enumerate(selected, start=1):
-            print(
-                f"[{index}/{len(selected)}] reviewing {case.id}",
-                file=sys.stderr,
-                flush=True,
-            )
-            baseline = evaluations_by_id[case.id]
-            if baseline.answer_status != "ok" or not baseline.calculation:
-                rows.append(preserve_unreviewable_finqa_case(baseline))
-                continue
-            units_by_id = {
-                unit.unit_id: unit for unit in build_finqa_evidence_units(case)
-            }
-            try:
-                selected_units = [
-                    units_by_id[unit_id]
-                    for unit_id in baseline.selected_unit_ids
-                ]
-            except KeyError as exc:
-                raise ValueError(
-                    "FinQA plan review baseline references missing evidence"
-                ) from exc
-            review = reviewer.review(
-                question=case.qa.question,
-                evidence_units=selected_units,
-                baseline=baseline,
-            )
-            rows.append(
-                evaluate_finqa_review_case(
-                    case,
-                    baseline=baseline,
-                    selected_units=selected_units,
-                    review=review,
-                )
-            )
+        rows = run_resumable_cases(
+            checkpoint=checkpoint,
+            row_type=FinQAReviewCaseEvaluation,
+            cases=selected,
+            evaluate=evaluate_case,
+        )
 
     summary = summarize_finqa_review_cases(rows)
-    source_manifest_sha256 = hashlib.sha256(
-        (Path(args.source_run_dir).resolve() / "manifest.json").read_bytes()
-    ).hexdigest()
     manifest = FinQAReviewRunManifest(
         review_run_id=args.review_run_id,
         review_prompt_version=args.prompt_version,
@@ -201,10 +260,26 @@ def main(argv: list[str] | None = None) -> int:
         max_attempts=args.max_attempts,
         summary=summary,
     )
-    output = publish_finqa_review_run(
-        root=args.out_root,
-        manifest=manifest,
-        details=rows,
+    if final_dir.exists():
+        existing_manifest = verify_finqa_review_run(final_dir)
+        if existing_manifest.model_copy(update={"artifacts": {}}) != manifest:
+            raise ValueError(
+                "existing final FinQA review run does not match checkpoint"
+            )
+        output = final_dir
+    else:
+        output = publish_finqa_review_run(
+            root=args.out_root,
+            manifest=manifest,
+            details=rows,
+        )
+    checkpoint.seal(
+        final_manifest_sha256=hashlib.sha256(
+            (output / "manifest.json").read_bytes()
+        ).hexdigest(),
+        final_details_sha256=hashlib.sha256(
+            (output / "details.jsonl").read_bytes()
+        ).hexdigest(),
     )
     print(
         json.dumps(
