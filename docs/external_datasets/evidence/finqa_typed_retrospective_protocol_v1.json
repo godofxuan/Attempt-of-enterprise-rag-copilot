@@ -1,0 +1,95 @@
+{
+  "schema_version": "finqa_typed_retrospective_protocol_v1",
+  "status": "FROZEN_BEFORE_EXECUTION",
+  "claim_label": "RETROSPECTIVE_DEVELOPMENT_ONLY",
+  "protocol_id": "finqa-typed-retrospective-dev-v1",
+  "implementation_base_revision": "9ee80ac7b9e8f030a30ea6005c5e8a118e81c087",
+  "dataset_revision": "0f16e2867befa6840783e58be38c9efb9229d742",
+  "split": "dev",
+  "split_sha256": "a847fb7e0d61a3125a1e2909852df6b89f1ee64d2c5ff1bf689e332214deee51",
+  "sample_seed": "finqa-v2-diagnostic-dev-v1",
+  "selected_case_count": 100,
+  "selected_case_ids_sha256": "ecd5b9668fd8e98ab04c7e65c093abadf568b68de274282ab89e225557f6d5d5",
+  "retrieval_mode": "hybrid",
+  "top_k": 10,
+  "source_eval_run": {
+    "run_id": "finqa-v2-diagnostic-dev-v1-hybrid",
+    "manifest_sha256": "8c163ab47040816aef8d68131fce94713fa7e4015ae9f554650edbff9ee4b38f",
+    "details_sha256": "ed514688a0821158d00bd13d5c291245d7d99d23db824a177d447d550a6efc00"
+  },
+  "source_diagnostic_run": {
+    "run_id": "finqa-v2-diagnostic-dev-v1-hybrid",
+    "manifest_sha256": "8d976aa0f0b79785d7d1aca62b5f7e5bcd0f179d697a8e82f2eb0b7215c0fafb",
+    "details_sha256": "330da888fc0b334a12f11c773c32103d8ffbb925f556ab1a303e956825523fb8"
+  },
+  "arms": [
+    "B0_FREE_LITERAL",
+    "B1_TYPED_SINGLE",
+    "B2_TYPED_MULTI"
+  ],
+  "arm_order_policy": "cyclic_latin_square_v1",
+  "answer_model": {
+    "name": "qwen3:8b",
+    "sha256": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41"
+  },
+  "timeout_seconds": 120.0,
+  "max_attempts": 2,
+  "multi_program_count": 3,
+  "candidate_extraction_version": "finqa_numeric_candidate_v1",
+  "candidate_extraction_config_sha256": "b020781bed80ebae5d1baf60fe67ad43daffae0fe81899dd5f4c50144bf11c71",
+  "intent_version": "finqa_financial_question_intent_v1",
+  "dsl_version": "finqa_typed_financial_dsl_v1",
+  "validator_version": "finqa_typed_program_validator_v1",
+  "compiler_version": "finqa_typed_program_compiler_v1",
+  "typed_planner_version": "finqa_typed_planner_v1",
+  "multi_program_planner_version": "finqa_multi_program_planner_v1",
+  "selector_version": "finqa_runtime_program_selector_v1",
+  "source_file_sha256": {
+    "app/evaluation/resumable_checkpoint.py": "1cb5a41e625f3ed8bf44827b5f40cee35d8b49ca606bd20202f4ff0de83bb822",
+    "app/external_datasets/finqa.py": "0f746ffa34b36b53c95d0d4fee122129e42434686305172f21f187455844c4ea",
+    "app/external_datasets/finqa_diagnostics.py": "ff96c7ee7c94e01d04d60e66d96d25760d48edc0b7794bc630683611a6fe4985",
+    "app/external_datasets/finqa_eval.py": "4f1aea4c06456cf0fbaaa213256e1ce4d08df1b072476e80d678c6b1b0964e34",
+    "app/external_datasets/finqa_multi_program.py": "93fbd94025765c73f82e6a968fadf1a17f7c4a3cea2f450cdbc1a13d99d3b7af",
+    "app/external_datasets/finqa_typed_planner.py": "960460bc7b00de779d1097d9567b94a3d47bf3a1981f3fa1e187c7fdd049bddf",
+    "app/external_datasets/finqa_typed_program.py": "339d0082c85eb8f69b93c2745224664336ea19e09dfe2b972733eecca41ec9cc",
+    "app/external_datasets/finqa_typed_retrospective.py": "824caff304f6fa5f2a9077a10c8d88547ff5af9c6c0436e05898e250735f3c07",
+    "app/ollama_chat.py": "095a09cbda9279000935b136b68c6ef83a46babac2a516ae49db703acd135b4b",
+    "app/security/retrieved_content.py": "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2",
+    "scripts/eval_finqa_typed_retrospective.py": "bf8bc0d6fda536fc0c58b5c22c628926dd730b931137b3e9ec9ee98bacde7ed6"
+  },
+  "primary_metrics": [
+    "execution_accuracy",
+    "grounded_execution_accuracy",
+    "coverage",
+    "paired_correctness_transitions",
+    "prevented_operand_failure_count",
+    "new_refusal_count",
+    "mcnemar_exact_p_value"
+  ],
+  "operational_metrics": [
+    "generation_calls",
+    "compiler_calls",
+    "generated_program_count",
+    "latency_ms_mean",
+    "latency_ms_p95",
+    "candidate_count_mean",
+    "failure_reason_counts",
+    "historical_b0_reproduction_rate"
+  ],
+  "stop_conditions": [
+    "abort_on_model_digest_mismatch",
+    "abort_on_source_artifact_hash_mismatch",
+    "abort_on_frozen_source_hash_mismatch",
+    "abort_on_dataset_or_case_order_mismatch",
+    "abort_and_resume_on_runtime_or_transport_failure",
+    "complete_all_100_cases_without_quality_based_early_stopping",
+    "never_access_or_rerun_the_frozen_test_split"
+  ],
+  "non_claims": [
+    "This is not a held-out or confirmatory result.",
+    "This does not estimate independent-dataset generalization.",
+    "This does not justify production adoption without a separately frozen Gate F.",
+    "McNemar p-values are exploratory because the cohort was previously disclosed.",
+    "Latency and call counts apply only to this local runtime and model digest."
+  ]
+}
