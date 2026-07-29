@@ -1,0 +1,38 @@
+{
+  "schema_version": "finqa_plan_review_validation_protocol_erratum_v1",
+  "status": "CORRECTED_PUBLIC_METADATA_ONLY",
+  "discovered_at_utc": "2026-07-29T03:34:30Z",
+  "affected_protocol": {
+    "path": "docs/external_datasets/evidence/finqa_plan_review_validation_protocol_v1.json",
+    "sha256": "a63fa0518672f8503694d98d357e5c4ca9fb557b9824a95e74f3c122762aa652",
+    "field": "split_sha256",
+    "original_incorrect_value": "a847fb7e19f47e054e417f60a9c5f3954de5e321413c1417098950c184deee51",
+    "authoritative_value": "a847fb7e0d61a3125a1e2909852df6b89f1ee64d2c5ff1bf689e332214deee51"
+  },
+  "root_cause": "Manual transcription error while creating the public freeze record.",
+  "impact": {
+    "sampling_or_case_selection_changed": false,
+    "model_call_or_prompt_changed": false,
+    "metric_or_success_gate_changed": false,
+    "private_artifact_changed": false,
+    "quality_conclusion_changed": false,
+    "public_protocol_metadata_was_incorrect": true
+  },
+  "authoritative_runtime_evidence": {
+    "app_constant": "FINQA_DEV_SHA256",
+    "baseline_manifest_sha256": "bed8d8dfd766e31d14583aac4d9142b57c972749506911b33c44a00aca5ffd5e",
+    "review_manifest_sha256": "b955c68c2bebb45a8dfd0465c2a65056f4b6b71d20c9ba19be04ccd4f9db602d",
+    "adjudication_manifest_sha256": "e1ba71659daabaae45ae26fd31e76d76ef3c477c1b7d9bebfc704fd67778bcb1",
+    "all_runtime_manifests_bind_authoritative_value": true
+  },
+  "remediation": {
+    "original_frozen_file_silently_rewritten": false,
+    "separate_erratum_published": true,
+    "future_public_result_references_erratum": true,
+    "planned_regression": "Validate public protocol dataset hashes against code constants and source manifests."
+  },
+  "privacy": {
+    "contains_case_ids": false,
+    "contains_questions_answers_evidence_or_expressions": false
+  }
+}

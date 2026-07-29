@@ -531,3 +531,151 @@ Calculator 协议的候选中选一个，不能扩大动作空间。
 答：先构建不使用 gold label 的 uncertainty trigger，只对高风险题调用 30B；
 同时加入 checkpoint/resume，避免长实验因基础设施故障全部重跑。随后在新冻结
 cohort 上联合测调用率、质量、退化、显著性和正常 CUDA 延迟。
+
+## 21.21 为什么长评测需要 checkpoint，而不只是重新运行
+
+上一阶段 30B 在 Ollama/CUDA warm-up 中断。原脚本把所有结果放在内存列表，只有
+100 题全部完成后才写 `details.jsonl`。如果第 80 题失败，前 79 题的模型费用和
+时间都无法恢复。
+
+`app/evaluation/resumable_checkpoint.py` 的 contract 包含：
+
+```text
+source manifest/details SHA-256
+selected case IDs SHA-256 和数量
+model name/digest
+prompt/algorithm version
+Git code revision
+runtime backend
+timeout/max attempts
+```
+
+同一个 run ID 恢复时，任一字段不同都会失败。例如把 30B 换成 8B、把 Vulkan
+换成 CUDA、修改 prompt 或换 source run，都不能接着旧 checkpoint 写。
+
+每个 case 的提交过程是：
+
+```text
+row Pydantic model
+  -> canonical JSON
+  -> row_sha256
+  -> envelope(ordinal, case_id, previous_record_sha256, row_sha256, row)
+  -> 同目录 pending 文件完整写入 + fsync
+  -> 仅当 000123.json 不存在时原子提交
+```
+
+恢复时重新校验连续序号、预期 case 顺序、row hash 和 hash chain，再从
+`completed_count` 后一题开始。最终 immutable run 发布后，`seal.json` 绑定 final
+manifest/details hash。checkpoint 仍是 D 盘 `.private` 数据，不上传 GitHub。
+
+## 21.22 Trigger 的 8 个信号怎样计算
+
+`app/external_datasets/finqa_uncertainty.py` 不让 LLM 自报 confidence。v1 使用：
+
+| Signal | 权重 | 运行时含义 |
+| --- | ---: | --- |
+| ungrounded_operand | 3 | 表达式数字不在引用证据或固定常量白名单 |
+| planner_retry | 2 | baseline generation calls 至少 2 |
+| quarantined_content | 3 | Guard 隔离过检索内容 |
+| multi_operation | 1 | 表达式至少两个运算 |
+| many_numbers | 1 | 引用证据至少 12 个不同数字 |
+| multiple_citations | 1 | 至少引用两个 evidence units |
+| multi_year | 1 | 引用证据至少三个不同年份 |
+| ratio_division | 1 | ratio/percentage/change 类问题包含除法 |
+
+总分 `>=2` 才触发。强信号可以单独触发，弱信号必须至少两个同时出现。这个规则
+不是“判断答案对不对”，而是判断是否值得支付 30B review 成本。
+
+### 怎样证明没有偷看 gold
+
+测试对同一 runtime 输入修改：
+
+- gold program 和 `exe_ans`；
+- gold evidence IDs；
+- strict/presentation correctness；
+- evidence recall、citation precision/recall；
+- grounded correctness。
+
+两次 `FinQARuntimeUncertainty` 必须完全相等。离线 evaluator 当然会用 strict 判断
+trigger 最后是否有效，但线上 `assess_finqa_runtime_uncertainty()` 不接收这些标签。
+
+## 21.23 成本结果应该怎样读
+
+100 题 tuning：
+
+```text
+triggered                         67/100
+strict / grounded                63% / 55%（与 full strategy 相同）
+wrong->correct / correct->wrong  4 / 0
+generation calls                 84 vs full 124，减少 32.26%
+Calculator calls                 减少 31.76%
+```
+
+冻结算法后，50 题零重叠 validation：
+
+```text
+triggered                         31/50
+strict / grounded                50% / 38%（与 full strategy 相同）
+wrong->correct / correct->wrong  3 / 0
+generation calls                 42 vs full 65，减少 35.38%
+Calculator calls                 53 vs full 80，减少 33.75%
+historical incremental latency   减少 28.06%
+```
+
+调用减少是精确反事实：未触发 case 若不执行 review，就一定省掉 artifact 中记录的
+那些调用。latency 则不是实际 selective wall-clock，只是把历史逐题增量相加；
+而历史 30B 使用 Vulkan、baseline/adjudicator 使用 CUDA，因此不能写成线上 p95。
+
+## 21.24 为什么成本 gate 通过仍然不上线
+
+原因有四个：
+
+1. underlying quality 的 McNemar 仍是 `p=0.25`，没有新修正样本；
+2. trigger validation 复用了已经揭示的 50 题 cohort，不是新的独立 holdout；
+3. 当前只做离线选择，没有真实执行 selective pipeline 的 wall-clock；
+4. 30B 正常 CUDA runtime 尚未恢复验证。
+
+正确表述是：“v1 trigger 在两个 cohort 上捕获全部已观察修正，并把额外调用减少
+约三分之一，因此值得进入新 cohort 的真实选择性实验。”错误表述是：“线上成本
+降低 35%，模型已上线。”
+
+## 21.25 公开协议 hash 抄写错误怎样处理
+
+审计发现早期
+`finqa_plan_review_validation_protocol_v1.json` 的 `split_sha256` 手工抄错。
+实际 `FINQA_DEV_SHA256` 和 baseline/review/adjudication 三个 manifest 始终使用
+正确值，所以模型输入、样本和结果没有变化。
+
+项目没有直接改掉旧冻结文件，因为那会让历史证据看起来从未出错。处理方式是：
+
+1. 保留原 protocol 和它的 SHA-256；
+2. 新增 `finqa_plan_review_validation_protocol_erratum_v1.json`；
+3. 同时记录错误值、权威值、根因和影响矩阵；
+4. 增加测试，让 erratum 的正确值等于代码常量，并验证新协议源码 hash。
+
+面试时可以这样回答：不可变审计不是“永远不会写错”，而是错误发生后不能静默
+覆盖；必须让原记录、纠错记录和实际运行证据形成可追踪链。
+
+### 新增面试题：为什么不用模型 confidence 做 trigger？
+
+模型自报 confidence 往往没有校准，而且同一个模型可能对错误计划非常自信。当前
+规则使用可解释、可复算的结构信号，并在 paired artifact 上测 beneficial capture
+和 regression。以后可以加入学习型 router，但也必须独立校准和冻结验证。
+
+### 新增面试题：hash chain 能防止所有恶意篡改吗？
+
+不能。未 seal 的本地攻击者若能重写全部记录和 contract，仍可能重算整条链。
+hash chain 主要发现意外损坏、错序、缺失和局部改写；最终可信锚点是 immutable
+run 的 artifact hash、Git-bound contract 和 seal。更强威胁模型需要外部签名或
+WORM 存储，当前项目没有声称已经实现。
+
+本阶段最终验证：
+
+```text
+FinQA + checkpoint focused    73 passed
+full pytest                   2602 passed / 30 skipped / 3 warnings
+public audit                  986 candidates / 0 findings
+compileall / pip / diff       PASS / PASS / PASS
+```
+
+这些工程门禁不改变模型采用结论：成本过滤 gate 通过，默认生产路由仍关闭。

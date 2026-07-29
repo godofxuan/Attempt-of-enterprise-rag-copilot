@@ -550,3 +550,34 @@ cohort 验证调用率、质量、退化和真实 CUDA 延迟。
 `978 candidates / 0 findings`，`compileall`、`pip check` 和
 `git diff --check` 通过。`0 findings` 只说明当前审计器在候选文件和规则覆盖范围
 内没有命中，不代表模型质量或软件安全没有剩余问题。
+
+## 13. 2026-07-29 更新：可恢复评测与低成本风险路由
+
+Ollama/CUDA incident 暴露的第一个工业问题不是模型分数，而是长评测中断会丢失
+已完成调用。项目新增通用 `ResumableCaseCheckpoint`：contract 绑定数据、样本、
+模型、prompt、代码和 backend；逐题记录使用原子提交、row hash 和前序 hash；
+恢复只处理未完成尾部；最终 seal 绑定不可变 manifest/details。review 和
+adjudication 两条 CLI 已共用这一机制。
+
+第二个问题是 30B 全量复核成本过高。项目没有使用模型自报 confidence，也没有
+用 gold label 当线上特征，而是冻结 `finqa_runtime_uncertainty_v1`：根据 operand
+grounding、重试、Guard、运算复杂度、引用跨度、数值/年份歧义和比例除法计算
+score，`score>=2` 才路由到完整 review/adjudication。
+
+100 题 tuning 上触发 `67%`，保留 strict/grounded `63%/55%` 和全部 `4/0`
+修正/退化，generation 增量减少 `32.26%`。预注册的 50 题零重叠 validation
+触发 `62%`，保留 `50%/38%` 和 `3/0`，generation/Calculator 增量减少
+`35.38%/33.75%`。
+
+这些调用节省是由不可变逐题调用数得到的精确反事实；`28.06%` latency reduction
+只是历史逐题增量求和，不是实际 selective wall-clock。validation 又是已揭示
+cohort 对新 trigger 的二次使用，源策略 `p=0.25` 仍未通过。因此成本过滤门槛
+通过，但生产采用门槛未通过。
+
+证据审计还发现早期公开 validation protocol 的 `split_sha256` 手工抄错。代码
+常量和所有 runtime manifest 始终使用正确 hash，运行不受影响。项目保留原冻结
+文件，单独发布 erratum，并增加协议/代码/artifact 一致性回归，避免静默重写历史。
+
+最终门禁：FinQA/checkpoint `73 passed`，全仓
+`2602 passed / 30 skipped / 3 warnings`，public audit
+`986 candidates / 0 findings`，compileall、pip check 和 diff check 通过。

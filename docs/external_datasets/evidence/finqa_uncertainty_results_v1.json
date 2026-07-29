@@ -1,0 +1,102 @@
+{
+  "schema_version": "finqa_uncertainty_public_results_v1",
+  "status": "COMPLETE_COST_GATE_PASS_NOT_ADOPTED",
+  "algorithm_version": "finqa_runtime_uncertainty_v1",
+  "trigger_threshold": 2,
+  "frozen_test_reused_or_retuned": false,
+  "decision": {
+    "cost_filter_gate_passed": true,
+    "enable_default_production_routing": false,
+    "reason": "The trigger preserved all observed paired improvements while reducing counterfactual calls, but the source strategy still fails its significance and latency gates and the validation cohort is a secondary reuse rather than a new independent holdout.",
+    "next_step": "Execute the selective pipeline end to end on a newly frozen cohort under a normal CUDA runtime."
+  },
+  "tuning": {
+    "run_id": "finqa-runtime-uncertainty-v1-tuning",
+    "case_count": 100,
+    "triggered_case_count": 67,
+    "trigger_rate": 0.67,
+    "baseline_strict": 0.59,
+    "full_strategy_strict": 0.63,
+    "gated_strict": 0.63,
+    "baseline_grounded_strict": 0.52,
+    "full_strategy_grounded_strict": 0.55,
+    "gated_grounded_strict": 0.55,
+    "gated_wrong_to_correct": 4,
+    "gated_correct_to_wrong": 0,
+    "beneficial_case_capture_rate": 1.0,
+    "incremental_generation_calls": 84,
+    "full_strategy_incremental_generation_calls": 124,
+    "generation_call_reduction": 0.32258064516129037,
+    "calculator_call_reduction": 0.31756756756756754,
+    "counterfactual_incremental_latency_reduction": 0.2637141882396452,
+    "manifest_sha256": "80737d59511e6f2706d1f737e4f4e50eb3e57327c0fd9b51928d1cb232f1fd86",
+    "private_details_sha256": "4bc55d43c2aba0261936ac05c2852273dd93f961107addb2c8283f7b65dd98c1"
+  },
+  "validation": {
+    "holdout_status": "SECONDARY_REUSE_NOT_NEW_INDEPENDENT_HOLDOUT",
+    "run_id": "finqa-runtime-uncertainty-v1-validation",
+    "case_count": 50,
+    "overlap_with_tuning_case_count": 0,
+    "selected_case_ids_sha256": "cb99e24ebbea3fba38f0fa00b0b05e5fd327a83306a99fb4d44b2ee3ea0ba2cb",
+    "split_sha256": "a847fb7e0d61a3125a1e2909852df6b89f1ee64d2c5ff1bf689e332214deee51",
+    "triggered_case_count": 31,
+    "trigger_rate": 0.62,
+    "baseline_strict": 0.44,
+    "full_strategy_strict": 0.5,
+    "gated_strict": 0.5,
+    "baseline_grounded_strict": 0.32,
+    "full_strategy_grounded_strict": 0.38,
+    "gated_grounded_strict": 0.38,
+    "gated_wrong_to_correct": 3,
+    "gated_correct_to_wrong": 0,
+    "gated_mcnemar_exact_p_value": 0.25,
+    "beneficial_case_capture_rate": 1.0,
+    "incremental_generation_calls": 42,
+    "full_strategy_incremental_generation_calls": 65,
+    "generation_call_reduction": 0.3538461538461538,
+    "incremental_calculator_calls": 53,
+    "full_strategy_incremental_calculator_calls": 80,
+    "calculator_call_reduction": 0.3375,
+    "counterfactual_incremental_latency_reduction": 0.28059725971377747,
+    "manifest_sha256": "b1c614e29f7926649d9d98185938c1ab43bf121605f954f21febda828d0954ba",
+    "private_details_sha256": "8f9795f055e59d0e3e763875511b31f6b0094dccdcaae16244d87f94f97c116e"
+  },
+  "validation_gate": {
+    "gated_strict_at_least_full_strategy": true,
+    "gated_grounded_strict_at_least_full_strategy": true,
+    "gated_correct_to_wrong_at_most_full_strategy": true,
+    "beneficial_case_capture_rate_at_least_1_0": true,
+    "trigger_rate_at_most_0_75": true,
+    "generation_call_reduction_at_least_0_2": true,
+    "calculator_call_reduction_at_least_0_2": true,
+    "runtime_input_boundary_test_passed": true,
+    "overall_cost_filter_gate_passed": true
+  },
+  "measurement_semantics": {
+    "call_reductions_are_exact_counterfactuals_from_immutable_per_case_call_counts": true,
+    "latency_reduction_is_counterfactual_not_observed_selective_wall_clock": true,
+    "source_validation_mixed_cuda_and_vulkan_backends": true,
+    "production_latency_claim_allowed": false
+  },
+  "protocol_erratum": {
+    "path": "finqa_plan_review_validation_protocol_erratum_v1.json",
+    "quality_result_affected": false
+  },
+  "code_revision": "08a3f62ab28ef5284419724cd9a0a20af75c37be",
+  "verification": {
+    "finqa_and_checkpoint_focused_passed": 73,
+    "full_pytest_passed": 2602,
+    "full_pytest_skipped": 30,
+    "full_pytest_warnings": 3,
+    "public_audit_candidates": 986,
+    "public_audit_findings": 0,
+    "compileall": "PASS",
+    "pip_check": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "privacy": {
+    "contains_case_ids": false,
+    "contains_questions_answers_evidence_or_expressions": false,
+    "contains_aggregate_metrics_hashes_and_versions_only": true
+  }
+}

@@ -549,3 +549,43 @@ CUDA runner 回归又迫使 reviewer 临时使用 Vulkan，平均端到端延迟
 本阶段最终门禁为 FinQA `63 passed`、全仓
 `2592 passed / 30 skipped / 3 warnings`、public audit
 `978 candidates / 0 findings`，并通过 compile、依赖一致性和 diff 检查。
+
+## 24. 可恢复长评测与 Runtime-only Uncertainty Gating
+
+### 从真实故障产生的需求
+
+30B reviewer 的 CUDA runner 中断证明原有“整批结束才发布”无法承担长实验：
+模型已经算完的 case 会随进程退出全部丢失。`e59d9e4` 增加通用逐题 checkpoint，
+并接入 review/adjudication：
+
+- contract 精确绑定 source artifact、样本、模型、prompt、代码和 backend；
+- 同盘 pending 文件完整写入并 fsync 后，以目标不存在为前提原子提交；
+- ordinal、case ID、row hash 和前序文件 hash 阻止错序、缺号与静默篡改；
+- 恢复 runner 不重算已完成 case；
+- final artifact 发布后用 manifest/details hash seal；
+- final 已发布但 seal 未写完的崩溃窗口可以验证后恢复。
+
+### 不依赖 gold 的成本路由
+
+`08a3f62` 冻结的 trigger 只读取线上可见的 question、引用证据、表达式、调用次数
+和 Guard 结果。测试通过改变 gold program、答案、gold evidence 和所有质量标签
+证明 signal 不变。
+
+| Cohort | Trigger rate | Gated strict | Gated grounded | Gen reduction | Calc reduction |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 tuning | 67% | 63% | 55% | 32.26% | 31.76% |
+| 50 zero-overlap validation | 62% | 50% | 38% | 35.38% | 33.75% |
+
+两个 cohort 都捕获 full strategy 的全部修正且没有引入退化。validation 成本
+过滤门槛通过，但不能据此上线：它是旧 validation artifact 的二次使用，调用减少
+是反事实，真实 selective wall-clock 未运行，源策略显著性仍是 `p=0.25`。
+
+### 协议元数据 incident
+
+新证据一致性检查发现早期 plan-review freeze 的公开 `split_sha256` 有一处人工
+抄写错误。实际 `FINQA_DEV_SHA256`、baseline、review 和 adjudication manifests
+全部一致，抽样、模型调用和指标未受影响。为保持 append-only 审计语义，原冻结
+文件不静默修改；项目新增 erratum 和自动一致性测试。
+
+本阶段收口为 `73` 个 FinQA/checkpoint focused tests、全仓
+`2602 passed / 30 skipped / 3 warnings`、public audit `986/0`。

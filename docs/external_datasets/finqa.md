@@ -251,3 +251,74 @@ Attention warm-up 均退出；Vulkan workaround 可运行，但使本次端到�
 `978 candidates / 0 findings`；`compileall`、`pip check` 和
 `git diff --check` 通过。以上回归门禁证明代码和公开边界未被本阶段改坏，不替代
 模型质量门槛。
+
+## 13. Resumable Eval 与 Runtime-only Uncertainty Trigger
+
+### 13.1 为什么先修可恢复性
+
+30B validation 因 Ollama/CUDA 故障中断时，原脚本只在整批结束后发布
+`details.jsonl`，已经完成的模型调用无法恢复。`e59d9e4` 新增
+`app/evaluation/resumable_checkpoint.py` 并接入 review/adjudication：
+
+1. checkpoint contract 绑定 source manifest/details、样本 hash、模型 digest、
+   prompt、代码 SHA、runtime backend、timeout 和 attempt budget；
+2. 每完成一题就在私有 D 盘目录提交一个原子记录；
+3. 记录按 ordinal/case ID 排序，并保存 row hash 和前序文件 hash；
+4. 恢复时 contract 漂移、缺号、额外记录或篡改全部 fail closed；
+5. 最终不可变 run 发布后，checkpoint seal 绑定 final manifest/details hash；
+6. 发布后、seal 前崩溃时，脚本验证已存在 final run 后补 seal，不重复调用模型。
+
+checkpoint 不进入 Git，最终公开证据仍来自原有 immutable publisher。它改变的是
+故障恢复语义，不改变历史模型分数。
+
+### 13.2 Trigger 只能读取什么
+
+`08a3f62` 新增 `app/external_datasets/finqa_uncertainty.py`。v1 score 只使用请求
+当时已有信号：
+
+- 表达式 operand 是否出现在引用证据或固定常量白名单；
+- planner 是否重试、Guard 是否隔离内容；
+- 是否多步运算、引用多段证据；
+- 引用证据中的数值和年份候选是否多；
+- ratio/percentage/change 类问题是否包含除法。
+
+权重为 ungrounded `3`、retry `2`、quarantine `3`，其余弱信号各 `1`，总分
+`>=2` 才触发。回归测试会修改 gold program、`exe_ans`、gold unit、strict、
+evidence recall 和 citation recall，并要求 signal 完全不变。
+
+### 13.3 Tuning 与 validation
+
+在 100 题 tuning 上，trigger 只选 `67%`，保持 full strategy strict/grounded
+`63%/55%` 和 `4/0` 修正/退化；generation 增量从 `124` 降至 `84`
+（`32.26%`），Calculator 增量减少 `31.76%`。
+
+随后在读取逐题 validation signal 前冻结算法、源码 hash、源 artifact 和门槛。
+50 题零重叠 cohort 的结果：
+
+| 指标 | Full strategy | Trigger gated |
+| --- | ---: | ---: |
+| Triggered | 50 | 31 |
+| Strict | 50% | 50% |
+| Grounded strict | 38% | 38% |
+| wrong→correct / correct→wrong | 3 / 0 | 3 / 0 |
+| Incremental generation calls | 65 | 42 |
+| Incremental Calculator calls | 80 | 53 |
+
+generation/Calculator 精确反事实减少 `35.38%/33.75%`。历史逐题增量耗时求和减少
+`28.06%`，但它不是实际 selective wall-clock，而且源 run 混合 CUDA/Vulkan，
+所以不能发布生产延迟声明。underlying paired McNemar 仍为 `p=0.25`，默认路径
+继续关闭。
+
+公开证据：
+
+- [uncertainty freeze](evidence/finqa_uncertainty_validation_protocol_v1.json)
+- [uncertainty results](evidence/finqa_uncertainty_results_v1.json)
+- [validation protocol erratum](evidence/finqa_plan_review_validation_protocol_erratum_v1.json)
+
+最后一份 erratum 记录早期公开 freeze 中 `split_sha256` 的手工抄写错误。实际
+代码常量和三个 runtime manifest 始终绑定正确 hash；原冻结文件没有被静默改写，
+质量结果不受影响。
+
+本阶段收口为 FinQA/checkpoint focused `73 passed`、全仓
+`2602 passed / 30 skipped / 3 warnings`、public audit
+`986 candidates / 0 findings`；compile、依赖和 diff 检查通过。

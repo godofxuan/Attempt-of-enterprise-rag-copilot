@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from app.external_datasets.finqa import FINQA_DEV_SHA256
+
 
 ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE_ROOT = ROOT / "docs" / "external_datasets" / "evidence"
@@ -105,6 +107,74 @@ def test_finqa_public_dev_diagnostic_is_aggregate_and_consistent() -> None:
     }
     forbidden_keys = {"case_id", "question", "answer", "expression"}
     stack = [evidence]
+    while stack:
+        value = stack.pop()
+        if isinstance(value, dict):
+            assert forbidden_keys.isdisjoint(value)
+            stack.extend(value.values())
+        elif isinstance(value, list):
+            stack.extend(value)
+
+
+def test_finqa_uncertainty_evidence_and_protocol_erratum_are_consistent() -> None:
+    protocol_path = (
+        EVIDENCE_ROOT / "finqa_uncertainty_validation_protocol_v1.json"
+    )
+    result_path = EVIDENCE_ROOT / "finqa_uncertainty_results_v1.json"
+    erratum_path = (
+        EVIDENCE_ROOT
+        / "finqa_plan_review_validation_protocol_erratum_v1.json"
+    )
+    original_protocol_path = (
+        EVIDENCE_ROOT / "finqa_plan_review_validation_protocol_v1.json"
+    )
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    erratum = json.loads(erratum_path.read_text(encoding="utf-8"))
+    original_protocol = json.loads(
+        original_protocol_path.read_text(encoding="utf-8")
+    )
+
+    assert protocol["status"] == "FROZEN_BEFORE_VALIDATION_SIGNAL_EVALUATION"
+    assert result["status"] == "COMPLETE_COST_GATE_PASS_NOT_ADOPTED"
+    assert result["validation_gate"]["overall_cost_filter_gate_passed"] is True
+    assert result["decision"]["enable_default_production_routing"] is False
+    assert result["validation"]["split_sha256"] == FINQA_DEV_SHA256
+    assert (
+        erratum["affected_protocol"]["authoritative_value"]
+        == FINQA_DEV_SHA256
+    )
+    assert (
+        original_protocol["split_sha256"]
+        == erratum["affected_protocol"]["original_incorrect_value"]
+    )
+    assert hashlib.sha256(original_protocol_path.read_bytes()).hexdigest() == (
+        erratum["affected_protocol"]["sha256"]
+    )
+    for relative, expected in protocol["algorithm"]["source_sha256"].items():
+        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == (
+            expected
+        )
+
+    validation = result["validation"]
+    assert validation["generation_call_reduction"] == pytest.approx(
+        1
+        - validation["incremental_generation_calls"]
+        / validation["full_strategy_incremental_generation_calls"]
+    )
+    assert validation["calculator_call_reduction"] == pytest.approx(
+        1
+        - validation["incremental_calculator_calls"]
+        / validation["full_strategy_incremental_calculator_calls"]
+    )
+    assert validation["gated_strict"] == validation["full_strategy_strict"]
+    assert (
+        validation["gated_grounded_strict"]
+        == validation["full_strategy_grounded_strict"]
+    )
+
+    forbidden_keys = {"case_id", "question", "answer", "expression", "evidence"}
+    stack = [result, protocol, erratum]
     while stack:
         value = stack.pop()
         if isinstance(value, dict):
