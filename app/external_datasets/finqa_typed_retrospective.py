@@ -19,7 +19,7 @@ from app.filesystem import atomic_directory_move
 CLAIM_LABEL = "RETROSPECTIVE_DEVELOPMENT_ONLY"
 PROTOCOL_SCHEMA_VERSION = "finqa_typed_retrospective_protocol_v1"
 RUN_SCHEMA_VERSION = "finqa_typed_retrospective_run_v1"
-PUBLIC_EVIDENCE_SCHEMA_VERSION = "finqa_typed_retrospective_public_v1"
+PUBLIC_EVIDENCE_SCHEMA_VERSION = "finqa_typed_retrospective_public_v2"
 
 ArmId = Literal["B0_FREE_LITERAL", "B1_TYPED_SINGLE", "B2_TYPED_MULTI"]
 ArmStatus = Literal["ANSWERED", "REFUSED", "PROTOCOL_ERROR"]
@@ -308,9 +308,59 @@ class FinQATypedRetrospectiveRunManifest(_StrictModel):
         return value
 
 
+class FinQATypedPublicArmSummary(_StrictModel):
+    arm_id: ArmId
+    case_count: int = Field(ge=1)
+    answered_count: int = Field(ge=0)
+    refusal_count: int = Field(ge=0)
+    protocol_error_count: int = Field(ge=0)
+    coverage: float = Field(ge=0, le=1)
+    execution_accuracy: float = Field(ge=0, le=1)
+    execution_accuracy_on_answered: float | None = Field(default=None, ge=0, le=1)
+    grounded_execution_accuracy: float = Field(ge=0, le=1)
+    presentation_tolerance_accuracy: float = Field(ge=0, le=1)
+    citation_precision_mean: float = Field(ge=0, le=1)
+    citation_recall_mean: float = Field(ge=0, le=1)
+    generation_calls: int = Field(ge=0)
+    latency_ms_mean: float = Field(ge=0)
+    latency_ms_p95: float = Field(ge=0)
+    candidate_count_mean: float = Field(ge=0)
+    failure_reason_counts: dict[str, int]
+
+
+class FinQATypedPublicPairedComparison(_StrictModel):
+    baseline_arm_id: Literal["B0_FREE_LITERAL"]
+    intervention_arm_id: Literal["B1_TYPED_SINGLE", "B2_TYPED_MULTI"]
+    case_count: int = Field(ge=1)
+    execution_accuracy_delta: float = Field(ge=-1, le=1)
+    grounded_execution_accuracy_delta: float = Field(ge=-1, le=1)
+    transition_counts: dict[str, int]
+    wrong_to_correct_count: int = Field(ge=0)
+    correct_to_wrong_count: int = Field(ge=0)
+    prevented_operand_failure_count: int = Field(ge=0)
+    new_non_answer_count: int = Field(ge=0)
+    new_refusal_count: int = Field(ge=0)
+    new_protocol_error_count: int = Field(ge=0)
+    mcnemar_exact_p_value: float = Field(ge=0, le=1)
+    generation_call_multiplier: float | None = Field(default=None, ge=0)
+    latency_mean_multiplier: float | None = Field(default=None, ge=0)
+
+
+class FinQATypedPublicSummary(_StrictModel):
+    claim_label: Literal[
+        "RETROSPECTIVE_DEVELOPMENT_ONLY"
+    ] = CLAIM_LABEL
+    case_count: int = Field(ge=1)
+    arm_summaries: dict[ArmId, FinQATypedPublicArmSummary]
+    paired_comparisons: list[FinQATypedPublicPairedComparison]
+    diagnostic_category_counts: dict[str, int]
+    historical_b0_strict_reproduction_rate: float = Field(ge=0, le=1)
+    historical_b0_grounded_reproduction_rate: float = Field(ge=0, le=1)
+
+
 class FinQATypedRetrospectivePublicEvidence(_StrictModel):
     schema_version: Literal[
-        "finqa_typed_retrospective_public_v1"
+        "finqa_typed_retrospective_public_v2"
     ] = PUBLIC_EVIDENCE_SCHEMA_VERSION
     claim_label: Literal[
         "RETROSPECTIVE_DEVELOPMENT_ONLY"
@@ -325,9 +375,11 @@ class FinQATypedRetrospectivePublicEvidence(_StrictModel):
     selected_case_count: int = Field(ge=1)
     selected_case_ids_sha256: str = Field(pattern=_SHA256_PATTERN)
     answer_model: FrozenModelIdentity
+    execution_code_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
     implementation_snapshot_sha256: str = Field(pattern=_SHA256_PATTERN)
-    summary: FinQATypedRetrospectiveSummary
+    summary: FinQATypedPublicSummary
     non_claims: tuple[str, ...] = Field(min_length=1)
+    measurement_limitations: tuple[str, ...] = Field(min_length=1)
 
 
 def canonical_json_bytes(value: Any, *, newline: bool = False) -> bytes:
@@ -650,6 +702,15 @@ def build_public_evidence(
         or manifest.protocol_sha256 != protocol_digest
     ):
         raise ValueError("public evidence protocol does not match private run")
+    rows = [
+        FinQATypedRetrospectiveCase.model_validate(
+            json.loads(line, object_pairs_hook=_unique_object)
+        )
+        for line in (run_dir / "details.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line
+    ]
     return FinQATypedRetrospectivePublicEvidence(
         run_id=manifest.run_id,
         protocol_id=manifest.protocol_id,
@@ -665,11 +726,154 @@ def build_public_evidence(
         selected_case_count=manifest.selected_case_count,
         selected_case_ids_sha256=manifest.selected_case_ids_sha256,
         answer_model=manifest.answer_model,
+        execution_code_revision=manifest.execution_code_revision,
         implementation_snapshot_sha256=(
             manifest.implementation_snapshot_sha256
         ),
-        summary=manifest.summary,
+        summary=_build_public_summary(rows),
         non_claims=protocol.non_claims,
+        measurement_limitations=(
+            "The sealed private v1 summary used the field new_refusal_count "
+            "for every new non-answer. Public v2 recomputes and separates "
+            "new_non_answer_count, new_refusal_count, and "
+            "new_protocol_error_count from immutable case rows.",
+            "B1 compiler_calls and generated_program_count are omitted from "
+            "public v2 because sealed v1 did not retain those counts for "
+            "failed planner attempts; B0/B2 private counts remain auditable.",
+        ),
+    )
+
+
+def verify_public_evidence_contract(
+    *,
+    evidence: FinQATypedRetrospectivePublicEvidence,
+    protocol: FinQATypedRetrospectiveProtocol,
+) -> None:
+    expected_protocol_sha256 = hashlib.sha256(
+        canonical_json_bytes(protocol.model_dump(mode="json"))
+    ).hexdigest()
+    if (
+        evidence.protocol_id != protocol.protocol_id
+        or evidence.protocol_sha256 != expected_protocol_sha256
+        or evidence.dataset_revision != protocol.dataset_revision
+        or evidence.split != protocol.split
+        or evidence.selected_case_count != protocol.selected_case_count
+        or evidence.selected_case_ids_sha256
+        != protocol.selected_case_ids_sha256
+        or evidence.answer_model != protocol.answer_model
+        or evidence.implementation_snapshot_sha256
+        != implementation_snapshot_sha256(protocol.source_file_sha256)
+        or evidence.summary.case_count != protocol.selected_case_count
+    ):
+        raise ValueError("public retrospective evidence does not match protocol")
+    summaries = evidence.summary.arm_summaries
+    if set(summaries) != set(_ARMS):
+        raise ValueError("public retrospective evidence arm set is invalid")
+    for arm_id, summary in summaries.items():
+        if (
+            summary.arm_id != arm_id
+            or summary.answered_count
+            + summary.refusal_count
+            + summary.protocol_error_count
+            != summary.case_count
+            or summary.case_count != evidence.selected_case_count
+            or not math.isclose(
+                summary.coverage,
+                summary.answered_count / summary.case_count,
+                abs_tol=1e-12,
+            )
+        ):
+            raise ValueError("public retrospective arm accounting is invalid")
+    baseline = summaries["B0_FREE_LITERAL"]
+    for comparison in evidence.summary.paired_comparisons:
+        intervention = summaries[comparison.intervention_arm_id]
+        transitions = comparison.transition_counts
+        if set(transitions) != {
+            "correct_to_correct",
+            "correct_to_wrong",
+            "wrong_to_correct",
+            "wrong_to_wrong",
+        }:
+            raise ValueError("public retrospective transitions are invalid")
+        baseline_correct = (
+            transitions["correct_to_correct"]
+            + transitions["correct_to_wrong"]
+        )
+        intervention_correct = (
+            transitions["correct_to_correct"]
+            + transitions["wrong_to_correct"]
+        )
+        if (
+            comparison.case_count != evidence.selected_case_count
+            or sum(transitions.values()) != comparison.case_count
+            or comparison.correct_to_wrong_count
+            != transitions["correct_to_wrong"]
+            or comparison.wrong_to_correct_count
+            != transitions["wrong_to_correct"]
+            or comparison.new_non_answer_count
+            != comparison.new_refusal_count
+            + comparison.new_protocol_error_count
+            or not math.isclose(
+                baseline.execution_accuracy,
+                baseline_correct / comparison.case_count,
+                abs_tol=1e-12,
+            )
+            or not math.isclose(
+                intervention.execution_accuracy,
+                intervention_correct / comparison.case_count,
+                abs_tol=1e-12,
+            )
+            or not math.isclose(
+                comparison.execution_accuracy_delta,
+                intervention.execution_accuracy
+                - baseline.execution_accuracy,
+                abs_tol=1e-12,
+            )
+        ):
+            raise ValueError(
+                "public retrospective paired accounting is invalid"
+            )
+
+
+def load_public_evidence(
+    path: Path,
+) -> FinQATypedRetrospectivePublicEvidence:
+    try:
+        payload = json.loads(
+            Path(path).read_text(encoding="utf-8"),
+            object_pairs_hook=_unique_object,
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ValueError("public retrospective evidence is unreadable") from exc
+    return FinQATypedRetrospectivePublicEvidence.model_validate(payload)
+
+
+def _build_public_summary(
+    rows: Sequence[FinQATypedRetrospectiveCase],
+) -> FinQATypedPublicSummary:
+    private = summarize_typed_retrospective(rows)
+    return FinQATypedPublicSummary(
+        case_count=private.case_count,
+        arm_summaries={
+            arm_id: FinQATypedPublicArmSummary(
+                **summary.model_dump(
+                    mode="python",
+                    exclude={"compiler_calls", "generated_program_count"},
+                )
+            )
+            for arm_id, summary in private.arm_summaries.items()
+        },
+        paired_comparisons=[
+            _public_paired_comparison(rows, "B1_TYPED_SINGLE"),
+            _public_paired_comparison(rows, "B2_TYPED_MULTI"),
+        ],
+        diagnostic_category_counts=private.diagnostic_category_counts,
+        historical_b0_strict_reproduction_rate=(
+            private.historical_b0_strict_reproduction_rate
+        ),
+        historical_b0_grounded_reproduction_rate=(
+            private.historical_b0_grounded_reproduction_rate
+        ),
     )
 
 
@@ -795,6 +999,53 @@ def _paired_comparison(
     )
 
 
+def _public_paired_comparison(
+    rows: Sequence[FinQATypedRetrospectiveCase],
+    intervention_arm_id: Literal["B1_TYPED_SINGLE", "B2_TYPED_MULTI"],
+) -> FinQATypedPublicPairedComparison:
+    private = _paired_comparison(rows, intervention_arm_id)
+    paired = [
+        (
+            row.b0,
+            (
+                row.b1
+                if intervention_arm_id == "B1_TYPED_SINGLE"
+                else row.b2
+            ),
+        )
+        for row in rows
+    ]
+    new_refusals = sum(
+        before.status == "ANSWERED" and after.status == "REFUSED"
+        for before, after in paired
+    )
+    new_protocol_errors = sum(
+        before.status == "ANSWERED" and after.status == "PROTOCOL_ERROR"
+        for before, after in paired
+    )
+    return FinQATypedPublicPairedComparison(
+        baseline_arm_id=private.baseline_arm_id,
+        intervention_arm_id=private.intervention_arm_id,
+        case_count=private.case_count,
+        execution_accuracy_delta=private.execution_accuracy_delta,
+        grounded_execution_accuracy_delta=(
+            private.grounded_execution_accuracy_delta
+        ),
+        transition_counts=private.transition_counts,
+        wrong_to_correct_count=private.wrong_to_correct_count,
+        correct_to_wrong_count=private.correct_to_wrong_count,
+        prevented_operand_failure_count=(
+            private.prevented_operand_failure_count
+        ),
+        new_non_answer_count=new_refusals + new_protocol_errors,
+        new_refusal_count=new_refusals,
+        new_protocol_error_count=new_protocol_errors,
+        mcnemar_exact_p_value=private.mcnemar_exact_p_value,
+        generation_call_multiplier=private.generation_call_multiplier,
+        latency_mean_multiplier=private.latency_mean_multiplier,
+    )
+
+
 def _correctness_transition(before: bool, after: bool) -> str:
     if before and after:
         return "correct_to_correct"
@@ -837,16 +1088,19 @@ __all__ = [
     "FinQATypedRetrospectivePublicEvidence",
     "FinQATypedRetrospectiveRunManifest",
     "FinQATypedRetrospectiveSummary",
+    "FinQATypedPublicSummary",
     "FrozenModelIdentity",
     "arm_evaluation_from_case",
     "build_public_evidence",
     "canonical_json_bytes",
     "implementation_snapshot_sha256",
+    "load_public_evidence",
     "load_protocol",
     "protocol_sha256",
     "publish_typed_retrospective_run",
     "refused_arm_evaluation",
     "summarize_typed_retrospective",
     "validate_frozen_source_files",
+    "verify_public_evidence_contract",
     "verify_typed_retrospective_run",
 ]

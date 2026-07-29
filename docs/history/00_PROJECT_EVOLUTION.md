@@ -736,3 +736,27 @@ D-drive full run of 2690 passes, 30 conditional skips, and zero failures. Only
 fake-model and deterministic mechanism tests ran; the public audit was
 1008 candidates with zero findings. No accuracy or real-model diversity claim
 was added.
+
+## 29. FinQA Gate E: real-model result rejects the typed route
+
+Gate E froze a 100-case `RETROSPECTIVE_DEVELOPMENT_ONLY` comparison before
+model calls. All arms used the same disclosed dev cases, exact historical
+hybrid Top-10 evidence, `qwen3:8b` digest, bounded attempts, and cyclic arm
+order. The runtime was resumable and sealed against immutable private
+artifacts; aggregate public evidence contains no case, evidence, question, or
+answer content.
+
+The result rejected the intervention. B0/B1/B2 strict accuracy was
+`57%/5%/6%`, coverage was `99%/9%/11%`, and grounded strict accuracy was
+`50%/5%/6%`. B1/B2 created `54/52` regressions, only `2/1` fixes, and zero
+fixes among the 21 historical operand-selection failures. Mean latency was
+`12.18x/14.58x` B0.
+
+Post-run audit also found a private-v1 metric-name ambiguity and missing B1
+failed-attempt compiler counts. Public v2 separates refusal from protocol
+error and omits the unrecoverable compiler total rather than estimating it.
+Future errors preserve compiler-call counts. A Git-history verifier binds the
+public result to the exact pre-result execution commit `9180b7e`.
+
+Decision: `COMPLETE_REJECTED`. Gate F is blocked; the next allowed work is
+disclosed-development typed-contract calibration.

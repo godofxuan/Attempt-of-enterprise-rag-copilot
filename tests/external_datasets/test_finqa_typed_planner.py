@@ -272,6 +272,7 @@ def test_repeated_invalid_output_raises_bounded_protocol_error() -> None:
 
     assert error.value.attempt_count == 2
     assert error.value.last_reason == "invalid_program_schema"
+    assert error.value.compiler_calls == 2
     assert len(chat.calls) == 2
 
 

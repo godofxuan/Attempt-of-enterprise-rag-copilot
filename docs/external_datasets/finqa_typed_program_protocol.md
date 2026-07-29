@@ -1063,3 +1063,36 @@ disclosed/frozen runs      0
 The warnings are the pre-existing SWIG deprecation warnings. Gate D proves a
 deterministic runtime selection mechanism; it does not prove that a real model
 generates useful diversity or that FinQA answer accuracy improved.
+
+## 19. Gate E real-model retrospective result
+
+Gate E is complete with decision `COMPLETE_REJECTED`. The frozen
+`RETROSPECTIVE_DEVELOPMENT_ONLY` 100-case dev comparison produced:
+
+```text
+                         B0 free literal   B1 typed single   B2 typed multi
+coverage                 99%               9%                11%
+strict accuracy          57%               5%                6%
+grounded strict          50%               5%                6%
+refusal / protocol error 0 / 1             36 / 55           89 / 0
+mean latency             1.090 s           13.280 s          15.897 s
+p95 latency              1.390 s           32.017 s          33.336 s
+```
+
+B1/B2 strict deltas were `-52/-51` percentage points. They introduced
+`90/88` new non-answers and prevented `0/21` historical operand-selection
+failures. The current implementation is not eligible for Gate F or production
+routing.
+
+The exact protocol, aggregate public v2 evidence, independent verifier, full
+failure attribution, metric-semantics erratum, and next-gate decision are in:
+
+- `docs/external_datasets/evidence/finqa_typed_retrospective_protocol_v1.json`;
+- `docs/external_datasets/evidence/finqa_typed_retrospective_dev_v1_public_v2.json`;
+- `scripts/verify_finqa_typed_retrospective_public.py`;
+- `docs/external_datasets/finqa_typed_retrospective_gate_e.md`;
+- `docs/learning/22_FINQA_GATE_E_真实模型评测与失败复盘.md`.
+
+Gate E established a reliable negative baseline. The next allowed step is a
+disclosed-development Gate E2 contract calibration; the frozen test remains
+untouched.

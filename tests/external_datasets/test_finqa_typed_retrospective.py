@@ -25,6 +25,7 @@ from app.external_datasets.finqa_typed_retrospective import (
     implementation_snapshot_sha256,
     publish_typed_retrospective_run,
     summarize_typed_retrospective,
+    verify_public_evidence_contract,
     verify_typed_retrospective_run,
 )
 from scripts.eval_finqa_typed_retrospective import (
@@ -331,7 +332,13 @@ def test_private_public_publication_is_reproducible_and_aggregate_only(
 ) -> None:
     rows = [
         _row("private-case-1", b0_correct=False, b1_correct=True, b2_correct=True),
-        _row("private-case-2", b0_correct=True, b1_correct=True, b2_correct=True),
+        _row(
+            "private-case-2",
+            b0_correct=True,
+            b1_correct=False,
+            b2_correct=True,
+            b1_status="REFUSED",
+        ),
     ]
     protocol = _protocol()
     summary = summarize_typed_retrospective(rows)
@@ -373,6 +380,26 @@ def test_private_public_publication_is_reproducible_and_aggregate_only(
     assert "table_1" not in public_text
     assert '"final_answer"' not in public_text
     assert public.private_details_sha256 == verified.artifacts["details.jsonl"]
+    comparison = public.summary.paired_comparisons[0]
+    assert public.schema_version == "finqa_typed_retrospective_public_v2"
+    assert public.execution_code_revision == _REVISION
+    assert comparison.new_non_answer_count == 1
+    assert comparison.new_refusal_count == 1
+    assert comparison.new_protocol_error_count == 0
+    assert all(
+        "compiler_calls" not in arm.model_dump()
+        for arm in public.summary.arm_summaries.values()
+    )
+    assert public.measurement_limitations
+    verify_public_evidence_contract(evidence=public, protocol=protocol)
+
+    tampered = public.model_copy(deep=True)
+    tampered.summary.paired_comparisons[0].new_refusal_count = 0
+    with pytest.raises(ValueError, match="paired accounting"):
+        verify_public_evidence_contract(
+            evidence=tampered,
+            protocol=protocol,
+        )
 
 
 def test_publication_detects_tampered_private_details(tmp_path: Path) -> None:

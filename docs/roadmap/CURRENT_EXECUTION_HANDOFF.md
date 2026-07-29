@@ -944,9 +944,22 @@ and fails closed on equal-rank conflicting outputs. Its verification is `16`
 focused tests, `178` external-dataset tests, and `2690 passed / 30 skipped` for
 the D-drive full repository run; the public audit is `1008/0`.
 
-No real model or dataset outcome was run in Gate B-D. Do not claim an accuracy
-improvement. The next planned stage is Gate E retrospective development on
-already-disclosed dev data, which must be labelled
-`RETROSPECTIVE_DEVELOPMENT_ONLY`; it is not implemented by this handoff. Exact
-details and limitations are in
-`docs/external_datasets/finqa_typed_program_protocol.md`.
+No real model or dataset outcome was run in Gate B-D. Gate E has now completed
+the separately labelled `RETROSPECTIVE_DEVELOPMENT_ONLY` real-model dev
+comparison. Its frozen execution commit is `9180b7e`; B0/B1/B2 strict accuracy
+was `57%/5%/6%` and coverage was `99%/9%/11%`. B1/B2 introduced `54/52`
+correct-to-wrong regressions, prevented `0/21` historical operand-selection
+failures, and cost `12.18x/14.58x` B0 mean latency.
+
+Decision: `COMPLETE_REJECTED`. Do not claim a typed-program accuracy
+improvement, do not enable either typed arm, and do not spend a new Gate F
+holdout on the current contract. The next allowed stage is disclosed-dev
+Gate E2 contract calibration, beginning with intent coverage and
+candidate/operation compatibility. Exact results, measurement errata, public
+evidence, verifier, and the learning explanation are in:
+
+```text
+docs/external_datasets/finqa_typed_retrospective_gate_e.md
+docs/external_datasets/evidence/finqa_typed_retrospective_dev_v1_public_v2.json
+docs/learning/22_FINQA_GATE_E_真实模型评测与失败复盘.md
+```

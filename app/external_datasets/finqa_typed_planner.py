@@ -95,10 +95,12 @@ class TypedPlannerProtocolError(ValueError):
         attempt_count: int,
         latency_ms: float,
         last_reason: str,
+        compiler_calls: int,
     ) -> None:
         self.attempt_count = attempt_count
         self.latency_ms = latency_ms
         self.last_reason = last_reason
+        self.compiler_calls = compiler_calls
         super().__init__(
             "typed FinQA planner exhausted attempts: " + last_reason
         )
@@ -514,6 +516,7 @@ class LocalFinQATypedProgramPlanner:
             attempt_count=attempt_count,
             latency_ms=latency_ms,
             last_reason=last_reason,
+            compiler_calls=compiler_calls,
         ) from last_error
 
 
