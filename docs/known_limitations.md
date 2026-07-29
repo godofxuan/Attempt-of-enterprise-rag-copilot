@@ -210,8 +210,6 @@ normalizes financial formats with `Decimal`, assigns non-operand roles to
 period labels/page numbers/ordinals, and publishes a synthetic aggregate-only
 manifest. This is mechanism evidence, not answer-quality evidence.
 
-The typed planner, compatibility validator, compiler, multiple-program
-verification, retrospective run, and confirmatory run remain unimplemented.
 The current PDF parser preserves per-page text locators but does not perform
 OCR, table detection, merged-cell reconstruction, multi-column reading-order
 recovery, repeated-header removal, or cross-page table stitching. Therefore
@@ -228,5 +226,15 @@ The current intent extractor recognizes only explicit operation and year
 patterns. Unknown text metric/entity metadata may cause fail-closed rejection.
 The V1 unit system supports base units and ratios but not general compound-unit
 algebra, and it cannot independently prove semantic `part_over_total` roles.
-Multiple-program verification, resumable live planner runs, retrospective
-diagnostics, and confirmatory evaluation remain later gates.
+Gate D now implements exact-count 2-4 program generation contracts,
+independent Gate C validation/execution, duplicate and provenance-padding
+controls, deterministic support/complexity ranking, and fail-closed ambiguous
+or no-valid states. It has only deterministic and fake-model evidence. No real
+model run proves that the model produces genuinely diverse programs, and the
+runtime selector has not been calibrated against answer correctness.
+
+The support heuristic treats distinct minimal candidate/evidence closures as
+independent runtime support. This is auditable but not a statistical proof of
+independence or correctness. Semantically different minimal closures can still
+agree by coincidence. Resumable live planner runs, retrospective diagnostics,
+confirmatory evaluation, and raw PDF layout recovery remain later work.

@@ -896,8 +896,8 @@ comparison occurred in Gate C.
 - dimensional algebra is intentionally limited and does not represent compound
   units such as USD/share;
 - `part_over_total` semantic roles are not independently typed yet;
-- one typed program is attempted at a time; multiple-program verification is
-  Gate D;
+- the Gate C planner itself still attempts one program at a time; the separate
+  Gate D layer provides bounded multi-program generation and selection;
 - planner retry state is in-process and is not yet an immutable resumable model
   run;
 - raw PDF layout and cross-page table recovery remain outside this layer.
@@ -918,3 +918,148 @@ public repository audit    1006 candidates / 0 findings
 
 The three warnings are the pre-existing SWIG deprecation warnings. Gate C adds
 no dependency and leaves the worktree free of private model or dataset output.
+
+## 18. Gate D contract and implementation: deterministic multi-program selection
+
+Current status:
+
+```text
+GATE_D_IMPLEMENTED_LOCAL_UNPUSHED
+```
+
+Gate D adds a new versioned layer. It does not change the Gate C single-program
+planner, typed DSL, validator, compiler, or historical literal answerer.
+
+### 18.1 Separation of responsibilities
+
+```text
+LLM
+  -> proposes exactly 2-4 reference-only TypedProgram objects
+host parser
+  -> checks outer schema, duplicate JSON keys, count, and byte budgets
+Gate C host boundary
+  -> validates and executes every program independently
+Gate D selector
+  -> removes exact duplicates
+  -> groups valid programs by canonical Decimal value and unit
+  -> counts distinct provenance closures, not raw program copies
+  -> ranks with runtime-only support and complexity
+  -> selects one result or fails closed as AMBIGUOUS/NO_VALID_PROGRAM
+```
+
+The generator never receives a gold program, expected answer, correctness
+label, retrieval oracle, paired transition, or test outcome.
+
+### 18.2 Fixed budgets and statuses
+
+- requested program count: integer from 2 through 4;
+- outer response: at most 65,536 characters;
+- attempts: 1-3, default 2;
+- every inner program remains subject to all Gate C limits;
+- candidate status: `VALID`, `INVALID`, or `DUPLICATE`;
+- selection status: `SELECTED`, `AMBIGUOUS`, or `NO_VALID_PROGRAM`.
+
+An invalid candidate cannot invalidate another candidate. An exact duplicate
+is retained in diagnostics but cannot add support.
+
+### 18.3 Runtime-only rank
+
+For each output `(canonical Decimal value, unit)`, support is computed from
+unique valid programs. Exact duplicates and syntactic variants with the same
+candidate/evidence closure count once. A closure that is a strict superset of
+another closure for the same output is diagnostic-only and does not add
+support; this prevents neutral `+ 0`-style provenance padding. The remaining
+minimal closures form the support antichain. The rank tuple is:
+
+```text
+more distinct provenance support
+then fewer steps
+then fewer candidate references
+then fewer evidence references
+```
+
+Program hash and output text may provide deterministic display ordering, but
+they cannot break a rank tie between different output values. Such a tie is
+`AMBIGUOUS`. Within one already-selected output group, complexity and then
+program hash choose a reproducible representative because the answer is
+unchanged.
+
+### 18.4 Gate D acceptance tests
+
+Gate D must prove:
+
+- consensus wins only with distinct provenance closures;
+- duplicate programs cannot vote-stuff;
+- input order does not change the selected program/result;
+- one invalid program does not poison valid programs;
+- equally ranked conflicting outputs fail closed;
+- a lower-complexity output wins only after support is tied;
+- all-invalid input becomes `NO_VALID_PROGRAM`;
+- parser, prompt, response schema, count, and byte budgets fail closed;
+- bounded fake-model repair uses only aggregate runtime failure status;
+- no real model or disclosed/frozen dataset result is produced.
+
+### 18.5 Implemented files and runtime behavior
+
+| File | Gate D responsibility |
+| --- | --- |
+| `app/external_datasets/finqa_multi_program.py` | Exact-count outer schema/parser, multi-program prompt, independent Gate C compilation, duplicate/provenance-closure control, output grouping, deterministic rank, ambiguity/no-valid states, bounded repair, and aggregate attempt diagnostics |
+| `tests/external_datasets/test_finqa_multi_program.py` | Consensus, order invariance, duplicate and semantic-duplicate control, provenance padding, invalid isolation, ambiguity, complexity, all-invalid, parser/schema/budget, fake-model retry, immutable result, and structured FinQA integration |
+
+`LocalFinQAMultiProgramPlanner` makes one generation call per attempt and asks
+for exactly the configured 2-4 programs in one JSON envelope. It does not call
+the single-program planner repeatedly and does not mutate Gate C behavior.
+Every inner object is sent through the existing Gate C
+`compile_and_execute_typed_program`; no multi-program shortcut can bypass
+candidate identity, admission, intent, unit, provenance, or Decimal checks.
+
+The returned planner result contains aggregate counters and immutable
+per-attempt diagnostics:
+
+```text
+attempt index
+SELECTED / AMBIGUOUS / NO_VALID_PROGRAM / INVALID_MULTI_PROGRAM_SCHEMA
+generated / valid / invalid / duplicate program counts
+```
+
+It does not retain raw prompts, gold data, expected values, correctness labels,
+or model confidence. A final valid-but-ambiguous result is returned to the
+caller for refusal. Exhausted malformed outer responses raise
+`MultiProgramProtocolError`.
+
+### 18.6 Failures and hardening found during Gate D
+
+1. The initial 12-test RED run failed at collection because the new module did
+   not exist. This was the intended implementation boundary.
+2. Exact duplicate program hashes were excluded from voting, but review added
+   a stronger case: reversed commutative arguments produce a different program
+   hash while retaining the same provenance closure. Closure-based support
+   keeps this at one vote.
+3. A two-step `ADD(existing_result, zero_candidate)` initially changed the
+   selector from `AMBIGUOUS` to `SELECTED` by creating a strict provenance
+   superset. The RED regression reproduced that error. Support now counts the
+   minimal closure antichain, so the padded program remains visible but adds no
+   vote.
+4. A malformed final repair could otherwise leave an older ambiguous attempt
+   as the apparent final result. Parse failure now clears the prior selection
+   and produces a protocol error after exhaustion.
+5. Response size is checked before trimming whitespace, preventing an
+   oversized whitespace prefix from bypassing the outer budget.
+
+### 18.7 Gate D verification
+
+```text
+Gate D focused tests       16 passed
+external-dataset tests     178 passed
+full repository tests      2690 passed / 30 skipped / 3 warnings
+manifest byte check        PASS
+compileall                 PASS
+git diff --check           PASS
+public repository audit    1008 candidates / 0 findings
+real model calls           0
+disclosed/frozen runs      0
+```
+
+The warnings are the pre-existing SWIG deprecation warnings. Gate D proves a
+deterministic runtime selection mechanism; it does not prove that a real model
+generates useful diversity or that FinQA answer accuracy improved.

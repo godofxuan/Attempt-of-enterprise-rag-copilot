@@ -705,6 +705,34 @@ with 43 focused tests, 162 external-dataset tests, and a D-drive full run of
 2674 passes, 30 conditional skips, and zero failures.
 
 Gate C uses deterministic tests and a fake chat boundary only. It adds no real
-model score and makes no accuracy-improvement claim. Multiple programs,
-retrospective diagnostics, and a separately frozen confirmatory cohort remain
-later gates.
+model score and makes no accuracy-improvement claim. Retrospective diagnostics
+and a separately frozen confirmatory cohort remain later gates.
+
+## 28. FinQA Gate D: multiple proposals and deterministic host selection
+
+Gate D added a separate multi-program layer without changing the Gate C
+single-program planner or compiler. One model response proposes exactly 2-4
+reference-only programs. The host parses the outer envelope and sends every
+inner program through the complete Gate C validation and Decimal execution
+boundary.
+
+Valid programs are grouped by canonical value and unit. Exact duplicates,
+commutative variants with the same candidate/evidence closure, and strict
+provenance supersets cannot add votes. Support is the number of minimal
+candidate/evidence closures; ties then use fewer steps, candidate references,
+and evidence references. Equal-ranked conflicting values become `AMBIGUOUS`
+instead of being decided by array order or hash. All-invalid input becomes
+`NO_VALID_PROGRAM`.
+
+RED-first review exposed one substantive selector defect: a valid program
+padded with an extra zero candidate initially inflated support and changed an
+ambiguous decision into a selected answer. Minimal-closure antichain counting
+fixed the defect while retaining the padded program in diagnostics. Bounded
+attempt diagnostics now record status and aggregate valid/invalid/duplicate
+counts without raw prompts or correctness labels.
+
+Gate D closed locally with 16 focused tests, 178 external-dataset tests, and a
+D-drive full run of 2690 passes, 30 conditional skips, and zero failures. Only
+fake-model and deterministic mechanism tests ran; the public audit was
+1008 candidates with zero findings. No accuracy or real-model diversity claim
+was added.

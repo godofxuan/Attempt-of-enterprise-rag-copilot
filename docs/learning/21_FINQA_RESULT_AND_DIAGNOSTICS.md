@@ -1273,3 +1273,158 @@ external datasets  162 passed
 full repository    2674 passed / 30 skipped / 0 xfailed
 public audit       1006 candidates / 0 findings
 ```
+
+## 21.38 Gate D：为什么生成多个程序，以及宿主怎样确定性选择
+
+### Gate D 不是“多个 Agent”
+
+这里的 multiple programs 指同一个 Planner 一次提出 2-4 个受限财务程序候选，
+不是启动多个拥有不同工具和记忆的 Agent。这样做是为了处理一个现实问题：同一句
+财务问题可能存在不同的 operand 组合、参数顺序或分解步骤，只生成一个程序时，
+模型第一次猜错就直接失败。
+
+新代码位于：
+
+```text
+app/external_datasets/finqa_multi_program.py
+tests/external_datasets/test_finqa_multi_program.py
+```
+
+旧的 Gate C 单程序 Planner、Validator 和 Decimal Compiler 没有被覆盖。
+
+### 完整执行流程
+
+```text
+问题 + admitted candidates + intent
+  -> LLM 一次输出恰好 2-4 个 reference-only TypedProgram
+  -> 外层 parser 检查 JSON key、数量和 65536 字符预算
+  -> 每个程序独立进入 Gate C Validator + Decimal Compiler
+  -> 无效程序单独记录，不影响其他程序
+  -> 相同程序和相同来源闭包不能重复投票
+  -> 按 Decimal value + unit 分组
+  -> 按来源支持数、步骤数、候选数、证据数确定性排序
+  -> SELECTED / AMBIGUOUS / NO_VALID_PROGRAM
+```
+
+模型仍然不能输出数字 literal、表达式、Python 代码、answer、score 或 confidence。
+JSON Schema 只是帮助模型遵守格式，真正的安全边界仍是宿主 Validator。
+
+### 为什么不能直接多数表决
+
+假设模型输出三个程序：
+
+```text
+P1 = ADD(candidate-A, candidate-B) -> 30
+P2 = ADD(candidate-A, candidate-B) -> 30
+P3 = ADD(candidate-A, candidate-C) -> 50
+```
+
+如果直接按三个数组元素投票，模型复制 P1 就能让 30 获得两票。Gate D 首先按
+`program_sha256` 去掉完全重复程序。
+
+但只去掉完全重复仍不够：
+
+```text
+P1 = ADD(A, B)
+P2 = ADD(B, A)
+```
+
+两个程序 hash 不同，但 candidate/evidence 闭包相同，因此仍只能算一份来源支持。
+
+### provenance padding 是怎样发现的
+
+首轮实现使用“不同来源闭包数量”作为 support。审阅时新增了：
+
+```text
+P1 = ADD(A, B)               -> 30
+P2 = ADD(ADD(A, B), ZERO)    -> 30
+P3 = ADD(A, C)               -> 50
+```
+
+当时 P1 与 P2 被算成两份支持，选择器错误地从 `AMBIGUOUS` 变成 `SELECTED`。
+RED 测试真实得到：
+
+```text
+expected AMBIGUOUS
+actual   SELECTED
+```
+
+修复后，同一输出下的来源闭包会组成最小闭包反链。如果 P2 的 candidate/evidence
+集合是 P1 的严格超集，P2 仍保留在诊断里，但不能增加 support。这个处理防止模型
+通过 `+0` 等中性步骤制造伪共识。
+
+### 确定性排序具体是什么
+
+每个不同输出组的 rank 为：
+
+```text
+1. distinct minimal provenance support 越多越好
+2. step_count 越少越好
+3. candidate_count 越少越好
+4. evidence_count 越少越好
+```
+
+如果两个不同输出在以上四项完全相同，系统返回 `AMBIGUOUS`，不使用数组顺序或
+hash 决定答案。Hash 只允许在已经确定为同一输出的组内选择可复现代表程序，因为
+此时不会改变最终数值。
+
+### 三种最终状态怎样处理
+
+```text
+SELECTED          有唯一最高运行时 rank，可进入后续回答
+AMBIGUOUS         不同答案同 rank，调用方应拒答或请求更多证据
+NO_VALID_PROGRAM  所有候选均未通过 Gate C，调用方应拒答
+```
+
+如果第一次是 `AMBIGUOUS` 或 `NO_VALID_PROGRAM`，默认允许一次修复。Repair
+消息只包含聚合状态和稳定失败原因计数，不包含正确答案。每一轮都会记录
+generated/valid/invalid/duplicate 数量；最终 malformed repair 不会把更早的
+ambiguous 结果伪装成最新结果。
+
+### 为什么不用模型 confidence 排序
+
+模型 confidence 不是可校准的正确率，而且模型可以同时生成程序和给自己高分，
+形成自我认证。当前 Selector 只读取运行时可验证信号：Validator 是否通过、
+Decimal 是否成功执行、来源闭包、输出一致性、intent 和复杂度。这样便宜、稳定、
+可复现，但仍不能证明被选择的答案一定正确。
+
+### Gate D 实际验证结果
+
+```text
+Gate D focused     16 passed
+external datasets  178 passed
+full repository    2690 passed / 30 skipped / 0 failed
+public audit       1008 candidates / 0 findings
+real model calls   0
+```
+
+可以说：
+
+> 实现 2-4 个 reference-only 财务程序的受限生成与确定性宿主选择；通过独立
+> Gate C 编译、重复/同闭包/来源填充防护、输出共识、复杂度排序和歧义拒答，
+> 并记录每轮聚合诊断。
+
+不能说：
+
+> 多候选已经提高 FinQA 准确率。
+
+Gate D 证明的是选择机制满足合同。真实模型是否能生成有价值的候选多样性，以及
+选择器是否减少错误，需要 Gate E 在 disclosed dev 上做
+`RETROSPECTIVE_DEVELOPMENT_ONLY` 对比，再由 Gate F 冻结独立确认协议。
+
+### Gate D 面试问答
+
+**问：为什么不是始终选择最短程序？**
+
+答：最短程序只是 Occam 型运行时信号，不能覆盖独立证据一致性。排序先看最小来源
+闭包支持，再看复杂度；如果支持和复杂度均相同且答案冲突，就拒答。
+
+**问：多个程序一致为什么仍不等于正确？**
+
+答：它们可能共享同一错误候选，或者不同候选碰巧算出相同数值。因此 support 是
+启发式证据，不是统计独立性或正确性证明，必须通过后续真实评测验证。
+
+**问：为什么无效程序不让整批失败？**
+
+答：多候选的价值就是隔离单次规划错误。每个程序独立通过同一个安全边界；一个
+literal 或单位错误只标记该候选 `INVALID`，不能绕过验证，也不能毒害其他候选。

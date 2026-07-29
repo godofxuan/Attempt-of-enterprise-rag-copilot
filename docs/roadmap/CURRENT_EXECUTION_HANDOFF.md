@@ -902,16 +902,18 @@ as human gold, inspect the other reviewer's labels, or claim quality from the
 blank packet. Resume from `docs/quality/CODEX_HANDOFF.json` and
 `docs/quality/05_REVIEWER_RUNBOOK.md`.
 
-## 25. FinQA typed-program current handoff
+## 25. FinQA typed-program and multi-program current handoff
 
-Gate A, Gate B, and Gate C are implemented on
+Gate A, Gate B, Gate C, and Gate D are implemented on
 `codex/rag-eval-system`. Gate A commit is `904c129`; Gate B commit is
-`b63c87e`. Gate C is the commit containing this handoff record.
+`b63c87e`; Gate C commit is `a783c18`. Gate D is the commit containing this
+updated handoff record.
 
 ```text
 Gate A  protocol + 12 RED contracts
 Gate B  deterministic NumericCandidate extraction + public manifest
 Gate C  reference-only Typed Planner + compatibility validator + Decimal compiler
+Gate D  2-4 typed candidates + deterministic runtime-only selector
 ```
 
 The historical `LocalFinQAProgramAnswerer` remains unchanged. New code is in:
@@ -919,8 +921,10 @@ The historical `LocalFinQAProgramAnswerer` remains unchanged. New code is in:
 ```text
 app/external_datasets/finqa_typed_program.py
 app/external_datasets/finqa_typed_planner.py
+app/external_datasets/finqa_multi_program.py
 tests/external_datasets/test_finqa_typed_program.py
 tests/external_datasets/test_finqa_typed_planner.py
+tests/external_datasets/test_finqa_multi_program.py
 ```
 
 All original Gate A RED cases are green. Gate C also covers literal/schema,
@@ -933,8 +937,16 @@ Gate C verification is `43` focused tests, `162` external-dataset tests,
 `2674 passed / 30 skipped / 0 xfailed` for the full repository, and public
 audit `1006/0`.
 
-No real model or dataset outcome was run in Gate B/C. Do not claim an accuracy
-improvement. The next planned stage is Gate D multiple typed programs with
-deterministic runtime-only verification, but it is not implemented or approved
-by this handoff. Exact details and limitations are in
+Gate D independently compiles every generated program through Gate C, excludes
+exact and same-closure vote stuffing, ignores strict provenance supersets for
+support, groups canonical Decimal outputs, ranks by support then complexity,
+and fails closed on equal-rank conflicting outputs. Its verification is `16`
+focused tests, `178` external-dataset tests, and `2690 passed / 30 skipped` for
+the D-drive full repository run; the public audit is `1008/0`.
+
+No real model or dataset outcome was run in Gate B-D. Do not claim an accuracy
+improvement. The next planned stage is Gate E retrospective development on
+already-disclosed dev data, which must be labelled
+`RETROSPECTIVE_DEVELOPMENT_ONLY`; it is not implemented by this handoff. Exact
+details and limitations are in
 `docs/external_datasets/finqa_typed_program_protocol.md`.
