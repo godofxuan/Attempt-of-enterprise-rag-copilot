@@ -1,0 +1,111 @@
+{
+  "schema_version": "finqa_uncertainty_validation_protocol_v1",
+  "status": "FROZEN_BEFORE_VALIDATION_SIGNAL_EVALUATION",
+  "frozen_at_utc": "2026-07-29T03:30:31Z",
+  "scope": "Deterministic runtime-only trigger evaluated on the previously generated zero-overlap FinQA dev validation cohort",
+  "holdout_status": "SECONDARY_REUSE_NOT_NEW_INDEPENDENT_HOLDOUT",
+  "frozen_test_reused_or_retuned": false,
+  "freeze_parent_revision": "e59d9e4",
+  "algorithm": {
+    "version": "finqa_runtime_uncertainty_v1",
+    "trigger_threshold": 2,
+    "reason_weights": {
+      "ungrounded_operand": 3,
+      "planner_retry": 2,
+      "quarantined_content": 3,
+      "multi_operation": 1,
+      "many_numbers": 1,
+      "multiple_citations": 1,
+      "multi_year": 1,
+      "ratio_division": 1
+    },
+    "threshold_contracts": {
+      "many_numbers": "at least 12 distinct numbers in cited runtime evidence",
+      "multi_operation": "at least 2 arithmetic operations",
+      "multiple_citations": "at least 2 cited runtime evidence units",
+      "multi_year": "at least 3 distinct four-digit years in cited runtime evidence",
+      "planner_retry": "at least 2 baseline generation calls",
+      "ungrounded_operand": "at least one expression operand absent from cited runtime evidence and the fixed public constant allowlist"
+    },
+    "source_sha256": {
+      "app/external_datasets/finqa_uncertainty.py": "19908c3ae7198de9f92bf5572b534c5f73f37badee9bc8a2625d9d66b497e85e",
+      "scripts/eval_finqa_uncertainty.py": "efbfb60b81b612996cc6839582bf12fbd7fc9d4d51c69db17135c77d4b71c9c8"
+    }
+  },
+  "runtime_input_boundary": {
+    "allowed": [
+      "question text",
+      "baseline selected and cited evidence IDs",
+      "text of cited runtime evidence",
+      "baseline arithmetic expression",
+      "baseline generation-call count",
+      "Guard quarantine count"
+    ],
+    "forbidden": [
+      "gold program",
+      "official answer or exe_ans",
+      "gold evidence IDs",
+      "strict or presentation correctness",
+      "evidence recall",
+      "citation precision or recall",
+      "grounded correctness",
+      "review or adjudication outcome"
+    ],
+    "gold_invariance_regression_test_required": true
+  },
+  "tuning_selection": {
+    "source_adjudication_run_id": "finqa-candidate-adjudication-dev-v1-hybrid",
+    "source_manifest_sha256": "3d5c9e625c7f9ad8de0cf28b67118669d1acc1cc2bc03d072ae781fabb8e4a46",
+    "source_details_sha256": "9839f51efe794697a3f7f2678f63f37237332501784e4a4684ea154cd5a6b1a8",
+    "case_count": 100,
+    "full_strategy": {
+      "trigger_rate": 1.0,
+      "strict": 0.63,
+      "grounded_strict": 0.55,
+      "wrong_to_correct": 4,
+      "correct_to_wrong": 0,
+      "incremental_generation_calls": 124
+    },
+    "selected_trigger_v1": {
+      "trigger_rate": 0.67,
+      "strict": 0.63,
+      "grounded_strict": 0.55,
+      "wrong_to_correct": 4,
+      "correct_to_wrong": 0,
+      "incremental_generation_calls": 84,
+      "generation_call_reduction": 0.3225806451612903
+    }
+  },
+  "validation_source": {
+    "source_adjudication_run_id": "finqa-plan-review-validation-v1-hybrid-adjudicated",
+    "source_manifest_sha256": "e1ba71659daabaae45ae26fd31e76d76ef3c477c1b7d9bebfc704fd67778bcb1",
+    "source_details_sha256": "f41fbcc7f13c67ebdfde96029a5e21e9fcd562a6ced8fbb2eef445823377c102",
+    "case_count": 50,
+    "selected_case_ids_sha256": "cb99e24ebbea3fba38f0fa00b0b05e5fd327a83306a99fb4d44b2ee3ea0ba2cb",
+    "overlap_with_tuning_case_count": 0,
+    "full_strategy_strict": 0.5,
+    "full_strategy_grounded_strict": 0.38,
+    "full_strategy_wrong_to_correct": 3,
+    "full_strategy_correct_to_wrong": 0
+  },
+  "success_gate": {
+    "gated_strict_at_least_full_strategy": true,
+    "gated_grounded_strict_at_least_full_strategy": true,
+    "gated_correct_to_wrong_at_most_full_strategy": true,
+    "beneficial_case_capture_rate_min": 1.0,
+    "trigger_rate_max": 0.75,
+    "generation_call_reduction_min": 0.2,
+    "calculator_call_reduction_min": 0.2,
+    "runtime_input_boundary_test_passes": true
+  },
+  "decision_boundary": {
+    "passing_this_gate_can_enable_default_production_routing": false,
+    "reason": "The cohort reuses a previously disclosed same-split validation artifact and the underlying quality strategy already failed its exact McNemar significance and latency gates.",
+    "next_required_evidence": "A newly frozen cohort, normal CUDA runtime, end-to-end selective execution, and the original quality/significance gates."
+  },
+  "privacy": {
+    "public_case_ids": false,
+    "public_questions_answers_evidence_or_expressions": false,
+    "public_aggregate_metrics_hashes_and_versions_only": true
+  }
+}
