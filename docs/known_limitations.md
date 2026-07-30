@@ -1,5 +1,22 @@
 # Known Limitations
 
+## Gate E2 typed planning remains calibration-only
+
+The best Gate E2 iteration (`v2.2`) improved typed-plan coverage to 81.67%
+and strict execution accuracy to 26.67% on the disclosed 60-case calibration
+cohort, but the frozen B0 baseline reached 51.67% strict accuracy on the same
+cohort. The typed path also converted 20 B0-correct cases to wrong outcomes
+and had an 18.33% protocol-error rate. It therefore failed the frozen adoption
+contract and remains disabled as a replacement for B0.
+
+Internal validation, the frozen test split, and the B2 multi-program comparison
+were deliberately not run after calibration rejection. Gate E2 is evidence
+about a failed development calibration, not a held-out improvement,
+production-readiness claim, or permission to quote v2.2 as the deployed
+answering path. The next measured bottleneck is retrieval-side numeric
+candidate completeness, table scale/unit propagation, percentage
+normalization, and tightly controlled host constants.
+
 ## R2-S5 identity status correction
 
 Rows below that describe caller-supplied `UserContext` or absent token

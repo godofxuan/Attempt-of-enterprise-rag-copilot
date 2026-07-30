@@ -760,3 +760,34 @@ public result to the exact pre-result execution commit `9180b7e`.
 
 Decision: `COMPLETE_REJECTED`. Gate F is blocked; the next allowed work is
 disclosed-development typed-contract calibration.
+
+## 30. FinQA Gate E2: calibration improves the architecture but rejects adoption
+
+Gate E2 froze the disclosed 100-case Gate E cohort into a deterministic,
+stratified 60-case calibration cohort and an unconsumed 40-case internal-
+validation cohort. The split, source hashes, adoption gates, and content-free
+failure matrix were committed before changing runtime semantics.
+
+Three real-model calibration iterations used the same Gate E evidence and
+`qwen3:8b` digest. v2 distinguished unknown metadata from known conflicts and
+raised strict accuracy from 5.00% to 13.33%. v2.1 reduced candidate noise and
+constrained program graphs, but failed: strict accuracy fell to 6.67% and 26
+cases ended in invalid-program-schema errors.
+
+v2.2 changed the ownership boundary. The model emits only one calculation
+template and ordered allowlisted candidate IDs. The host compiles that sketch
+into the typed DSL, validates provenance/compatibility, and performs Decimal
+execution. Coverage reached 81.67%, strict accuracy 26.67%, grounded accuracy
+25.00%, and mean/p95 latency 2.19s/3.38s. It fixed five B0 errors and three
+historical operand-selection failures.
+
+The intervention was still rejected against the actual B0 baseline:
+strict/grounded deltas were -25.00/-18.33 percentage points, correct-to-wrong
+was 20/60, and protocol errors were 11/60. A coarse operand audit also showed
+complete shortlist coverage for only 25/60 cases; 24 answered-wrong cases and
+seven non-answers lacked at least one coarse gold operand.
+
+Decision: `CALIBRATION_REJECTED`. The 40-case internal-validation cohort,
+B2-v2, Gate F, and the frozen test were not run. The next bottleneck is
+retrieval/candidate availability, table-level scale propagation, percentage
+normalization, and an explicit policy for controlled host constants.

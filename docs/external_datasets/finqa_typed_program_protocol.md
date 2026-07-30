@@ -1096,3 +1096,35 @@ failure attribution, metric-semantics erratum, and next-gate decision are in:
 Gate E established a reliable negative baseline. The next allowed step is a
 disclosed-development Gate E2 contract calibration; the frozen test remains
 untouched.
+
+## 20. Gate E2 typed-contract calibration result
+
+Gate E2 froze a 60-case calibration cohort and a 40-case internal-validation
+cohort from the already disclosed Gate E development cases. Only the 60-case
+cohort was consumed.
+
+Three iterations were run. v2 separated unknown metadata from known conflicts.
+v2.1 tested question-conditioned candidate shortlisting and stricter graph
+structure. v2.2 replaced model-generated graphs with a reference-only
+`template + operand_candidate_ids` sketch that the host compiles into the typed
+DSL.
+
+```text
+route      coverage  strict  grounded  mean / p95
+B0           98.33%   51.67%   43.33%   1.07s / 1.46s
+B1-v1        10.00%    5.00%    5.00%  12.91s / 34.66s
+v2           41.67%   13.33%   13.33%  15.57s / 26.50s
+v2.1         28.33%    6.67%    6.67%   9.99s / 13.92s
+v2.2         81.67%   26.67%   25.00%   2.19s / 3.38s
+```
+
+v2.2 was the best iteration, but its strict accuracy remained 25 percentage
+points below B0 and its correct-to-wrong rate was 33.33%. Decision:
+`CALIBRATION_REJECTED`. Internal validation, B2-v2, Gate F, and the frozen test
+were not run.
+
+The next bottleneck is input executability rather than graph syntax. Coarse
+complete operand coverage was only 25/60 after shortlisting. Future work must
+address retrieval/candidate availability, table scale/unit context, percentage
+normalization, and a bounded host-constant policy before another calibration
+run.

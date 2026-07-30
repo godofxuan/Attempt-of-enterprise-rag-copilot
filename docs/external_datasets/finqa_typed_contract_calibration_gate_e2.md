@@ -75,3 +75,116 @@ explicitly modeled multi-step operation families. It may not:
 
 The first freezes the split, gates, and safety invariants. The second records the
 content-free Gate E failure matrix and baseline metrics for both frozen cohorts.
+
+## Calibration execution result
+
+Gate E2 ran three iterations on the same frozen 60-case calibration cohort.
+The 40-case internal-validation cohort was not consumed.
+
+| Route | Coverage | Strict accuracy | Grounded accuracy | Mean / p95 latency |
+|---|---:|---:|---:|---:|
+| Frozen B0 | 98.33% | 51.67% | 43.33% | 1.07s / 1.46s |
+| Frozen B1-v1 | 10.00% | 5.00% | 5.00% | 12.91s / 34.66s |
+| v2 relaxed contract | 41.67% | 13.33% | 13.33% | 15.57s / 26.50s |
+| v2.1 shortlist + graph constraints | 28.33% | 6.67% | 6.67% | 9.99s / 13.92s |
+| v2.2 model sketch + host compiler | 81.67% | 26.67% | 25.00% | 2.19s / 3.38s |
+
+### v2
+
+v2 separated unknown metadata from known conflicts, admitted explicitly
+composable `ADD`, allowed multi-argument addition, recognized broader operation
+families, and constrained percentage change to either direct
+`PERCENT_CHANGE(new, old)` or `(new-old)/old`.
+
+This increased coverage and accuracy relative to v1, but full-program generation
+still produced long, duplicated, or unrelated calculation graphs. v2 remained
+38.33 percentage points below B0; the later v2.2 iteration narrowed that gap to
+25.00 percentage points.
+
+### v2.1
+
+v2.1 tested the hypothesis that fewer candidates and stricter graph structure
+would improve operand selection. It reduced the mean candidate count from 25.65
+to 14.85, capped programs at five steps, required every step to reach the output,
+and rejected duplicate step/operand references.
+
+The hypothesis failed for quality. Latency improved, but the local 8B model
+shifted from unit/operation errors to `invalid_program_schema` and forward-step
+errors. Compared with v2, five correct cases regressed and only one incorrect
+case was fixed. This iteration was retained as negative evidence.
+
+### v2.2
+
+v2.2 removed graph construction from the model contract. The model returns only:
+
+```json
+{
+  "template": "PERCENT_CHANGE",
+  "operand_candidate_ids": ["num-...", "num-..."]
+}
+```
+
+The host deterministically compiles the sketch into the one-step typed DSL,
+assigns `step-01`, validates provenance and compatibility, and executes Decimal
+arithmetic. This eliminated graph-topology errors and substantially reduced model
+latency.
+
+v2.2 fixed 5 B0 errors and prevented 3 diagnosed operand-selection failures, but
+it also regressed 20 B0-correct cases. Its calibration shadow checks passed
+coverage, fix-count, prevented-failure, and latency requirements, but failed:
+
+- execution-accuracy delta: -25.00 pp, required at least -5.00 pp;
+- grounded-accuracy delta: -18.33 pp, required at least -5.00 pp;
+- correct-to-wrong rate: 33.33%, required at most 5.00%;
+- protocol-error rate: 18.33%, required at most 10.00%.
+
+## Candidate availability diagnosis
+
+The content-free audit uses exact Decimal matching plus a percent-normalized
+`gold / 100` alternative. It is diagnostic only and does not prove semantic
+operand identity.
+
+```text
+mean candidates before / after shortlist       25.65 / 14.85
+p95 shortlist size                             24
+full-pool / shortlist operand recall mean       60.00% / 58.89%
+cases with shortlist recall loss               2/60
+full-pool / shortlist complete coverage         26/60 / 25/60
+v2.2 wrong with all coarse gold available       9
+v2.2 wrong with at least one coarse gold absent 24
+v2.2 non-answer with gold absent                7
+```
+
+The next bottleneck is therefore not another prompt rewrite. It is retrieval,
+candidate extraction, table-level scale propagation, percent normalization, and
+an auditable policy for controlled host constants.
+
+## Decision
+
+`CALIBRATION_REJECTED`
+
+- v2.2 is the best Gate E2 iteration but is not eligible to replace B0.
+- The 40-case internal-validation cohort remains `NOT_RUN`.
+- B2-v2 multi-program evaluation remains `NOT_RUN` because B1-v2 did not pass.
+- Gate F remains blocked.
+- The frozen test remains untouched.
+
+Aggregate public evidence:
+
+- `evidence/finqa_typed_contract_calibration_public_v1.json`
+
+Verification:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.verify_finqa_typed_calibration_public
+```
+
+The verifier reproduces the aggregate file from private artifacts when present,
+checks 12 implementation files from their historical Git revisions, and rejects
+raw case, question, answer, evidence, gold-program, or selected-candidate fields.
+A public clone does not contain `.private` run artifacts, so use:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.verify_finqa_typed_calibration_public `
+  --skip-private-reproduction
+```

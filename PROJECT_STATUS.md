@@ -1,5 +1,29 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-07-30 FinQA Gate E2 typed-contract calibration
+
+```text
+claim label                              DISCLOSED_DEVELOPMENT_CALIBRATION
+frozen split                             60 calibration / 40 internal validation
+internal validation                      NOT RUN
+B2-v2                                    NOT RUN
+best iteration                           v2.2 host-compiled sketch
+B0 / v2.2 strict accuracy                51.67% / 26.67%
+B0 / v2.2 grounded accuracy              43.33% / 25.00%
+v2.2 coverage                            81.67%
+v2.2 mean / p95 latency                  2.19s / 3.38s
+v2.2 correct-to-wrong / wrong-to-correct 20 / 5
+prevented operand-selection failures     3
+decision                                 CALIBRATION_REJECTED
+public evidence                          VERIFIED / 12 historical source files
+raw public fields                        0
+```
+
+Gate E2 improved the typed architecture but did not pass adoption gates. The
+frozen test remains untouched. The next bottleneck is retrieval/candidate
+availability, table-level scale propagation, percentage normalization, and a
+bounded policy for host-controlled constants.
+
 更新时间：2026-07-28（引用链 fail-closed 收尾已实现；R2-S8 真实双人审核仍 NOT RUN）
 
 当前最新阶段是 R2-S8 independent quality evidence。项目新增不可覆盖的

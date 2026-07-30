@@ -1,5 +1,32 @@
 # Enterprise Agentic RAG v2 - Current Execution Handoff
 
+## 2026-07-30 FinQA Gate E2 handoff
+
+Gate E2 is complete with decision `CALIBRATION_REJECTED`.
+
+```text
+protocol commit                         ac8424d
+calibration / internal-validation       60 / 40
+protocol SHA-256                        12acbfd4e791a527dd33043594975ce1ca6be2eb28e48b79cc1f88b3a7064da4
+best route                              v2.2 host-compiled sketch
+B0 / v2.2 strict                        51.67% / 26.67%
+v2.2 coverage                           81.67%
+v2.2 correct-to-wrong / wrong-to-correct 20 / 5
+internal validation                     NOT RUN
+B2-v2 / Gate F / frozen test            NOT RUN
+```
+
+Do not enable the typed route or consume the 40-case internal-validation
+cohort. Continue only on the disclosed 60-case calibration cohort, targeting
+retrieval/candidate availability, table-level scale/unit propagation,
+percentage normalization, and controlled host constants. Primary records:
+
+```text
+docs/external_datasets/finqa_typed_contract_calibration_gate_e2.md
+docs/external_datasets/evidence/finqa_typed_contract_calibration_public_v1.json
+docs/learning/23_FINQA_GATE_E2_TYPED_CONTRACT_CALIBRATION.md
+```
+
 最后更新：2026-07-21
 
 用途：当 Codex 上下文压缩、任务中断或更换协作者时，从本文恢复精确状态。本文保存当前断点、验证证据和禁止越过的边界；实现细节以各阶段实施记录为准。
