@@ -17,6 +17,15 @@ answering path. The next measured bottleneck is retrieval-side numeric
 candidate completeness, table scale/unit propagation, percentage
 normalization, and tightly controlled host constants.
 
+Gate E3 has now improved post-shortlist numeric input completeness from
+`48/60 (80.00%)` to `58/60 (96.67%)` on that same disclosed calibration
+cohort, with all frozen input gates passing. This is an input-availability
+metric produced with zero model calls, not answer accuracy. It does not
+supersede the 26.67% typed answer result, enable the typed route, or authorize
+internal validation. Two cases still lose an operand in the 24-candidate
+shortlist; semantic operand choice and operation intent remain unmeasured by
+Gate E3.
+
 ## R2-S5 identity status correction
 
 Rows below that describe caller-supplied `UserContext` or absent token

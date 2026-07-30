@@ -1,5 +1,34 @@
 # Enterprise Agentic RAG v2 - Current Execution Handoff
 
+## 2026-07-30 FinQA Gate E3 handoff
+
+Gate E3 is complete with decision `INPUT_GATE_PASSED`.
+
+```text
+implementation commit                    6655ee8
+calibration / internal-validation         60 / 40
+v1 / v2 post-shortlist input complete     80.00% / 96.67%
+gold-evidence parse complete              100.00%
+retrieval-missing recovery                93.75%
+p95 units / chars / candidates            27 / 4794 / 71
+Guard scans / model calls                 1168 / 0
+internal validation                       NOT RUN
+typed v2.3 / frozen test                  NOT RUN
+```
+
+Do not describe 96.67% as answer accuracy. Gate E2's typed answer result
+remains rejected at 26.67% versus B0 at 51.67%. The next allowed step is a
+newly frozen v2.3 paired model calibration on the same disclosed 60 cases.
+The 40-case internal-validation cohort remains sealed.
+
+Primary records:
+
+```text
+docs/external_datasets/finqa_numeric_evidence_gate_e3.md
+docs/external_datasets/evidence/finqa_numeric_evidence_calibration_public_v1.json
+docs/learning/24_FINQA_GATE_E3_NUMERIC_EVIDENCE.md
+```
+
 ## 2026-07-30 FinQA Gate E2 handoff
 
 Gate E2 is complete with decision `CALIBRATION_REJECTED`.

@@ -2,7 +2,7 @@
 
 ## Status
 
-`FROZEN_AFTER_DISCLOSED_E2_DIAGNOSIS_BEFORE_V2_IMPLEMENTATION`
+`INPUT_GATE_PASSED`
 
 Gate E3 is a disclosed-development input calibration. It reuses only the 60
 Gate E2 calibration cases. The 40-case internal-validation cohort remains
@@ -108,3 +108,77 @@ to reproduce their published scores:
 
 The repository implementation remains local, bounded, provenance-first, and
 fail closed.
+
+## Implementation and failed attempts
+
+Gate E3 was implemented at commit `6655ee8`. The frozen v1 extractor was not
+modified. The new path is split into:
+
+- `finqa_numeric_evidence_v2.py`: versioned extraction and guarded closure;
+- `finqa_numeric_evidence_shortlist_v2.py`: bounded 128-to-24 shortlist;
+- `finqa_numeric_evidence_audit.py`: zero-model-call input audit;
+- `audit_finqa_numeric_evidence.py`: source verification and append-only
+  private/public publication;
+- `verify_finqa_numeric_evidence_public.py`: public-only or private-bound
+  verification.
+
+Four failures materially changed the implementation:
+
+1. An initial v2 edit changed the source hash bound by the v1 manifest. It was
+   reverted and isolated in a new module.
+2. The first audit hit the old planner's 64-candidate pre-shortlist limit.
+   The E3 shortlist now accepts the frozen 128 input budget and still emits at
+   most 24 candidates.
+3. A one-to-one duplicate-value audit rule contradicted the frozen baseline:
+   one provenance-bound number may be referenced twice by a program. The rule
+   was corrected before formal publication.
+4. Numeric column-header extraction fixed the last gold parse miss but first
+   raised p95 candidates to 99. Restricting expansion to complete amount-like
+   headers excluded date and descriptive headers and restored p95 to 71.
+
+No threshold was relaxed in response to these failures.
+
+## Formal calibration result
+
+The committed formal run is
+`finqa-numeric-evidence-gate-e3-calibration-v2`.
+
+```text
+v1 selected, before shortlist                 49/60  81.67%
+v1 selected, after shortlist                  48/60  80.00%
+v2 selected, before shortlist                 51/60  85.00%
+v2 guarded closure, before shortlist          60/60 100.00%
+v2 guarded closure, after shortlist           58/60  96.67%
+v2 gold-evidence parse                        60/60 100.00%
+retrieval-missing operand recovery            15/16  93.75%
+p95 total units / chars / pre-shortlist       27 / 4794 / 71
+p95 post-shortlist candidates                 24
+Guard scans / quarantines                     1168 / 0
+model calls                                   0
+decision                                      INPUT_GATE_PASSED
+```
+
+All 11 frozen checks passed. The result authorizes only the next disclosed-
+development paired model calibration. It does not prove an answer-accuracy
+gain, authorize the typed route, or permit consumption of the 40-case internal
+validation cohort.
+
+Public aggregate:
+`evidence/finqa_numeric_evidence_calibration_public_v1.json`.
+
+Detailed beginner explanation:
+`../learning/24_FINQA_GATE_E3_NUMERIC_EVIDENCE.md`.
+
+## Closeout verification
+
+```text
+focused pre-publication tests        40 passed
+public verifier focused tests        17 passed
+full repository regression           2741 passed / 30 skipped / 0 failed
+public repository audit              1052 candidates / 0 findings
+compileall / pip check / diff check   passed / passed / passed
+Ruff                                 not installed; no lint claim
+```
+
+The three warnings are the repository's existing FAISS/SWIG deprecation
+warnings. They are not test failures.

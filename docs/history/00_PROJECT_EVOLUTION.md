@@ -791,3 +791,39 @@ Decision: `CALIBRATION_REJECTED`. The 40-case internal-validation cohort,
 B2-v2, Gate F, and the frozen test were not run. The next bottleneck is
 retrieval/candidate availability, table-level scale propagation, percentage
 normalization, and an explicit policy for controlled host constants.
+
+## 31. FinQA Gate E3: numeric evidence input gate passes
+
+Gate E3 retained the disclosed 60-case calibration cohort and left the
+40-case internal-validation cohort and frozen test untouched. The corrected
+post-shortlist starting point was 48/60 complete cases, not the coarse 25/60
+diagnostic originally published by Gate E2.
+
+The implementation added a versioned v2 extractor without modifying v1
+candidate bytes. It distinguishes prose parentheses from accounting
+negatives, extracts amount-like row and column headers, keeps surface and
+normalized values on one provenance identity, expands bounded table/text
+context, and scans every proposed unit with RetrievedContentGuard. A separate
+deterministic shortlist accepts at most 128 candidates and emits at most 24.
+
+Four correctness issues were caught before formal publication: accidental v1
+source-hash invalidation, a stale 64-candidate planner boundary, an incorrect
+one-to-one rule for repeated program operands, and candidate explosion caused
+by date-like column headers. The final amount-header filter recovered the last
+gold parse miss while reducing pre-shortlist p95 from 99 to 71. No frozen
+threshold was changed.
+
+The committed zero-model-call audit improved post-shortlist numeric input
+completeness from 48/60 (80.00%) to 58/60 (96.67%), reached 60/60 gold-
+evidence parse completeness, and recovered 15/16 diagnosed retrieval-missing
+operands. P95 closure was 27 evidence units, 4,794 characters, and 71
+pre-shortlist candidates. All 1,168 proposed units were Guard-scanned. All 11
+input gates passed.
+
+Decision: `INPUT_GATE_PASSED`. This is not answer accuracy and does not
+overturn Gate E2's `CALIBRATION_REJECTED` decision. Typed v2.3 model
+calibration, the 40-case internal validation, and frozen test remain not run.
+Closeout passed 2,741 tests with 30 conditional skips and zero failures; the
+public audit inspected 1,052 candidates with zero findings. Compileall,
+dependency consistency, and diff checks passed. Ruff was not installed, so no
+lint claim was made.
