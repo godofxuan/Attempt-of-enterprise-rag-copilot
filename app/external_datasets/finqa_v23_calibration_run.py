@@ -15,6 +15,7 @@ from app.external_datasets.finqa_typed_calibration_run import (
     FinQATypedCalibrationGateCheck,
     summarize_arm,
 )
+from app.external_datasets.finqa_typed_calibration import case_ids_sha256
 from app.external_datasets.finqa_typed_retrospective import (
     FinQATypedArmEvaluation,
     FrozenModelIdentity,
@@ -354,6 +355,8 @@ def publish_v23_calibration_run(
 
 def verify_v23_calibration_run(
     run_dir: Path,
+    *,
+    protocol: FinQAV23PairedCalibrationProtocol | None = None,
 ) -> FinQAV23CalibrationRunManifest:
     run_dir = run_dir.resolve()
     actual = {path.name for path in run_dir.iterdir() if path.is_file()}
@@ -376,6 +379,66 @@ def verify_v23_calibration_run(
     ]
     if len(rows) != 60:
         raise ValueError("v2.3 run row count is invalid")
+    if (
+        len({row.case_id for row in rows}) != 60
+        or case_ids_sha256([row.case_id for row in rows])
+        != manifest.selected_case_ids_sha256
+    ):
+        raise ValueError("v2.3 run case identity is invalid")
+
+    observed_b0 = summarize_arm([row.b0_stored for row in rows])
+    observed_v22 = summarize_arm([row.b1_v22_stored for row in rows])
+    observed_v23 = summarize_arm([row.b1_v23_intervention for row in rows])
+    if (
+        observed_b0 != manifest.summary.b0_stored
+        or observed_v22 != manifest.summary.b1_v22_stored
+        or observed_v23 != manifest.summary.b1_v23_intervention
+        or _comparison(
+            [row.b1_v22_stored for row in rows],
+            [row.b1_v23_intervention for row in rows],
+        )
+        != manifest.summary.comparison_vs_v22
+        or _comparison(
+            [row.b0_stored for row in rows],
+            [row.b1_v23_intervention for row in rows],
+        )
+        != manifest.summary.comparison_vs_b0
+    ):
+        raise ValueError("v2.3 run summary does not match detail rows")
+
+    for check in manifest.summary.gate_checks:
+        expected_passed = (
+            check.observed >= check.threshold
+            if check.comparator == "ge"
+            else (
+                check.observed <= check.threshold
+                if check.comparator == "le"
+                else check.observed is True
+            )
+        )
+        if check.passed != expected_passed:
+            raise ValueError("v2.3 gate result contradicts its comparator")
+
+    if protocol is not None:
+        if (
+            manifest.protocol_id != protocol.protocol_id
+            or manifest.selected_case_ids_sha256
+            != protocol.calibration_case_ids_sha256
+            or manifest.answer_model.name != protocol.answer_model_name
+            or manifest.answer_model.sha256
+            != protocol.answer_model_sha256
+        ):
+            raise ValueError("v2.3 run does not match the frozen protocol")
+        recomputed = summarize_v23_calibration(
+            rows,
+            protocol=protocol,
+            input_gate_e3_passed=manifest.summary.input_gate_e3_passed,
+            fail_closed_regression_suite_passed=(
+                manifest.summary.fail_closed_regression_suite_passed
+            ),
+        )
+        if recomputed != manifest.summary:
+            raise ValueError("v2.3 run summary does not match frozen gates")
     return manifest
 
 

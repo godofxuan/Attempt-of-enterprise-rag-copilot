@@ -26,6 +26,15 @@ internal validation. Two cases still lose an operand in the 24-candidate
 shortlist; semantic operand choice and operation intent remain unmeasured by
 Gate E3.
 
+Gate E4 measured that missing layer and rejected it. V2.3 strict/grounded
+accuracy fell to `20.00%/18.33%`, coverage fell to `73.33%`, and protocol
+errors rose to `16/60`. Of 44 emitted answers, 32 were strict-wrong; 28/60
+gold programs were multi-step while the current sketch compiler emits one
+operation. The typed route remains disabled, and the 40-case internal
+validation plus frozen test remain untouched. Gate E5 may only run a
+pre-frozen disclosed-calibration ablation for multi-step skeletons, semantic
+operand roles, and training-only dynamic demonstrations.
+
 ## R2-S5 identity status correction
 
 Rows below that describe caller-supplied `UserContext` or absent token

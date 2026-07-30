@@ -827,3 +827,30 @@ Closeout passed 2,741 tests with 30 conditional skips and zero failures; the
 public audit inspected 1,052 candidates with zero findings. Compileall,
 dependency consistency, and diff checks passed. Ruff was not installed, so no
 lint claim was made.
+
+## 32. FinQA Gate E4: better inputs expose the semantic planner bottleneck
+
+Gate E4 froze its protocol before new model calls, reused the exact 60 stored
+B0/v2.2 rows, and executed only the v2.3 intervention with the pinned
+`qwen3:8b` digest. The v2 evidence path required a new source-bound validator:
+the old v2.2 validator correctly rejected v2 identities rather than silently
+accepting an incompatible provenance format.
+
+The result was negative. B0/v2.2/v2.3 strict accuracy was
+51.67%/26.67%/20.00%, grounded accuracy was 43.33%/25.00%/18.33%, and coverage
+was 98.33%/81.67%/73.33%. V2.3 regressed six v2.2-correct cases and fixed two;
+against B0 it regressed 22 and fixed three. Only latency and prerequisite
+gates passed, so internal validation remained unconsumed.
+
+Aggregate failure analysis showed that 44 answers were emitted, but 32 were
+validly compiled and semantically wrong while 16 ended in protocol errors.
+The input-complete count remained 58/60, confirming that candidate
+availability was no longer the primary bottleneck. The cohort contained 28
+multi-step gold programs, while the v2.3 sketch emitted one host operation.
+Add/subtract slices were especially weak at 0/7 and 2/11 strict.
+
+The closeout added canonical aggregate public evidence, public-only and
+private-bound verification, and private-run summary recomputation from all 60
+detail rows. The typed route remains disabled. Gate E5 is limited to a frozen
+calibration ablation of multi-step operation skeletons, semantic operand-role
+binding, and training-only dynamic structural demonstrations.

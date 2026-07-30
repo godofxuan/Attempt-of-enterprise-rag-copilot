@@ -1,5 +1,36 @@
 # Enterprise Agentic RAG v2 - Current Execution Handoff
 
+## 2026-07-30 FinQA Gate E4 handoff
+
+Gate E4 is complete with decision `CALIBRATION_REJECTED`.
+
+```text
+                                      B0       v2.2      v2.3
+strict accuracy                     51.67%     26.67%    20.00%
+grounded strict                     43.33%     25.00%    18.33%
+coverage                            98.33%     81.67%    73.33%
+protocol errors                       1/60      11/60     16/60
+mean / p95 latency                  1.07/1.46  2.19/3.38 2.90/4.78 s
+```
+
+The same disclosed 60-case calibration was used. The 40-case internal
+validation and frozen test remain untouched. The Gate E3 input count is still
+58/60, but v2.3 produced 32 answered-wrong rows and 16 protocol errors. The
+measured bottleneck is semantic operation/operand planning, with an additional
+single-operation representation limit against 28/60 multi-step gold programs.
+
+Public aggregate evidence:
+
+- `docs/external_datasets/evidence/finqa_v23_paired_calibration_public_v1.json`
+- SHA-256 `33ebc048aff192ec5842729366c0e40f054d2391c31afb94ca69ed78d4db12da`
+- `scripts.verify_finqa_v23_calibration_public` supports public-only and
+  private-bound verification.
+
+Next admissible work is Gate E5 protocol freeze and disclosed-calibration
+ablation only: multi-step skeleton, semantic operand roles, then
+training-only dynamic structural demonstrations. Do not run internal
+validation, frozen test, B2, or resume tuning against hidden cohorts.
+
 ## 2026-07-30 FinQA Gate E3 handoff
 
 Gate E3 is complete with decision `INPUT_GATE_PASSED`.
