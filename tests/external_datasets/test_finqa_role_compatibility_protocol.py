@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 from app.external_datasets.finqa_role_compatibility_protocol import (
@@ -29,6 +30,20 @@ E5_PUBLIC = (
     / "external_datasets"
     / "evidence"
     / "finqa_semantic_planning_calibration_public_v1.json"
+)
+E6_PUBLIC_V3 = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "external_datasets"
+    / "evidence"
+    / "finqa_role_compatibility_calibration_public_v3.json"
+)
+E6_ERRATUM = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "external_datasets"
+    / "evidence"
+    / "finqa_role_compatibility_audit_erratum_v1.json"
 )
 
 
@@ -81,3 +96,16 @@ def test_gate_e6_protocol_pre_registers_bounded_input_gates() -> None:
     assert protocol.gates.require_input_order_invariance
     assert protocol.gates.require_zero_silent_global_fallbacks
     assert protocol.gates.require_role_exact_parser_enforcement
+
+
+def test_gate_e6_audit_erratum_selects_v3_without_changing_decision() -> None:
+    payload = json.loads(E6_ERRATUM.read_text(encoding="utf-8"))
+
+    assert payload["status"] == "SUPERSEDES_PUBLIC_V1_AND_V2"
+    assert payload["protocol_sha256"] == hashlib.sha256(
+        PROTOCOL.read_bytes()
+    ).hexdigest()
+    assert payload["authoritative_public_sha256"] == hashlib.sha256(
+        E6_PUBLIC_V3.read_bytes()
+    ).hexdigest()
+    assert "No pass/fail conclusion changed" in payload["claim_impact"]
