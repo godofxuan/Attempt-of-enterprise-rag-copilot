@@ -35,6 +35,15 @@ validation plus frozen test remain untouched. Gate E5 may only run a
 pre-frozen disclosed-calibration ablation for multi-step skeletons, semantic
 operand roles, and training-only dynamic demonstrations.
 
+Gate E5 has now executed that ablation and rejected every intervention.
+Train-only dynamic structural demonstrations restored the two-stage role
+route's coverage from `3.33%` to `73.33%` and reduced protocol errors from
+`58/60` to `16/60`, but strict/grounded accuracy reached only
+`21.67%/20.00%`. This is just `+1.67pp/+1.67pp` versus v2.3 and remains
+`-30.00pp/-23.33pp` versus B0. Of 44 valid demo-arm answers, 31 were wrong.
+The remaining typed-planning bottleneck is role-to-candidate compatibility and
+operation semantics. Internal validation and frozen test remain untouched.
+
 ## R2-S5 identity status correction
 
 Rows below that describe caller-supplied `UserContext` or absent token

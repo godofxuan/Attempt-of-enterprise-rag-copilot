@@ -1,5 +1,34 @@
 # Enterprise Agentic RAG v2 - Current Execution Handoff
 
+## 2026-07-30 FinQA Gate E5 handoff
+
+Gate E5 is complete with decision `CALIBRATION_REJECTED`.
+
+```text
+                                      v2.3    direct   roles    roles+demos
+strict accuracy                       20.00%    1.67%    0.00%      21.67%
+grounded strict                       18.33%    1.67%    0.00%      20.00%
+coverage                              73.33%    8.33%    3.33%      73.33%
+protocol errors                        16/60    55/60    58/60       16/60
+mean / p95 latency                    2.90/4.78 8.49/11.72 17.58/29.58 6.86/12.82 s
+```
+
+The dynamic-demo arm improved strict and grounded accuracy by only 1.67
+percentage points versus v2.3. It passed latency and v2.3 correct-to-wrong
+gates but failed coverage, accuracy-gain, wrong-to-correct, protocol-error,
+and B0 shadow gates. No arm was selected. Internal validation remains
+`NOT_RUN`, frozen test remains `UNTOUCHED`, and all typed routes remain off.
+
+Execution implementation is `df53f7ba83fb423f9fa361bff1770fe07dee8004`.
+The public evidence SHA-256 is
+`af46c19b688a8836f7092704c14ef684b35553cbc692d7755f3fe34e30a18271`.
+
+Next admissible work is a newly frozen Gate E6 disclosed-calibration ablation
+for deterministic role-to-candidate compatibility filtering/ranking. Do not
+add more examples, weaken the v2.3 validator, consume internal validation, or
+touch the frozen test before that protocol is frozen and its progress gates
+pass.
+
 ## 2026-07-30 FinQA Gate E4 handoff
 
 Gate E4 is complete with decision `CALIBRATION_REJECTED`.

@@ -854,3 +854,35 @@ private-bound verification, and private-run summary recomputation from all 60
 detail rows. The typed route remains disabled. Gate E5 is limited to a frozen
 calibration ablation of multi-step operation skeletons, semantic operand-role
 binding, and training-only dynamic structural demonstrations.
+
+## 33. FinQA Gate E5: structural demos improve validity, not semantics
+
+Gate E5 froze a four-arm ablation before implementation and new model calls:
+sealed v2.3, direct multi-step generation, two-stage semantic-role
+decomposition, and the same role route with three train-only value-free
+structural demonstrations. The three interventions ran in cyclic order with
+each arm appearing in each position 20 times.
+
+Direct multi-step and no-demo role generation failed decisively: coverage was
+8.33% and 3.33%, with 55 and 58 protocol errors. Dynamic demonstrations
+recovered role-route coverage to 73.33% and reduced protocol errors to 16, but
+strict/grounded accuracy reached only 21.67%/20.00%, a 1.67-point gain over
+v2.3. Thirty-one of 44 valid demo-arm answers remained wrong. No arm passed
+the frozen progress and B0 shadow gates.
+
+The run stayed on the disclosed 60-case development calibration. Internal
+validation remained `NOT_RUN`, frozen test remained `UNTOUCHED`, and all typed
+routes remained disabled. Public evidence can be verified without private
+data and independently rebuilt from the private hash-sealed run.
+
+An implementation incident also exercised historical reproducibility:
+initial train support changed two files bound by older protocol hashes, causing
+three source-hash tests to fail. Those files were restored byte-for-byte and
+all train-specific behavior moved into new E5 modules. External tests then
+passed 260/260, and the pre-execution full suite passed 2773 tests with zero
+failures.
+
+The measured next bottleneck is role-to-candidate compatibility and operation
+semantics. A future Gate E6 must freeze a compatibility-filter/ranker ablation
+before any new model calls; it may not weaken validation or consume hidden
+cohorts.

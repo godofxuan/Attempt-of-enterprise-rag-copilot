@@ -622,3 +622,34 @@ code 推断。
 真实证明，但零退化、beneficial capture、显著性和 full-GPU latency 门槛未全部
 通过。下一版只能在旧开发 cohort 上研发 temporal alignment、literal-only risk
 和 protocol reliability，再用新独立数据确认。
+
+## 15. 2026-07-30 更新：FinQA Gate E5 语义规划消融
+
+本轮先提交并冻结协议，再实现和调用模型。固定 60 题开发校准集、40 题内部验证
+继续封存、test 不触碰。三个新实验臂分别是直接多步程序、semantic-role 两阶段
+分解、role 分解加 3 个 train-only value-free 动态示例；三臂按 Latin-square
+顺序执行，每个位置各 20 次。
+
+实现新增多步/role DSL、严格 JSON schema、train 最小 loader、确定性 IDF demo
+索引、两阶段 planner、公共 runtime、13 项门禁、hash-chained checkpoint、原子
+发布、private/public 双 verifier。正式执行 commit 为 `df53f7b`，模型为固定
+digest 的 `qwen3:8b`。
+
+结果为 `CALIBRATION_REJECTED`。v2.3 / direct / roles / roles+demos strict
+分别为 `20.00% / 1.67% / 0.00% / 21.67%`；grounded 为
+`18.33% / 1.67% / 0.00% / 20.00%`；coverage 为
+`73.33% / 8.33% / 3.33% / 73.33%`。动态示例把无示例 role arm 的协议错误从
+58 降到 16，但相对 v2.3 只多对 1 题；44 个合法回答中仍有 31 个错误。它证明
+结构示例改善 contract adherence，没有证明语义正确率得到足够提升。
+
+实现中曾发生一次 frozen-source 冲突：为 train 支持修改旧 `finqa.py` 和
+`prepare_finqa.py` 后，3 个历史协议 hash 测试失败。没有改写旧协议，而是恢复
+原文件字节，把 train 下载、128 MiB budget 和最小解析器隔离到新模块。修复后
+external suite `260 passed`，正式模型调用前全仓
+`2773 passed / 29 skipped / 0 failed`。
+
+公开证据 SHA-256 为
+`af46c19b688a8836f7092704c14ef684b35553cbc692d7755f3fe34e30a18271`，
+可 public-only 验证，也可从私有逐题 run 重建。内部验证仍为 `NOT_RUN`，test
+仍为 `UNTOUCHED`，typed route 仍关闭。下一轮只允许先冻结 role-candidate
+compatibility filter/ranker 消融，不能继续堆示例或放松 validator。
