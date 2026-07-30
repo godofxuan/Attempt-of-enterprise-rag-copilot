@@ -18,6 +18,7 @@ from app.external_datasets.finqa_typed_planner import (
 from app.external_datasets.finqa_typed_planner_v2 import (
     LocalFinQATypedProgramPlannerV2,
     extract_financial_question_intent_v2,
+    question_conditioned_candidate_shortlist_v2,
 )
 from app.external_datasets.finqa_typed_program import (
     NumericCandidate,
@@ -171,6 +172,71 @@ def test_percent_change_no_longer_requires_two_question_years() -> None:
     assert intent.target_period is None
     assert intent.start_period is None
     assert intent.direction == "none"
+
+
+def test_metric_words_do_not_override_change_or_total_return_semantics() -> None:
+    weighted_average_change = extract_financial_question_intent_v2(
+        "What was the change in weighted average shares from 2020 to 2021?"
+    )
+    total_return = extract_financial_question_intent_v2(
+        "What was the total return from 2019 to 2020?"
+    )
+
+    assert weighted_average_change.operation_family == "unspecified"
+    assert total_return.operation_family == "percent_change"
+
+
+def test_question_conditioned_shortlist_is_bounded_and_period_aware() -> None:
+    relevant = _candidate(
+        "relevant",
+        "120",
+        metric="current assets",
+        evidence_id="table-relevant",
+    )
+    period_conflict = _candidate(
+        "conflict",
+        "999",
+        metric="current assets",
+        period="2019",
+        fiscal_year=2019,
+        evidence_id="table-conflict",
+    )
+    noise = [
+        _candidate(
+            f"noise-{index}",
+            str(index + 1),
+            metric=f"unrelated metric {index}",
+            period=None,
+            fiscal_year=None,
+            evidence_id=f"table-noise-{index}",
+        )
+        for index in range(30)
+    ]
+    candidates = [*noise, period_conflict, relevant]
+    intent = _intent("exact_add", target_period="2020")
+
+    shortlisted = question_conditioned_candidate_shortlist_v2(
+        question="What were total current assets in 2020?",
+        candidates=candidates,
+        admitted_evidence_ids={
+            candidate.evidence_id for candidate in candidates
+        },
+        intent=intent,
+        evidence_context_by_id={
+            relevant.evidence_id: "Current assets in 2020",
+            **{
+                candidate.evidence_id: "Unrelated disclosure"
+                for candidate in noise
+            },
+            period_conflict.evidence_id: "Current assets in 2019",
+        },
+    )
+
+    assert len(shortlisted) == 24
+    assert shortlisted[0].candidate_id == relevant.candidate_id
+    assert period_conflict.candidate_id not in {
+        candidate.candidate_id for candidate in shortlisted
+    }
 
 
 def test_unknown_metadata_is_admitted_when_no_known_conflict_exists() -> None:
@@ -332,6 +398,80 @@ def test_basis_point_presentation_is_host_compiled() -> None:
     assert result.diagnostics.presentation_scale_applied is True
 
 
+def test_v2_rejects_duplicate_unreferenced_and_overlong_programs() -> None:
+    candidates = [
+        _candidate(f"structure-{index}", str(index + 1))
+        for index in range(7)
+    ]
+    duplicate_operand = _single_step(
+        "ADD",
+        [candidates[0], candidates[0]],
+    )
+    with pytest.raises(TypedProgramValidationError) as duplicate:
+        _run(
+            duplicate_operand,
+            candidates,
+            _intent("exact_add", allow_composition=True),
+        )
+    assert duplicate.value.reason == "invalid_program_schema"
+
+    unreferenced = {
+        "dsl_version": "finqa_typed_financial_dsl_v1",
+        "steps": [
+            _single_step("ADD", candidates[:2])["steps"][0],
+            {
+                "step_id": "step-02",
+                "operation": "ADD",
+                "arguments": [
+                    {"candidate_id": candidates[2].candidate_id},
+                    {"candidate_id": candidates[3].candidate_id},
+                ],
+            },
+        ],
+        "output_step_id": "step-02",
+    }
+    with pytest.raises(TypedProgramValidationError) as dead_step:
+        _run(
+            unreferenced,
+            candidates,
+            _intent("exact_add", allow_composition=True),
+        )
+    assert dead_step.value.reason == "invalid_program_schema"
+
+    steps = [
+        {
+            "step_id": "step-01",
+            "operation": "ADD",
+            "arguments": [
+                {"candidate_id": candidates[0].candidate_id},
+                {"candidate_id": candidates[1].candidate_id},
+            ],
+        }
+    ]
+    for index in range(2, 7):
+        steps.append(
+            {
+                "step_id": f"step-{index:02d}",
+                "operation": "ADD",
+                "arguments": [
+                    {"step_id": f"step-{index - 1:02d}"},
+                    {"candidate_id": candidates[index].candidate_id},
+                ],
+            }
+        )
+    with pytest.raises(TypedProgramValidationError) as budget:
+        _run(
+            {
+                "dsl_version": "finqa_typed_financial_dsl_v1",
+                "steps": steps,
+                "output_step_id": "step-06",
+            },
+            candidates,
+            _intent("exact_add", allow_composition=True),
+        )
+    assert budget.value.reason == "budget_exceeded"
+
+
 @pytest.mark.parametrize(
     "forbidden",
     [{"literal": "100"}, {"value": "100"}, 100, "100"],
@@ -392,4 +532,4 @@ def test_v2_planner_executes_unspecified_intent_with_fake_model() -> None:
 
     assert result.execution.value == Decimal("20")
     assert result.intent.operation_family == "unspecified"
-    assert result.planner_version == "finqa_typed_planner_v2"
+    assert result.planner_version == "finqa_typed_planner_v2_1"

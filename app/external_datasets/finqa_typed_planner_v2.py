@@ -5,10 +5,12 @@ import re
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from decimal import Decimal
 
 from app.external_datasets import finqa_typed_planner as v1_planner
 from app.external_datasets.finqa_typed_contract_v2 import (
     FinancialQuestionIntentV2,
+    MAX_V2_PROGRAM_STEPS,
     TypedProgramResultV2,
     allowed_outputs_for_family,
     compile_and_execute_typed_program_v2,
@@ -21,8 +23,9 @@ from app.external_datasets.finqa_typed_program import (
 from app.ollama_chat import chat_with_ollama
 
 
-PLANNER_VERSION = "finqa_typed_planner_v2"
+PLANNER_VERSION = "finqa_typed_planner_v2_1"
 MAX_QUESTION_CHARS = 2_000
+MAX_PLANNER_V2_CANDIDATES = 24
 
 _YEAR_PATTERN = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
 _FROM_TO_PATTERN = re.compile(
@@ -40,11 +43,10 @@ _FAMILY_PATTERNS = (
             r"\b(?:percent(?:age)?\s+(?:change|increase|decrease|"
             r"decline|growth|reduction)|growth\s+rate|"
             r"rate\s+of\s+(?:increase|decrease|decline|growth)|"
-            r"return\s+on\s+investment|roi)\b",
+            r"return\s+on\s+investment|total\s+return|roi)\b",
             re.IGNORECASE,
         ),
     ),
-    ("average", re.compile(r"\b(?:average|mean)\b", re.IGNORECASE)),
     (
         "ratio",
         re.compile(
@@ -74,6 +76,15 @@ _FAMILY_PATTERNS = (
         re.compile(r"\b(?:divide|divided|quotient|per)\b", re.IGNORECASE),
     ),
 )
+_AVERAGE_OPERATION_PATTERN = re.compile(
+    r"\b(?:what\s+(?:was|is|were|are)\s+the\s+average|"
+    r"average\s+(?:annual|price|catastrophe|expected)|mean\s+of)\b",
+    re.IGNORECASE,
+)
+_CHANGE_CONTEXT_PATTERN = re.compile(
+    r"\b(?:change|difference|increase|decrease|variation)\b",
+    re.IGNORECASE,
+)
 _SCALE_PATTERNS = (
     (
         "basis_point",
@@ -84,6 +95,39 @@ _SCALE_PATTERNS = (
     ("million", re.compile(r"\b(?:millions?|mn|us\$\s*m)\b", re.IGNORECASE)),
     ("thousand", re.compile(r"\b(?:thousands?|000s)\b", re.IGNORECASE)),
 )
+_TOKEN_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
+_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "by",
+    "did",
+    "do",
+    "for",
+    "from",
+    "how",
+    "in",
+    "is",
+    "of",
+    "on",
+    "or",
+    "the",
+    "to",
+    "was",
+    "were",
+    "what",
+    "which",
+    "with",
+}
+_COMMON_EVIDENCE_SCALARS = {
+    Decimal("1"),
+    Decimal("100"),
+    Decimal("1000"),
+    Decimal("10000"),
+}
 
 
 @dataclass(frozen=True)
@@ -114,6 +158,14 @@ def extract_financial_question_intent_v2(
         ),
         "unspecified",
     )
+    if family == "exact_add" and _CHANGE_CONTEXT_PATTERN.search(question):
+        family = "unspecified"
+    if (
+        family == "unspecified"
+        and _AVERAGE_OPERATION_PATTERN.search(question)
+        and not _CHANGE_CONTEXT_PATTERN.search(question)
+    ):
+        family = "average"
     years = list(dict.fromkeys(_YEAR_PATTERN.findall(question)))
     target_period = years[0] if len(years) == 1 else None
     start_period: str | None = None
@@ -167,6 +219,96 @@ def extract_financial_question_intent_v2(
     )
 
 
+def _tokens(value: str | None) -> set[str]:
+    if value is None:
+        return set()
+    return {
+        token
+        for token in _TOKEN_PATTERN.findall(value.casefold())
+        if token not in _STOPWORDS and len(token) > 1
+    }
+
+
+def _candidate_period(candidate: NumericCandidate) -> str | None:
+    if candidate.period is not None:
+        return candidate.period.casefold().strip()
+    if candidate.fiscal_year is not None:
+        return str(candidate.fiscal_year)
+    return None
+
+
+def question_conditioned_candidate_shortlist_v2(
+    *,
+    question: str,
+    candidates: Sequence[NumericCandidate],
+    admitted_evidence_ids: set[str],
+    intent: FinancialQuestionIntentV2,
+    evidence_context_by_id: Mapping[str, str] | None = None,
+) -> tuple[NumericCandidate, ...]:
+    usable = v1_planner._usable_candidates(
+        candidates,
+        admitted_evidence_ids,
+    )
+    question_tokens = _tokens(question)
+    evidence_context = evidence_context_by_id or {}
+    evidence_rank = {
+        evidence_id: index
+        for index, evidence_id in enumerate(evidence_context)
+    }
+    allowed_periods: set[str] | None = None
+    if intent.target_period is not None:
+        allowed_periods = {intent.target_period.casefold().strip()}
+    elif intent.start_period is not None and intent.end_period is not None:
+        allowed_periods = {
+            intent.start_period.casefold().strip(),
+            intent.end_period.casefold().strip(),
+        }
+
+    scored: list[tuple[float, int, int, NumericCandidate]] = []
+    for source_index, candidate in enumerate(usable):
+        period = _candidate_period(candidate)
+        if (
+            allowed_periods is not None
+            and period is not None
+            and period not in allowed_periods
+        ):
+            continue
+        metric_tokens = _tokens(candidate.metric or candidate.row_header)
+        context_tokens = _tokens(evidence_context.get(candidate.evidence_id))
+        metric_overlap = len(question_tokens.intersection(metric_tokens))
+        context_overlap = len(question_tokens.intersection(context_tokens))
+        score = 0.0
+        if metric_tokens:
+            score += 12.0 * metric_overlap / len(metric_tokens)
+        score += min(context_overlap, 8) * 1.5
+        if allowed_periods is not None:
+            score += 8.0 if period in allowed_periods else 1.0
+        if candidate.source_kind == "table_cell":
+            score += 2.0
+        if (
+            candidate.normalized_value.copy_abs()
+            in _COMMON_EVIDENCE_SCALARS
+            and candidate.unit in {"unknown", "ratio"}
+        ):
+            score += 2.0
+        rank = evidence_rank.get(candidate.evidence_id, len(evidence_rank))
+        score += max(0, 5 - rank) * 0.5
+        scored.append((score, rank, source_index, candidate))
+    if not scored:
+        raise ValueError("typed planner v2 has no compatible candidate")
+    scored.sort(
+        key=lambda item: (
+            -item[0],
+            item[1],
+            item[2],
+            item[3].candidate_id,
+        )
+    )
+    return tuple(
+        item[3] for item in scored[:MAX_PLANNER_V2_CANDIDATES]
+    )
+
+
 def build_typed_planner_messages_v2(
     *,
     question: str,
@@ -180,9 +322,12 @@ def build_typed_planner_messages_v2(
         raise ValueError(
             f"financial question must contain 1-{MAX_QUESTION_CHARS} characters"
         )
-    usable = v1_planner._usable_candidates(
-        candidates,
-        admitted_evidence_ids,
+    usable = question_conditioned_candidate_shortlist_v2(
+        question=question,
+        candidates=candidates,
+        admitted_evidence_ids=admitted_evidence_ids,
+        intent=intent,
+        evidence_context_by_id=evidence_context_by_id,
     )
     candidate_payload = [
         {
@@ -213,6 +358,9 @@ def build_typed_planner_messages_v2(
         "comments, or extra fields. Select operands by exact metric, entity, and "
         "period meaning from the question and evidence. Unknown metadata means "
         "missing context, not permission to substitute a known conflicting value. "
+        "Return one minimal program, not alternatives. Use the fewest necessary "
+        "steps, never duplicate a step or operand reference, and ensure every step "
+        "contributes to the final output. "
         "For percentage change use PERCENT_CHANGE(new, old), or compute SUB(new, "
         "old) then DIV(that difference, the same old operand). Return a raw ratio "
         "for percentages. For margin, portion, and what-percent questions use DIV "
@@ -232,7 +380,9 @@ def build_typed_planner_messages_v2(
             ),
             "output_contract": {
                 "dsl_version": "finqa_typed_financial_dsl_v1",
-                "steps": "1-8 typed reference-only steps",
+                "steps": (
+                    f"1-{MAX_V2_PROGRAM_STEPS} minimal typed reference-only steps"
+                ),
                 "output_step_id": "the final contiguous step ID",
             },
         },
@@ -245,6 +395,53 @@ def build_typed_planner_messages_v2(
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
     ]
+
+
+def _response_format_v2(candidate_ids: Sequence[str]) -> dict:
+    schema = v1_planner.typed_planner_response_format(candidate_ids)
+    schema["properties"]["steps"]["maxItems"] = MAX_V2_PROGRAM_STEPS
+    return schema
+
+
+def _repair_prompt_v2(
+    *,
+    reason: str,
+    candidate_ids: Sequence[str],
+    intent: FinancialQuestionIntentV2,
+) -> str:
+    guidance = {
+        "unsupported_operation": (
+            "The final operation must be one of "
+            + ",".join(intent.allowed_output_operations)
+            + ". For average questions use one AVERAGE step over the values."
+        ),
+        "unit_mismatch": (
+            "Reselect operands with the same known unit or an unknown implied unit; "
+            "do not combine money, ratios, shares, or counts."
+        ),
+        "temporal_mismatch": (
+            "Use only candidates from the requested period, or candidates whose "
+            "period metadata is unknown."
+        ),
+        "metric_mismatch": (
+            "Reselect operands from the same metric; only ADD may combine distinct "
+            "components when additive composition is enabled."
+        ),
+        "invalid_program_schema": (
+            "Remove duplicate operands, duplicate steps, alternatives, and every "
+            "step that does not contribute to the final output."
+        ),
+        "budget_exceeded": (
+            f"Return at most {MAX_V2_PROGRAM_STEPS} minimal steps."
+        ),
+    }.get(reason, "Return a smaller program using exact question operands.")
+    return (
+        "The previous program failed host validation with reason "
+        f"{reason}. {guidance} Return one JSON object only. References may use "
+        "only one allowlisted candidate_id or one earlier step_id; numeric "
+        "literals and extra fields are forbidden. Candidate allowlist: "
+        + ",".join(candidate_ids)
+    )
 
 
 class LocalFinQATypedProgramPlannerV2:
@@ -275,9 +472,12 @@ class LocalFinQATypedProgramPlannerV2:
         resolved_intent = intent or extract_financial_question_intent_v2(
             question
         )
-        usable = v1_planner._usable_candidates(
-            candidates,
-            admitted_evidence_ids,
+        usable = question_conditioned_candidate_shortlist_v2(
+            question=question,
+            candidates=candidates,
+            admitted_evidence_ids=admitted_evidence_ids,
+            intent=resolved_intent,
+            evidence_context_by_id=evidence_context_by_id,
         )
         candidate_ids = [candidate.candidate_id for candidate in usable]
         messages = build_typed_planner_messages_v2(
@@ -287,9 +487,7 @@ class LocalFinQATypedProgramPlannerV2:
             intent=resolved_intent,
             evidence_context_by_id=evidence_context_by_id,
         )
-        response_format = v1_planner.typed_planner_response_format(
-            candidate_ids
-        )
+        response_format = _response_format_v2(candidate_ids)
         started = time.perf_counter()
         last_error: Exception | None = None
         last_reason = "invalid_program_schema"
@@ -307,7 +505,7 @@ class LocalFinQATypedProgramPlannerV2:
                 compiler_calls += 1
                 execution = compile_and_execute_typed_program_v2(
                     planner_payload=payload,
-                    candidates=tuple(candidates),
+                    candidates=usable,
                     admitted_evidence_ids=admitted_evidence_ids,
                     intent=resolved_intent,
                 )
@@ -336,9 +534,10 @@ class LocalFinQATypedProgramPlannerV2:
                         {"role": "assistant", "content": raw[:4_096]},
                         {
                             "role": "user",
-                            "content": v1_planner._repair_prompt(
-                                last_reason,
-                                candidate_ids,
+                            "content": _repair_prompt_v2(
+                                reason=last_reason,
+                                candidate_ids=candidate_ids,
+                                intent=resolved_intent,
                             ),
                         },
                     ]
@@ -358,4 +557,5 @@ __all__ = [
     "TypedPlannerResultV2",
     "build_typed_planner_messages_v2",
     "extract_financial_question_intent_v2",
+    "question_conditioned_candidate_shortlist_v2",
 ]

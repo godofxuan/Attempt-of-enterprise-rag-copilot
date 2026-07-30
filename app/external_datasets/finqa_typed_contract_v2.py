@@ -26,9 +26,10 @@ from app.external_datasets.finqa_typed_program import (
 )
 
 
-INTENT_VERSION = "finqa_financial_question_intent_v2"
-VALIDATOR_VERSION = "finqa_typed_program_validator_v2"
-COMPILER_VERSION = "finqa_typed_program_compiler_v2"
+INTENT_VERSION = "finqa_financial_question_intent_v2_1"
+VALIDATOR_VERSION = "finqa_typed_program_validator_v2_1"
+COMPILER_VERSION = "finqa_typed_program_compiler_v2_1"
+MAX_V2_PROGRAM_STEPS = 5
 
 OperationFamily = Literal[
     "exact_add",
@@ -104,7 +105,7 @@ class FinancialQuestionIntentV2(_StrictFrozenModel):
         "allow_if_no_known_conflict"
     )
     intent_version: Literal[
-        "finqa_financial_question_intent_v2"
+        "finqa_financial_question_intent_v2_1"
     ] = INTENT_VERSION
 
     @model_validator(mode="after")
@@ -145,7 +146,7 @@ class ValidatedTypedProgramV2(_StrictFrozenModel):
     evidence_ids: tuple[str, ...]
     validation_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     validator_version: Literal[
-        "finqa_typed_program_validator_v2"
+        "finqa_typed_program_validator_v2_1"
     ] = VALIDATOR_VERSION
 
 
@@ -171,10 +172,10 @@ class TypedProgramResultV2(_StrictFrozenModel):
     program_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     diagnostics: TypedProgramDiagnosticsV2
     validator_version: Literal[
-        "finqa_typed_program_validator_v2"
+        "finqa_typed_program_validator_v2_1"
     ] = VALIDATOR_VERSION
     compiler_version: Literal[
-        "finqa_typed_program_compiler_v2"
+        "finqa_typed_program_compiler_v2_1"
     ] = COMPILER_VERSION
 
     @field_serializer("step_values")
@@ -477,6 +478,48 @@ def _reference_key(reference: object) -> tuple[str, str]:
     return "candidate", reference.candidate_id
 
 
+def _validate_program_structure_v2(program: TypedProgram) -> None:
+    if len(program.steps) > MAX_V2_PROGRAM_STEPS:
+        v1._raise_validation(
+            "budget_exceeded",
+            "v2 program exceeds the five-step calibration budget",
+        )
+    fingerprints: set[tuple[str, tuple[tuple[str, str], ...]]] = set()
+    step_by_id = {step.step_id: step for step in program.steps}
+    for step in program.steps:
+        references = tuple(_reference_key(item) for item in step.arguments)
+        if len(references) != len(set(references)):
+            v1._raise_validation(
+                "invalid_program_schema",
+                "a step cannot reuse the same operand reference",
+            )
+        fingerprint = (step.operation, references)
+        if fingerprint in fingerprints:
+            v1._raise_validation(
+                "invalid_program_schema",
+                "program contains a duplicate calculation step",
+            )
+        fingerprints.add(fingerprint)
+
+    reachable: set[str] = set()
+    pending = [program.output_step_id]
+    while pending:
+        step_id = pending.pop()
+        if step_id in reachable:
+            continue
+        reachable.add(step_id)
+        pending.extend(
+            reference.step_id
+            for reference in step_by_id[step_id].arguments
+            if isinstance(reference, StepRef)
+        )
+    if reachable != set(step_by_id):
+        v1._raise_validation(
+            "invalid_program_schema",
+            "every program step must contribute to the final output",
+        )
+
+
 def _validate_program_shape_v2(
     program: TypedProgram,
     intent: FinancialQuestionIntentV2,
@@ -547,6 +590,7 @@ def _validate_and_execute_v2(
         admitted_evidence_ids=set(admitted_evidence_ids),
         intent=intent,
     )
+    _validate_program_structure_v2(program)
     _validate_program_shape_v2(program, intent)
 
     step_states: dict[str, v1._ValueState] = {}
@@ -703,6 +747,7 @@ def compile_and_execute_typed_program_v2(
 __all__ = [
     "COMPILER_VERSION",
     "INTENT_VERSION",
+    "MAX_V2_PROGRAM_STEPS",
     "VALIDATOR_VERSION",
     "FinancialQuestionIntentV2",
     "OperationFamily",
