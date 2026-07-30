@@ -40,7 +40,7 @@ from app.external_datasets.finqa_typed_planner_v2 import (
 from app.security.retrieved_content import RetrievedContentGuard
 
 
-AUDIT_SCHEMA_VERSION = "finqa_role_compatibility_audit_v1"
+AUDIT_SCHEMA_VERSION = "finqa_role_compatibility_audit_v2"
 _GOLD_STEP = re.compile(r"([a-z_]+)\(([^()]*)\)(?:,\s*|$)")
 _GOLD_NUMBER = re.compile(r"-?(?:\d+(?:\.\d*)?|\.\d+)%?")
 _GOLD_CONSTANT = re.compile(r"const_(m)?(\d+)")
@@ -80,6 +80,7 @@ class GoldRoleTarget(_StrictFrozenModel):
 class GoldRoleRetention(_StrictFrozenModel):
     role_id: str = Field(pattern=r"^role-0[1-6]$")
     kind: Literal["evidence", "controlled_constant", "symbolic"]
+    global_shortlist_retained: bool
     hard_filter_retained: bool
     retained_at_4: bool
     retained_at_8: bool
@@ -87,7 +88,7 @@ class GoldRoleRetention(_StrictFrozenModel):
 
 class FinQARoleCompatibilityCaseAudit(_StrictFrozenModel):
     schema_version: Literal[
-        "finqa_role_compatibility_audit_v1"
+        "finqa_role_compatibility_audit_v2"
     ] = AUDIT_SCHEMA_VERSION
     case_id: str = Field(min_length=1, max_length=512)
     status: Literal[
@@ -154,7 +155,7 @@ class FinQARoleCompatibilityGateCheck(_StrictFrozenModel):
 
 class FinQARoleCompatibilityAuditSummary(_StrictFrozenModel):
     schema_version: Literal[
-        "finqa_role_compatibility_audit_summary_v1"
+        "finqa_role_compatibility_audit_summary_v2"
     ]
     protocol_id: str = Field(min_length=1, max_length=200)
     claim_label: Literal["DISCLOSED_DEVELOPMENT_CALIBRATION"]
@@ -163,6 +164,7 @@ class FinQARoleCompatibilityAuditSummary(_StrictFrozenModel):
     failed_case_count: int = Field(ge=0, le=60)
     gold_role_count: int = Field(ge=1)
     symbolic_role_count: int = Field(ge=0)
+    global_shortlist_gold_role_recall: float = Field(ge=0, le=1)
     hard_filter_gold_role_retention: float = Field(ge=0, le=1)
     gold_role_recall_at_4: float = Field(ge=0, le=1)
     gold_role_recall_at_8: float = Field(ge=0, le=1)
@@ -296,38 +298,6 @@ def evaluate_role_compatibility_case(
             program=case.qa.program,
         )
     )
-    if skeleton is None or len(targets) != len(skeleton.roles):
-        return FinQARoleCompatibilityCaseAudit(
-            case_id=case.id,
-            status="UNSUPPORTED_GOLD_SKELETON",
-            failure_reason="unsupported_gold_skeleton",
-            global_candidate_count=0,
-            role_count=len(targets),
-            symbolic_role_count=sum(item.kind == "symbolic" for item in targets),
-            hard_compatible_counts=(),
-            allowlist_counts=(),
-            retention=tuple(
-                GoldRoleRetention(
-                    role_id=target.role_id,
-                    kind=target.kind,
-                    hard_filter_retained=False,
-                    retained_at_4=False,
-                    retained_at_8=False,
-                )
-                for target in targets
-            ),
-            complete_at_8=False,
-            baseline_role_candidate_edges=0,
-            selected_role_candidate_edges=0,
-            empty_role_allowlist_count=len(targets),
-            known_period_conflict_count=0,
-            non_admitted_exposure_count=0,
-            outside_global_shortlist_count=0,
-            input_order_invariant=False,
-            candidate_identity_preserved=False,
-            matrix_sha256=None,
-        )
-
     closure = expand_finqa_numeric_evidence_v2(
         case,
         selected_unit_ids=source_row.selected_unit_ids,
@@ -358,6 +328,43 @@ def evaluate_role_compatibility_case(
         evidence_context_by_id=context,
     )
     before_identity = _candidate_identity_sha256(shortlist)
+    if skeleton is None or len(targets) != len(skeleton.roles):
+        return FinQARoleCompatibilityCaseAudit(
+            case_id=case.id,
+            status="UNSUPPORTED_GOLD_SKELETON",
+            failure_reason="unsupported_gold_skeleton",
+            global_candidate_count=len(shortlist),
+            role_count=len(targets),
+            symbolic_role_count=sum(item.kind == "symbolic" for item in targets),
+            hard_compatible_counts=(),
+            allowlist_counts=(),
+            retention=tuple(
+                GoldRoleRetention(
+                    role_id=target.role_id,
+                    kind=target.kind,
+                    global_shortlist_retained=_target_retained(
+                        target,
+                        shortlist,
+                    ),
+                    hard_filter_retained=False,
+                    retained_at_4=False,
+                    retained_at_8=False,
+                )
+                for target in targets
+            ),
+            complete_at_8=False,
+            baseline_role_candidate_edges=len(shortlist) * len(targets),
+            selected_role_candidate_edges=0,
+            empty_role_allowlist_count=0,
+            known_period_conflict_count=0,
+            non_admitted_exposure_count=0,
+            outside_global_shortlist_count=0,
+            input_order_invariant=True,
+            candidate_identity_preserved=(
+                before_identity == _candidate_identity_sha256(shortlist)
+            ),
+            matrix_sha256=None,
+        )
     try:
         matrix = build_role_candidate_compatibility_matrix(
             question=case.qa.question,
@@ -381,6 +388,10 @@ def evaluate_role_compatibility_case(
                 GoldRoleRetention(
                     role_id=target.role_id,
                     kind=target.kind,
+                    global_shortlist_retained=_target_retained(
+                        target,
+                        shortlist,
+                    ),
                     hard_filter_retained=False,
                     retained_at_4=False,
                     retained_at_8=False,
@@ -390,7 +401,11 @@ def evaluate_role_compatibility_case(
             complete_at_8=False,
             baseline_role_candidate_edges=len(shortlist) * len(targets),
             selected_role_candidate_edges=0,
-            empty_role_allowlist_count=len(targets),
+            empty_role_allowlist_count=(
+                len(targets)
+                if _bounded_failure_reason(error) == "empty_role_allowlist"
+                else 0
+            ),
             known_period_conflict_count=0,
             non_admitted_exposure_count=0,
             outside_global_shortlist_count=0,
@@ -442,6 +457,10 @@ def evaluate_role_compatibility_case(
             GoldRoleRetention(
                 role_id=role.role_id,
                 kind=target.kind,
+                global_shortlist_retained=_target_retained(
+                    target,
+                    shortlist,
+                ),
                 hard_filter_retained=_target_retained(target, hard),
                 retained_at_4=_target_retained(target, selected[:4]),
                 retained_at_8=_target_retained(target, selected),
@@ -561,8 +580,12 @@ def summarize_role_compatibility_audit(
     recall_at_4 = retained_at_4 / role_count
     recall_at_8 = retained_at_8 / role_count
     complete_rate = sum(row.complete_at_8 for row in rows) / len(rows)
-    mean_hard = sum(hard_counts) / role_count
-    mean_selected = sum(allowlist_counts) / role_count
+    mean_hard = sum(hard_counts) / len(hard_counts) if hard_counts else 0.0
+    mean_selected = (
+        sum(allowlist_counts) / len(allowlist_counts)
+        if allowlist_counts
+        else 0.0
+    )
     edge_reduction = (
         1 - selected_edges / baseline_edges if baseline_edges else 0.0
     )
@@ -679,7 +702,7 @@ def summarize_role_compatibility_audit(
         else "INPUT_GATE_FAILED"
     )
     return FinQARoleCompatibilityAuditSummary(
-        schema_version="finqa_role_compatibility_audit_summary_v1",
+        schema_version="finqa_role_compatibility_audit_summary_v2",
         protocol_id=protocol.protocol_id,
         claim_label=protocol.claim_label,
         case_count=60,
@@ -687,6 +710,10 @@ def summarize_role_compatibility_audit(
         failed_case_count=len(rows) - evaluated,
         gold_role_count=role_count,
         symbolic_role_count=sum(row.symbolic_role_count for row in rows),
+        global_shortlist_gold_role_recall=(
+            sum(item.global_shortlist_retained for item in retentions)
+            / role_count
+        ),
         hard_filter_gold_role_retention=hard_retention_rate,
         gold_role_recall_at_4=recall_at_4,
         gold_role_recall_at_8=recall_at_8,
