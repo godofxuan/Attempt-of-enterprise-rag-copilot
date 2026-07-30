@@ -26,9 +26,9 @@ from app.external_datasets.finqa_typed_program import (
 )
 
 
-INTENT_VERSION = "finqa_financial_question_intent_v2_1"
-VALIDATOR_VERSION = "finqa_typed_program_validator_v2_1"
-COMPILER_VERSION = "finqa_typed_program_compiler_v2_1"
+INTENT_VERSION = "finqa_financial_question_intent_v2_2"
+VALIDATOR_VERSION = "finqa_typed_program_validator_v2_2"
+COMPILER_VERSION = "finqa_typed_program_compiler_v2_2"
 MAX_V2_PROGRAM_STEPS = 5
 
 OperationFamily = Literal[
@@ -105,7 +105,7 @@ class FinancialQuestionIntentV2(_StrictFrozenModel):
         "allow_if_no_known_conflict"
     )
     intent_version: Literal[
-        "finqa_financial_question_intent_v2_1"
+        "finqa_financial_question_intent_v2_2"
     ] = INTENT_VERSION
 
     @model_validator(mode="after")
@@ -146,7 +146,7 @@ class ValidatedTypedProgramV2(_StrictFrozenModel):
     evidence_ids: tuple[str, ...]
     validation_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     validator_version: Literal[
-        "finqa_typed_program_validator_v2_1"
+        "finqa_typed_program_validator_v2_2"
     ] = VALIDATOR_VERSION
 
 
@@ -172,10 +172,10 @@ class TypedProgramResultV2(_StrictFrozenModel):
     program_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     diagnostics: TypedProgramDiagnosticsV2
     validator_version: Literal[
-        "finqa_typed_program_validator_v2_1"
+        "finqa_typed_program_validator_v2_2"
     ] = VALIDATOR_VERSION
     compiler_version: Literal[
-        "finqa_typed_program_compiler_v2_1"
+        "finqa_typed_program_compiler_v2_2"
     ] = COMPILER_VERSION
 
     @field_serializer("step_values")

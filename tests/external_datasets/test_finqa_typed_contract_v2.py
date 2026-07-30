@@ -17,8 +17,11 @@ from app.external_datasets.finqa_typed_planner import (
 )
 from app.external_datasets.finqa_typed_planner_v2 import (
     LocalFinQATypedProgramPlannerV2,
+    compile_typed_program_sketch_v2,
     extract_financial_question_intent_v2,
+    parse_typed_program_sketch_v2,
     question_conditioned_candidate_shortlist_v2,
+    typed_program_sketch_response_format_v2,
 )
 from app.external_datasets.finqa_typed_program import (
     NumericCandidate,
@@ -513,7 +516,15 @@ def test_v2_planner_executes_unspecified_intent_with_fake_model() -> None:
         assert response_format["type"] == "object"
         intent = json.loads(messages[1]["content"])["intent"]
         assert intent["operation_family"] == "unspecified"
-        return json.dumps(_single_step("SUB", [first, second]))
+        return json.dumps(
+            {
+                "template": "SUB",
+                "operand_candidate_ids": [
+                    first.candidate_id,
+                    second.candidate_id,
+                ],
+            }
+        )
 
     planner = LocalFinQATypedProgramPlannerV2(
         model="fake",
@@ -532,4 +543,59 @@ def test_v2_planner_executes_unspecified_intent_with_fake_model() -> None:
 
     assert result.execution.value == Decimal("20")
     assert result.intent.operation_family == "unspecified"
-    assert result.planner_version == "finqa_typed_planner_v2_1"
+    assert result.planner_version == "finqa_typed_planner_v2_2"
+
+
+def test_sketch_contract_is_reference_only_and_host_compiled() -> None:
+    first = _candidate("sketch-a", "120")
+    second = _candidate("sketch-b", "100")
+    candidate_ids = [first.candidate_id, second.candidate_id]
+    intent = _intent("exact_subtract")
+    schema = typed_program_sketch_response_format_v2(
+        candidate_ids=candidate_ids,
+        intent=intent,
+    )
+    sketch = parse_typed_program_sketch_v2(
+        json.dumps(
+            {
+                "template": "SUB",
+                "operand_candidate_ids": candidate_ids,
+            }
+        ),
+        candidate_ids=candidate_ids,
+        intent=intent,
+    )
+    program = compile_typed_program_sketch_v2(sketch)
+
+    assert set(schema["properties"]) == {
+        "template",
+        "operand_candidate_ids",
+    }
+    assert program == _single_step("SUB", [first, second])
+
+    with pytest.raises(ValueError, match="schema"):
+        parse_typed_program_sketch_v2(
+            json.dumps(
+                {
+                    "template": "SUB",
+                    "operand_candidate_ids": candidate_ids,
+                    "literal": 100,
+                }
+            ),
+            candidate_ids=candidate_ids,
+            intent=intent,
+        )
+    with pytest.raises(ValueError, match="unique"):
+        parse_typed_program_sketch_v2(
+            json.dumps(
+                {
+                    "template": "SUB",
+                    "operand_candidate_ids": [
+                        first.candidate_id,
+                        first.candidate_id,
+                    ],
+                }
+            ),
+            candidate_ids=candidate_ids,
+            intent=intent,
+        )
