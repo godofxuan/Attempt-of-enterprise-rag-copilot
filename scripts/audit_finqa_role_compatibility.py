@@ -70,7 +70,7 @@ DEFAULT_PUBLIC_OUTPUT = (
     / "docs"
     / "external_datasets"
     / "evidence"
-    / "finqa_role_compatibility_calibration_public_v2.json"
+    / "finqa_role_compatibility_calibration_public_v3.json"
 )
 IMPLEMENTATION_FILES = (
     "app/external_datasets/finqa_role_compatibility.py",
@@ -214,7 +214,7 @@ def main(argv: list[str] | None = None) -> int:
         for relative in IMPLEMENTATION_FILES
     }
     manifest = {
-        "schema_version": "finqa_role_compatibility_audit_manifest_v2",
+        "schema_version": "finqa_role_compatibility_audit_manifest_v3",
         "run_id": args.run_id,
         "protocol_id": protocol.protocol_id,
         "protocol_sha256": protocol_sha256,
@@ -254,7 +254,7 @@ def main(argv: list[str] | None = None) -> int:
         raise
 
     public = {
-        "schema_version": "finqa_role_compatibility_calibration_public_v2",
+        "schema_version": "finqa_role_compatibility_calibration_public_v3",
         "claim_label": protocol.claim_label,
         "run_id": args.run_id,
         "protocol_id": protocol.protocol_id,
@@ -303,6 +303,9 @@ def main(argv: list[str] | None = None) -> int:
                 "gold_role_recall_at_8": summary.gold_role_recall_at_8,
                 "global_shortlist_gold_role_recall": (
                     summary.global_shortlist_gold_role_recall
+                ),
+                "supported_global_shortlist_gold_role_recall": (
+                    summary.supported_global_shortlist_gold_role_recall
                 ),
                 "complete_case_rate_at_8": (
                     summary.complete_case_rate_at_8
