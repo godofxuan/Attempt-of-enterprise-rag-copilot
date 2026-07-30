@@ -38,6 +38,12 @@ This supersedes `25/60` as the engineering diagnosis, but it does not rewrite
 or invalidate the immutable Gate E2 public artifact. The old number remains an
 accurate result for its stated coarse method.
 
+Protocol erratum: the frozen `49/60` field is the selected-evidence candidate
+pool before the 24-candidate shortlist. A follow-up audit at commit `1467aba`
+measured `48/60` after the shortlist, with one complete case lost and zero
+shortlist errors. The immutable 95% gate applies to post-shortlist completeness.
+See `evidence/finqa_numeric_evidence_protocol_erratum_v1.json`.
+
 ## Frozen hypotheses
 
 1. Narrative parentheses and accounting negatives require different policies.
