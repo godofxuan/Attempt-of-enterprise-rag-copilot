@@ -1260,3 +1260,45 @@ production-capacity claim. See
 Delivery note: exact implementation commit `3e5ebb8` passed GitHub Actions run
 `30736504721` in 9m41s. The Ubuntu/Windows matrix completed 2/2, the dependent
 Linux container contract passed in 4m04s, and one artifact was published.
+
+## 28. FinQA Gate E15 local capacity envelope handoff
+
+Decision: `E15_LOCAL_CAPACITY_ENVELOPE_SUPPORTED_SHADOW_REMAINS_DEFAULT_OFF`.
+
+E15 reuses the exact E13 selection and immutable E14 runtime through a new
+protocol bound to E14 protocol/evidence hashes. It prepares the same 117
+requests once, then executes 1/2/4 Workers by 1/4/8 callers with three
+counterbalanced repetitions. Every trial owns a fresh Pool; setup is excluded
+from observation elapsed time and every shutdown verifies zero residual
+dispatcher/PID state.
+
+All 3,159 observations completed with zero backpressure, deadline, Worker
+error, restart or residual process. The pre-registered 1-to-2 comparison at
+four callers measured 2.075x speedup and the 1-to-4 comparison at eight callers
+measured 3.441x. Four Workers/four callers was the deterministic local
+recommendation at median 631.169 observations/s; eight callers was slower at
+553.185, demonstrating a local saturation effect. Maximum trial p95 was 69.598
+ms and maximum four-worker child RSS upper bound was 361,205,760 bytes. All 22
+gates and 10 focused tests passed.
+
+Local closeout also passed 446 external-dataset tests and the full repository
+at 2959 passed / 29 skipped / 3 known warnings. Compileall, dependency
+consistency, the frozen evaluation hash, quality-review packet verification,
+expanded corpus quality, whitespace checks and public audit all passed; the
+public audit result was 1315 candidates / 0 findings.
+
+Protocol SHA is
+`f201ecd767299a249fb3702489c395341f7c02a4500026d5aa419c6109ec1285`;
+public evidence SHA is
+`5e299683c2fd6fa0ad520fc2264ccc06b68dfe214e0c16b34b065f28e9bfc82f`.
+The three E15 implementation files listed in the dedicated handoff are now
+immutable under that evidence.
+
+This is one-host, short-run, setup-excluded post-primary Shadow capacity
+evidence. It is not answer quality, complete RAG QPS, production capacity,
+cold-start latency or an SLO. E8 remains champion, E11 remains default-off,
+internal remains consumed/unaccessed and frozen test remains untouched.
+
+After exact-commit CI passes, the next admissible gate is E16 service dark
+integration with default-off bounded sampling, independent latency budgets,
+aggregate service telemetry, lifecycle ownership and rollback.

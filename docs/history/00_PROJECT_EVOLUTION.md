@@ -1156,3 +1156,34 @@ production capacity, or E11 promotion evidence.
 Exact implementation commit `3e5ebb8` then passed Actions run `30736504721`
 in 9m41s across Ubuntu, Windows, and the dependent Linux container contract;
 one SBOM artifact was published.
+
+## 43. FinQA Gate E15: scaling becomes a measured capacity envelope
+
+E14 had one bounded configuration but no scaling comparison. E15 froze a
+1/2/4-worker by 1/4/8-caller matrix with three repetitions per configuration,
+one fixed 117-request prepared workload, fresh process Pools per trial, setup
+excluded from observation timing, and a counterbalanced ascending/reversed/
+rotated schedule. The aggregator rejects missing or reordered trial rows and
+computes medians, relative spreads, pre-registered speedup/efficiency pairs,
+resource bounds, and a deterministic local recommendation.
+
+All 3,159 request observations completed across 27 trials without
+backpressure, deadline, Worker error, restart or residual process. Median
+throughput was 158.300 requests/s for one Worker at four callers, 328.517 for
+two Workers, and 631.169 for four Workers. The pre-registered 1-to-2 comparison
+at four callers measured 2.075x speedup; 1-to-4 at eight callers measured
+3.441x. Four Workers with four callers was the local optimum; increasing to
+eight callers reduced median throughput to 553.185 while increasing queueing.
+
+The maximum trial p95 was 69.598 ms and the four-worker child RSS upper bound
+was 361,205,760 bytes. All 22 gates and 10 focused tests passed. These are
+train-only, label-free post-primary Shadow observations on one Windows host,
+not answer accuracy, complete RAG QPS, production capacity, cold-start latency,
+or an SLO. E8 remains champion, E11 remains default-off, internal remains
+consumed and unaccessed, and frozen test remains untouched.
+
+Local closeout passed 446 external-dataset tests and the full repository at
+2959 passed / 29 skipped, with only three known SWIG deprecation warnings.
+Compileall, dependency consistency, frozen-evaluation verification, the
+quality-review packet, expanded-corpus quality and public audit also passed;
+the public audit reported 1315 candidates and zero findings.

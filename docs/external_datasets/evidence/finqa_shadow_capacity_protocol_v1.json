@@ -1,0 +1,98 @@
+{
+  "schema_version": "finqa_shadow_capacity_protocol_v1",
+  "protocol_id": "finqa-e15-local-capacity-envelope-v1",
+  "status": "FROZEN_BEFORE_E15_IMPLEMENTATION",
+  "claim_label": "TRAIN_ONLY_UNLABELED_LOCAL_CAPACITY_ENVELOPE_NOT_PRODUCTION_SLO",
+  "source_e14_protocol_sha256": "c92c4e99a189620a70a5600433f1bc0e3e21e5338dd21bbbc7da3ec5bcf5272b",
+  "source_e14_public_evidence_sha256": "98371c664d10bfafe21e57fd5a3104a12427fd9b91b1096b2a8285ec7af5008f",
+  "source_e13_selection_reused": true,
+  "matrix": {
+    "worker_counts": [1, 2, 4],
+    "caller_concurrency": [1, 4, 8],
+    "repetitions": 3,
+    "queue_capacity": 8,
+    "admission_timeout_seconds": 0.5,
+    "response_deadline_seconds": 2.0,
+    "shutdown_grace_seconds": 20.0,
+    "setup_timing": "excluded_from_observation_elapsed_time",
+    "preparation_timing": "once_before_all_trials",
+    "process_lifetime": "fresh_pool_per_trial_reused_within_trial",
+    "workload_order": "fixed_e13_selection_order_for_every_trial",
+    "schedule_algorithm": "repeat_0_ascending_repeat_1_reversed_repeat_2_rotate_left_3"
+  },
+  "gates": {
+    "min_preparation_success_rate": 0.8,
+    "required_trial_count": 27,
+    "min_trial_completion_rate": 1.0,
+    "max_backpressure_rejections": 0,
+    "max_deadline_exceeded": 0,
+    "max_worker_errors": 0,
+    "max_worker_restarts": 0,
+    "max_end_to_end_latency_p95_ms": 500.0,
+    "max_four_worker_rss_upper_bound_bytes": 1073741824,
+    "max_throughput_relative_spread": 0.5,
+    "comparisons": [
+      {
+        "comparison_id": "workers_1_to_2_callers_4",
+        "baseline_worker_count": 1,
+        "candidate_worker_count": 2,
+        "caller_concurrency": 4,
+        "min_median_throughput_speedup": 1.25,
+        "min_worker_scaling_efficiency": 0.625
+      },
+      {
+        "comparison_id": "workers_1_to_4_callers_8",
+        "baseline_worker_count": 1,
+        "candidate_worker_count": 4,
+        "caller_concurrency": 8,
+        "min_median_throughput_speedup": 1.75,
+        "min_worker_scaling_efficiency": 0.4375
+      }
+    ],
+    "require_expected_active_worker_high_watermark": true,
+    "require_no_residual_workers_after_each_trial": true,
+    "require_all_primary_results_e8": true,
+    "require_zero_model_calls": true,
+    "require_aggregate_only_output": true,
+    "require_no_quality_labels_or_scores": true
+  },
+  "public_output": {
+    "per_request_rows_permitted": false,
+    "per_trial_aggregate_rows_permitted": true,
+    "allowed_metric_groups": [
+      "preparation",
+      "trial_aggregates",
+      "configuration_aggregates",
+      "scaling_comparisons",
+      "local_recommendation",
+      "gate_checks"
+    ],
+    "prohibited_content": [
+      "question_text",
+      "numeric_values",
+      "case_ids",
+      "company_ids",
+      "descriptor_ids",
+      "candidate_ids",
+      "evidence_ids",
+      "source_ids",
+      "provenance",
+      "ranked_scores",
+      "per_request_latency",
+      "per_request_outcome",
+      "worker_slot_assignments"
+    ]
+  },
+  "serving_champion": "finqa_deterministic_descriptor_retriever_v5",
+  "challenger_status": "SHADOW_DEFAULT_OFF",
+  "internal_cohort_status": "CONSUMED_NOT_ACCESSED",
+  "frozen_test_status": "UNTOUCHED",
+  "non_claims": [
+    "not answer accuracy, retrieval quality, or planner realism",
+    "not end-to-end RAG throughput or model-serving throughput",
+    "not production traffic, availability, capacity planning, or an SLO",
+    "not cold-start latency because pool startup is excluded",
+    "not a durable queue, distributed scheduler, or autoscaling policy",
+    "not serving promotion authorization"
+  ]
+}

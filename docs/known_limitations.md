@@ -322,6 +322,22 @@ distributed recovery or production availability. Eleven selected cases failed
 preparation and were excluded from worker attempts under the frozen accounting
 rule. E11 remains default-off and cannot replace E8.
 
+Gate E14 adds bounded FIFO admission, two isolated Workers, caller deadline,
+late-result discard, per-slot fault isolation and deterministic shutdown. Its
+117/117 replay and 243.251 observations/s result cover one local two-Worker
+configuration after preparation. They are not complete RAG throughput or a
+capacity envelope.
+
+Gate E15 adds the missing local capacity ablation: 1/2/4 Workers by 1/4/8
+callers, three counterbalanced repetitions and 3,159 completed observations.
+The local maximum median was 631.169 observations/s at four Workers and four
+callers; four Workers and eight callers was slower. This is one Windows host,
+three short repetitions, setup-excluded timing and an aggregate child RSS
+upper bound. It is not cold-start latency, a sustained soak, whole-service
+memory, API or complete RAG QPS, autoscaling evidence, production capacity or
+an SLO. Gold program structure and the absence of new quality labels still
+prevent planner-realism, answer-quality and E11-promotion claims.
+
 The support heuristic treats distinct minimal candidate/evidence closures as
 independent runtime support. This is auditable but not a statistical proof of
 independence or correctness. Semantically different minimal closures can still
