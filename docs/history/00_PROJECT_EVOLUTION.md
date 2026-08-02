@@ -1301,3 +1301,9 @@ change `/agent/v2/chat`, does not access the consumed internal cohort or frozen
 test, and does not establish answer quality, traffic or an SLO. E18 must add a
 versioned ACL/Guard-admitted evidence-to-context service seam and lifecycle
 ownership before any default-off route experiment.
+
+Exact implementation commit `2e6a882` passed GitHub Actions run
+`30759155310` in approximately 9m59s. Ubuntu and Windows completed
+successfully, the dependent Linux container contract passed in about 4m09s,
+readiness/rollback drills passed and one Python runtime SBOM artifact was
+published.

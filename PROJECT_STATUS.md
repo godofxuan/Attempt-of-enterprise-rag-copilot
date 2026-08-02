@@ -23,8 +23,10 @@ enterprise primary                     unchanged
 E11 service status                     SHADOW_DEFAULT_OFF
 internal cohort                        CONSUMED_NOT_ACCESSED
 frozen test                            UNTOUCHED
-GitHub implementation commit           PENDING
-GitHub Actions                         PENDING
+GitHub implementation commit           2e6a882a79e16b740c893eab792035e13d4d67f4
+GitHub Actions                         30759155310 / SUCCESS / 9m59s
+Ubuntu / Windows / container           PASS / PASS / PASS
+runtime SBOM SHA-256                    ddaa5e0cbe3ac7d398561a4c76e14ebea01dd2ffb58054791892daab03937bab
 ```
 
 E17 implements the missing typed adapter mechanism between the generic E16
@@ -40,6 +42,10 @@ Detailed state: [E17 engineering record](docs/external_datasets/finqa_typed_serv
 [learning chapter](docs/learning/38_FINQA_GATE_E17_TYPED_ELIGIBILITY_ADAPTER.md),
 [handoff](docs/roadmap/finqa_gate_e17_current_handoff.md), and
 [public evidence](docs/external_datasets/evidence/finqa_service_adapter_public_v1.json).
+Exact implementation commit `2e6a882a79e16b740c893eab792035e13d4d67f4`
+passed [GitHub Actions run 30759155310](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30759155310)
+across Ubuntu, Windows and the Linux container contract. The container job
+also passed readiness/rollback drills and published one Python runtime SBOM.
 
 ## 2026-08-02 FinQA Gate E16 service dark integration
 
@@ -74,8 +80,9 @@ FastAPI response bytes and feedback receipts under OFF and controlled local
 observation. This is synthetic mechanism evidence, not production traffic,
 answer quality, an SLO or E11 serving authorization. The enterprise chat API
 does not yet provide E11's typed skeleton, safe descriptor catalog and bound
-E8 primary selection; E17 must freeze and validate that adapter before any real
-FinQA provider is injected.
+E8 primary selection. At E16 closeout, E17 still had to freeze and validate
+that adapter; the completed E17 mechanism and its remaining service-data-flow
+gap are recorded in the current section above.
 
 Public protocol/evidence SHA-256:
 

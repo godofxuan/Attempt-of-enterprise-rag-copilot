@@ -1380,3 +1380,9 @@ untouched. Resume at `docs/roadmap/finqa_gate_e17_current_handoff.md`. E18 must
 use new versioned files to carry ACL/Guard-admitted evidence through catalog
 construction and online value-free planning, register/discard the typed context
 around E16 admission, and lifecycle-own the resolver/provider/isolated Worker.
+
+Delivery note: exact implementation commit
+`2e6a882a79e16b740c893eab792035e13d4d67f4` passed GitHub Actions run
+`30759155310` in approximately 9m59s. Ubuntu/Windows completed successfully,
+the Linux container contract passed in about 4m09s, readiness/rollback drills
+passed and one runtime SBOM artifact was published.

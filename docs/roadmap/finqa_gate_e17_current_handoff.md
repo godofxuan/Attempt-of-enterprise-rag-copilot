@@ -14,6 +14,10 @@
 - Related regression: `52 passed`
 - Full repository: `3000 passed / 29 skipped / 3 known warnings`
 - Public audit: `1339 candidates / 0 findings`
+- Implementation commit: `2e6a882a79e16b740c893eab792035e13d4d67f4`
+- GitHub Actions: `30759155310 / SUCCESS / 9m59s`
+- Ubuntu / Windows / Linux container: `PASS / PASS / PASS`
+- Runtime SBOM digest: `sha256:ddaa5e0cbe3ac7d398561a4c76e14ebea01dd2ffb58054791892daab03937bab`
 - Enterprise primary: unchanged
 - E11 service status: `SHADOW_DEFAULT_OFF`
 - Internal cohort: `CONSUMED_NOT_ACCESSED`

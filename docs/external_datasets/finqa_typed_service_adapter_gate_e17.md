@@ -278,3 +278,14 @@ E17 v1 implementation in place:
 
 Recommended model: **5.6 Sol / Extra High** because this change crosses ACL,
 Guard, retrieval, planner, request lifecycle and process ownership boundaries.
+
+## Remote delivery
+
+Exact implementation commit
+`2e6a882a79e16b740c893eab792035e13d4d67f4` passed GitHub Actions run
+[`30759155310`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30759155310)
+in approximately 9m59s. Ubuntu completed in about 3m04s, Windows in about
+5m42s, and the dependent Linux container contract in about 4m09s. The
+container readiness/rollback drill passed and one Python runtime SBOM artifact
+was published with digest
+`sha256:ddaa5e0cbe3ac7d398561a4c76e14ebea01dd2ffb58054791892daab03937bab`.
