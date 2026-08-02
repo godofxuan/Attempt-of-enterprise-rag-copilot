@@ -52,6 +52,13 @@ result after E16 changed service files. The old artifact remains untouched and
 parseable; current recomputation uses a new v3 artifact that includes the dark
 runtime source in provenance.
 
+Exact implementation commit
+`2143ba7f9d0c868926192b064b6a72e95839b3ca` passed GitHub Actions run
+`30751922977` in 10m06s. Ubuntu completed in 2m57s, Windows in 5m58s and the
+Linux container contract in 4m03s. The container passed deterministic gates,
+readiness/rollback drill and SBOM publication. Artifact digest:
+`92114ca560178a852364cb63faee7b9170aca5273de7596abb9d4305bba341fe`.
+
 ## Immutable E16-v1 files
 
 The public evidence binds exact hashes for these files. Do not edit them and

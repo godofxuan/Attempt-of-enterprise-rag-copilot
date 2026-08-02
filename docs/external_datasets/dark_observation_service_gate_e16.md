@@ -275,6 +275,22 @@ identity evidence is `trusted-identity-evaluation-v3`, contract
 `trusted-identity-contract-e21503b0947a5608`, SHA-256
 `4b967b62241c6cace088b5d99bf8df151e33c52bb4ce6a316ce983f9fc8d8e3e`.
 
+Exact remote delivery evidence:
+
+```text
+implementation commit        2143ba7f9d0c868926192b064b6a72e95839b3ca
+GitHub Actions run           30751922977 / SUCCESS / 10m06s
+Ubuntu matrix                PASS / 2m57s
+Windows matrix               PASS / 5m58s
+Linux container contract     PASS / 4m03s
+readiness and rollback drill PASS
+SBOM artifacts               1
+artifact digest              92114ca560178a852364cb63faee7b9170aca5273de7596abb9d4305bba341fe
+```
+
+Run URL:
+`https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30751922977`.
+
 ## Public evidence
 
 ```text

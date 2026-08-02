@@ -21,6 +21,9 @@ public audit                           1328 candidates / 0 findings
 model calls                            0
 FinQA service adapter                  NOT IMPLEMENTED / CONTRACT GAP RECORDED
 trusted identity current contract      v3 / 20 of 20 / e21503b0947a5608
+implementation commit                  2143ba7f9d0c868926192b064b6a72e95839b3ca
+GitHub Actions                         30751922977 / SUCCESS / 10m06s
+Ubuntu / Windows / container           PASS / PASS / PASS
 ```
 
 E16 adds a lifecycle-owned, default-off service dark-observation path with
@@ -46,6 +49,10 @@ identity behavior case differed. The old v2 result remains immutable and
 parseable; a new v3 result binds config, dark observation and the current
 service sources. It passed 20/20 cases, including 14 denied cases with zero side
 effects and zero credential leaks. The second full run passed 2977 tests.
+Exact implementation commit `2143ba7f9d0c868926192b064b6a72e95839b3ca`
+then passed [GitHub Actions run 30751922977](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30751922977)
+across Ubuntu, Windows and the Linux container contract. The container job also
+passed rollback/readiness drills and published one Python runtime SBOM.
 
 ## 2026-07-30 FinQA Gate E2 typed-contract calibration
 

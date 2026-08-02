@@ -1340,3 +1340,8 @@ stale source hashes in historical identity evidence after E16 modified the
 service boundary. Historical v2 remains untouched; current v3 contract
 `trusted-identity-contract-e21503b0947a5608` passed 20/20 and is stored as
 `docs/security/r2_s5/evidence/identity_matrix_result_e16.json`.
+
+Exact implementation commit `2143ba7f9d0c868926192b064b6a72e95839b3ca`
+passed GitHub Actions run `30751922977` in 10m06s. Ubuntu/Windows completed
+2/2, the Linux container contract passed in 4m03s, readiness/rollback drills
+passed and one SBOM artifact was published.

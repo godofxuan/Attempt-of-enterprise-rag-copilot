@@ -1242,3 +1242,8 @@ to validate v2 against its historical source set, expanded current v3
 provenance to include config and the dark runtime, and emitted a new immutable
 20/20 result. Security passed 245 tests with six platform skips; the final full
 run passed 2977 tests with 29 skips and three known warnings.
+
+Exact implementation commit `2143ba7` passed GitHub Actions run `30751922977`
+in 10m06s. Ubuntu and Windows completed successfully, the dependent Linux
+container contract passed in 4m03s, readiness/rollback drills passed and one
+Python runtime SBOM artifact was published.
