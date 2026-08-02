@@ -35,11 +35,26 @@ from app.security.token_source import BearerTokenFileSource
 
 
 EXPECTED_MATRIX_SHA256 = "fe5fdddd9cd4d067930b971ca0658a22deb63778723c31597df7f7fab70b4e2f"
-TRUSTED_IDENTITY_SOURCE_FILES = (
+TRUSTED_IDENTITY_SOURCE_FILES_V2 = (
     "app/api/identity.py",
     "app/db.py",
     "app/evaluation/trusted_identity.py",
     "app/main.py",
+    "app/runtime/resources.py",
+    "app/schemas.py",
+    "app/security/demo_identity.py",
+    "app/security/identity.py",
+    "app/security/private_fs.py",
+    "app/security/token_source.py",
+    "scripts/eval_trusted_identity.py",
+)
+TRUSTED_IDENTITY_SOURCE_FILES = (
+    "app/api/identity.py",
+    "app/config.py",
+    "app/db.py",
+    "app/evaluation/trusted_identity.py",
+    "app/main.py",
+    "app/runtime/dark_observation.py",
     "app/runtime/resources.py",
     "app/schemas.py",
     "app/security/demo_identity.py",
@@ -120,7 +135,10 @@ class TrustedIdentityCaseResult(BaseModel):
 class TrustedIdentityEvaluationResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal["trusted-identity-evaluation-v2"]
+    schema_version: Literal[
+        "trusted-identity-evaluation-v2",
+        "trusted-identity-evaluation-v3",
+    ]
     evaluation_contract_id: str = Field(
         pattern=r"^trusted-identity-contract-[0-9a-f]{16}$"
     )
@@ -138,7 +156,12 @@ class TrustedIdentityEvaluationResult(BaseModel):
 
     @model_validator(mode="after")
     def validate_provenance(self) -> TrustedIdentityEvaluationResult:
-        if set(self.source_sha256) != set(TRUSTED_IDENTITY_SOURCE_FILES) or any(
+        expected_sources = (
+            TRUSTED_IDENTITY_SOURCE_FILES_V2
+            if self.schema_version == "trusted-identity-evaluation-v2"
+            else TRUSTED_IDENTITY_SOURCE_FILES
+        )
+        if set(self.source_sha256) != set(expected_sources) or any(
             len(digest) != 64
             or any(character not in "0123456789abcdef" for character in digest)
             for digest in self.source_sha256.values()
@@ -240,7 +263,7 @@ def evaluate_trusted_identity(path: Path) -> TrustedIdentityEvaluationResult:
     passed = sum(item.passed for item in results)
     leaks = sum(item.credential_leak for item in results)
     return TrustedIdentityEvaluationResult(
-        schema_version="trusted-identity-evaluation-v2",
+        schema_version="trusted-identity-evaluation-v3",
         evaluation_contract_id=_evaluation_contract_id(digest, source_sha256),
         matrix_id=matrix.matrix_id,
         matrix_sha256=digest,
@@ -608,6 +631,7 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 __all__ = [
     "EXPECTED_MATRIX_SHA256",
     "TRUSTED_IDENTITY_SOURCE_FILES",
+    "TRUSTED_IDENTITY_SOURCE_FILES_V2",
     "TrustedIdentityEvaluationResult",
     "TrustedIdentityMatrix",
     "evaluate_trusted_identity",

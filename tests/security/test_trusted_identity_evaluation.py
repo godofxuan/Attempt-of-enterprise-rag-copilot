@@ -11,6 +11,7 @@ import pytest
 from app.evaluation.trusted_identity import (
     EXPECTED_MATRIX_SHA256,
     TRUSTED_IDENTITY_SOURCE_FILES,
+    TRUSTED_IDENTITY_SOURCE_FILES_V2,
     TrustedIdentityCase,
     TrustedIdentityEvaluationResult,
     _contains_credential_leak,
@@ -28,16 +29,19 @@ PUBLIC_RESULT = (
     / "security"
     / "r2_s5"
     / "evidence"
-    / "identity_matrix_result.json"
+    / "identity_matrix_result_e16.json"
 )
+HISTORICAL_PUBLIC_RESULT = PUBLIC_RESULT.with_name("identity_matrix_result.json")
 
 
 def test_trusted_identity_source_contract_covers_the_filesystem_boundary() -> None:
     assert TRUSTED_IDENTITY_SOURCE_FILES == (
         "app/api/identity.py",
+        "app/config.py",
         "app/db.py",
         "app/evaluation/trusted_identity.py",
         "app/main.py",
+        "app/runtime/dark_observation.py",
         "app/runtime/resources.py",
         "app/schemas.py",
         "app/security/demo_identity.py",
@@ -52,7 +56,7 @@ def test_frozen_trusted_identity_matrix_passes_without_side_effect_or_leak() -> 
     result = evaluate_trusted_identity(MATRIX)
 
     assert result.matrix_sha256 == EXPECTED_MATRIX_SHA256
-    assert result.schema_version == "trusted-identity-evaluation-v2"
+    assert result.schema_version == "trusted-identity-evaluation-v3"
     assert re.fullmatch(
         r"trusted-identity-contract-[0-9a-f]{16}",
         result.evaluation_contract_id,
@@ -85,6 +89,16 @@ def test_public_trusted_identity_result_recomputes_exactly() -> None:
     )
 
     assert published == evaluate_trusted_identity(MATRIX)
+
+
+def test_historical_v2_identity_result_remains_parseable_and_immutable() -> None:
+    historical = TrustedIdentityEvaluationResult.model_validate_json(
+        HISTORICAL_PUBLIC_RESULT.read_text(encoding="utf-8")
+    )
+
+    assert historical.schema_version == "trusted-identity-evaluation-v2"
+    assert set(historical.source_sha256) == set(TRUSTED_IDENTITY_SOURCE_FILES_V2)
+    assert historical.release_pass is True
 
 
 def test_trusted_identity_matrix_hash_drift_fails_before_execution(

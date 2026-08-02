@@ -4,7 +4,7 @@ import math
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal
 
@@ -18,6 +18,11 @@ from app.observability.metrics import MetricsRegistry
 from app.observability.tracing import InMemoryTraceStore
 from app.observability.tracing import trace_span
 from app.retrieval.snapshot import V2IndexSnapshot
+from app.runtime.dark_observation import (
+    DarkObservationConfig,
+    DarkObservationService,
+    build_dark_observation_service,
+)
 from app.security.identity import (
     FeedbackActorPseudonymizer,
     IdentityVerifier,
@@ -91,6 +96,9 @@ class ServiceContainer:
     identity_verifier: IdentityVerifier
     feedback_actor_hasher: FeedbackActorPseudonymizer
     lifecycle_operator: Any | None = None
+    dark_observation: DarkObservationService = field(
+        default_factory=lambda: DarkObservationService(DarkObservationConfig())
+    )
 
 
 def build_service_container(
@@ -136,6 +144,7 @@ def build_service_container(
             operator_role=settings.identity_operator_role,
             runtime_factory=lambda: build_ollama_lifecycle_runtime(settings),
         ),
+        dark_observation=build_dark_observation_service(settings),
     )
 
 

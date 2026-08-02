@@ -338,6 +338,18 @@ memory, API or complete RAG QPS, autoscaling evidence, production capacity or
 an SLO. Gold program structure and the absence of new quality labels still
 prevent planner-realism, answer-quality and E11-promotion claims.
 
+Gate E16 integrates a generic dark-observation owner into FastAPI lifespan,
+`POST /agent/v2/chat` and operator metrics. The 24 paired requests, zero primary
+response/receipt mismatches, sub-millisecond local offer timings and injected
+failure results use synthetic deterministic primary/provider behavior. They do
+not represent production traffic, answer quality, availability or an SLO.
+The service owner uses daemon threads and discards late results; it cannot
+forcibly terminate arbitrary blocking provider code. More importantly, the
+enterprise chat request does not contain E11's typed skeleton, safe descriptor
+catalog or bound E8 primary selection. E16 therefore has no FinQA provider in
+the normal container and remains OFF. A validated eligibility/adapter contract
+is required before E11 can be exercised through this route.
+
 The support heuristic treats distinct minimal candidate/evidence closures as
 independent runtime support. This is auditable but not a statistical proof of
 independence or correctness. Semantically different minimal closures can still

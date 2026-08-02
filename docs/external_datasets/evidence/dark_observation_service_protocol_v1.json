@@ -1,0 +1,104 @@
+{
+  "schema_version": "dark_observation_service_protocol_v1",
+  "protocol_id": "enterprise-rag-e16-service-dark-integration-v1",
+  "status": "FROZEN_BEFORE_E16_IMPLEMENTATION",
+  "claim_label": "MECHANISM_ONLY_DEFAULT_OFF_SERVICE_DARK_INTEGRATION_NOT_PRODUCTION_TRAFFIC",
+  "source_e15_protocol_sha256": "f201ecd767299a249fb3702489c395341f7c02a4500026d5aa419c6109ec1285",
+  "source_e15_public_evidence_sha256": "5e299683c2fd6fa0ad520fc2264ccc06b68dfe214e0c16b34b065f28e9bfc82f",
+  "runtime_contract": {
+    "serving_route": "POST /agent/v2/chat",
+    "trigger_point": "after_primary_response_is_fully_constructed",
+    "default_mode": "OFF",
+    "enabled_mode": "LOCAL_TEST_ONLY",
+    "sampling_algorithm": "process_local_hmac_sha256_request_id",
+    "admission_algorithm": "bounded_queue_put_nowait",
+    "worker_lifetime": "service_lifespan_owned_daemon_workers",
+    "observation_deadline_origin": "admission_monotonic_time",
+    "primary_mutation_permitted": false,
+    "primary_wait_for_shadow_permitted": false,
+    "startup_dependency_permitted": false,
+    "readiness_dependency_permitted": false
+  },
+  "data_boundary": {
+    "ephemeral_provider_fields": [
+      "request_id",
+      "question",
+      "primary_mode",
+      "primary_stop_reason"
+    ],
+    "prohibited_provider_fields": [
+      "principal",
+      "subject",
+      "tenant_id",
+      "groups",
+      "roles",
+      "answer_text",
+      "claims",
+      "citations",
+      "sources",
+      "trace",
+      "feedback_receipt"
+    ],
+    "persistent_request_rows_permitted": false,
+    "aggregate_metrics_only": true,
+    "raw_provider_errors_permitted": false
+  },
+  "audit_profile": {
+    "request_count": 24,
+    "worker_count": 2,
+    "queue_capacity": 4,
+    "sample_basis_points": 10000,
+    "observation_deadline_ms": 100,
+    "shutdown_grace_ms": 2000,
+    "max_offer_latency_p95_ms": 10.0,
+    "required_default_off_provider_calls": 0,
+    "required_primary_response_mismatches": 0,
+    "required_public_content_findings": 0,
+    "require_backpressure_isolation": true,
+    "require_provider_error_isolation": true,
+    "require_deadline_isolation": true,
+    "require_closed_admission_rejection": true,
+    "require_zero_residual_controlled_workers": true
+  },
+  "public_output": {
+    "allowed_sections": [
+      "source_binding",
+      "runtime_profile",
+      "aggregate_metrics",
+      "failure_injection",
+      "gate_checks",
+      "non_claims"
+    ],
+    "prohibited_content": [
+      "request_id",
+      "question_text",
+      "answer_text",
+      "principal",
+      "subject",
+      "tenant_id",
+      "groups",
+      "roles",
+      "claims",
+      "citations",
+      "sources",
+      "trace",
+      "feedback_receipt",
+      "raw_provider_error",
+      "per_request_latency",
+      "per_request_outcome"
+    ]
+  },
+  "serving_champion": "enterprise_agent_v2_primary_unchanged",
+  "finqa_adapter_status": "NOT_IMPLEMENTED_CONTRACT_MISMATCH_RECORDED",
+  "challenger_status": "DEFAULT_OFF",
+  "internal_cohort_status": "CONSUMED_NOT_ACCESSED",
+  "frozen_test_status": "UNTOUCHED",
+  "non_claims": [
+    "not production traffic, availability, capacity planning, or an SLO",
+    "not answer accuracy, retrieval quality, or serving promotion evidence",
+    "not a FinQA-to-enterprise-chat contract adapter",
+    "not durable queueing, distributed scheduling, hard thread cancellation, or autoscaling",
+    "not a claim that arbitrary blocking provider code can be forcibly terminated",
+    "not frozen-test evidence"
+  ]
+}

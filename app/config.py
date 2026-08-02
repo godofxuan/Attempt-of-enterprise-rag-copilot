@@ -116,6 +116,17 @@ class Settings(BaseSettings):
     metrics_latency_buffer_size: int = Field(default=1_000, ge=10, le=100_000)
     sqlite_timeout_seconds: float = Field(default=5.0, gt=0, le=60)
 
+    dark_observation_mode: Literal["OFF", "LOCAL_TEST_ONLY"] = "OFF"
+    dark_observation_sample_basis_points: int = Field(default=0, ge=0, le=10_000)
+    dark_observation_worker_count: int = Field(default=1, ge=1, le=8)
+    dark_observation_queue_capacity: int = Field(default=8, ge=1, le=256)
+    dark_observation_deadline_ms: int = Field(default=100, ge=1, le=60_000)
+    dark_observation_shutdown_grace_ms: int = Field(
+        default=2_000,
+        ge=1,
+        le=60_000,
+    )
+
     sqlite_path: Path = BASE_DIR / "data" / "app.db"
 
     @model_validator(mode="after")
@@ -164,6 +175,20 @@ class Settings(BaseSettings):
             )
         ):
             raise ValueError("deployment release binding is invalid")
+        return self
+
+    @model_validator(mode="after")
+    def validate_dark_observation_boundary(self) -> "Settings":
+        if (
+            self.dark_observation_mode == "OFF"
+            and self.dark_observation_sample_basis_points != 0
+        ):
+            raise ValueError("OFF dark observation requires zero sampling")
+        if (
+            self.dark_observation_mode == "LOCAL_TEST_ONLY"
+            and self.dark_observation_sample_basis_points == 0
+        ):
+            raise ValueError("LOCAL_TEST_ONLY dark observation requires sampling")
         return self
 
     @field_validator("identity_issuer")

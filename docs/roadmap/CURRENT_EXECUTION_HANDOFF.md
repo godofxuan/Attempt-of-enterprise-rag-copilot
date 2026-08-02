@@ -1307,3 +1307,36 @@ Delivery note: exact implementation commit `bd35fa1e62ab5c30a87414c6b5e4fd12a036
 passed GitHub Actions run `30740853135` in 10m24s. Ubuntu and Windows completed
 2/2, the dependent Linux container contract passed in 4m05s, and one SBOM
 artifact was published.
+
+## 29. FinQA Gate E16 service dark integration handoff
+
+Decision: `E16_MECHANISM_GATE_PASSED_DARK_OBSERVATION_REMAINS_DEFAULT_OFF`.
+
+E16 adds an explicit dark-observation resource to `ServiceContainer`, starts
+and closes it with FastAPI lifespan, offers only after the primary answer and
+feedback receipt are fully constructed, and exposes aggregate-only operator
+metrics. Secure defaults are OFF with zero sampling. The local-test path uses
+process-keyed request-ID sampling, two daemon workers, a four-slot nonblocking
+queue, a 100 ms admission-time deadline and a two-second shutdown grace.
+
+The protocol/public SHA pair is
+`56ea7b40e7ec045e30fdedc30d3188475bd181e9321bacbc4e357fe0202037c0` /
+`1c997f2431f64b4d3fd158eb7bdf3e90ee4865c920f301612b6b8b1ec9f579f0`.
+The 24-pair API audit completed 24 observations, called the OFF provider zero
+times, observed zero response/receipt mismatches and zero controlled residual
+workers, and passed all 17 frozen gates. Offer p50/p95/max was
+0.017/0.024/0.033 ms. Public audit was 1324/0.
+
+This is not an E11 deployment. Enterprise chat lacks E11's typed skeleton,
+safe descriptor catalog and bound E8 primary selection. The normal container
+therefore has no provider and remains OFF. Resume at the dedicated E16 handoff,
+then design E17 eligibility/adapter protocol before editing any E16 hash-bound
+implementation file.
+
+Local closeout passed 28 E16 focused, 177 API/runtime, 245 security and 446
+external-dataset tests. Full repository result is 2977 passed / 29 skipped /
+3 known warnings; public audit is 1328/0. The first full run correctly detected
+stale source hashes in historical identity evidence after E16 modified the
+service boundary. Historical v2 remains untouched; current v3 contract
+`trusted-identity-contract-e21503b0947a5608` passed 20/20 and is stored as
+`docs/security/r2_s5/evidence/identity_matrix_result_e16.json`.

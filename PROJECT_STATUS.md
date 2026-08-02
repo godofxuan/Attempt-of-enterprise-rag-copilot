@@ -1,5 +1,52 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-08-02 FinQA Gate E16 service dark integration
+
+```text
+decision                               E16_MECHANISM_GATE_PASSED_DARK_OBSERVATION_REMAINS_DEFAULT_OFF
+serving route                          POST /agent/v2/chat
+production default                     OFF / 0 basis points
+paired local route observations        24 / 24
+default-off provider calls             0
+primary response/receipt mismatches    0
+offer latency p50/p95/max              0.017 / 0.024 / 0.033 ms
+controlled residual workers            0
+frozen mechanism gates                 17 / 17
+focused tests                          28 passed
+API/runtime regression                 177 passed
+security regression                    245 passed / 6 skipped
+external-dataset regression            446 passed
+full repository                        2977 passed / 29 skipped / 3 warnings
+public audit                           1328 candidates / 0 findings
+model calls                            0
+FinQA service adapter                  NOT IMPLEMENTED / CONTRACT GAP RECORDED
+trusted identity current contract      v3 / 20 of 20 / e21503b0947a5608
+```
+
+E16 adds a lifecycle-owned, default-off service dark-observation path with
+keyed request sampling, nonblocking bounded admission, independent deadlines,
+aggregate-only telemetry and failure-isolated shutdown. It compares actual
+FastAPI response bytes and feedback receipts under OFF and controlled local
+observation. This is synthetic mechanism evidence, not production traffic,
+answer quality, an SLO or E11 serving authorization. The enterprise chat API
+does not yet provide E11's typed skeleton, safe descriptor catalog and bound
+E8 primary selection; E17 must freeze and validate that adapter before any real
+FinQA provider is injected.
+
+Public protocol/evidence SHA-256:
+
+```text
+56ea7b40e7ec045e30fdedc30d3188475bd181e9321bacbc4e357fe0202037c0
+1c997f2431f64b4d3fd158eb7bdf3e90ee4865c920f301612b6b8b1ec9f579f0
+```
+
+The first full run exposed one provenance failure in the historical trusted-
+identity public result because E16 changed two hash-bound service files. No
+identity behavior case differed. The old v2 result remains immutable and
+parseable; a new v3 result binds config, dark observation and the current
+service sources. It passed 20/20 cases, including 14 denied cases with zero side
+effects and zero credential leaks. The second full run passed 2977 tests.
+
 ## 2026-07-30 FinQA Gate E2 typed-contract calibration
 
 ```text

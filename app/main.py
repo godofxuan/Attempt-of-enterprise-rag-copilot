@@ -19,6 +19,7 @@ from app.db import save_feedback_metadata
 from app.domain.evidence import AnswerResponse
 from app.observability.tracing import RequestTrace, trace_span
 from app.runtime.request_context import current_request_id
+from app.runtime.dark_observation import safe_dark_observation_snapshot
 from app.runtime.resources import ServiceContainer, build_service_container
 from app.schemas import (
     AgentV2ChatRequest,
@@ -54,8 +55,16 @@ def _create_application(
             ensure_dir(path)
         service.resources.start()
         try:
+            service.dark_observation.start()
+        except Exception:
+            pass
+        try:
             yield
         finally:
+            try:
+                service.dark_observation.close()
+            except Exception:
+                pass
             service.resources.close()
 
     application = FastAPI(
@@ -128,7 +137,18 @@ def _create_application(
             raise _identity_unavailable() from None
         response.headers["X-Feedback-Receipt"] = receipt
         request.state.outcome = answer.mode
-        return answer.model_copy(update={"trace": safe_trace})
+        primary_response = answer.model_copy(update={"trace": safe_trace})
+        try:
+            service.dark_observation.offer(
+                request_id=request_id,
+                question=payload.question,
+                primary_mode=answer.mode,
+                primary_stop_reason=answer.stop_reason,
+            )
+        except Exception:
+            # Dark execution is never allowed to alter the primary response.
+            pass
+        return primary_response
 
     @application.post(
         "/feedback",
@@ -203,7 +223,11 @@ def _create_application(
     )
     def metrics(request: Request) -> dict:
         request.state.outcome = "observed"
-        return service.metrics.snapshot()
+        snapshot = service.metrics.snapshot()
+        snapshot["dark_observation"] = safe_dark_observation_snapshot(
+            service.dark_observation
+        )
+        return snapshot
 
     @application.get(
         "/observability/traces/{request_id}",

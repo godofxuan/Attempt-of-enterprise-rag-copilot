@@ -10,6 +10,10 @@ from app.runtime.resources import (
     ReadyIndexInfo,
     ServiceContainer,
 )
+from app.runtime.dark_observation import (
+    DarkObservationConfig,
+    DarkObservationService,
+)
 from app.security.identity import (
     AuthenticationFailure,
     FeedbackActorHasher,
@@ -114,6 +118,7 @@ def make_container(
     resources: FakeResources | None = None,
     trace_buffer_size: int = 20,
     identity_verifier: IdentityVerifier | None = None,
+    dark_observation: DarkObservationService | None = None,
 ) -> ServiceContainer:
     settings = Settings(
         _env_file=None,
@@ -131,4 +136,6 @@ def make_container(
         traces=InMemoryTraceStore(max_records=trace_buffer_size),
         identity_verifier=identity_verifier or StaticIdentityVerifier(),
         feedback_actor_hasher=FeedbackActorHasher(_key=b"test-feedback-key" * 2),
+        dark_observation=dark_observation
+        or DarkObservationService(DarkObservationConfig()),
     )

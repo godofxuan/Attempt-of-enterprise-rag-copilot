@@ -26,6 +26,39 @@ def test_lifespan_starts_and_closes_resources_once() -> None:
     assert resources.close_calls == 1
 
 
+class _FailingDarkLifecycle:
+    def __init__(self) -> None:
+        self.start_calls = 0
+        self.close_calls = 0
+
+    def start(self) -> None:
+        self.start_calls += 1
+        raise RuntimeError("injected dark startup failure")
+
+    def close(self) -> None:
+        self.close_calls += 1
+        raise RuntimeError("injected dark shutdown failure")
+
+    def snapshot(self) -> dict[str, object]:
+        return {"status": "UNAVAILABLE", "content_retained": False}
+
+
+def test_dark_lifecycle_failure_never_blocks_primary_service_lifespan() -> None:
+    resources = FakeResources()
+    dark = _FailingDarkLifecycle()
+    app = create_app(
+        make_container(resources=resources, dark_observation=dark)  # type: ignore[arg-type]
+    )
+
+    with TestClient(app) as client:
+        assert client.get("/health/live").status_code == 200
+
+    assert dark.start_calls == 1
+    assert dark.close_calls == 1
+    assert resources.start_calls == 1
+    assert resources.close_calls == 1
+
+
 def test_blocked_startup_deep_probe_does_not_block_liveness() -> None:
     probe_entered = threading.Event()
     release_probe = threading.Event()

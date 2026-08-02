@@ -1192,3 +1192,53 @@ Exact implementation commit `bd35fa1` passed GitHub Actions run `30740853135`
 in 10m24s. The Ubuntu/Windows matrix completed 2/2, the dependent Linux
 container contract passed in 4m05s, and one Python runtime SBOM artifact was
 published.
+
+## 44. FinQA Gate E16: offline capacity becomes a service-owned dark path
+
+E12-E15 had a progressively stronger offline Shadow runtime, but no real API
+route or service lifecycle owned it. E16 first audited the contracts and found
+that enterprise chat supplies free-text question/user/top-k inputs while E11
+requires a typed program skeleton, safe descriptor catalog and bound E8 primary
+selection. Instead of fabricating those values, E16 recorded the mismatch and
+implemented a generic injectable dark-observation owner. The real FinQA adapter
+remains a later gate.
+
+The frozen E16 protocol binds E15 protocol/evidence hashes and requires an
+OFF/zero-sampling default, process-keyed request-ID sampling, nonblocking
+bounded admission, an admission-time deadline, no primary mutation or wait,
+minimal ephemeral provider fields, aggregate-only public telemetry, controlled
+shutdown and explicit non-claims. FastAPI lifespan now starts/closes the owner;
+the chat route offers only after its response and feedback receipt exist; the
+operator endpoint exposes only bounded aggregates.
+
+The local audit ran 24 paired OFF and LOCAL_TEST_ONLY requests through the real
+route. All 24 enabled observations completed, OFF called the provider zero
+times, and exact response/receipt mismatches were zero. Offer p50/p95/max was
+0.017/0.024/0.033 ms. Provider error, deadline overrun, one-slot queue
+backpressure and post-close admission were isolated; two admitted fault-probe
+items reached two terminal states and controlled residual workers were zero.
+All 17 frozen gates passed, and the public audit reported 1324 candidates with
+zero findings.
+
+Several negative findings improved the result. A hand-written response test
+missed the existing safe request ID, so it was replaced by complete OFF/ON byte
+comparison. Windows `time.monotonic()` had 15.625 ms resolution and printed
+false zero latency, so the owner moved to `perf_counter()`. Evidence now labels
+pre-shutdown and post-shutdown worker phases separately. Finally, the public
+audit rejected fake credential-shaped literals in the audit helper; runtime
+construction and public-domain derivation removed the finding without weakening
+the scanner.
+
+E16 remains mechanism-only and default-off. It does not show production
+traffic, quality, hard thread cancellation, distributed durability, an SLO or
+FinQA serving. E17 must freeze a typed eligibility/adapter contract before
+injecting E11 through the service owner.
+
+The first full repository run then exposed a provenance dependency rather than
+a behavior regression: the historical trusted-identity result bound old hashes
+for `app/main.py` and `app/runtime/resources.py`. Field-level comparison found
+no case differences. The project preserved that v2 artifact, taught the model
+to validate v2 against its historical source set, expanded current v3
+provenance to include config and the dark runtime, and emitted a new immutable
+20/20 result. Security passed 245 tests with six platform skips; the final full
+run passed 2977 tests with 29 skips and three known warnings.

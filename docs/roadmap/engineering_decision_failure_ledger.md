@@ -486,3 +486,18 @@ D4/D5 的 green 只证明默认 V2 本地数据流、prompt framing、public pro
 | `R2S1-I03` | Unicode 行分隔符制造多个 end marker | JSON 保留 U+0085/U+2028/U+2029 | 序列化后显式 escape | adversarial RED/GREEN |
 | `R2S1-I04` | shape retry 复用 nonce | envelope 只在 loop 外构建 | 每个 model call 新 nonce，重复则 fail closed | adversarial RED/GREEN |
 | `R2S1-I05` | active rule 删除但 validator 通过 | 只校验 frozen provenance digest | active map 必须等于 hashed provenance | adversarial RED/GREEN |
+
+## 40. FinQA Gate E16 服务暗流量决策与故障
+
+| ID | 问题或现象 | 根因 | 决策或修复 | 证据 |
+|---|---|---|---|---|
+| `E16-D01` | 是否直接把 E11 接到 `/agent/v2/chat` | 企业问答没有 typed skeleton、safe catalog、E8 primary selection | 先实现通用可注入 owner；明确记录 adapter 未实现 | protocol + code audit |
+| `E16-D02` | Shadow 是否参与回答或 readiness | 候选故障可能放大成主服务故障 | primary/receipt 先完成；Shadow 不可修改、不等待、不作为 readiness 依赖 | paired API 0 mismatch |
+| `E16-D03` | 高峰时等待还是丢弃 | 等待会拖慢主链，无界队列会积压 | `Queue(maxsize)` + `put_nowait`，满时固定 `BACKPRESSURE` | fault injection |
+| `E16-D04` | 采样使用普通 hash 还是 keyed hash | request ID 可被客户端控制 | 进程内随机材料 + HMAC-SHA256；不使用问题内容 | deterministic unit tests |
+| `E16-D05` | 哪些数据能进入 provider/metrics | 身份、答案、证据和 trace 会扩大隐私面 | provider 仅四个临时字段；metrics 只保留聚合、无原始错误 | boundary/evidence tests |
+| `E16-I01` | 第一版 API 断言漏掉 request ID | 测试复制了旧响应逻辑 | 改为 OFF 与 failing-ON 完整响应字节和 receipt 比较 | RED 1 -> GREEN |
+| `E16-I02` | offer 延迟全部显示 0 ms | Windows `monotonic` 分辨率 15.625 ms | 使用 `perf_counter`；门槛不变 | p95 0.024 ms |
+| `E16-I03` | 运行中显示 2 worker，却声称关闭后 0 | 指标采集阶段未标注 | 单独记录 pre-shutdown snapshot 与 post-shutdown count | 17/17 gates |
+| `E16-I04` | public audit 1324/1 | 审计脚本含假 credential 形状字面量 | 运行时构造 header、由公开 domain 派生材料；不加白名单 | 1324/0 |
+| `E16-I05` | 首次 full 只有 identity exact recompute 失败 | E16 修改了历史结果绑定的 main/resources SHA，20 个行为 case 未变化 | 保留 v2；新增可兼容 validator 和绑定 config/dark runtime 的 v3 证据 | 8 focused；security 245；full 2977 |
