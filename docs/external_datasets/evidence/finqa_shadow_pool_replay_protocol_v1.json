@@ -1,0 +1,88 @@
+{
+  "schema_version": "finqa_shadow_pool_replay_protocol_v1",
+  "protocol_id": "finqa-e14-bounded-pool-replay-v1",
+  "status": "FROZEN_BEFORE_E14_IMPLEMENTATION",
+  "claim_label": "TRAIN_ONLY_UNLABELED_BOUNDED_CONCURRENCY_EVIDENCE_NOT_QUALITY_EVIDENCE",
+  "source_e13_protocol_sha256": "4604572c065d69d8d79f7287cfb206143c01e1ea11c4a6ec85c0bea4ee845f97",
+  "source_e13_public_evidence_sha256": "b933f83dff1307828309222c276ea0a5d70372324cdd7822c79dd41b463106d3",
+  "source_e13_selection_reused": true,
+  "pool": {
+    "topology": "bounded_fifo_dispatch_over_isolated_spawn_workers",
+    "worker_count": 2,
+    "queue_capacity": 4,
+    "caller_concurrency": 4,
+    "admission_timeout_seconds": 0.25,
+    "response_deadline_seconds": 2.0,
+    "shutdown_grace_seconds": 20.0,
+    "overload_policy": "reject_newest",
+    "queue_discipline": "fifo",
+    "late_result_policy": "discard_without_primary_mutation",
+    "eager_worker_start": true,
+    "per_worker_single_inflight": true,
+    "durable_queue_claimed": false,
+    "distributed_scheduler_claimed": false
+  },
+  "replay_gates": {
+    "min_preparation_success_rate": 0.8,
+    "min_admitted_completion_rate": 1.0,
+    "max_nominal_backpressure_rejections": 0,
+    "max_nominal_deadline_exceeded": 0,
+    "max_nominal_worker_errors": 0,
+    "min_active_worker_high_watermark": 2,
+    "max_queue_high_watermark": 4,
+    "max_end_to_end_latency_p95_ms": 500.0,
+    "max_worker_pool_rss_upper_bound_bytes": 2147483648,
+    "require_all_primary_results_e8": true,
+    "require_zero_model_calls": true,
+    "require_aggregate_only_output": true,
+    "require_no_quality_labels_or_scores": true
+  },
+  "fault_injection_gates": {
+    "require_queue_bound_enforced": true,
+    "require_overload_rejected_without_primary_mutation": true,
+    "require_queued_deadline_expires_before_execution": true,
+    "require_late_result_discarded": true,
+    "require_worker_fault_isolated_to_slot": true,
+    "require_close_rejects_new_work": true,
+    "require_no_residual_workers_after_close": true
+  },
+  "public_output": {
+    "per_request_rows_permitted": false,
+    "allowed_metric_groups": [
+      "preparation",
+      "load",
+      "queue_wait_ms",
+      "end_to_end_latency_ms",
+      "worker_pool_resources",
+      "fault_injection",
+      "gate_checks"
+    ],
+    "prohibited_content": [
+      "question_text",
+      "numeric_values",
+      "case_ids",
+      "company_ids",
+      "descriptor_ids",
+      "candidate_ids",
+      "evidence_ids",
+      "source_ids",
+      "provenance",
+      "ranked_scores",
+      "per_request_latency",
+      "per_request_outcome",
+      "worker_slot_assignments"
+    ]
+  },
+  "serving_champion": "finqa_deterministic_descriptor_retriever_v5",
+  "challenger_status": "SHADOW_DEFAULT_OFF",
+  "internal_cohort_status": "CONSUMED_NOT_ACCESSED",
+  "frozen_test_status": "UNTOUCHED",
+  "non_claims": [
+    "not answer accuracy, retrieval quality, or planner realism",
+    "not production traffic, availability, or capacity planning",
+    "not a durable queue or distributed scheduler",
+    "not an operating-system network sandbox, CPU quota, or cgroup",
+    "not a guarantee that executing work is killed at the response deadline",
+    "not serving promotion authorization"
+  ]
+}

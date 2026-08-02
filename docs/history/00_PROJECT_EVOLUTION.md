@@ -1124,3 +1124,31 @@ the two private-train integration tests. Missing private data now skips only
 those two tests; it no longer prevents aggregate contract verification. Exact
 repair commit `1ff1707` then passed Actions run `30734383716` across Ubuntu,
 Windows, and the dependent Linux container contract in 9m58s.
+
+## 42. FinQA Gate E14: bounded concurrency replaces unbounded growth risk
+
+E13 isolated one persistent Shadow Worker but did not define behavior under
+concurrent arrival. E14 froze a new protocol bound to the exact E13 protocol
+and evidence hashes, then placed two verified spawn workers behind a four-slot
+FIFO queue. Four caller threads can submit work, while each dispatcher remains
+fixed to one E13 Worker and preserves single-in-flight IPC.
+
+The Pool now has explicit overload and lifecycle semantics. Admission waits at
+most 0.25 seconds before rejecting the newest request, callers stop waiting at
+a two-second response deadline, late Shadow results are discarded, and close
+prevents new admission before draining and reclaiming dispatchers and child
+processes. Review found a race between checking `RUNNING` and queue insertion;
+both actions now occur under the state lock, so a request cannot be queued
+behind shutdown sentinels. A later review also found simultaneous close calls
+could overfill the queue with duplicate stop sentinels after dispatchers
+exited. Shutdown now has one owner and bounded event waiters; a concurrent
+close regression test preserves that invariant.
+
+The fixed 128-case train selection produced the same 117 prepared requests.
+All 117 were admitted and completed, with no backpressure, deadline, worker
+error, or restart. Both workers were simultaneously active, queue high-water
+was 2/4, queue-wait p95 was 13.354 ms, Pool end-to-end p95 was 26.439 ms, and
+the timed observation phase reported 243.251 requests/s. Seven fault probes
+and 21 gates passed; full regression reached 2949 passed / 29 skipped. These
+are local unlabeled Pool measurements, not answer accuracy, end-to-end RAG QPS,
+production capacity, or E11 promotion evidence.

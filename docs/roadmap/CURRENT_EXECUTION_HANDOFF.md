@@ -1227,3 +1227,32 @@ tests. Exact repair commit `1ff1707` passed Actions run `30734383716` in 9m58s:
 the Ubuntu/Windows matrix completed 2/2, the Linux container contract passed,
 and one artifact was published. E13 delivery is complete; E11 remains
 default-off and E8 remains champion.
+
+## 27. FinQA Gate E14 bounded worker-pool replay handoff
+
+Decision: `E14_BOUNDED_POOL_REPLAY_PASSED_SHADOW_REMAINS_DEFAULT_OFF`.
+
+E14 adds two eager E13 spawn workers, one fixed dispatcher per worker, a
+four-slot FIFO queue, bounded admission, response deadline, late-result
+discard, aggregate metrics, and deterministic shutdown. The E13 implementation
+files were not modified because their hashes are bound by E13 public evidence.
+
+The fixed train replay prepared 117/128 requests and admitted/completed all
+117. Backpressure/deadline/errors/restarts were 0/0/0/0. Active-worker
+high-water was 2/2, queue high-water was 2/4, queue-wait p95 was 13.354 ms,
+Pool end-to-end p95 was 26.439 ms, and the timed observation phase reported
+243.251 requests/s. Seven fault probes and all 21 gate checks passed. Full
+regression is 2949 passed / 29 skipped; public evidence SHA is
+`98371c664d10bfafe21e57fd5a3104a12427fd9b91b1096b2a8285ec7af5008f`.
+
+The implementation fixed an admission/shutdown race by holding the state lock
+across the RUNNING check and queue insertion. Closed Pools reject new work and
+leave no dispatcher or child PID. E8 remains champion, E11 remains
+`SHADOW_DEFAULT_OFF`, the consumed internal cohort was not accessed, and the
+frozen test remains untouched.
+
+Next gate should measure a capacity envelope, not add another serving feature:
+compare one, two, and four workers under fixed prepared requests and repeated
+caller-concurrency levels. Current E14 throughput is not a scaling or
+production-capacity claim. See
+`docs/roadmap/finqa_gate_e14_current_handoff.md` for the exact boundary.
