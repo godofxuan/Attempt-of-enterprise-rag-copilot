@@ -196,6 +196,11 @@ residual E14 Python processes 0
 
 The three warnings are pre-existing SWIG deprecation warnings.
 
+Exact implementation commit `3e5ebb813668f01bb88227373062789abe3580eb`
+passed GitHub Actions run `30736504721` in 9m41s. The Ubuntu and Windows
+matrix completed 2/2, the dependent Linux container contract passed in 4m04s,
+and one SBOM artifact was published.
+
 ## Problems found and resolved
 
 ### Invalid test catalog digest

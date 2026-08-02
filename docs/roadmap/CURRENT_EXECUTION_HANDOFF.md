@@ -1256,3 +1256,7 @@ compare one, two, and four workers under fixed prepared requests and repeated
 caller-concurrency levels. Current E14 throughput is not a scaling or
 production-capacity claim. See
 `docs/roadmap/finqa_gate_e14_current_handoff.md` for the exact boundary.
+
+Delivery note: exact implementation commit `3e5ebb8` passed GitHub Actions run
+`30736504721` in 9m41s. The Ubuntu/Windows matrix completed 2/2, the dependent
+Linux container contract passed in 4m04s, and one artifact was published.

@@ -1152,3 +1152,7 @@ the timed observation phase reported 243.251 requests/s. Seven fault probes
 and 21 gates passed; full regression reached 2949 passed / 29 skipped. These
 are local unlabeled Pool measurements, not answer accuracy, end-to-end RAG QPS,
 production capacity, or E11 promotion evidence.
+
+Exact implementation commit `3e5ebb8` then passed Actions run `30736504721`
+in 9m41s across Ubuntu, Windows, and the dependent Linux container contract;
+one SBOM artifact was published.

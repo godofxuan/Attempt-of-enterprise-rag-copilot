@@ -11,6 +11,8 @@
 - Internal cohort: `CONSUMED_NOT_ACCESSED`
 - Frozen test: `UNTOUCHED`
 - Production traffic: `NOT_RUN`
+- Accepted delivery commit: `3e5ebb813668f01bb88227373062789abe3580eb`
+- Remote CI: run `30736504721`, `SUCCESS`, Ubuntu/Windows/Linux container
 
 ## Completed
 
@@ -78,6 +80,10 @@ machinery. Reuse one fixed prepared request set; compare 1, 2, and 4 workers
 under caller concurrency 1, 4, and 8; repeat trials; report throughput,
 queueing, tail latency, rejection rate, restarts, RSS, and scaling efficiency.
 Keep E8 primary immutable and E11 default-off.
+
+Delivery is complete: exact implementation commit `3e5ebb8` passed GitHub
+Actions run `30736504721` in 9m41s, including the 2/2 Ubuntu/Windows matrix,
+the 4m04s Linux container contract, and one artifact.
 
 Recommended model: **5.6 Sol / Extra High**, because the next gate must separate
 real scaling from warm-cache, startup, scheduler, and measurement artifacts.

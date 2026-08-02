@@ -308,6 +308,10 @@ E13 的 `16.443 ms` 是单 Worker observation P95；E14 的 `26.439 ms` 是包�
 5. E8 主路径和质量数据边界保持不变；
 6. 本地全仓库 `2949 passed / 29 skipped`。
 
+对应实现提交 `3e5ebb8` 的 GitHub Actions #49 也通过 Ubuntu、Windows 和 Linux
+container 三层门禁，总时长 9分41秒。这说明本阶段不仅在当前 Windows 工作区通过，
+也能在没有私有 FinQA 文件的 clean checkout 和 Linux 容器中保持公开契约成立。
+
 ## 13. 结果还不够好的地方
 
 1. 只测了本机和一种 `2 Worker / 4 caller` 配置；
