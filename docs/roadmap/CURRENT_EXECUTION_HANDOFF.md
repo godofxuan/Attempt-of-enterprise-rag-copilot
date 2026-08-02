@@ -1345,3 +1345,38 @@ Exact implementation commit `2143ba7f9d0c868926192b064b6a72e95839b3ca`
 passed GitHub Actions run `30751922977` in 10m06s. Ubuntu/Windows completed
 2/2, the Linux container contract passed in 4m03s, readiness/rollback drills
 passed and one SBOM artifact was published.
+
+## 30. FinQA Gate E17 typed eligibility and adapter handoff
+
+Decision: `E17_TYPED_ADAPTER_MECHANISM_PASSED_NOT_SERVICE_ENABLED`.
+
+E17 freezes an online-only provenance boundary and implements the missing
+typed adapter between E16 and the E8/E11 isolated comparison. A valid context
+contains the exact question, `SemanticProgramSkeletonV2`,
+`RetrievableSafeDescriptorCatalogV3`, online-only origin enums and a canonical
+SHA-256. Gold/oracle program and quality fields are prohibited. The adapter
+does not accept an external primary; it computes E8 v5 on the same context,
+then calls the verified E11 worker.
+
+The new ephemeral resolver is capacity bounded, TTL bounded, consume-once and
+rejects duplicate request IDs without overwrite. Five ineligible reasons made
+zero Worker calls. Fault injection proved question-binding, deadline, resolver
+and Worker failures reduce to fixed codes. E16 background composition completed
+`ADMITTED -> MATCH`; two real `spawn` Worker calls completed and the process
+closed with exit code zero. All 24 frozen gates, 23 focused tests and 52 related
+regressions passed; public audit was 1339/0.
+
+Full repository closeout passed 3000 tests / 29 skipped / 3 known warnings.
+Dependency consistency, compileall, frozen evaluation hash, quality-review
+packet and expanded-corpus quality all passed.
+
+Protocol/public SHA pair:
+`d8e3433a2449ff7649b535eba416ced3a2a378b1871a640b2ad0a71508c0ea4d` /
+`3ad830e8ad4bad7b14e6979906e20f06f1e1487defdb48f979edee009915b4af`.
+
+This is not an online planner, enterprise evidence adapter, service enablement,
+quality result or SLO. Internal remains consumed/unaccessed and frozen test is
+untouched. Resume at `docs/roadmap/finqa_gate_e17_current_handoff.md`. E18 must
+use new versioned files to carry ACL/Guard-admitted evidence through catalog
+construction and online value-free planning, register/discard the typed context
+around E16 admission, and lifecycle-own the resolver/provider/isolated Worker.

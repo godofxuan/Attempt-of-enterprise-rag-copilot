@@ -348,7 +348,19 @@ forcibly terminate arbitrary blocking provider code. More importantly, the
 enterprise chat request does not contain E11's typed skeleton, safe descriptor
 catalog or bound E8 primary selection. E16 therefore has no FinQA provider in
 the normal container and remains OFF. A validated eligibility/adapter contract
-is required before E11 can be exercised through this route.
+was required before E11 could be exercised through this route.
+
+Gate E17 now provides that online-only typed eligibility and adapter mechanism:
+it rejects gold/oracle provenance, computes E8 primary internally, hands typed
+context across threads through a bounded TTL consume-once resolver and safely
+maps the isolated E11 result. It still does not make the normal route eligible.
+The primary Agent does not yet expose its ACL/Guard-admitted evidence as a safe
+numeric catalog or produce a validated online value-free skeleton. The service
+container also does not yet lifecycle-own the E17 resolver/provider/child
+Worker. Therefore E11 remains default-off and no production traffic, answer
+quality, latency SLO or service enablement claim is supported. The next gate
+must add that service data-flow and cleanup seam without using FinQA gold
+programs, the consumed internal cohort or the frozen test.
 
 The support heuristic treats distinct minimal candidate/evidence closures as
 independent runtime support. This is auditable but not a statistical proof of

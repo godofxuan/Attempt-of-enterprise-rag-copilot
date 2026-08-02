@@ -1,5 +1,46 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-08-03 FinQA Gate E17 typed eligibility and adapter
+
+```text
+decision                               E17_TYPED_ADAPTER_MECHANISM_PASSED_NOT_SERVICE_ENABLED
+protocol SHA-256                       d8e3433a2449ff7649b535eba416ced3a2a378b1871a640b2ad0a71508c0ea4d
+public evidence SHA-256                3ad830e8ad4bad7b14e6979906e20f06f1e1487defdb48f979edee009915b4af
+eligibility reasons                    6 / 6 covered
+ineligible worker calls                0 / 5
+synthetic outcome mapping              2 / 2 exact
+real isolated E11 observations         2 / 2 terminal / both MATCH
+first / warm observation               approximately 732.317 / 3.581 ms
+E16 background composition             ADMITTED -> MATCH
+residual service workers/contexts       0 / 0
+adapter model calls                    0
+frozen gates                           24 / 24
+focused tests                          23 passed
+related E12-E16 regression              52 passed
+full repository                        3000 passed / 29 skipped / 3 warnings
+public audit                           1339 candidates / 0 findings
+enterprise primary                     unchanged
+E11 service status                     SHADOW_DEFAULT_OFF
+internal cohort                        CONSUMED_NOT_ACCESSED
+frozen test                            UNTOUCHED
+GitHub implementation commit           PENDING
+GitHub Actions                         PENDING
+```
+
+E17 implements the missing typed adapter mechanism between the generic E16
+owner and E8/E11. It accepts only online-origin value-free skeletons and safe
+catalogs from Guard-admitted evidence, rejects gold/oracle fields, binds the
+exact question/skeleton/catalog, computes E8 primary inside the adapter, and
+uses a bounded TTL consume-once resolver for cross-thread handoff. The normal
+service remains OFF because the enterprise Agent still does not produce and
+register this typed context. This is not online planner quality, answer
+accuracy, production traffic, a latency SLO or serving authorization.
+
+Detailed state: [E17 engineering record](docs/external_datasets/finqa_typed_service_adapter_gate_e17.md),
+[learning chapter](docs/learning/38_FINQA_GATE_E17_TYPED_ELIGIBILITY_ADAPTER.md),
+[handoff](docs/roadmap/finqa_gate_e17_current_handoff.md), and
+[public evidence](docs/external_datasets/evidence/finqa_service_adapter_public_v1.json).
+
 ## 2026-08-02 FinQA Gate E16 service dark integration
 
 ```text

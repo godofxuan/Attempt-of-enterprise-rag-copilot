@@ -1,0 +1,112 @@
+{
+  "schema_version": "finqa_service_adapter_protocol_v1",
+  "protocol_id": "enterprise-rag-e17-typed-eligibility-adapter-v1",
+  "status": "FROZEN_BEFORE_E17_IMPLEMENTATION",
+  "claim_label": "ONLINE_TYPED_ADAPTER_MECHANISM_ONLY_NOT_PRODUCTION_TRAFFIC_OR_QUALITY",
+  "source_e16_protocol_sha256": "56ea7b40e7ec045e30fdedc30d3188475bd181e9321bacbc4e357fe0202037c0",
+  "source_e16_public_evidence_sha256": "1c997f2431f64b4d3fd158eb7bdf3e90ee4865c920f301612b6b8b1ec9f579f0",
+  "source_e13_protocol_sha256": "4604572c065d69d8d79f7287cfb206143c01e1ea11c4a6ec85c0bea4ee845f97",
+  "source_e13_public_evidence_sha256": "b933f83dff1307828309222c276ea0a5d70372324cdd7822c79dd41b463106d3",
+  "context_contract": {
+    "resolution_source": "injected_online_context_resolver",
+    "allowed_skeleton_origins": [
+      "ONLINE_RULES",
+      "ONLINE_MODEL"
+    ],
+    "allowed_catalog_origins": [
+      "RETRIEVED_ADMITTED_EVIDENCE"
+    ],
+    "primary_source": "computed_e8_in_adapter",
+    "primary_input_binding": "exact_question_skeleton_catalog_sha256",
+    "prohibited_input_fields": [
+      "answer",
+      "exe_ans",
+      "gold_inds",
+      "gold_program",
+      "program",
+      "program_re",
+      "target_labels"
+    ],
+    "unresolved_context_disposition": "NOT_APPLICABLE",
+    "resolver_retention": "ephemeral_only"
+  },
+  "eligibility_contract": {
+    "eligible_reason": "TYPED_CONTEXT_COMPLETE",
+    "not_applicable_reasons": [
+      "NOT_FINANCIAL_NUMERIC",
+      "MISSING_TYPED_SKELETON",
+      "MISSING_SAFE_CATALOG",
+      "POLICY_DENIED",
+      "UNSUPPORTED_TYPED_CONTRACT"
+    ],
+    "eligibility_model_calls": 0,
+    "adapter_model_calls": 0,
+    "missing_context_starts_challenger": false,
+    "input_mismatch_starts_challenger": false,
+    "deadline_expired_starts_challenger": false
+  },
+  "outcome_contract": {
+    "worker_match": "MATCH",
+    "worker_diverged": "DIFFERENT",
+    "ineligible": "NOT_APPLICABLE",
+    "worker_failures": "SAFE_PROVIDER_ERROR",
+    "primary_response_mutation_permitted": false,
+    "serving_promotion_permitted": false
+  },
+  "audit_profile": {
+    "required_eligibility_reasons": [
+      "TYPED_CONTEXT_COMPLETE",
+      "NOT_FINANCIAL_NUMERIC",
+      "MISSING_TYPED_SKELETON",
+      "MISSING_SAFE_CATALOG",
+      "POLICY_DENIED",
+      "UNSUPPORTED_TYPED_CONTRACT"
+    ],
+    "required_real_worker_observations": 2,
+    "required_ineligible_worker_calls": 0,
+    "required_model_calls": 0,
+    "required_public_content_findings": 0,
+    "require_exact_outcome_mapping": true,
+    "require_input_binding": true,
+    "require_deadline_fail_closed": true,
+    "require_worker_failure_isolation": true
+  },
+  "public_output": {
+    "per_request_rows_permitted": false,
+    "raw_errors_permitted": false,
+    "allowed_sections": [
+      "source_binding",
+      "eligibility_aggregates",
+      "adapter_aggregates",
+      "fault_injection",
+      "gate_checks",
+      "non_claims"
+    ],
+    "prohibited_content": [
+      "request_id",
+      "question_text",
+      "answer_text",
+      "descriptor_ids",
+      "candidate_ids",
+      "evidence_ids",
+      "source_ids",
+      "principal",
+      "tenant_id",
+      "raw_error",
+      "per_request_latency",
+      "per_request_outcome"
+    ]
+  },
+  "serving_champion": "enterprise_agent_v2_primary_unchanged",
+  "challenger_status": "SHADOW_DEFAULT_OFF",
+  "internal_cohort_status": "CONSUMED_NOT_ACCESSED",
+  "frozen_test_status": "UNTOUCHED",
+  "non_claims": [
+    "not production traffic, availability, latency SLO, or capacity evidence",
+    "not answer accuracy, descriptor quality, or serving promotion evidence",
+    "not an oracle or gold-program adapter",
+    "not an implementation of online semantic planning or evidence retrieval",
+    "not a change to the E16 service route or its primary response",
+    "not frozen-test evidence"
+  ]
+}

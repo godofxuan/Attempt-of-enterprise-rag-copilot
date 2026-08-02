@@ -501,3 +501,18 @@ D4/D5 的 green 只证明默认 V2 本地数据流、prompt framing、public pro
 | `E16-I03` | 运行中显示 2 worker，却声称关闭后 0 | 指标采集阶段未标注 | 单独记录 pre-shutdown snapshot 与 post-shutdown count | 17/17 gates |
 | `E16-I04` | public audit 1324/1 | 审计脚本含假 credential 形状字面量 | 运行时构造 header、由公开 domain 派生材料；不加白名单 | 1324/0 |
 | `E16-I05` | 首次 full 只有 identity exact recompute 失败 | E16 修改了历史结果绑定的 main/resources SHA，20 个行为 case 未变化 | 保留 v2；新增可兼容 validator 和绑定 config/dark runtime 的 v3 证据 | 8 focused；security 245；full 2977 |
+
+## 41. FinQA Gate E17 typed eligibility and adapter decisions
+
+| ID | Question or symptom | Root cause | Decision or repair | Evidence |
+|---|---|---|---|---|
+| `E17-D01` | Reuse E13 preparation for the service adapter? | E13 derives structure from FinQA gold program, which is unavailable online | Permit only `ONLINE_RULES/ONLINE_MODEL`; prohibit gold/oracle and quality fields | frozen protocol + rejection tests |
+| `E17-D02` | Re-retrieve evidence inside provider using only question? | E16 provider lacks tenant/ACL context; re-retrieval could cross authorization boundaries | Accept only an upstream `RETRIEVED_ADMITTED_EVIDENCE` catalog through an ephemeral resolver | data-boundary tests |
+| `E17-D03` | Let callers provide the E8 primary? | A stale/different primary can invalidate same-input comparison | Compute E8 primary inside adapter on exact question/skeleton/catalog | eligible-path test |
+| `E17-D04` | How should missing typed input be handled? | Guessing fields inflates execution rate and creates false capability | Five frozen abstention reasons; return `NOT_APPLICABLE` before Worker | 5/5 reasons, 0 Worker calls |
+| `E17-D05` | How does request thread hand context to background thread? | E16 request intentionally excludes evidence and identity | Bounded TTL consume-once resolver with explicit discard and shutdown clear | resolver fault matrix |
+| `E17-D06` | Can duplicate request ID overwrite pending context? | Overwrite can bind one request to another request's context | Reject duplicates without mutation | duplicate regression |
+| `E17-D07` | What can public telemetry contain? | Typed context includes question and descriptor metadata | Aggregate reason/outcome/failure counts only; fixed safe error codes | evidence test + audit 1339/0 |
+| `E17-I01` | Resolver snapshot showed zero-valued event keys | `Counter += 0` creates a visible key | Create counters only when an event occurs | RED 2 fail -> GREEN 16/16 |
+| `E17-I02` | First real observation was much slower than the second | Windows `spawn` startup dominated first call | Keep asynchronous/default-off; disclose cold vs warm and require lifecycle-owned persistent Worker in E18 | ~732 ms max vs ~3.6 ms warm |
+| `E17-I03` | Resolver could spoof adapter error text; NaN deadline passed comparisons | Resolver exception type was trusted and deadline finiteness was unchecked | Map all resolver exceptions to one fixed code; validate exact type; reject non-finite deadline and post-close calls | RED 3 fail -> GREEN 16 adapter tests; 24/24 gates |

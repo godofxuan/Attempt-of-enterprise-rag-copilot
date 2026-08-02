@@ -1247,3 +1247,57 @@ Exact implementation commit `2143ba7` passed GitHub Actions run `30751922977`
 in 10m06s. Ubuntu and Windows completed successfully, the dependent Linux
 container contract passed in 4m03s, readiness/rollback drills passed and one
 Python runtime SBOM artifact was published.
+
+## 45. FinQA Gate E17: online-only typed eligibility and adapter boundary
+
+E16 exposed a generic provider but could not honestly call E11 because the
+enterprise request lacked a typed skeleton, safe catalog and bound E8 primary.
+E17 audited the old replay path and found that E13-E15 derived the skeleton
+from FinQA gold program structure. That is valid for the disclosed replay but
+would be target leakage in an online service. The new frozen protocol therefore
+allows only `ONLINE_RULES` or `ONLINE_MODEL` skeleton origin and only
+`RETRIEVED_ADMITTED_EVIDENCE` catalog origin. Gold answers, programs, evidence
+labels and target labels cannot enter the typed context schema.
+
+The implementation adds a self-hashing typed context, an exact eligibility
+state machine, a capacity/TTL bounded consume-once resolver and an E16 provider
+adapter. Ineligible resolutions return `NOT_APPLICABLE` before E8 or E11. An
+eligible resolution is bound to the exact request question; the adapter then
+computes E8 v5 primary internally and invokes the verified isolated E11 worker.
+Only `MATCH` and `DIVERGED` become E16 `MATCH` and `DIFFERENT`; faults become
+fixed safe provider codes and aggregate counts.
+
+The six-reason eligibility matrix caused zero worker calls for all five
+ineligible reasons. Two synthetic outcome probes mapped exactly, the E16
+background composition completed `ADMITTED -> MATCH`, and two real persistent
+`spawn` worker observations both returned `MATCH`. The first observation,
+including process startup, took approximately 732 ms; the warm observation was
+approximately 3.6 ms. The worker exited with code zero and controlled service
+threads and typed contexts both reached zero after close. All 24 frozen gates,
+23 focused tests and 52 related E12-E16 regressions passed. Public audit reported
+1339 candidates and zero findings.
+
+The full repository then passed 3000 tests with 29 platform skips and the same
+three known SWIG deprecation warnings. Dependency consistency, compileall,
+frozen evaluation hash verification, quality-review packet verification and
+expanded-corpus quality all passed.
+
+One implementation issue was found by RED/GREEN testing: adding zero to a
+`Counter` still created visible `expired_total: 0` and
+`shutdown_discarded_total: 0` fields. Counters now appear only when a real event
+occurs, keeping metric semantics stable. Duplicate request IDs are rejected
+without overwrite because cross-request context replacement would be an
+identity-binding failure.
+
+A second adversarial review found that a resolver could throw the adapter's
+public error class with attacker-controlled text, and a NaN deadline could
+bypass ordinary comparisons. The adapter now maps every resolver exception to
+one fixed code, verifies the exact resolution type, rejects non-finite
+deadlines and rejects calls after close before invoking the resolver.
+
+E17 remains mechanism-only and service-disabled. It does not create an online
+skeleton or safe catalog from the primary enterprise retrieval result, does not
+change `/agent/v2/chat`, does not access the consumed internal cohort or frozen
+test, and does not establish answer quality, traffic or an SLO. E18 must add a
+versioned ACL/Guard-admitted evidence-to-context service seam and lifecycle
+ownership before any default-off route experiment.
