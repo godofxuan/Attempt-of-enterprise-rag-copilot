@@ -14,6 +14,8 @@
 - Internal cohort: `CONSUMED_NOT_ACCESSED`
 - Frozen test: `UNTOUCHED`
 - Production traffic: `NOT_RUN`
+- Accepted delivery commit: `1ff17078847db146d770a37003763ff0587e399b`
+- Remote CI: run `30734383716`, `SUCCESS`, Ubuntu/Windows/Linux container
 
 ## Completed
 
@@ -87,8 +89,10 @@ after Ubuntu/Windows completed 2934/2958 tests because three test setups
 unconditionally required ignored private FinQA train bytes. The protocol and
 runtime were not changed. A follow-up splits public protocol tests from the two
 private-train integration tests, which now skip only when the private source is
-absent. Push the repair and verify its exact-SHA remote CI. Only after that
-should a new protocol consider pool/queue/backpressure or
+absent. Repair commit `1ff1707` passed Actions run `30734383716` in 9m58s:
+Ubuntu/Windows matrix 2/2 and the Linux container contract all succeeded, with
+one artifact published. E13 delivery is complete. A new protocol may consider
+pool/queue/backpressure or
 durable aggregate telemetry. Promotion still requires independent quality
 evidence and a separate release decision.
 

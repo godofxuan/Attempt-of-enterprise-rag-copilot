@@ -1223,5 +1223,7 @@ Delivery note: exact commit `09aabf5` was pushed, but Actions run
 `30734063847` failed only because three test setups unconditionally opened the
 ignored private FinQA train split on clean runners. A follow-up test-only
 repair separates public protocol/gate tests from two private-train integration
-tests. Do not record remote E13 CI as passed until that repair's exact run
-finishes successfully.
+tests. Exact repair commit `1ff1707` passed Actions run `30734383716` in 9m58s:
+the Ubuntu/Windows matrix completed 2/2, the Linux container contract passed,
+and one artifact was published. E13 delivery is complete; E11 remains
+default-off and E8 remains champion.

@@ -1121,4 +1121,6 @@ contract failure in Actions run `30734063847`: both Ubuntu and Windows passed
 their other 2,900-plus tests, but three test setups tried to open ignored
 private FinQA train bytes. The repair separated public protocol/gate tests from
 the two private-train integration tests. Missing private data now skips only
-those two tests; it no longer prevents aggregate contract verification.
+those two tests; it no longer prevents aggregate contract verification. Exact
+repair commit `1ff1707` then passed Actions run `30734383716` across Ubuntu,
+Windows, and the dependent Linux container contract in 9m58s.

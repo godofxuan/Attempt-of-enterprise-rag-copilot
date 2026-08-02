@@ -235,6 +235,12 @@ cohort now skip when train is absent; aggregate gate evaluation still runs in
 a clean checkout. The affected local group passed 10/10 after the repair. This
 keeps private data out of Git while making CI absence an explicit test state.
 
+Repair commit `1ff17078847db146d770a37003763ff0587e399b` then passed GitHub
+Actions run `30734383716` in 9m58s. The Ubuntu and Windows matrix completed 2/2,
+the dependent Linux container contract passed in 4m08s, and one SBOM artifact
+was published. This remote result binds the clean-checkout repair, not the
+earlier failed commit.
+
 ## Evidence
 
 ```text
