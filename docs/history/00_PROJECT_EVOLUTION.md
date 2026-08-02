@@ -1076,3 +1076,42 @@ FinQA endpoint, real traffic, hard process cancellation, durable distributed
 metrics, answer-accuracy evidence or frozen-test access. E13 is limited to
 unlabeled operational replay and stronger worker isolation over disclosed
 train-only inputs.
+
+## 41. FinQA Gate E13: hard process isolation becomes measured behavior
+
+E13 implemented the process boundary that E12 intentionally did not claim.
+The challenger now runs in one persistent Windows-compatible `spawn` process
+behind canonical byte-bounded IPC. The parent owns the immutable E8 primary
+decision, checks the E12 same-input binding, enforces a hard deadline, can
+terminate/kill and join the old PID, and starts a verified replacement after a
+timeout, crash or malformed response.
+
+The protocol pins official FinQA train bytes and deterministically selects 128
+cases from 71 companies. Answer, execution-answer, gold-evidence and annotated
+row fields are projected out before typed validation. The runtime uses only
+retrieved and Guard-admitted evidence to infer source-bound constants. It still
+uses gold program structure, so the replay measures worker mechanics rather
+than planner or answer quality.
+
+The accepted run prepared 117/128 cases and completed 117/117 isolated
+observations. Replay worker error, timeout and restart counts were all zero;
+p50/p95 observation latency was 5.659/16.443 ms and maximum process peak RSS
+was 91,136,000 bytes. E8/E11 produced 74 MATCH and 43 DIVERGED case-level
+observations across 252 roles, but these are behavior counts, not correctness.
+All five timeout/crash/malformed/oversize/immutability fault probes and all 16
+operational gates passed. Closeout verification passed 16 focused tests, 424
+external-dataset tests, and the full repository at 2937 passed / 29 skipped;
+the public audit reported 1291 candidates with zero findings.
+
+Implementation exposed four useful failures before closeout: the 78 MiB train
+file exceeded the generic loader and contained one invalid gold-evidence key;
+an old source-constant helper silently depended on gold evidence; the initial
+selection-algorithm label disagreed with its expected ID hash; and the audit
+mistook dataclasses for Pydantic models before a public schema key was also
+overwritten by dict expansion. None was hidden by weakening a gate. The final
+protocol and public evidence were regenerated before commit and are bound to
+the exact implementation hashes.
+
+E11 remains default-off and E8 remains champion. No internal or frozen cohort,
+network model, production route, OS sandbox, concurrent pool, durable queue,
+answer labels or serving-promotion authority entered E13.

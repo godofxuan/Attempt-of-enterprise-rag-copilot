@@ -1182,3 +1182,39 @@ docs/external_datasets/finqa_typed_retrospective_gate_e.md
 docs/external_datasets/evidence/finqa_typed_retrospective_dev_v1_public_v2.json
 docs/learning/22_FINQA_GATE_E_真实模型评测与失败复盘.md
 ```
+
+## 26. FinQA Gate E13 process-isolated replay handoff
+
+E13 is implemented and its local operational evidence is frozen. E8 remains
+the serving-disabled champion and E11 remains a default-off shadow challenger.
+
+```text
+protocol SHA-256                    4604572c065d69d8d79f7287cfb206143c01e1ea11c4a6ec85c0bea4ee845f97
+public evidence SHA-256             b933f83dff1307828309222c276ea0a5d70372324cdd7822c79dd41b463106d3
+official train selected/prepared    128 / 117
+worker completed/attempted           117 / 117
+worker errors/timeouts/restarts      0 / 0 / 0
+observation p50/p95                  5.659 / 16.443 ms
+maximum worker peak RSS              91,136,000 bytes
+fault injection                      5/5 passed
+all operational gates                16/16 passed
+focused E13 tests                    16 passed
+external-dataset regression          424 passed
+full repository regression           2937 passed / 29 skipped / 3 warnings
+public repository audit              1291 candidates / 0 findings
+model calls                          0
+internal cohort                      CONSUMED_NOT_ACCESSED
+frozen test                          UNTOUCHED
+production traffic                   NOT RUN
+```
+
+The replay projects answer/gold-evidence quality fields out before typed
+validation and uses only retrieved, Guard-admitted candidates for source-bound
+constants. It still uses gold program structure, so this is not planner or
+answer quality evidence. `MATCH/DIVERGED` must not be described as accuracy.
+
+The E13 public evidence binds four implementation files. Do not edit them or
+overwrite v1 evidence; use a versioned protocol/evidence chain for any worker
+pool, queue, backpressure, durable telemetry or resource-control change. Full
+details and future admission criteria are in
+`docs/roadmap/finqa_gate_e13_current_handoff.md`.

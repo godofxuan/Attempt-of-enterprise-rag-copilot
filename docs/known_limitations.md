@@ -311,6 +311,17 @@ deployment evidence. The elapsed timeout is detected after in-process CPU
 execution; it is not hard cancellation. There is no durable/distributed shadow
 metrics backend or production FinQA route. E11 still cannot replace E8.
 
+Gate E13 adds hard parent-controlled termination and restart around one
+persistent local `spawn` worker. Its accepted 128-case official-train replay
+uses gold program structure, projects answer and gold-evidence fields out, and
+publishes aggregate operational counts only. The 117/117 completion result and
+16.443 ms p95 measure sequential post-primary observation on one Windows host.
+They do not establish end-to-end latency, concurrency, throughput, planner
+realism, answer accuracy, an OS network sandbox, worker-pool durability,
+distributed recovery or production availability. Eleven selected cases failed
+preparation and were excluded from worker attempts under the frozen accounting
+rule. E11 remains default-off and cannot replace E8.
+
 The support heuristic treats distinct minimal candidate/evidence closures as
 independent runtime support. This is auditable but not a statistical proof of
 independence or correctness. Semantically different minimal closures can still

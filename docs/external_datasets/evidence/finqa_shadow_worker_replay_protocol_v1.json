@@ -1,0 +1,97 @@
+{
+  "schema_version": "finqa_shadow_worker_replay_protocol_v1",
+  "protocol_id": "finqa-e13-isolated-worker-replay-v1",
+  "status": "FROZEN_BEFORE_E13_IMPLEMENTATION",
+  "claim_label": "TRAIN_ONLY_UNLABELED_OPERATIONAL_REPLAY_NOT_QUALITY_EVIDENCE",
+  "source_e12_protocol_sha256": "20323918a34ca062eb4bfbf015dabd3b21b935bd12028516936c2600e4011ec5",
+  "source_e12_mechanism_sha256": "41e4ebc4e130a18fbf5f65bcac3cd7ab0dfc5be1f39455e50360f7e326a93e48",
+  "dataset": {
+    "repository": "https://github.com/czyssrs/FinQA",
+    "revision": "0f16e2867befa6840783e58be38c9efb9229d742",
+    "split": "train",
+    "split_sha256": "49f237eb9779b569473b26b08048867d04635a7cc39ad6a7a5664c55bb428db6",
+    "split_case_count": 6251,
+    "selection_algorithm": "sha256_seed_ascii_backslash_zero_case_id_ascending_then_case_id",
+    "selection_seed": "finqa-e13-operational-replay-v1",
+    "selected_case_count": 128,
+    "selected_case_ids_sha256": "25bf0954575765336f93aa3cee2af1a02eccc5e732b9871cb7876917e431ef64",
+    "selected_company_count": 71,
+    "max_selected_units_per_case": 10,
+    "typed_input_source": "gold_program_structure_only",
+    "prohibited_quality_fields": [
+      "answer",
+      "exe_ans",
+      "gold_inds",
+      "ann_table_rows",
+      "ann_text_rows",
+      "target_labels"
+    ]
+  },
+  "worker": {
+    "start_method": "spawn",
+    "topology": "single_persistent_process_single_inflight_request",
+    "startup_timeout_seconds": 15.0,
+    "observation_timeout_seconds": 1.0,
+    "termination_grace_seconds": 1.0,
+    "max_request_bytes": 1048576,
+    "max_response_bytes": 65536,
+    "restart_after_timeout": true,
+    "restart_after_crash": true,
+    "os_network_sandbox_claimed": false
+  },
+  "replay_gates": {
+    "min_preparation_success_rate": 0.8,
+    "min_observation_completion_rate": 1.0,
+    "max_worker_error_count": 0,
+    "max_worker_timeout_count": 0,
+    "max_observation_latency_p95_ms": 250.0,
+    "max_worker_peak_rss_bytes": 1073741824,
+    "require_all_primary_results_e8": true,
+    "require_zero_model_calls": true,
+    "require_aggregate_only_output": true,
+    "require_no_quality_labels_or_scores": true
+  },
+  "fault_injection_gates": {
+    "require_hard_timeout_terminates_worker": true,
+    "require_crash_detection_and_restart": true,
+    "require_oversized_request_rejected_before_ipc": true,
+    "require_malformed_response_rejected": true,
+    "require_primary_result_immutability": true
+  },
+  "public_output": {
+    "per_request_rows_permitted": false,
+    "allowed_metric_groups": [
+      "preparation",
+      "observations",
+      "latency_ms",
+      "worker_peak_rss_bytes",
+      "fault_injection",
+      "gate_checks"
+    ],
+    "prohibited_content": [
+      "question_text",
+      "numeric_values",
+      "case_ids",
+      "company_ids",
+      "descriptor_ids",
+      "candidate_ids",
+      "evidence_ids",
+      "source_ids",
+      "provenance",
+      "ranked_scores",
+      "per_request_latency"
+    ]
+  },
+  "serving_champion": "finqa_deterministic_descriptor_retriever_v5",
+  "challenger_status": "SHADOW_DEFAULT_OFF",
+  "internal_cohort_status": "CONSUMED_NOT_ACCESSED",
+  "frozen_test_status": "UNTOUCHED",
+  "non_claims": [
+    "not answer accuracy or retrieval quality",
+    "not planner realism because gold program structure builds the typed skeleton",
+    "not production traffic, throughput, concurrency, or availability",
+    "not an operating-system network sandbox",
+    "not distributed worker or durable telemetry evidence",
+    "not serving promotion authorization"
+  ]
+}
