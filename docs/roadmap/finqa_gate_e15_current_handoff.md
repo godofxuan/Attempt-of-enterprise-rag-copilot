@@ -11,6 +11,8 @@
 - Internal cohort: `CONSUMED_NOT_ACCESSED`
 - Frozen test: `UNTOUCHED`
 - Production traffic: `NOT_RUN`
+- Accepted delivery commit: `bd35fa1e62ab5c30a87414c6b5e4fd12a0362b23`
+- Remote CI: run `30740853135`, `SUCCESS`, Ubuntu/Windows/Linux container
 
 ## Completed
 
@@ -70,7 +72,10 @@ E13/E14 immutable files remain unchanged.
 - Expanded corpus quality passed all checks.
 - Public audit reported 1315 candidates and zero findings.
 
-Exact commit and remote GitHub Actions evidence remain pending.
+Exact implementation commit `bd35fa1e62ab5c30a87414c6b5e4fd12a0362b23`
+passed GitHub Actions run `30740853135` in 10m24s. The Ubuntu/Windows matrix
+completed 2/2, the dependent Linux container contract passed in 4m05s, and one
+Python runtime SBOM artifact was published.
 
 ## Known limits
 
@@ -85,11 +90,14 @@ Exact commit and remote GitHub Actions evidence remain pending.
 
 ## Next action
 
-After exact-commit CI passes, design E16 service dark integration. Keep Shadow
-default-off; add bounded sampling, request-budget isolation, aggregate service
-telemetry, startup/shutdown ownership, and rollback. Do not reinterpret the
-local capacity result as a production SLO.
+Design E16 service dark integration. Keep Shadow default-off; add bounded
+sampling, request-budget isolation, aggregate service telemetry,
+startup/shutdown ownership, and rollback. Do not reinterpret the local
+capacity result as a production SLO.
 
 Recommended model: **5.6 Sol / Extra High**, because service integration adds
 cross-request lifecycle, latency-budget and rollback invariants around an
 already measured but serving-disabled subsystem.
+
+Delivery is complete at exact implementation commit `bd35fa1e`; its remote
+CI result and local evidence agree.

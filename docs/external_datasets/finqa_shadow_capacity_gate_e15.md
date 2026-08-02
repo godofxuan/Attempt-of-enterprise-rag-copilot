@@ -195,7 +195,16 @@ public repository audit       1315 candidates / 0 findings
 ```
 
 The three warnings are pre-existing SWIG deprecation warnings. Remote
-exact-commit GitHub Actions evidence is pending at this local closeout point.
+exact-commit GitHub Actions evidence subsequently passed:
+
+```text
+implementation commit        bd35fa1e62ab5c30a87414c6b5e4fd12a0362b23
+GitHub Actions run           30740853135 / SUCCESS / 10m24s
+Ubuntu + Windows matrix      2 / 2 completed successfully
+Linux container contract     PASS / 4m05s
+SBOM artifacts               1
+artifact digest              999953217b1bb1901e7db67bd3abd22ac741a2e05ada03ee4ce72f39c853df7b
+```
 
 ## Non-claims and next gate
 

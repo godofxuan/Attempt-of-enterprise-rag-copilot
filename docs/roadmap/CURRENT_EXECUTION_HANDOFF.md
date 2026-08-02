@@ -1302,3 +1302,8 @@ internal remains consumed/unaccessed and frozen test remains untouched.
 After exact-commit CI passes, the next admissible gate is E16 service dark
 integration with default-off bounded sampling, independent latency budgets,
 aggregate service telemetry, lifecycle ownership and rollback.
+
+Delivery note: exact implementation commit `bd35fa1e62ab5c30a87414c6b5e4fd12a0362b23`
+passed GitHub Actions run `30740853135` in 10m24s. Ubuntu and Windows completed
+2/2, the dependent Linux container contract passed in 4m05s, and one SBOM
+artifact was published.

@@ -1,10 +1,10 @@
 # Complete Git Commit Index
 
-> 中文说明：这是从仓库建立到 R2-S9 文档收口的逐提交原始索引。
+> 中文说明：这是从仓库建立到 E15 实现提交的逐提交原始索引。
 >
-> Cutoff: `951726601213b9b9a75b6ec4016fc87ad0331dfd`
+> Cutoff: `bd35fa1e62ab5c30a87414c6b5e4fd12a0362b23`
 >
-> Count: `123` commits. 后续文档维护提交请以 GitHub Commits 页面为准。
+> Count: `209` commits. 本次纯文档收口提交自身将在下一次索引刷新时纳入。
 
 阶段解释、代码位置、验证结果和已知限制见 [00_PROJECT_EVOLUTION.md](00_PROJECT_EVOLUTION.md)。
 
@@ -133,23 +133,96 @@
 | 121 | 2026-07-27 | [`0ee3ba2`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/0ee3ba2536dc9a4d0549fde69bd30c6c96b02f04) | fix(ci): apply smoke directory mode as root |
 | 122 | 2026-07-27 | [`3123133`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/31231333c8a0cf88973ac90333c407b89d181ee3) | fix(ci): preserve private deployment handoffs |
 | 123 | 2026-07-27 | [`9517266`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/951726601213b9b9a75b6ec4016fc87ad0331dfd) | docs(deployment): close out R2-S9 evidence [skip ci] |
-| 124 | 2026-07-28 | [`723543a`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/723543ac727f374464e141f80a4420dbaeb255d6) | feat: add resumable FinanceBench retrieval track |
-| 125 | 2026-07-28 | [`5d612ea`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/5d612ea9c6c72039e76846c71d46d16e7f29c733) | fix: route runtime caches to writable container storage |
-| 126 | 2026-07-28 | [`c815c39`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/c815c39c747357a39fef86aae97014459f940363) | feat(eval): add frozen FinanceBench page retrieval |
-| 127 | 2026-07-28 | [`a2527e6`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/a2527e6834371e1121836cd403d1090ab49e948b) | fix(eval): normalize FinanceBench evidence pages |
-| 128 | 2026-07-28 | [`d1b2975`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/d1b2975b7b45cae1abc3696262da1fcf165a4380) | docs(eval): record frozen FinanceBench page results |
-| 129 | 2026-07-28 | [`f33e2ab`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/f33e2abcb942ace3931d57530d4bca1d4dd258a5) | feat(eval): add FinanceBench page candidate ranking |
-| 130 | 2026-07-28 | [`14adcab`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/14adcabf24ed4b3470a30042ef02b262b2e7bc3c) | feat(retrieval): add guarded local page reranker |
-| 131 | 2026-07-28 | [`18e2665`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/18e2665da0a712c4b18b44ab4075fcab2ada94f7) | fix(eval): isolate page reranker timeout budget |
-| 132 | 2026-07-28 | [`e4fde24`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/e4fde24328bf9c57e0fcb7e1f06314662a0c8918) | feat(eval): fuse dense and local page rankings |
-| 133 | 2026-07-28 | [`89b64af`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/89b64afb7b58f2d23744186089ea8281a1c47199) | fix(retrieval): retry invalid page ranking protocol |
-| 134 | 2026-07-28 | [`e032178`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/e032178923b9a35c6eb52060b770ffa2da6172b6) | feat(eval): record page ranking confidence scores |
-| 135 | 2026-07-28 | [`ba3dd0e`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/ba3dd0e65240c8bd79a96c176dd7d1df37d019d0) | feat(retrieval): gate page reranking by dense confidence |
-| 136 | 2026-07-28 | [`daefac1`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/daefac1f4dcc7dd0c1d30dc45d3108aeb94d34e6) | fix(eval): preserve older reranker run verification |
+| 124 | 2026-07-27 | [`c15da4e`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/c15da4e8c8a3dca95125c5bb26c6952a1c6030ec) | docs: add complete project evolution history [skip ci] |
+| 125 | 2026-07-28 | [`25c00e4`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/25c00e41c3a7b662188fb42b09f9a36120058610) | test(agent): reproduce citation fail-open leakage |
+| 126 | 2026-07-28 | [`0b8ef0a`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/0b8ef0a3c9254bcaed22b24fcae381bd6d4130b2) | fix(agent): strengthen deterministic citation checks |
+| 127 | 2026-07-28 | [`2ca1cd4`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/2ca1cd432fd8467239bf5cea93281cf01ce20165) | fix(agent): rebuild answers from supported claims |
+| 128 | 2026-07-28 | [`0998be4`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/0998be4a5769ea115116b54e204eab6c91f14365) | test(evaluation): enforce citation gate in fake attack flow |
+| 129 | 2026-07-28 | [`87467ba`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/87467ba3ce53496c7bbf27d324ea94239e7d1f95) | docs(agent): clarify grounding and controller boundaries |
+| 130 | 2026-07-28 | [`723543a`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/723543ac727f374464e141f80a4420dbaeb255d6) | feat: add resumable FinanceBench retrieval track |
+| 131 | 2026-07-28 | [`5d612ea`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/5d612ea9c6c72039e76846c71d46d16e7f29c733) | fix: route runtime caches to writable container storage |
+| 132 | 2026-07-28 | [`c815c39`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/c815c39c747357a39fef86aae97014459f940363) | feat(eval): add frozen FinanceBench page retrieval |
+| 133 | 2026-07-28 | [`a2527e6`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/a2527e6834371e1121836cd403d1090ab49e948b) | fix(eval): normalize FinanceBench evidence pages |
+| 134 | 2026-07-28 | [`d1b2975`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/d1b2975b7b45cae1abc3696262da1fcf165a4380) | docs(eval): record frozen FinanceBench page results |
+| 135 | 2026-07-28 | [`f33e2ab`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/f33e2abcb942ace3931d57530d4bca1d4dd258a5) | feat(eval): add FinanceBench page candidate ranking |
+| 136 | 2026-07-28 | [`14adcab`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/14adcabf24ed4b3470a30042ef02b262b2e7bc3c) | feat(retrieval): add guarded local page reranker |
+| 137 | 2026-07-28 | [`18e2665`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/18e2665da0a712c4b18b44ab4075fcab2ada94f7) | fix(eval): isolate page reranker timeout budget |
+| 138 | 2026-07-28 | [`e4fde24`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/e4fde24328bf9c57e0fcb7e1f06314662a0c8918) | feat(eval): fuse dense and local page rankings |
+| 139 | 2026-07-28 | [`89b64af`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/89b64afb7b58f2d23744186089ea8281a1c47199) | fix(retrieval): retry invalid page ranking protocol |
+| 140 | 2026-07-28 | [`e032178`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/e032178923b9a35c6eb52060b770ffa2da6172b6) | feat(eval): record page ranking confidence scores |
+| 141 | 2026-07-28 | [`ba3dd0e`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/ba3dd0e65240c8bd79a96c176dd7d1df37d019d0) | feat(retrieval): gate page reranking by dense confidence |
+| 142 | 2026-07-28 | [`daefac1`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/daefac1f4dcc7dd0c1d30dc45d3108aeb94d34e6) | fix(eval): preserve older reranker run verification |
+| 143 | 2026-07-28 | [`f14ef84`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/f14ef840231275bfebed6bc014056d02be26cf3d) | docs(eval): record FinanceBench reranker tradeoffs |
+| 144 | 2026-07-28 | [`d32d65e`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/d32d65e55936348d4d8f460694d80ec7726443e1) | feat(eval): add FinQA numerical holdout track |
+| 145 | 2026-07-28 | [`64f68a8`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/64f68a8e66d60b841a04148bc1ba57f500bd434f) | fix(eval): classify FinQA model identity transport |
+| 146 | 2026-07-28 | [`438906e`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/438906e9de7d2cf2efceffa6c161488c7e1fec8b) | fix(eval): keep FinQA schema Ollama compatible |
+| 147 | 2026-07-28 | [`98fe07f`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/98fe07f6cc83b960b959de9f2167f580ab682d92) | feat(eval): separate FinQA strict and presentation accuracy |
+| 148 | 2026-07-28 | [`7ce9a60`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/7ce9a60a2b19bd79208eb20aeb69e95a0dfbc569) | fix(eval): isolate FinQA protocol failures per case |
+| 149 | 2026-07-28 | [`900e685`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/900e6850583e741f98e2c7ca11a95af69f281e77) | feat(agent): add guarded calculator path for FinQA |
+| 150 | 2026-07-29 | [`3458c3b`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/3458c3b869dc8bfc272c887d8437cad58a0f1ea9) | fix(agent): simplify FinQA calculator planning contract |
+| 151 | 2026-07-29 | [`40a876c`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/40a876c577a0631059eabac4c0073f970e768116) | fix(eval): clarify financial expression semantics |
+| 152 | 2026-07-29 | [`c7042e5`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/c7042e58c938952166db54631e2b5e113d691b70) | fix(eval): preserve increase-rate planning |
+| 153 | 2026-07-29 | [`3c2ed21`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/3c2ed21cc1604a99e6e6a445cbea1ef17763b8c9) | feat(eval): enforce frozen FinQA holdout identities |
+| 154 | 2026-07-29 | [`ef4d596`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/ef4d596164518802fe3950e110a7978365b11e06) | docs(eval): freeze FinQA external holdout protocol |
+| 155 | 2026-07-29 | [`d2abae8`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/d2abae875f0378d5540bdac6ba7019a0a1160585) | fix(eval): accept FinQA single-row tables before execution |
+| 156 | 2026-07-29 | [`3513997`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/35139977635cfb31bc1829b1e11422151a9905d6) | docs(eval): refreeze FinQA after schema-only incident |
+| 157 | 2026-07-29 | [`f903485`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/f9034858ccd16d3b4ecb7df4dc992d65078afd31) | docs(eval): publish FinQA holdout evidence and limits |
+| 158 | 2026-07-29 | [`87d2f0c`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/87d2f0c7bd05fdbaeee20d34e7c8cb2f85c07e32) | feat(eval): add FinQA dev failure diagnostics |
+| 159 | 2026-07-29 | [`cba451a`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/cba451a7c221d8b6dfa464487261baae6d6fbed6) | docs(eval): publish FinQA dev failure analysis |
+| 160 | 2026-07-29 | [`7b1cbc6`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/7b1cbc60dce1180ead2494d7f0fe70625fd4485e) | docs(learning): explain FinQA results and diagnostics |
+| 161 | 2026-07-29 | [`a4a0663`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/a4a06639c9971981c237b1f35bd744f516bfe085) | feat(eval): add bounded FinQA plan review |
+| 162 | 2026-07-29 | [`a9c5c04`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/a9c5c04e67fd5e9ecc26a430cda8ec9e34a601c1) | fix(eval): align FinQA reviewer scale contract |
+| 163 | 2026-07-29 | [`7876a3a`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/7876a3aaf05bbb802b72fc17d506986a3aa7d048) | feat(eval): add bounded FinQA candidate adjudication |
+| 164 | 2026-07-29 | [`d88c3ff`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/d88c3ff06033d2c35ce86ebd50ff2edab973581b) | docs(eval): freeze disjoint FinQA review validation |
+| 165 | 2026-07-29 | [`69b7d72`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/69b7d72ed01be64ebb776f2c08ca5c4d9182a501) | fix(eval): record FinQA model runtime backend |
+| 166 | 2026-07-29 | [`538a78d`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/538a78de3718c6c77363ab99da49e1278c56a693) | docs(eval): record FinQA review validation |
+| 167 | 2026-07-29 | [`e59d9e4`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/e59d9e4fb722e00b99a0b30108a20829bf1cbf7c) | feat(eval): add resumable case checkpoints |
+| 168 | 2026-07-29 | [`08a3f62`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/08a3f62ab28ef5284419724cd9a0a20af75c37be) | feat(eval): add runtime uncertainty gating |
+| 169 | 2026-07-29 | [`ed1a59c`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/ed1a59ca24c2159fa7c09cf461db1e74939c078b) | docs(eval): publish uncertainty gating evidence |
+| 170 | 2026-07-29 | [`65257e9`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/65257e9971a19c58b9b361684f787e86190d6e77) | feat(eval): add end-to-end selective FinQA runner |
+| 171 | 2026-07-29 | [`0e0a7f5`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/0e0a7f51a509e82e825dc7caaf808d811c2e565e) | test(eval): freeze selective FinQA cohort |
+| 172 | 2026-07-29 | [`454d498`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/454d498b0eff534fbe985d0a7ea96364646f171d) | fix(eval): bind stable CUDA review options |
+| 173 | 2026-07-29 | [`6112b54`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/6112b543245232f78887142cfcbb309f1e2ee882) | test(eval): freeze selective FinQA protocol v2 |
+| 174 | 2026-07-29 | [`d2a6bf9`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/d2a6bf945b5d3c724ed03aa6288fb609f5bc54cd) | docs(eval): publish selective FinQA evidence |
+| 175 | 2026-07-29 | [`904c129`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/904c129937bc85a1de5edd570d8f4e9b096cc5fd) | test(eval): define typed FinQA program contract |
+| 176 | 2026-07-29 | [`b63c87e`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/b63c87e6332da425a4dd52ce765627ece2c9843a) | feat(eval): extract typed FinQA numeric candidates |
+| 177 | 2026-07-29 | [`a783c18`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/a783c18f15b2f91d2bc6abe11ad8f7ffa8d8e92d) | feat(eval): add typed FinQA program execution |
+| 178 | 2026-07-30 | [`9ee80ac`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/9ee80ac7b9e8f030a30ea6005c5e8a118e81c087) | feat(eval): select multiple typed FinQA programs |
+| 179 | 2026-07-30 | [`9180b7e`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/9180b7ecd61bbabc1f00edc2929877c471fa769b) | feat(eval): freeze typed FinQA retrospective |
+| 180 | 2026-07-30 | [`57d1bee`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/57d1bee8425c01b1097e15709dfd6a3371ad79a5) | eval(finqa): record rejected typed retrospective |
+| 181 | 2026-07-30 | [`ac8424d`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/ac8424d23002e2d74e2f36fed32c45d9e8e46a7b) | eval(finqa): freeze typed contract calibration |
+| 182 | 2026-07-30 | [`fbcc693`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/fbcc693505529d3c9b1d3c8e900667a857834eac) | feat(finqa): calibrate typed contract v2 |
+| 183 | 2026-07-30 | [`39d8edf`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/39d8edf850b69b380677e24d4927210ecfa26b4d) | eval(finqa): add typed contract calibration runner |
+| 184 | 2026-07-30 | [`80eac2f`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/80eac2f1e7cd03c12d188b21478a943d43dcf5dd) | fix(finqa): reduce typed planner candidate noise |
+| 185 | 2026-07-30 | [`66a464b`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/66a464bf0f4ccbd40f71dca491f395ab4e5acafe) | refactor(finqa): compile typed sketches on host |
+| 186 | 2026-07-30 | [`750d7ae`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/750d7aee57e9106cafe5202e824b6c28dddaa7cd) | eval(finqa): close typed contract calibration |
+| 187 | 2026-07-30 | [`1467aba`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/1467abaeec6f6cd03bfb50f7b0fff10db67b16c2) | eval(finqa): freeze numeric evidence gate |
+| 188 | 2026-07-30 | [`6422f70`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/6422f70cd42ec89b2a35bd45817657625fe4be6b) | docs(finqa): correct numeric input gate semantics |
+| 189 | 2026-07-30 | [`6655ee8`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/6655ee80755455ae52f41c468c878c624a01b0e6) | feat(finqa): harden numeric evidence inputs |
+| 190 | 2026-07-30 | [`f6d5973`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/f6d597385f9b86460c3bdc504a92f0cadc87b8ee) | docs(finqa): publish numeric evidence gate |
+| 191 | 2026-07-30 | [`428af16`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/428af166e73e15d727bb1e15bbdacfddf9e17329) | eval(finqa): freeze v2.3 paired calibration |
+| 192 | 2026-07-30 | [`4a1f8e4`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/4a1f8e4de9000adfef3ab115f7e03923b8e84b31) | feat(finqa): add v2.3 paired calibration runtime |
+| 193 | 2026-07-30 | [`ce3fac5`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/ce3fac5399b128c97751efc851e54e26ad872971) | eval(finqa): close rejected v2.3 calibration |
+| 194 | 2026-07-30 | [`5a5f474`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/5a5f4741d49539c12ffe24c029600fa1420699c0) | eval(finqa): freeze semantic planning calibration |
+| 195 | 2026-07-30 | [`df53f7b`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/df53f7ba83fb423f9fa361bff1770fe07dee8004) | feat(finqa): add semantic planning calibration |
+| 196 | 2026-07-30 | [`f138efc`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/f138efcf08aaf90a848a10908f1855ba634fc37e) | eval(finqa): close rejected semantic planning calibration |
+| 197 | 2026-07-30 | [`e7be330`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/e7be3301edffe97d2c286a37ad118c75a89dafda) | eval(finqa): freeze role compatibility input gate |
+| 198 | 2026-07-30 | [`6c2f79b`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/6c2f79bdf82780d56c0f694685d4713dcd642048) | feat(finqa): add role compatibility input audit |
+| 199 | 2026-07-30 | [`928e88b`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/928e88b3e0b5deb0744d580ab7d9ae3baa3d52f2) | fix(finqa): correct role compatibility audit accounting |
+| 200 | 2026-07-30 | [`2d28f4d`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/2d28f4d8fae8da73d5d99c6b3319d02449f0aa57) | fix(finqa): separate conditional compatibility retention |
+| 201 | 2026-07-30 | [`e4bfb00`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/e4bfb007818f9ee88754994ca17834b3c30c3c4a) | eval(finqa): publish rejected role compatibility audit |
+| 202 | 2026-07-30 | [`3e90d63`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/3e90d63de935ccbc556e6c19293fc20862370573) | eval(finqa): freeze role compatibility v2 gate |
+| 203 | 2026-08-02 | [`43e4181`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/43e4181d26276a944e36ac1a2b30e429b44fbfa3) | feat(finqa): complete descriptor ranking and shadow gates |
+| 204 | 2026-08-02 | [`09aabf5`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/09aabf551603c37bf315e6db5ab3f7c3ec247850) | feat(finqa): add isolated shadow replay gate |
+| 205 | 2026-08-02 | [`1ff1707`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/1ff17078847db146d770a37003763ff0587e399b) | test(finqa): skip private replay data in clean CI |
+| 206 | 2026-08-02 | [`43efb35`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/43efb359622cb2baa4ee935c47769a6da9940fca) | docs(finqa): close E13 remote delivery [skip ci] |
+| 207 | 2026-08-02 | [`3e5ebb8`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/3e5ebb813668f01bb88227373062789abe3580eb) | feat(finqa): add bounded shadow worker pool |
+| 208 | 2026-08-02 | [`9909d57`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/9909d5746bf5ae1b5bb1c57bce222bf44c6159fe) | docs(finqa): close E14 remote delivery [skip ci] |
+| 209 | 2026-08-02 | [`bd35fa1`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/bd35fa1e62ab5c30a87414c6b5e4fd12a0362b23) | feat(finqa): measure local shadow capacity envelope |
 
 ## 范围说明
 
-- 本索引来自 `git log <cutoff> --reverse`，不是人工挑选，因此不会只保留“看起来重要”的提交。
-- merge、CI 修复、跨平台修复和文档收口也保留，因为这些同样属于真实工程过程。
-- 本索引截止提交之后的新提交不会神奇地写入自身；最新原始历史应查看 GitHub 分支的 Commits 页面。
+- 本索引由 `git log HEAD --reverse` 机械生成，不做“只保留重要提交”的人工筛选。
+- merge、CI 修复、跨平台修复和文档收口都属于真实工程过程，因此一并保留。
+- Cutoff 之后的新提交不会预先写入自己的未知 SHA；最新原始历史以 GitHub Commits 页面为准。
 - 私有运行产物、密钥、模型权重、缓存和被 `.gitignore` 排除的本地活动不属于公开提交历史。

@@ -1187,3 +1187,8 @@ Local closeout passed 446 external-dataset tests and the full repository at
 Compileall, dependency consistency, frozen-evaluation verification, the
 quality-review packet, expanded-corpus quality and public audit also passed;
 the public audit reported 1315 candidates and zero findings.
+
+Exact implementation commit `bd35fa1` passed GitHub Actions run `30740853135`
+in 10m24s. The Ubuntu/Windows matrix completed 2/2, the dependent Linux
+container contract passed in 4m05s, and one Python runtime SBOM artifact was
+published.

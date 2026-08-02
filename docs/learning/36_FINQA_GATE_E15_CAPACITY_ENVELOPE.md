@@ -356,3 +356,16 @@ E15 只补充运行容量证据。E11 的质量证据仍然样本少、McNemar `
 6. 仍不访问 frozen quality split。
 
 只有这样，容量实验才能向“可运营但默认关闭”的工业化机制推进，而不是停留在离线 benchmark。
+
+## 20. 为什么还要等 GitHub Actions
+
+本地通过只能证明当前 Windows 工作区成立。实现提交
+`bd35fa1e62ab5c30a87414c6b5e4fd12a0362b23` 推送后，GitHub Actions #50 又独立执行了：
+
+1. Ubuntu 和 Windows 两套 deterministic test，结果 `2/2`；
+2. Linux test/runtime 镜像构建；
+3. 只读容器内的 compile、pytest、冻结 hash、corpus 和 public audit；
+4. API readiness 失败与 rollback drill；
+5. Python runtime SBOM 生成。
+
+整次 CI 用时 10分24秒，Linux container 用时 4分05秒，并产出 1 个 SBOM artifact。它仍然不是生产部署，但证明公开仓库的 clean checkout 在两个操作系统和一个受限 Linux 容器里保持契约一致，比“我电脑上能跑”更可信。
