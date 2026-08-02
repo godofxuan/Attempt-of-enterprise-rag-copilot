@@ -277,6 +277,40 @@ or no-valid states. It has only deterministic and fake-model evidence. No real
 model run proves that the model produces genuinely diverse programs, and the
 runtime selector has not been calibrated against answer correctness.
 
+Gate E9 adds a company-disjoint, value-free learned descriptor ranker, but it
+does not establish a ranking improvement. Its train-only OOF Descriptor
+Recall@4 improved by 2.08 percentage points, while the single formal disclosed-
+development run regressed by 5.69 points and Candidate Recall@8 regressed by
+3.25 points. The train evidence contract forces gold coverage through FinQA
+`model_input`, unlike the runtime retrieval closure. The pointwise linear
+objective also does not directly optimize role-level Top-4 recall. E8 remains
+champion, E9 serving is disabled, and the consumed development cohort may not
+be reused for E9 tuning.
+
+Gate E10 removes forced-gold training evidence, uses pairwise hard negatives
+and bounds the learned residual around E8. It improves every company-disjoint
+fold, but aggregate Descriptor Recall@4 rises only 0.9455 percentage points,
+below the frozen 1-point gate. This is train OOF descriptor ranking, not answer
+accuracy or independent-domain confirmation. Internal validation and frozen
+test were not run, E8 remains champion, and E10 may not be reinterpreted by
+lowering its threshold after the result.
+
+Gate E11 passes nested company outer CV (`+1.1987pp`) and a one-shot internal
+non-regression gate (`+2.63pp` role Recall@4, two gains and zero regressions),
+but only 76 roles were evaluated and exact two-sided McNemar is `p=0.5`.
+Three of 40 internal cases used a common typed fallback. The result is selector
+and candidate recall, not answer accuracy, statistical confirmation or serving
+authorization. The internal cohort is consumed for E11; the artifact remains
+disabled and frozen test is untouched.
+
+Gate E12 adds a default-off, E8-first shadow coordinator with evidence-chain
+verification, same-input binding, bounded aggregate telemetry and circuit
+recovery. Its public result is one synthetic mechanism probe plus deterministic
+fault injection, not production traffic, throughput, latency, quality or
+deployment evidence. The elapsed timeout is detected after in-process CPU
+execution; it is not hard cancellation. There is no durable/distributed shadow
+metrics backend or production FinQA route. E11 still cannot replace E8.
+
 The support heuristic treats distinct minimal candidate/evidence closures as
 independent runtime support. This is auditable but not a statistical proof of
 independence or correctness. Semantically different minimal closures can still

@@ -1,0 +1,34 @@
+{
+  "decision": "E10_CV_GATE_FAILED_KEEP_E8_CHAMPION",
+  "diagnosis": [
+    "Retrieval-realistic evidence and a pairwise objective corrected the direction of E9: every company-disjoint fold improved over E8.",
+    "The aggregate gain was 0.9454668242444786 percentage points, below the frozen 1.0-point authorization threshold.",
+    "The remaining gap is too small to justify changing the threshold after observing the outcome, and too uncertain to spend the one-shot internal cohort.",
+    "The current 21-feature linear residual has no interaction terms and cannot directly optimize the discontinuous Top-4 boundary."
+  ],
+  "e8_descriptor_recall_at_4": 0.8488941414823569,
+  "e10_descriptor_recall_at_4": 0.8583488097248017,
+  "fold_delta_at_4": [
+    0.006768189509306244,
+    0.012006861063464824,
+    0.009975062344139696,
+    0.00670016750418756,
+    0.011884550084889645
+  ],
+  "frozen_test_status": "UNTOUCHED",
+  "internal_validation_status": "NOT_RUN",
+  "model_call_count": 0,
+  "next_data_budget_status": "NOT_AUTHORIZED",
+  "next_protocol_requirements": [
+    "Do not change the E10 threshold or rerun E10 under a modified interpretation.",
+    "Use nested company-grouped cross-validation for any E11 model or hyperparameter choice.",
+    "Keep E8 as the serving champion and preserve bounded, fail-closed behavior.",
+    "Authorize the internal 40-case cohort only from a newly frozen E11 outer-CV gate.",
+    "Do not access the frozen test."
+  ],
+  "schema_version": "finqa_pairwise_residual_postmortem_public_v1",
+  "serving_champion_after_gate": "finqa_deterministic_descriptor_retriever_v5",
+  "serving_route_status": "DISABLED",
+  "source_cv_sha256": "cc50056ccc72c51533da93c895f58a2b665a2e80116f6a877f7b592d9f8f8ec0",
+  "source_protocol_sha256": "c6538d0e496371fc4ec844cb4c85c60b313bff40934b98a5271815b95dce27d2"
+}

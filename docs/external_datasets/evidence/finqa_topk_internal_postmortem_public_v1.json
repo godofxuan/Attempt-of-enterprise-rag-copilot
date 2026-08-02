@@ -1,0 +1,42 @@
+{
+  "candidate_recall_at_8_transitions": {
+    "gained": 2,
+    "missed_both": 10,
+    "regressed": 0,
+    "retained": 64
+  },
+  "case_count": 40,
+  "complete_case_counts": {
+    "e11": 30,
+    "e8": 28
+  },
+  "decision": "E11_INTERNAL_GATE_PASSED_BUT_EFFECT_SIZE_UNCERTAIN_SERVING_DISABLED",
+  "descriptor_recall_at_4_transitions": {
+    "gained": 2,
+    "missed_both": 10,
+    "regressed": 0,
+    "retained": 64
+  },
+  "evaluated_typed_case_count": 37,
+  "fallback_case_count": 3,
+  "fallback_class_counts": {
+    "oracle_returned_no_typed_skeleton": 1,
+    "shared_semantic_contract_validation_error": 2
+  },
+  "frozen_test_status": "UNTOUCHED",
+  "interpretation": [
+    "E11 passed the preregistered non-regression internal gates and improved two of 76 evaluated roles with zero paired role regressions.",
+    "The exact two-sided McNemar p-value is 0.5, so this small one-shot cohort does not establish a statistically significant efficacy gain.",
+    "Candidate Recall@8 changed exactly with descriptor recall because conditional candidate retention was 1.0 in both arms on this cohort.",
+    "The three common fallback cases measure typed-contract coverage, not a selector difference.",
+    "The E11 artifact remains disabled and the internal cohort is now consumed for E11 tuning."
+  ],
+  "mcnemar_exact_two_sided_p": 0.5,
+  "next_stage": "SHADOW_ONLY_INTEGRATION_AND_OBSERVABILITY_WITHOUT_FROZEN_TEST_ACCESS",
+  "role_count": 76,
+  "schema_version": "finqa_topk_internal_postmortem_public_v1",
+  "serving_champion_after_gate": "finqa_deterministic_descriptor_retriever_v5",
+  "serving_route_status": "DISABLED",
+  "source_internal_result_sha256": "e775b94363ceb86b4211a5f4ac4b15b75dc80aa1e7dd8dcfef1d3bc6fdb6a8d8",
+  "source_private_manifest_sha256": "37692a4d32f8c354c4eace3928b6d47c4af6581eaf1471b9992fc85530defc8b"
+}

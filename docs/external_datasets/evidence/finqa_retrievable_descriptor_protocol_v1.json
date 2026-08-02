@@ -1,0 +1,60 @@
+{
+  "baseline": {
+    "candidate_complete_case_rate_at_8": 0.7586206896551724,
+    "candidate_recall_at_4": 0.7073170731707317,
+    "candidate_recall_at_8": 0.7886178861788617,
+    "conditional_candidate_retention_at_8": 0.941747572815534,
+    "descriptor_complete_case_rate_at_4": 0.8275862068965517,
+    "descriptor_recall_at_4": 0.8373983739837398
+  },
+  "budgets": {
+    "max_catalog_descriptors": 64,
+    "max_descriptor_prompt_chars": 20000,
+    "max_local_context_hint_chars": 128,
+    "max_ranked_candidates_per_role": 8,
+    "max_selected_descriptors_per_role": 4,
+    "max_source_candidates": 128,
+    "max_topic_contexts": 32,
+    "max_topic_hint_chars": 160
+  },
+  "calibration_case_count": 60,
+  "calibration_case_ids_sha256": "26dd679087f2aca7a71ebbccd9e77769a77a308a83c5dbd226125c35c71f9fe6",
+  "claim_label": "DISCLOSED_DEVELOPMENT_CALIBRATION",
+  "decision_rule": "all_progress_and_safety_checks_must_pass_without_serving_activation",
+  "frozen_test_status": "UNTOUCHED",
+  "internal_validation_status": "NOT_RUN",
+  "long_term_targets": {
+    "min_candidate_complete_case_rate_at_8": 0.9,
+    "min_candidate_recall_at_8": 0.95,
+    "min_descriptor_recall_at_4": 0.95
+  },
+  "non_claims": [
+    "not answer accuracy",
+    "not held-out evaluation",
+    "not an adoption or serving gate",
+    "progress success does not authorize internal-validation consumption"
+  ],
+  "progress_gates": {
+    "min_candidate_complete_case_rate_at_8": 0.8,
+    "min_candidate_edge_reduction_rate": 0.7,
+    "min_candidate_recall_at_4": 0.75,
+    "min_candidate_recall_at_8": 0.84,
+    "min_conditional_candidate_retention_at_8": 0.98,
+    "min_descriptor_complete_case_rate_at_4": 0.86,
+    "min_descriptor_recall_at_4": 0.88,
+    "min_oracle_candidate_recall_at_8": 0.98,
+    "min_source_candidate_catalog_coverage": 0.98,
+    "require_candidate_identity_preservation": true,
+    "require_guard_scan_before_projection": true,
+    "require_input_order_invariance": true,
+    "require_serving_route_disabled": true,
+    "require_zero_forbidden_field_leakage": true,
+    "require_zero_model_calls": true
+  },
+  "protocol_id": "finqa-retrievable-descriptor-and-reranker-gate-e8-v1",
+  "schema_version": "finqa_retrievable_descriptor_protocol_v1",
+  "source_e7_catalog_protocol_sha256": "2c0699914e6f011d38dc43d9379a8c5e4846e306130d273242f98718de921b35",
+  "source_e7_catalog_upper_bound_v2_sha256": "e7a596c136ad92737f33d17c1464aea44689e01ea1f6b6d4fe960eab02adce29",
+  "source_e7_retriever_v2_result_sha256": "47e3af0d0bb1b3fcc7b8e82fd529adba2c93fa1c3d6d7bb638352a0682def6a9",
+  "status": "FROZEN_BEFORE_E8_CATALOG_AND_RERANKER_IMPLEMENTATION"
+}

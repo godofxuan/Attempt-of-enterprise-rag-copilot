@@ -1,5 +1,108 @@
 # Enterprise Agentic RAG v2 - Current Execution Handoff
 
+## 2026-08-02 FinQA Gate E12 handoff
+
+E12 completed with decision
+`E12_MECHANISM_GATE_PASSED_SHADOW_REMAINS_DEFAULT_OFF`. It adds an E8-first
+immutable primary decision, same-input E11 observation, complete evidence-chain
+verification, aggregate-only privacy telemetry, and a three-failure /
+five-observation-cooldown circuit breaker.
+
+The deterministic audit passed 11/11 mechanism gates, 14 focused tests, 408
+external-dataset tests, and full `2921 passed / 29 skipped`; public audit was
+`1278/0`.
+Default-off made zero challenger calls; injected error and timeout remained
+isolated; nine circuit observations made only four challenger calls and
+recovered through one half-open probe. This is synthetic mechanism evidence,
+not production traffic, answer accuracy, or a serving promotion. E8 remains
+champion, E11 remains disabled, and frozen test is `UNTOUCHED`. Full state is
+in `docs/roadmap/finqa_gate_e12_current_handoff.md`.
+
+## 2026-08-02 FinQA Gate E11 handoff
+
+E11 passed its nested company outer gate and its single authorized internal
+validation. Outer Descriptor Recall@4 improved `84.8894% -> 86.0881%`
+(`+1.1987pp`) with every fold positive. On 37 typed internal cases / 76 roles,
+E8/E11 Descriptor and Candidate Recall were `84.21% / 86.84%`; transitions
+were `64 retained / 0 regressed / 2 gained / 10 missed`. Three additional
+cases used the same typed-capability fallback in both arms.
+
+The internal ordinal/budget is `1/1` and consumed. Exact McNemar `p=0.5` does
+not establish a statistically significant efficacy gain. E8 remains serving
+champion, E11 remains disabled, and frozen test is `UNTOUCHED`. E11 is eligible
+only for E12 shadow integration and aggregate observability. Full state is in
+`docs/roadmap/finqa_gate_e11_current_handoff.md`.
+
+## 2026-08-02 FinQA Gate E10 handoff
+
+E10 completed with decision
+`E10_CV_GATE_FAILED_INTERNAL_VALIDATION_PROHIBITED`.
+
+It replaced E9's gold-forced train evidence with official retrieval Top-10,
+used role-level pairwise hard negatives, and limited the learned model to a
+`[-4,+4]` residual around E8. Company-disjoint OOF Descriptor Recall@4 moved
+from `84.8894%` to `85.8349%`. All five folds improved and coefficient
+stability passed, but `+0.9455pp` missed the frozen `+1.0000pp` gate.
+
+E8 remains champion; E10 serving is disabled. Internal validation is `NOT_RUN`
+and unconsumed; frozen test is `UNTOUCHED`. Do not lower the E10 threshold or
+rerun E9's consumed 60-case development cohort. The next admissible challenger
+requires a new E11 protocol with nested company-grouped CV. Full state is in
+`docs/roadmap/finqa_gate_e10_current_handoff.md`.
+
+## 2026-08-02 FinQA Gate E9 handoff
+
+Gate E9 is complete with decision
+`E9_DEVELOPMENT_GATE_FAILED_KEEP_E8_CHAMPION`.
+
+```text
+metric                               train OOF E8/E9      dev E8/E9
+Descriptor Recall@4                    88.76/90.84%       84.55/78.86%
+Candidate Recall@8                           n/a          78.86/75.61%
+Candidate complete case@8                    n/a          74.14/72.41%
+Conditional candidate retention@8            n/a          93.27/95.88%
+```
+
+The 23-feature linear challenger passed company-disjoint CV by +2.08pp with
+1.24pp fold standard deviation, then failed its single authorized disclosed-
+development transfer. Paired descriptor outcomes were 93 retained, 11
+regressed, four gained and 15 missed by both. The failure is preserved in
+public evidence; E8 remains champion and E9 serving is disabled.
+
+The formal development ordinal/budget is `1/1` and consumed. Internal
+validation remains `NOT_RUN`; frozen test remains `UNTOUCHED`. Next work must
+use a new E10 train-only protocol with retrieval-realistic evidence, a Top-4
+ranking objective and bounded E8 residual. Do not retune E9 and rerun the same
+60 cases. Full details are in
+`docs/roadmap/finqa_gate_e9_current_handoff.md`.
+
+## 2026-08-02 FinQA Gate E8 handoff
+
+Gate E8 is complete with decision `E8_DEVELOPMENT_PROGRESS_GATE_FAILED`.
+
+```text
+metric                                  E7 baseline       E8
+descriptor Recall@4                         83.74%       84.55%
+descriptor complete case@4                  82.76%       82.76%
+candidate Recall@4                          70.73%       66.67%
+candidate Recall@8                          78.86%       78.86%
+candidate complete case@8                   75.86%       74.14%
+conditional candidate retention@8           94.17%       93.27%
+Oracle candidate Recall@8                      n/a      100.00%
+candidate edge reduction                    77.78%       75.10%
+```
+
+Catalog coverage, Oracle capacity and every security/identity invariant
+passed. Six runtime quality checks failed. Positive descriptor-priority
+bonuses `1/2/4/8` all reduced Candidate Recall@8, so the selected development
+configuration uses priority `0` and candidate-local weight `1`. This result is
+not answer accuracy, not held-out evaluation, and not an adoption decision.
+
+Internal validation remains `NOT_RUN`, frozen test remains `UNTOUCHED`, and
+serving remains `DISABLED`. The next allowed work is a newly frozen E9
+train-only, document-grouped learned-ranking protocol. Full details are in
+`docs/roadmap/finqa_gate_e8_current_handoff.md`.
+
 ## 2026-07-30 FinQA Gate E5 handoff
 
 Gate E5 is complete with decision `CALIBRATION_REJECTED`.

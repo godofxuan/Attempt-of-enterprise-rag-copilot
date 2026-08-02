@@ -1,0 +1,26 @@
+{
+  "artifact_or_cv_evidence_written_before_erratum": false,
+  "corrected_protocol_sha256": "c6538d0e496371fc4ec844cb4c85c60b313bff40934b98a5271815b95dce27d2",
+  "correction": {
+    "internal_validation_boundary": "exactly_10_selected_units_per_case",
+    "training_boundary": "top_10_or_all_available_without_padding",
+    "training_selected_unit_count_distribution": {
+      "10": 3002,
+      "6": 12,
+      "7": 21,
+      "8": 11,
+      "9": 22
+    }
+  },
+  "discovery": "The first full preparation attempt aborted because 66 official FinQA train reports expose only 6-9 unique retrieved_all units, not exactly 10.",
+  "frozen_outcome_seen_before_erratum": false,
+  "incident_id": "finqa-e10-protocol-input-count-erratum-v1",
+  "implementation_incidents": [
+    "The first JSON patch placed the variable-count fields under internal_validation instead of training_boundary; strict Pydantic validation rejected it before training.",
+    "The retriever selector initially referenced an out-of-scope artifact name; an end-to-end selector test exposed it and the implementation now uses self._artifact.",
+    "An initial pair-count-versus-feature-count guard was removed because positive L2 regularization makes the normal-equation system invertible even when the pair count is smaller than the feature count."
+  ],
+  "protocol_status_interpretation": "The corrected protocol was frozen before the first successful training and before any cross-validation outcome was observed.",
+  "schema_version": "finqa_pairwise_residual_protocol_erratum_v1",
+  "successful_training_runs_before_erratum": 0
+}

@@ -1,0 +1,43 @@
+{
+  "calibration_case_count": 60,
+  "calibration_case_ids_sha256": "26dd679087f2aca7a71ebbccd9e77769a77a308a83c5dbd226125c35c71f9fe6",
+  "claim_label": "DISCLOSED_DEVELOPMENT_CALIBRATION",
+  "decision_rule": "all_pre_registered_checks_must_pass",
+  "dense_weight": 0.8,
+  "embedding_dimension": 1024,
+  "embedding_model": "bge-m3",
+  "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+  "frozen_test_status": "UNTOUCHED",
+  "gates": {
+    "max_embedding_requests_per_typed_case": 1,
+    "max_generation_requests_per_typed_case": 0,
+    "max_mean_latency_ms": 5000.0,
+    "max_p95_latency_ms": 5000.0,
+    "min_candidate_edge_reduction_rate": 0.7,
+    "min_complete_typed_case_rate_at_8": 0.9,
+    "min_role_recall_at_4": 0.85,
+    "min_role_recall_at_8": 0.95,
+    "min_schema_valid_rate": 1.0,
+    "require_candidate_identity_preservation": true,
+    "require_input_order_invariance": true,
+    "require_pinned_model_identity": true,
+    "require_safe_descriptor_only_embedding_payload": true,
+    "require_serving_route_disabled": true
+  },
+  "internal_validation_status": "NOT_RUN",
+  "lexical_weight": 0.2,
+  "non_claims": [
+    "not answer accuracy",
+    "not full semantic planner quality",
+    "not held-out evaluation",
+    "passing this input gate does not authorize serving activation"
+  ],
+  "protocol_id": "finqa-hybrid-descriptor-retriever-gate-e7-v3",
+  "retriever_version": "finqa_hybrid_descriptor_retriever_v3",
+  "rrf_k": 60.0,
+  "schema_version": "finqa_descriptor_retriever_protocol_v3",
+  "source_catalog_protocol_sha256": "2c0699914e6f011d38dc43d9379a8c5e4846e306130d273242f98718de921b35",
+  "source_catalog_upper_bound_v2_sha256": "e7a596c136ad92737f33d17c1464aea44689e01ea1f6b6d4fe960eab02adce29",
+  "source_retriever_v2_result_sha256": "47e3af0d0bb1b3fcc7b8e82fd529adba2c93fa1c3d6d7bb638352a0682def6a9",
+  "status": "FROZEN_BEFORE_FULL_LOCAL_EMBEDDING_CALIBRATION"
+}

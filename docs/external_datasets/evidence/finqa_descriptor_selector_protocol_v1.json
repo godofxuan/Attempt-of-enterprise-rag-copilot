@@ -1,0 +1,39 @@
+{
+  "calibration_case_count": 60,
+  "calibration_case_ids_sha256": "26dd679087f2aca7a71ebbccd9e77769a77a308a83c5dbd226125c35c71f9fe6",
+  "claim_label": "DISCLOSED_DEVELOPMENT_CALIBRATION",
+  "decision_rule": "all_pre_registered_checks_must_pass",
+  "frozen_test_status": "UNTOUCHED",
+  "gates": {
+    "max_mean_latency_ms": 5000.0,
+    "max_model_requests_per_typed_case": 1,
+    "max_p95_latency_ms": 10000.0,
+    "min_candidate_edge_reduction_rate": 0.7,
+    "min_complete_typed_case_rate_at_8": 0.9,
+    "min_role_recall_at_4": 0.85,
+    "min_role_recall_at_8": 0.95,
+    "min_schema_valid_rate": 1.0,
+    "require_candidate_identity_preservation": true,
+    "require_input_order_invariance": true,
+    "require_serving_route_disabled": true,
+    "require_zero_non_enum_output": true,
+    "require_zero_prompt_leakage": true
+  },
+  "internal_validation_status": "NOT_RUN",
+  "model": "qwen3:8b",
+  "model_digest": "500a1f067a9f",
+  "non_claims": [
+    "not answer accuracy",
+    "not full semantic planner quality",
+    "not held-out evaluation",
+    "passing this input gate does not authorize serving activation"
+  ],
+  "protocol_id": "finqa-live-descriptor-selector-gate-e7-v1",
+  "schema_version": "finqa_descriptor_selector_protocol_v1",
+  "selection_version": "finqa_descriptor_selection_v1",
+  "source_catalog_protocol_sha256": "2c0699914e6f011d38dc43d9379a8c5e4846e306130d273242f98718de921b35",
+  "source_catalog_upper_bound_v2_sha256": "e7a596c136ad92737f33d17c1464aea44689e01ea1f6b6d4fe960eab02adce29",
+  "status": "FROZEN_BEFORE_FULL_LIVE_SELECTOR_CALIBRATION",
+  "temperature": 0,
+  "think": false
+}

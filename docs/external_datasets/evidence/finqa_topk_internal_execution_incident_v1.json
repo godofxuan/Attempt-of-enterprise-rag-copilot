@@ -1,0 +1,11 @@
+{
+  "artifact_or_result_written": false,
+  "case_id": "AON/2014/page_47.pdf-2",
+  "classification": "COMMON_TYPED_CAPABILITY_BOUNDARY_NOT_CHALLENGER_OUTCOME",
+  "error": "ValidationError: SemanticProgramSkeletonV2 rejects a semantic v2 step that reuses one reference",
+  "evaluation_ordinal_after_repair": 1,
+  "failure_stage": "shared_oracle_construction_before_e8_e11_selector_split",
+  "incident_id": "finqa-e11-internal-shared-oracle-fallback-v1",
+  "repair": "Preflight the shared typed oracle and classify unsupported contracts as FALLBACK_ROUTED for both arms; preserve all later arm-specific errors as failures.",
+  "schema_version": "finqa_topk_internal_execution_incident_v1"
+}

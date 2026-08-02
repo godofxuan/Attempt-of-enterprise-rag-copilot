@@ -1,0 +1,87 @@
+{
+  "schema_version": "finqa_descriptor_shadow_protocol_v1",
+  "protocol_id": "finqa-e12-default-off-shadow-v1",
+  "status": "FROZEN_BEFORE_E12_IMPLEMENTATION",
+  "claim_label": "MECHANISM_ONLY_SHADOW_INTEGRATION_NOT_SERVING_ACTIVATION",
+  "source_e8_protocol_sha256": "23412f04f98039db34c8e58a78d7216592595e022a70ecec67a75dfdabb99218",
+  "source_e11_protocol_sha256": "6ce66ed1e389239428c4d78597f1ed4b16c92eb66786574b2a238653f6d61003",
+  "source_e11_cv_sha256": "5e1aacebc9494c4af1972e25a9a5e5a8dc07110867225fe7e223e2a33c3a973c",
+  "source_e11_artifact_file_sha256": "33405e98a9c435cae1b7087062ed522a4cf16c3c3adf5f2354207ceb7314214b",
+  "source_e11_artifact_sha256": "fcfa9612d9f3201f0d3e976828059c1bcbe7d26a299dad0931854fcc8672b982",
+  "source_e11_internal_sha256": "e775b94363ceb86b4211a5f4ac4b15b75dc80aa1e7dd8dcfef1d3bc6fdb6a8d8",
+  "source_e11_postmortem_sha256": "fdbd626ff694cb38c4d9751890eff43cd06f380cac1ab6829c2b5a4d93f3fb82",
+  "runtime": {
+    "default_mode": "OFF",
+    "champion_version": "finqa_deterministic_descriptor_retriever_v5",
+    "challenger_version": "finqa_top4_boundary_ranker_v1",
+    "primary_must_complete_before_shadow": true,
+    "challenger_replacement_permitted": false,
+    "challenger_model_calls_permitted": false,
+    "observation_timeout_ms": 100.0,
+    "hard_preemption_claimed": false
+  },
+  "circuit_breaker": {
+    "consecutive_failure_threshold": 3,
+    "cooldown_observation_count": 5,
+    "single_half_open_probe": true,
+    "failure_outcomes": [
+      "CHALLENGER_ERROR",
+      "CHALLENGER_TIMEOUT",
+      "INPUT_MISMATCH"
+    ]
+  },
+  "telemetry": {
+    "allowed_observation_fields": [
+      "schema_version",
+      "outcome",
+      "role_count",
+      "changed_role_count",
+      "common_descriptor_count_at_4",
+      "latency_bucket",
+      "circuit_state"
+    ],
+    "latency_buckets": [
+      "LT_1_MS",
+      "1_TO_LT_5_MS",
+      "5_TO_LT_20_MS",
+      "20_TO_LT_100_MS",
+      "GE_100_MS",
+      "NOT_RUN"
+    ],
+    "prohibited_content": [
+      "question_text",
+      "numeric_values",
+      "descriptor_ids",
+      "candidate_ids",
+      "evidence_ids",
+      "source_ids",
+      "provenance",
+      "ranked_scores",
+      "input_fingerprints"
+    ],
+    "per_request_persistence_permitted": false,
+    "aggregate_counters_only": true
+  },
+  "gates": {
+    "require_default_off": true,
+    "require_primary_result_immutability": true,
+    "require_artifact_and_evidence_hash_verification": true,
+    "require_fail_closed_challenger_loading": true,
+    "require_error_and_timeout_isolation": true,
+    "require_circuit_breaker_recovery": true,
+    "require_privacy_bounded_telemetry": true,
+    "require_thread_safe_aggregate_metrics": true,
+    "require_zero_model_calls": true,
+    "require_frozen_test_untouched": true
+  },
+  "serving_route_status": "DISABLED",
+  "frozen_test_status": "UNTOUCHED",
+  "non_claims": [
+    "not answer accuracy",
+    "not production traffic evidence",
+    "not asynchronous queue deployment",
+    "not hard thread or process cancellation",
+    "not serving authorization",
+    "not frozen-test evidence"
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "schema_version": "finqa_retrievable_descriptor_ablation_public_v1",
+  "claim": "DISCLOSED_DEVELOPMENT_HYPERPARAMETER_ABLATION",
+  "protocol_sha256": "23412f04f98039db34c8e58a78d7216592595e022a70ecec67a75dfdabb99218",
+  "case_count": 60,
+  "typed_case_count": 58,
+  "role_count": 123,
+  "selection_rule": "prefer candidate_recall_at_8 and complete-case retention without weakening oracle capacity; never alter frozen gates",
+  "selected_configuration": {
+    "descriptor_priority_step": 0.0,
+    "candidate_local_weight": 1.0,
+    "reason": "all positive descriptor-priority steps reduced candidate Recall@8; local context preserved Recall@8 and improved complete-case and Oracle retention versus local weight zero"
+  },
+  "runs": [
+    {
+      "descriptor_priority_step": 0.0,
+      "candidate_local_weight": 1.0,
+      "descriptor_recall_at_4": 0.8455284552845529,
+      "candidate_recall_at_4": 0.6666666666666666,
+      "candidate_recall_at_8": 0.7886178861788617,
+      "candidate_complete_case_rate_at_8": 0.7413793103448276,
+      "conditional_candidate_retention_at_8": 0.9326923076923077,
+      "oracle_candidate_recall_at_8": 1.0,
+      "candidate_edge_reduction_rate": 0.7509505703422054,
+      "public_result_sha256": "9aed2a3fcc4f90c8bbae9e8e3448c95f2a19166aa3c2b30963973f7ede45af70",
+      "private_manifest_sha256": "1683a20069ec7c3a8f110bdb1050c1cf58f0ddbfd6820bfbcb61f563ed78970f",
+      "private_details_sha256": "b40c06d5e83983fe371438c297b106d30a17ecfec602a352bfd2b594668705e9"
+    },
+    {
+      "descriptor_priority_step": 1.0,
+      "candidate_local_weight": 1.0,
+      "descriptor_recall_at_4": 0.8455284552845529,
+      "candidate_recall_at_4": 0.6585365853658537,
+      "candidate_recall_at_8": 0.7804878048780488,
+      "candidate_complete_case_rate_at_8": 0.7241379310344828,
+      "conditional_candidate_retention_at_8": 0.9230769230769231,
+      "oracle_candidate_recall_at_8": 1.0,
+      "candidate_edge_reduction_rate": 0.7509505703422054,
+      "public_result_sha256": "f38f52a41392a9716ff25ea2f5f5ae2641d0d204a82ade7c3690921d082ee7bf"
+    },
+    {
+      "descriptor_priority_step": 2.0,
+      "candidate_local_weight": 1.0,
+      "descriptor_recall_at_4": 0.8455284552845529,
+      "candidate_recall_at_4": 0.6422764227642277,
+      "candidate_recall_at_8": 0.7723577235772358,
+      "candidate_complete_case_rate_at_8": 0.7068965517241379,
+      "conditional_candidate_retention_at_8": 0.9134615384615384,
+      "oracle_candidate_recall_at_8": 1.0,
+      "candidate_edge_reduction_rate": 0.7509505703422054,
+      "public_result_sha256": "b25efc72a8e431c8c594d95a8fef1fc85826312d367024f17e8d1555a318858c"
+    },
+    {
+      "descriptor_priority_step": 4.0,
+      "candidate_local_weight": 1.0,
+      "descriptor_recall_at_4": 0.8455284552845529,
+      "candidate_recall_at_4": 0.6422764227642277,
+      "candidate_recall_at_8": 0.7804878048780488,
+      "candidate_complete_case_rate_at_8": 0.7413793103448276,
+      "conditional_candidate_retention_at_8": 0.9230769230769231,
+      "oracle_candidate_recall_at_8": 1.0,
+      "candidate_edge_reduction_rate": 0.7509505703422054,
+      "public_result_sha256": "1a44d20996e9859acbd1dce1fbc5704faa1c39ffff7f1f2791a9fb9cf6675f06"
+    },
+    {
+      "descriptor_priority_step": 8.0,
+      "candidate_local_weight": 1.0,
+      "descriptor_recall_at_4": 0.8455284552845529,
+      "candidate_recall_at_4": 0.6666666666666666,
+      "candidate_recall_at_8": 0.7804878048780488,
+      "candidate_complete_case_rate_at_8": 0.7413793103448276,
+      "conditional_candidate_retention_at_8": 0.9230769230769231,
+      "oracle_candidate_recall_at_8": 1.0,
+      "candidate_edge_reduction_rate": 0.7509505703422054,
+      "public_result_sha256": "65394fe84013296d1f46e9ec9197880ef79949eb462fa78a310b71da8d94b82d"
+    },
+    {
+      "descriptor_priority_step": 0.0,
+      "candidate_local_weight": 0.0,
+      "descriptor_recall_at_4": 0.8455284552845529,
+      "candidate_recall_at_4": 0.6829268292682927,
+      "candidate_recall_at_8": 0.7886178861788617,
+      "candidate_complete_case_rate_at_8": 0.7241379310344828,
+      "conditional_candidate_retention_at_8": 0.9326923076923077,
+      "oracle_candidate_recall_at_8": 0.991869918699187,
+      "candidate_edge_reduction_rate": 0.7509505703422054,
+      "public_result_sha256": "a495da720baa9b1ce46c33692ffdcb81374f7c0a46ed72f326618986e1904fd8",
+      "private_manifest_sha256": "54fd73b9175b14a7f2cca09f185aa4be1435b1ce3576d30220d9498c365a9b02",
+      "private_details_sha256": "4a6f3b9cdf4f10c87f48b71b9128f4b0af3ff84e66db53920d40d85e507ae8db"
+    }
+  ],
+  "decision": "SELECT_ZERO_PRIORITY_KEEP_LOCAL_CONTEXT_BUT_DO_NOT_ADOPT_E8",
+  "serving_route_status": "DISABLED",
+  "internal_validation_status": "NOT_RUN",
+  "frozen_test_status": "UNTOUCHED",
+  "non_claims": [
+    "not answer accuracy",
+    "not held-out evaluation",
+    "not evidence of production readiness"
+  ]
+}

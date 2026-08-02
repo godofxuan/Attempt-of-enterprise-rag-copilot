@@ -886,3 +886,193 @@ The measured next bottleneck is role-to-candidate compatibility and operation
 semantics. A future Gate E6 must freeze a compatibility-filter/ranker ablation
 before any new model calls; it may not weaken validation or consume hidden
 cohorts.
+
+## 34. FinQA Gate E6: full-pool ranking and explicit role queries
+
+E6-v1 proved that a global numeric shortlist removed required operands before
+role binding. E6-v2 moved the full Guard-admitted operand pool host-side,
+separated evidence roles from controlled constants, added a five-step
+source-bound Decimal compiler, and enforced role-specific candidate enums.
+
+The authoritative E6-v2 v4 audit improved role recall@8 from 75.91% to 83.74%
+and complete case@8 from 63.33% to 77.59%, while source recall reached 100%.
+It still failed the frozen 95%/90% gates. A local-window/diversity ablation was
+measured, regressed, recorded and removed.
+
+The remaining failure was contractual: several roles had identical
+`component/none` descriptions. E6-v3 added bounded planner-generated
+`role_query` and `expected_period` fields without weakening Guard admission,
+identity or provenance. The offline gold-descriptor upper bound reached 99.19%
+role recall@8 and 98.28% complete@8. This is an interface-capacity result only;
+real planner and answer quality remain unmeasured, and serving stays disabled.
+
+## 35. FinQA Gate E7: safe descriptors expose semantic recoverability limits
+
+E7 first tested question-only role queries. Conservative deterministic queries
+reached 80.49% role recall@8, while pinned `qwen3:8b` free-query generation
+fell to 63.41%. The negative result rejected another unconstrained query-
+rewriting iteration.
+
+A new value-free descriptor boundary then removed candidate values, candidate/
+evidence/source IDs and provenance from selector input. Both raw and sanitized
+descriptor fields are Guard-scanned; only the host retains descriptor-to-
+candidate mappings. The contextual v2 catalog passed its offline Oracle gate
+at 95.93%/100% Recall@4/@8 and 100% complete@8 with zero model calls. This is
+catalog capacity, not answer accuracy.
+
+The real enum-only `qwen3:8b` selector failed at 56.91%/59.35% Recall@4/@8
+and 93.10% schema validity. Deterministic lexical v1 beat it with 67.48%/
+78.05%; normalized lexical v2 improved Recall@4 to 70.73% and complete@8 to
+75.86%. A fully pinned local BGE-M3 hybrid passed safety, identity, request and
+latency gates but regressed quality to 65.04%/74.80%. Typed structural v4
+raised Recall@8 to 80.49% while lowering Recall@4 to 69.11%. Every runtime
+variant failed the unchanged 85%/95%/90% quality thresholds and stayed off.
+
+Failure decomposition found eight roles with no visible lexical signal, 12
+with a correct descriptor below the four-descriptor cutoff, and six where the
+correct descriptor was selected but candidate expansion/ranking lost the
+number. The next allowed work is a retrievability-aware descriptor data
+contract and descriptor-aware candidate reranker. Internal validation and the
+frozen test remain untouched.
+
+## 36. FinQA Gate E8: safer context projection improves descriptor recall but not adoption quality
+
+E8 froze a retrievability-aware descriptor and candidate-reranker protocol
+against the exact E7 evidence and 60-case development cohort. The new v3
+catalog adds balanced number-free local context, bounded narrative topic hints,
+Guard rechecks and safe-content grouping for unlabeled numbers from one
+evidence unit. The v5 retriever preserves E7 structural scoring and uses the
+new hints only when primary fields have no lexical signal.
+
+The first implementation materially regressed: context noise reduced
+Descriptor Recall@4 to 79.67%, and fixed two-per-descriptor round-robin reduced
+Candidate Recall@8 to 66.67%. Per-role diagnostics showed that correct values
+were often the third to sixth member of an already-correct descriptor. The
+final reranker restored global scoring, added only a descriptor coverage floor,
+accepted explicit admission-order evidence ranks, returned structured empty
+results, and used bounded candidate-local provenance windows.
+
+The authoritative run represented all 1,736 admitted operand candidates and
+reached 100% Oracle Candidate Recall@8. Runtime Descriptor Recall@4 improved
+from 83.74% to 84.55%, while Candidate Recall@8 remained 78.86%. Candidate
+Recall@4 and complete case@8 regressed to 66.67% and 74.14%. Uniform
+descriptor-priority steps `1/2/4/8` all reduced Recall@8 and were rejected;
+priority `0` was selected. The frozen progress gate failed, no internal or
+frozen cohort was consumed, and serving remained disabled.
+
+## 37. FinQA Gate E9: grouped CV success does not survive development transfer
+
+E9 froze a train-only learned-ranking protocol before implementation. The
+pinned 6,251-case train split shared all 35 disclosed-development companies,
+so E9 excluded those companies and retained 3,068 supported cases from 99
+companies. Five deterministic company-grouped folds contained 613-615 cases
+each. The feature contract exposed 23 value-free runtime fields and prohibited
+case/company identity, answers, gold programs, evidence IDs and numeric values.
+
+A deterministic class-balanced L2 ridge scorer was fitted with NumPy. The
+training ledger prepared 2,932/3,068 cases, retained 2,891 labelable cases,
+5,952 role groups and 54,936 descriptor examples, and recorded 136 failures
+plus 1,213 empty-table-cell normalizations. No LLM call was made. Company-
+disjoint OOF Descriptor Recall@4 improved from the E8 score's 88.76% to 90.84%
+(+2.08pp) with 1.24pp fold standard deviation, passing the train/CV gate.
+
+The single authorized disclosed-development run then failed. Descriptor
+Recall@4 fell from 84.55% to 78.86%, Candidate Recall@8 from 78.86% to 75.61%,
+and complete case@8 from 74.14% to 72.41%. Conditional candidate retention
+improved from 93.27% to 95.88%, showing that second-stage ranking was not the
+primary regression. Across 123 roles, 93 hits were retained, 11 regressed, four
+were gained and 15 were missed by both systems.
+
+The postmortem identified a train/serving evidence mismatch, a pointwise-vs-
+Top-4 objective mismatch, unbounded learned overrides of the E8 ordering and
+correlated feature signs. E8 remains champion, the E9 artifact is disabled,
+the formal 60-case budget is consumed, internal validation remains `NOT_RUN`,
+and frozen test remains `UNTOUCHED`. E10 may use a new train-only protocol but
+must not tune and rerun the consumed E9 cohort.
+
+## 38. FinQA Gate E10: realistic evidence fixes direction but misses the gate
+
+E10 replaced E9's 100%-gold-covered `model_input` training source with official
+`retrieved_all` score-sorted Top-10-or-all-available evidence. The frozen
+selection covers all gold evidence for 3,014/3,068 cases and any gold evidence
+for 3,067/3,068, without gold insertion. It retained the existing Guard,
+numeric closure, candidate identity and value-free descriptor boundaries.
+
+The new 21-feature model fits positive-minus-E8-hard-negative descriptor pairs
+with deterministic L2 ridge and applies only a `[-4,+4]` residual around E8.
+Across 2,925 prepared cases, 2,881 labelable cases, 5,923 roles and 53,457
+pairs, company-disjoint OOF Descriptor Recall@4 improved from 84.8894% to
+85.8349%. Every fold improved; minimum coefficient cosine was 0.9884.
+
+The `+0.9455pp` aggregate gain missed the pre-frozen `+1.0000pp` authorization
+gate. E10 therefore did not access the internal 40-case cohort or frozen test,
+did not enter serving, and did not displace E8. The project preserves this as a
+near-miss negative decision rather than lowering the threshold after seeing the
+result. A future E11 must use new versioned code and nested company-grouped CV.
+
+## 39. FinQA Gate E11: nested Top-4 learning passes internal non-regression
+
+E11 converted descriptor labels into cutoff-aware swaps: missed roles compare
+their highest E8 positive against Top-4 negatives, while single-positive hits
+add preservation pairs against negatives just below the cutoff. Each role has
+normalized total weight. The 18-config grid varied bounded adjustment, L2 and
+preservation weight without adding an ML dependency.
+
+Configuration selection moved inside four-fold company loops, leaving one
+outer company fold untouched per round. Nested outer Descriptor Recall@4 moved
+from 84.8894% to 86.0881% (+1.1987pp). All five folds improved; paired outer
+roles contained 99 gains and 28 regressions. The final modal configuration was
+`adj08-l2-100-p025`.
+
+This authorized the only internal run. Thirty-seven typed cases contained 76
+roles; three other cases shared the same fail-closed capability fallback in
+both arms. Descriptor and Candidate Recall@8 moved from 84.21% to 86.84%, and
+complete cases from 28/37 to 30/37. Paired roles were 64 retained, zero
+regressed, two gained and ten missed by both.
+
+The first internal command exposed a shared oracle-construction exception
+before the old E8 helper's catch boundary. It stopped before any evidence write.
+A common capability wrapper preserved strict schema validation and represented
+unsupported contracts as paired fallback rows. The incident is public and the
+completed model-quality run remains ordinal one.
+
+All internal gates passed, but two discordant gains give exact McNemar `p=0.5`.
+E11 therefore advances only to shadow integration. It does not replace E8,
+does not establish answer accuracy, cannot reuse the consumed internal cohort,
+and does not access frozen test.
+
+## 40. FinQA Gate E12: shadow integration preserves the champion boundary
+
+E12 froze a mechanism-only protocol before implementation and bound it to the
+complete E8/E11 evidence chain. The resulting coordinator always completes an
+immutable E8 primary decision before an E11 observation can run. A canonical
+input SHA prevents mismatched comparisons; no challenger branch can return a
+replacement selection.
+
+The loader verifies E8/E11 protocols, nested CV, artifact, internal result and
+postmortem hashes plus their authorization decisions. Any drift disables the
+challenger. Runtime observations contain only controlled outcomes, role/change/
+overlap counts, a latency bucket and circuit state. Questions, values, IDs,
+provenance, scores and input fingerprints are excluded; aggregate metric keys
+are schema-validated and updates are lock-protected.
+
+Fault injection verified default-off zero calls, error and elapsed-budget
+isolation, and a three-failure/five-observation cooldown with half-open
+recovery. The deterministic public audit passed all 11 mechanism gates and 14
+focused tests; external tests passed 408, the full repository passed 2921 with
+29 skips, and public audit reported 1278 candidates with zero findings. Its one
+synthetic real-selector probe is wiring evidence only, not quality or latency
+evidence.
+
+The first full-suite attempt forced pytest basetemp inside the repository and
+triggered four correct path-contract failures. A four-test minimization proved
+that identity private-path enforcement and external-path redaction both depend
+on a repository-external temp root. Moving `TEMP/TMP` to a D-drive external
+directory fixed all four without an application change, after which the full
+suite passed.
+
+E11 remains disabled and E8 remains champion. E12 did not add a production
+FinQA endpoint, real traffic, hard process cancellation, durable distributed
+metrics, answer-accuracy evidence or frozen-test access. E13 is limited to
+unlabeled operational replay and stronger worker isolation over disclosed
+train-only inputs.

@@ -142,6 +142,12 @@ These values describe specific local artifacts; they are not production accuracy
 | FinQA Gate E3 numeric-evidence input calibration | same disclosed 60-case calibration cohort; post-shortlist numeric input completeness `48/60 (80.00%) -> 58/60 (96.67%)`; gold parse `60/60`; retrieval-missing recovery `15/16`; p95 closure `27` units / `4794` chars / `71` candidates; `1168` Guard scans; `0` model calls | `INPUT_GATE_PASSED`, but this is not answer accuracy and does not overturn E2 rejection. Typed v2.3, internal validation, and frozen test remain `NOT_RUN`. [Gate record](docs/external_datasets/finqa_numeric_evidence_gate_e3.md), [learning guide](docs/learning/24_FINQA_GATE_E3_NUMERIC_EVIDENCE.md), and [public evidence](docs/external_datasets/evidence/finqa_numeric_evidence_calibration_public_v1.json) |
 | FinQA Gate E4 v2.3 paired calibration | same disclosed 60-case calibration; B0 / v2.2 / v2.3 strict `51.67% / 26.67% / 20.00%`, grounded `43.33% / 25.00% / 18.33%`, and coverage `98.33% / 81.67% / 73.33%`; v2.3 emitted 44 answers but 32 were wrong and 16 were protocol errors; 28/60 gold programs were multi-step while the sketch emitted one host operation | `CALIBRATION_REJECTED`. E3's 96.67% numeric input completeness did not become answer quality, so the measured bottleneck is semantic operation/operand planning. Internal validation and frozen test remain untouched, and the typed route stays disabled. [Gate record](docs/external_datasets/finqa_v23_paired_calibration_gate_e4.md), [learning guide](docs/learning/25_FINQA_GATE_E4_V23_PAIRED_CALIBRATION.md), and [verified public evidence](docs/external_datasets/evidence/finqa_v23_paired_calibration_public_v1.json) |
 | FinQA Gate E5 semantic-planning ablation | same disclosed 60-case calibration; v2.3 / direct multi-step / role decomposition / role + train-only dynamic demos strict `20.00% / 1.67% / 0.00% / 21.67%`, grounded `18.33% / 1.67% / 0.00% / 20.00%`, coverage `73.33% / 8.33% / 3.33% / 73.33%`; all 60 demo cases used 3 value-free examples and cyclic arm order was exactly `20/20/20` | `CALIBRATION_REJECTED`. Dynamic demos reduced no-demo role protocol errors `58 -> 16` but improved strict/grounded only `+1.67pp` versus v2.3; 31/44 valid demo answers remained wrong. Internal validation and frozen test remain untouched. [Gate record](docs/external_datasets/finqa_semantic_planning_gate_e5.md), [learning guide](docs/learning/26_FINQA_GATE_E5_SEMANTIC_PLANNING.md), and [verified public evidence](docs/external_datasets/evidence/finqa_semantic_planning_calibration_public_v1.json) |
+| FinQA Gate E6 role compatibility | E6-v1 global-shortlist role recall@8 / complete@8 `75.91% / 63.33%`; authoritative E6-v2 full-pool result `83.74% / 77.59%`, source recall `100%`, route accuracy `100%`, edge reduction `73.44%`; E6-v3 gold-descriptor upper bound role recall@4/@8 `98.37% / 99.19%`, complete@8 `98.28%`, edge reduction `73.63%` | E6-v2 is `INPUT_GATE_FAILED`; v3 is only `UPPER_BOUND_INPUT_GATE_PASSED`, with `0` model calls and serving disabled. It proves the role-query contract has capacity, not that planner or final-answer quality improved. [Gate record](docs/external_datasets/finqa_role_compatibility_gate_e6.md), [learning guide](docs/learning/27_FINQA_GATE_E6_ROLE_COMPATIBILITY.md), [v2 selector](docs/external_datasets/evidence/finqa_role_compatibility_v2_audit_erratum_v1.json), and [v3 evidence](docs/external_datasets/evidence/finqa_role_compatibility_v3_upper_bound_public_v1.json) |
+| FinQA Gate E7 safe descriptor selection | contextual catalog Oracle recall@4/@8 `95.93% / 100%`, complete@8 `100%`; real `qwen3:8b` selector `56.91% / 59.35% / 51.72%`; best deterministic Recall@4/complete@8 from v2 `70.73% / 75.86%`, best Recall@8 from typed v4 `80.49%`; pinned BGE-M3 hybrid regressed Recall@4/@8 to `65.04% / 74.80%` | Catalog capacity passed, but every question-only selector/retriever failed the unchanged runtime gate. All serving routes remain disabled; internal validation and frozen test are untouched. [Gate record](docs/external_datasets/finqa_descriptor_catalog_gate_e7.md), [learning guide](docs/learning/28_FINQA_GATE_E7_SAFE_DESCRIPTOR_SELECTION.md), [handoff](docs/roadmap/finqa_gate_e7_current_handoff.md), and [v4 public evidence](docs/external_datasets/evidence/finqa_descriptor_retriever_public_v4.json) |
+| FinQA Gate E8 retrievable descriptors | safe catalog coverage `100%`; Oracle Candidate Recall@8 `100%`; runtime Descriptor Recall@4 `83.74% -> 84.55%`; Candidate Recall@4/@8 `66.67% / 78.86%`; complete@8 `74.14%`; edge reduction `75.10%`; `0` model calls | `E8_DEVELOPMENT_PROGRESS_GATE_FAILED`. E8 fixed right-context truncation and same-evidence descriptor fragmentation, but did not pass the frozen runtime quality gate. Positive descriptor-priority bonuses all regressed Recall@8, so priority `0` was retained and the route stayed disabled. [Gate record](docs/external_datasets/finqa_retrievable_descriptor_gate_e8.md), [learning guide](docs/learning/29_FINQA_GATE_E8_RETRIEVABLE_DESCRIPTOR.md), [handoff](docs/roadmap/finqa_gate_e8_current_handoff.md), [result](docs/external_datasets/evidence/finqa_retrievable_descriptor_public_v1.json), and [ablation](docs/external_datasets/evidence/finqa_retrievable_descriptor_ablation_public_v1.json) |
+| FinQA Gate E9/E10 learned descriptor ranking | E9 company-disjoint OOF Recall@4 improved `88.76% -> 90.84%` but its single disclosed-development run regressed `84.55% -> 78.86%`; E10 replaced gold-forced evidence with retrieval-realistic Top-10, pairwise hard negatives and a bounded E8 residual, improving company-disjoint OOF `84.8894% -> 85.8349%` with all five folds positive | E10 is a near-miss, not an adoption: `+0.9455pp` failed the frozen `+1.0000pp` gate, so internal 40 and frozen test remain untouched and E8 remains disabled-route champion. [E10 record](docs/external_datasets/finqa_pairwise_residual_gate_e10.md), [learning guide](docs/learning/31_FINQA_GATE_E10_PAIRWISE_RESIDUAL.md), [handoff](docs/roadmap/finqa_gate_e10_current_handoff.md), and [public CV](docs/external_datasets/evidence/finqa_pairwise_residual_cv_public_v1.json) |
+| FinQA Gate E11 nested Top-4 ranker | Top-4 swap-aware weighted pairs plus nested company CV improved outer OOF Descriptor Recall@4 `84.8894% -> 86.0881%` (`+1.1987pp`), with all five outer folds positive; the one-shot internal cohort improved descriptor and Candidate Recall `84.21% -> 86.84%`, complete cases `28/37 -> 30/37`, and produced `2` gains / `0` regressions across `76` roles | Both frozen gates passed, but the two-sided exact McNemar result is `p=0.5`, three internal cases shared a typed fallback, and this is not answer accuracy. E11 remains serving-disabled and is authorized only for shadow integration; frozen test is untouched. [E11 record](docs/external_datasets/finqa_topk_ranker_gate_e11.md), [learning guide](docs/learning/32_FINQA_GATE_E11_NESTED_TOPK.md), [handoff](docs/roadmap/finqa_gate_e11_current_handoff.md), and [internal result](docs/external_datasets/evidence/finqa_topk_internal_validation_public_v1.json) |
+| FinQA Gate E12 default-off shadow runtime | E8-first immutable primary decision, same-input E11 observation, full evidence-chain verification, privacy-bounded aggregate telemetry, and `3`-failure / `5`-observation cooldown circuit breaker; mechanism audit passed `11/11` gates, `14` focused tests, `408` external tests, and full `2921 passed / 29 skipped`; public audit `1278/0` | This is mechanism-only evidence, not production traffic, latency, answer accuracy, or serving authorization. E11 cannot replace E8, default mode remains `OFF`, and frozen test is untouched. [E12 record](docs/external_datasets/finqa_descriptor_shadow_gate_e12.md), [learning guide](docs/learning/33_FINQA_GATE_E12_SHADOW_RUNTIME.md), [handoff](docs/roadmap/finqa_gate_e12_current_handoff.md), and [public evidence](docs/external_datasets/evidence/finqa_descriptor_shadow_mechanism_public_v1.json) |
 | E7 final-code load rc02 | `31/31` requests | One Windows machine; warm p95 was 1.115 s / 4.244 s / 8.218 s at concurrency 1 / 5 / 10 |
 | E7 workflow ablation rc02 | fixed RAG `0.8571` vs bounded Agentic `1.0000` outcome accuracy | 28-case deterministic synthetic test; Agentic used 47 vs 28 tool calls |
 
@@ -218,6 +224,37 @@ execution and `93.5%` evidence recall. These are sample-scoped local
 observations, not full FinQA or production claims. See the
 [FinQA numerical track](docs/external_datasets/finqa.md).
 
+The later E9 descriptor-ranking experiment used 3,068 train cases from 99
+companies after excluding all 35 disclosed-development companies. A 23-feature
+linear ranker improved company-grouped OOF Descriptor Recall@4 from `88.76%`
+to `90.84%`, but its single authorized 60-case development run regressed from
+`84.55%` to `78.86%`; Candidate Recall@8 also fell from `78.86%` to `75.61%`.
+The result is preserved as a negative generalization finding, E8 remains the
+champion, E9 serving is disabled, and hidden cohorts remain unconsumed. See the
+[E9 engineering result](docs/external_datasets/finqa_learned_descriptor_gate_e9.md).
+
+E10 repaired the training boundary and objective: official retrieval Top-10
+replaced gold-forced inputs, role-level hard-negative pairs replaced pointwise
+labels, and the learned score became a bounded residual around E8. All five
+company-disjoint folds improved, but the aggregate `+0.9455pp` missed the
+frozen `+1pp` gate. The result therefore did not authorize the internal 40-case
+run. See the [E10 engineering result](docs/external_datasets/finqa_pairwise_residual_gate_e10.md).
+
+E11 then aligned training pairs with swaps that can change the Top-4 metric and
+used nested company CV for configuration choice. Outer OOF passed at
+`+1.1987pp`; the single internal comparison produced two role gains and zero
+regressions, but exact McNemar `p=0.5`. The artifact remains serving-disabled
+and may proceed only to shadow integration. See the
+[E11 engineering result](docs/external_datasets/finqa_topk_ranker_gate_e11.md).
+
+E12 implemented that integration as a default-off coordinator rather than a
+serving replacement. E8 completes an immutable primary decision before E11 is
+allowed to run; evidence drift, errors, elapsed-budget breaches, or an open
+circuit can produce only aggregate observations. Telemetry excludes request
+text, values, IDs, provenance, and scores. The mechanism gate passed, but no
+production traffic or new quality cohort was used. See the
+[E12 engineering result](docs/external_datasets/finqa_descriptor_shadow_gate_e12.md).
+
 ## Limitations
 
 - R2-S5 uses a reproducible local RSA/JWKS identity source, not a production IdP.
@@ -262,6 +299,12 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 - [FinanceBench Page Reranker v2](docs/external_datasets/financebench_reranker_v2.md)
 - [FinQA Numerical Reasoning Track](docs/external_datasets/finqa.md)
 - [FinQA Results and Failure Diagnostics Learning Chapter](docs/learning/21_FINQA_RESULT_AND_DIAGNOSTICS.md)
+- [FinQA Gate E7 Safe Descriptor Selection Learning Chapter](docs/learning/28_FINQA_GATE_E7_SAFE_DESCRIPTOR_SELECTION.md)
+- [FinQA Gate E8 Retrievable Descriptor Learning Chapter](docs/learning/29_FINQA_GATE_E8_RETRIEVABLE_DESCRIPTOR.md)
+- [FinQA Gate E9 Learned Ranker Learning Chapter](docs/learning/30_FINQA_GATE_E9_LEARNED_RANKER.md)
+- [FinQA Gate E10 Pairwise Residual Learning Chapter](docs/learning/31_FINQA_GATE_E10_PAIRWISE_RESIDUAL.md)
+- [FinQA Gate E11 Nested Top-K Learning Chapter](docs/learning/32_FINQA_GATE_E11_NESTED_TOPK.md)
+- [FinQA Gate E12 Shadow Runtime Learning Chapter](docs/learning/33_FINQA_GATE_E12_SHADOW_RUNTIME.md)
 - [Ablation Report](docs/ablation_report.md)
 - [Security Threat Model](docs/security_threat_model.md)
 - [R2-S1 Retrieved-Content Security Design](docs/security/r2_s1/00_scope_and_threat_model.md)
