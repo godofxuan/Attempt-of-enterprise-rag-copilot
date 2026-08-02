@@ -220,6 +220,21 @@ raise EOF before parent termination completed. The helper now sends the
 malformed response and blocks, leaving termination entirely to the parent.
 The final audit log is clean and the accepted evidence was regenerated.
 
+### Clean-checkout private-train fixture failure
+
+Exact commit `09aabf5` triggered GitHub Actions run `30734063847`. Ubuntu
+reached `2934 passed / 29 skipped` and Windows reached `2958 passed / 5
+skipped`, but each ended with three setup errors because a module-scoped test
+fixture unconditionally opened ignored `.private` FinQA train bytes. The Linux
+container job was then skipped by dependency failure. Application code,
+protocol evidence, and implementation hashes were not implicated.
+
+The fixture was split into a public protocol fixture and a private train
+fixture. Only the two tests that actually select and prepare the 128-case
+cohort now skip when train is absent; aggregate gate evaluation still runs in
+a clean checkout. The affected local group passed 10/10 after the repair. This
+keeps private data out of Git while making CI absence an explicit test state.
+
 ## Evidence
 
 ```text

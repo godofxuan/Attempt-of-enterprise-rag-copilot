@@ -1115,3 +1115,10 @@ the exact implementation hashes.
 E11 remains default-off and E8 remains champion. No internal or frozen cohort,
 network model, production route, OS sandbox, concurrent pool, durable queue,
 answer labels or serving-promotion authority entered E13.
+
+The first E13 push, exact commit `09aabf5`, then exposed a clean-checkout test
+contract failure in Actions run `30734063847`: both Ubuntu and Windows passed
+their other 2,900-plus tests, but three test setups tried to open ignored
+private FinQA train bytes. The repair separated public protocol/gate tests from
+the two private-train integration tests. Missing private data now skips only
+those two tests; it no longer prevents aggregate contract verification.

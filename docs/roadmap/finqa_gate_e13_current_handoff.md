@@ -82,8 +82,13 @@ evidence filename. Do not overwrite the E13-v1 protocol or result.
 
 ## Next action
 
-Perform fixed-HEAD review, commit, push, and verify exact-SHA remote CI. Only
-after that should a new protocol consider pool/queue/backpressure or
+Exact E13 commit `09aabf5` was pushed, but Actions run `30734063847` failed
+after Ubuntu/Windows completed 2934/2958 tests because three test setups
+unconditionally required ignored private FinQA train bytes. The protocol and
+runtime were not changed. A follow-up splits public protocol tests from the two
+private-train integration tests, which now skip only when the private source is
+absent. Push the repair and verify its exact-SHA remote CI. Only after that
+should a new protocol consider pool/queue/backpressure or
 durable aggregate telemetry. Promotion still requires independent quality
 evidence and a separate release decision.
 

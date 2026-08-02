@@ -304,6 +304,13 @@ candidate 推断替代，并加源码属性访问回归。
 又被 dict 展开顺序覆盖。前两次在写证据前停止，schema 错误文件也在提交前撤销；
 最终证据测试同时绑定 public schema、协议 SHA 和四个实现文件 SHA。
 
+第五类是 clean checkout 测试问题：第一次推送后，Ubuntu 和 Windows 都在已经通过
+两千九百多项测试后出现 3 个 setup error。本机存在 `.private` FinQA train，所以
+模块级 fixture 的隐含依赖没有暴露；GitHub runner 不会获得 ignored 私有数据。
+修复时把协议 fixture 与 train fixture 拆开：只有真正读取 128 题的 2 个集成测试
+在数据缺失时 skip，纯聚合门禁测试继续执行。这里修的是测试前提，不是把应用失败
+改成 skip。
+
 ## 17. 这一步对“工业化”有什么价值
 
 它不是又加一个模型，而是增加了五个落地能力：

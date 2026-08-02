@@ -1218,3 +1218,10 @@ overwrite v1 evidence; use a versioned protocol/evidence chain for any worker
 pool, queue, backpressure, durable telemetry or resource-control change. Full
 details and future admission criteria are in
 `docs/roadmap/finqa_gate_e13_current_handoff.md`.
+
+Delivery note: exact commit `09aabf5` was pushed, but Actions run
+`30734063847` failed only because three test setups unconditionally opened the
+ignored private FinQA train split on clean runners. A follow-up test-only
+repair separates public protocol/gate tests from two private-train integration
+tests. Do not record remote E13 CI as passed until that repair's exact run
+finishes successfully.

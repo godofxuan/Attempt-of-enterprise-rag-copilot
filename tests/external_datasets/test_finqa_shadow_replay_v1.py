@@ -31,10 +31,18 @@ PROTOCOL = (
 
 
 @pytest.fixture(scope="module")
-def protocol_and_cases():
+def protocol():
     protocol, _ = load_shadow_worker_replay_protocol_v1(PROTOCOL)
+    return protocol
+
+
+@pytest.fixture(scope="module")
+def protocol_and_cases(protocol):
+    train_path = DEFAULT_SOURCE_ROOT / "dataset/train.json"
+    if not train_path.is_file():
+        pytest.skip("private FinQA train split is unavailable")
     cases = load_finqa_shadow_replay_train_v1(
-        DEFAULT_SOURCE_ROOT / "dataset/train.json",
+        train_path,
         expected_sha256=protocol.dataset.split_sha256,
     )
     return protocol, cases
@@ -170,9 +178,8 @@ def _passing_summary() -> FinQAShadowOperationalReplaySummaryV1:
 
 
 def test_replay_gate_evaluation_is_exact_and_aggregate_only(
-    protocol_and_cases,
+    protocol,
 ) -> None:
-    protocol, _ = protocol_and_cases
     summary = _passing_summary()
 
     assert all(evaluate_shadow_replay_gates_v1(summary, protocol=protocol).values())
