@@ -158,13 +158,23 @@ The wrapper is an injectable seam, not yet the default FastAPI builder.
 | Full repository | `3025 passed / 29 skipped / 3 known warnings` |
 | Public repository audit | `1350 candidates / 0 findings` |
 | Public evidence findings | `0` |
+| Remote acceptance | `30775290120 / SUCCESS / 9m36s` |
+| Ubuntu / Windows / Linux container | `PASS / PASS / PASS` |
+| Runtime SBOM artifact SHA-256 | `0f93fcc2d3d7cef9dc0470b901ae663de1a0a273cd6b04a939db70a9d79d9b9a` |
 
 The timing is a local synthetic CPU mechanism measurement over 112 builds. It
 is not a production latency percentile or SLO.
 
 Implementation commit:
-`ecdc3b7a3391d96c5c1587f57def33ae3f1e113a`. Remote cross-platform CI is
-pending acceptance at this documentation checkpoint.
+`ecdc3b7a3391d96c5c1587f57def33ae3f1e113a`. The first remote acceptance run
+`30774647704` passed Ubuntu but failed the Windows cache concurrency regression,
+so it is retained as failure evidence rather than treated as an E18 pass. The
+shared cache repair is commit
+`2a73cbb6ce06d2c872fbfcd5d5cd847121a1a6e6`; its replacement remote run is
+`30775290120`, which completed successfully across Ubuntu, Windows and the
+Linux container contract in `9m36s`. The container readiness/rollback drill
+and SBOM upload passed; the uploaded artifact digest is
+`sha256:0f93fcc2d3d7cef9dc0470b901ae663de1a0a273cd6b04a939db70a9d79d9b9a`.
 
 ## Problems Found and Corrected
 
@@ -208,6 +218,43 @@ matrix. A blocking resolver provider and one-slot queue were added to produce
 two admitted requests plus one deterministic `BACKPRESSURE` rejection. The
 rejected context was removed, both admitted contexts were consumed, and close
 left zero residual state.
+
+### E18-I06: first remote acceptance exposed a Windows cache race
+
+GitHub Actions run `30774647704` completed Ubuntu successfully but failed
+Windows with `1 failed / 3046 passed / 7 skipped`. The failing test was the
+existing four-process same-key writer regression. A waiting process enumerated
+the cache root before acquiring `.cache.lock`, observed a legitimate
+`.cache.tmp-*` file owned by the active writer, and called `lstat()` after that
+writer had atomically published and removed the temporary path. Windows raised
+`FileNotFoundError`, which the pre-lock structure scan mapped to
+`cache_root_unsafe`.
+
+The repair did not ignore missing files or relax hard-link/reparse checks. It
+split root-path preparation from root-content validation and moved the content
+scan to after cross-process lock acquisition. The first placement attempt put
+the scan inside the held-directory context; focused testing rejected it because
+the malicious hard-link contract changed from `cache_root_unsafe` to
+`cache_root_changed`. The final ordering is:
+
+```text
+validate/create root path
+  -> open and validate lock file
+  -> acquire cross-process lock
+  -> validate root contents (serialized)
+  -> hold and harden root identity
+  -> validate lock identity
+  -> clean owned orphan temps
+  -> read or publish cache entry
+```
+
+The exact concurrency and hard-link tests then passed together, the process
+race passed `20/20` stress repetitions, and the full local repository returned
+`3025 passed / 29 skipped / 3 known warnings`. This incident is a shared cache
+correctness repair discovered during E18 delivery; it does not change the
+frozen E18 mechanism evidence or increase E18 quality claims. Replacement
+GitHub Actions run `30775290120` then passed all three Ubuntu, Windows and
+Linux-container jobs.
 
 ## Claim Boundary
 

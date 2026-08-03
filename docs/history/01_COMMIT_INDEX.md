@@ -1,10 +1,10 @@
 # Complete Git Commit Index
 
-> 中文说明：这是从仓库建立到 E18 实现提交的逐提交原始索引。
+> 中文说明：这是从仓库建立到 E18 远端并发修复提交的逐提交原始索引。
 >
-> Cutoff: `ecdc3b7a3391d96c5c1587f57def33ae3f1e113a`
+> Cutoff: `2a73cbb6ce06d2c872fbfcd5d5cd847121a1a6e6`
 >
-> Count: `215` commits. 本次纯文档收口提交自身将在下一次索引刷新时纳入。
+> Count: `218` commits. 本次纯文档收口提交自身将在下一次索引刷新时纳入。
 
 阶段解释、代码位置、验证结果和已知限制见 [00_PROJECT_EVOLUTION.md](00_PROJECT_EVOLUTION.md)。
 
@@ -225,6 +225,9 @@
 | 213 | 2026-08-03 | [`2e6a882`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/2e6a882a79e16b740c893eab792035e13d4d67f4) | feat(finqa): add online typed shadow adapter |
 | 214 | 2026-08-03 | [`995f70e`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/995f70eb3dfe7978f474fde5381c556080800f21) | docs(finqa): close E17 remote delivery [skip ci] |
 | 215 | 2026-08-03 | [`ecdc3b7`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/ecdc3b7a3391d96c5c1587f57def33ae3f1e113a) | feat(finqa): build admitted evidence typed context |
+| 216 | 2026-08-03 | [`416c5b1`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/416c5b1666abd9924bfc74d28373ac03f1ee32f2) | docs(finqa): record E18 implementation checkpoint [skip ci] |
+| 217 | 2026-08-03 | [`1ccdfa0`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/1ccdfa0821ba881a5233dd3410c48fd58c0d3ab1) | docs(finqa): start E18 remote acceptance |
+| 218 | 2026-08-03 | [`2a73cbb`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/2a73cbb6ce06d2c872fbfcd5d5cd847121a1a6e6) | fix(cache): serialize root validation after lock |
 
 ## 范围说明
 

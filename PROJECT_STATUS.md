@@ -26,7 +26,11 @@ E11 service status                     SHADOW_DEFAULT_OFF
 internal cohort                        CONSUMED_NOT_ACCESSED
 frozen test                            UNTOUCHED
 implementation commit                 ecdc3b7a3391d96c5c1587f57def33ae3f1e113a
-GitHub Actions                         PENDING REMOTE ACCEPTANCE
+remote cache repair commit            2a73cbb6ce06d2c872fbfcd5d5cd847121a1a6e6
+first remote acceptance               30774647704 / WINDOWS RACE FOUND
+GitHub Actions                         30775290120 / SUCCESS / 9m36s
+Ubuntu / Windows / container           PASS / PASS / PASS
+runtime SBOM SHA-256                    0f93fcc2d3d7cef9dc0470b901ae663de1a0a273cd6b04a939db70a9d79d9b9a
 ```
 
 E18 closes the next service data-flow gap without re-retrieval. It projects
@@ -48,6 +52,12 @@ Detailed state: [E18 engineering record](docs/external_datasets/finqa_admitted_c
 [learning chapter](docs/learning/39_FINQA_GATE_E18_ADMITTED_CONTEXT.md),
 [handoff](docs/roadmap/finqa_gate_e18_current_handoff.md), and
 [public evidence](docs/external_datasets/evidence/finqa_admitted_context_public_v1.json).
+The first remote run retained a Windows cache-race failure as evidence. Repair
+commit `2a73cbb6ce06d2c872fbfcd5d5cd847121a1a6e6` then passed
+[GitHub Actions run 30775290120](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/30775290120)
+across Ubuntu, Windows and the Linux container contract. The dependent
+readiness/rollback drill passed and the workflow published one bound runtime
+SBOM artifact.
 
 ## 2026-08-03 FinQA Gate E17 typed eligibility and adapter
 

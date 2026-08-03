@@ -1365,3 +1365,19 @@ historical evidence binds `main.py`, `config.py`, `resources.py` and the dark
 owner to exact hashes. E19 must create a versioned serving assembly and paired
 OFF/LOCAL_TEST_ONLY API evidence. E18 does not establish answer quality,
 arbitrary financial coverage, production traffic, an SLO or E11 promotion.
+
+The first E18 remote acceptance run `30774647704` preserved a useful red
+result: Ubuntu passed, but Windows failed the existing four-process
+same-cache-key regression with `cache_root_unsafe`. Reproduction showed that
+cache-root contents were scanned before the cross-process lock; a waiting
+process could enumerate an owned temporary path and then `lstat()` it after the
+active writer atomically published and removed it. The final repair in
+`2a73cbb` separates root-path preparation from root-content validation and
+runs the content scan after lock acquisition. It still rejects unsafe hard
+links with the original error contract. Local evidence is the paired
+concurrency/hard-link regression, `20/20` process stress repetitions, and the
+full `3025 passed / 29 skipped` suite. Replacement remote acceptance is run
+`30775290120`: Ubuntu, Windows and the Linux container contract all passed in
+`9m36s`; readiness/rollback and SBOM publication also passed. The runtime SBOM
+artifact digest is
+`sha256:0f93fcc2d3d7cef9dc0470b901ae663de1a0a273cd6b04a939db70a9d79d9b9a`.

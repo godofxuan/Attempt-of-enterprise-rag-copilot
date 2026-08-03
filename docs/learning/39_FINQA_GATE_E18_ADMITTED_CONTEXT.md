@@ -308,6 +308,48 @@ close     -> 0 worker / 0 context
 
 这就是为什么“测试全部绿”之后还要检查测试是否真的覆盖了协议声明。
 
+### 问题三：为什么本地通过，GitHub Windows 还是失败
+
+第一次远端验收 `#53` 的 Ubuntu 通过，Windows 却是：
+
+```text
+1 failed / 3046 passed / 7 skipped
+cache_root_unsafe: computation cache root is unsafe
+```
+
+失败不在 E18 builder，而在共享的 `PersistentComputationCache` 并发测试。四个进程
+同时写同一个 key，正确结果应该是一个 `STORED`、三个 `REUSED`。旧时序却是：
+
+```text
+进程 A：拿锁 -> 创建 .cache.tmp-* -> 原子发布 -> 删除临时路径
+进程 B：未拿锁就枚举目录 -> 看见临时路径 -> 稍后 lstat
+结果：B 执行 lstat 时路径已被 A 删除 -> FileNotFoundError
+```
+
+这里的重点是 B 看到的不是攻击，而是另一个合法事务的中间状态。不能用“捕获异常
+然后重试”掩盖，因为安全扫描若在锁外执行，始终可能读取不一致快照。最终代码在
+`app/indexing/computation_cache.py` 中把动作拆成两层：
+
+1. `_prepare_root()` 只创建并验证根目录自身不是 redirect/reparse path；
+2. `_locked()` 打开安全 lock file，取得跨进程锁；
+3. `_validate_root_structure()` 在锁内检查每个条目必须是单链接普通文件；
+4. 然后保持根目录 identity、清理 orphan temp，再读写缓存。
+
+第一次尝试把结构扫描放进 `_held_root()` 内部，虽然并发测试通过，却让恶意硬链接
+测试的错误码从 `cache_root_unsafe` 变成 `cache_root_changed`。这说明“仍然拒绝”还
+不够，公开错误 contract 也不能无意漂移。把扫描调整到“拿锁之后、hold identity
+之前”，两个约束同时满足。
+
+修复后的证据是：并发 + 硬链接聚焦测试 `2 passed`，同一进程级竞态连续
+`20/20` 轮通过，完整本地仓库 `3025 passed / 29 skipped`，新远端验收使用提交
+`2a73cbb`。这次经历说明跨平台 CI 的价值不是再跑一次相同命令，而是暴露本机单次
+运行未稳定覆盖的调度与文件系统时序。
+
+最终 GitHub Actions `#54` 在精确提交 `2a73cbb6...` 上成功：Ubuntu、Windows、
+Linux container 全部通过，总耗时 `9m36s`；容器内的完整门禁、readiness 失败与
+rollback 演练、SBOM 生成和上传均通过。第一次失败的 `#53` 仍保留，形成
+“远端 RED -> 本地复现 -> 修复 -> 远端 GREEN”的完整证据链。
+
 ## 11. 为什么还没有直接改 `/agent/v2/chat`
 
 E16 的公开证据把 `app/main.py`、`app/config.py`、`app/runtime/resources.py` 等文件
@@ -356,3 +398,11 @@ Agent 的安全/控制边界应由确定性代码负责。规则只覆盖高置�
 价值不在“组件数量”，而在四个可落地不变量：不跨 ACL 重新检索、后台失败不改
 主回答、队列拒绝不留敏感 context、历史证据不被静默重写。这些是模型实验进入
 真实服务前必须解决的 correctness 和治理问题。
+
+### Q6：这次 Windows 竞态在面试中怎么讲？
+
+先讲不变量：相同 key 的并发 writer 必须收敛成一个规范条目，且安全扫描不能放过
+硬链接或 reparse path。再讲根因：目录扫描在跨进程锁外，读取了合法事务的中间态。
+最后讲验证：保留失败 run，最小复现命中，修复锁时序，反向安全测试发现第一次
+修复的错误码回归，最终做 20 轮压力、全量本地和 Ubuntu/Windows/container CI。
+这比只说“加了一把锁”更能体现对并发协议、安全 contract 和可审计交付的理解。

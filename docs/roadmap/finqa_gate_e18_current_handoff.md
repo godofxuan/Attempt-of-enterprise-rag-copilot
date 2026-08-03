@@ -24,7 +24,11 @@
 - Internal cohort: `CONSUMED_NOT_ACCESSED`
 - Frozen test: `UNTOUCHED`
 - Implementation commit: `ecdc3b7a3391d96c5c1587f57def33ae3f1e113a`
-- GitHub Actions: `PENDING REMOTE ACCEPTANCE`
+- Remote cache repair commit: `2a73cbb6ce06d2c872fbfcd5d5cd847121a1a6e6`
+- First remote acceptance: `30774647704 / WINDOWS CACHE RACE FOUND`
+- GitHub Actions: `30775290120 / SUCCESS / 9m36s`
+- Ubuntu / Windows / Linux container: `PASS / PASS / PASS`
+- Runtime SBOM artifact SHA-256: `0f93fcc2d3d7cef9dc0470b901ae663de1a0a273cd6b04a939db70a9d79d9b9a`
 
 ## Completed
 
@@ -41,6 +45,8 @@
 11. Deterministic backpressure, unavailable, sample-skip, closed and duplicate
     fault injection.
 12. Aggregate-only public evidence with no private request content.
+13. Remote RED/GREEN closeout for the Windows computation-cache race without
+    weakening hard-link or reparse-point rejection.
 
 ## Frozen Implementation
 
