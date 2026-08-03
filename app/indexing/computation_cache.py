@@ -1088,6 +1088,7 @@ class PersistentComputationCache:
                 timeout_seconds=self.lock_timeout_seconds,
             )
             acquired = True
+            self._validate_root_structure()
             with self._held_root():
                 _validate_open_lock_identity(descriptor, lock_path)
                 self._cleanup_orphan_temps()
@@ -1131,6 +1132,16 @@ class PersistentComputationCache:
                 or stat_is_redirect(metadata)
             ):
                 raise PrivatePathError("cache root is not a regular directory")
+        except (OSError, PrivatePathError) as exc:
+            raise ComputationCacheError(
+                "cache_root_unsafe",
+                "computation cache root is unsafe",
+            ) from exc
+
+    def _validate_root_structure(self) -> None:
+        try:
+            # Serialize the scan with cache publication so owned temp files cannot
+            # disappear between directory enumeration and metadata validation.
             _validate_cache_root_structure(self.root)
         except (OSError, PrivatePathError) as exc:
             raise ComputationCacheError(
