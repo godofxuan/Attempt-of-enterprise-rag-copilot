@@ -340,7 +340,7 @@ See [Known Limitations](docs/known_limitations.md) for consequences and admissio
 ## Documentation
 
 - [Complete Project Evolution History (start here)](docs/history/00_PROJECT_EVOLUTION.md)
-- [Complete Git Commit Index (213 commits through E17 implementation)](docs/history/01_COMMIT_INDEX.md)
+- [Complete Git Commit Index (215 commits through E18 implementation)](docs/history/01_COMMIT_INDEX.md)
 - [Current Project Status](PROJECT_STATUS.md)
 - [Architecture](docs/architecture.md)
 - [Demo Runbook](docs/demo_runbook.md)

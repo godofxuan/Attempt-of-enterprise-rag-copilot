@@ -162,6 +162,10 @@ The wrapper is an injectable seam, not yet the default FastAPI builder.
 The timing is a local synthetic CPU mechanism measurement over 112 builds. It
 is not a production latency percentile or SLO.
 
+Implementation commit:
+`ecdc3b7a3391d96c5c1587f57def33ae3f1e113a`. Remote cross-platform CI is
+pending push at this documentation checkpoint.
+
 ## Problems Found and Corrected
 
 ### E18-I01: the authorized evidence existed only inside ControllerState
