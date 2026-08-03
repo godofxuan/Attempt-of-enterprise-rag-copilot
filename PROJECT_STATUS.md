@@ -26,7 +26,7 @@ E11 service status                     SHADOW_DEFAULT_OFF
 internal cohort                        CONSUMED_NOT_ACCESSED
 frozen test                            UNTOUCHED
 implementation commit                 ecdc3b7a3391d96c5c1587f57def33ae3f1e113a
-GitHub Actions                         PENDING PUSH
+GitHub Actions                         PENDING REMOTE ACCEPTANCE
 ```
 
 E18 closes the next service data-flow gap without re-retrieval. It projects

@@ -164,7 +164,7 @@ is not a production latency percentile or SLO.
 
 Implementation commit:
 `ecdc3b7a3391d96c5c1587f57def33ae3f1e113a`. Remote cross-platform CI is
-pending push at this documentation checkpoint.
+pending acceptance at this documentation checkpoint.
 
 ## Problems Found and Corrected
 
