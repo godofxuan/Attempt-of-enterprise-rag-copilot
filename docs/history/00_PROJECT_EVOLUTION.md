@@ -1307,3 +1307,61 @@ Exact implementation commit `2e6a882` passed GitHub Actions run
 successfully, the dependent Linux container contract passed in about 4m09s,
 readiness/rollback drills passed and one Python runtime SBOM artifact was
 published.
+
+## 46. FinQA Gate E18: admitted Agent evidence becomes online typed context
+
+E17 could consume a complete typed context but the enterprise Agent did not
+produce one. E18 inspected the live V2 controller and found the necessary
+authorized data in `ControllerState.evidence_by_aspect`: immutable
+`AdmittedEvidenceChunk` objects created after tenant/region/group ACL filtering
+and retrieved-content Guard admission. The E16 background request intentionally
+lacks identity, so E18 rejected the tempting design of re-retrieving by
+question in the worker.
+
+The new versioned builder projects only admitted chunks, enforces 32-unit,
+16,000-character and 128-candidate budgets, rescans every context with the
+current Guard, extracts typed Decimal candidates and keeps only operand roles.
+Seven narrow English/Chinese rule families create value-free semantic
+skeletons for percentage change, ratio, subtraction, addition, multiplication,
+division and average. The existing v3 safe catalog then removes numeric values
+from the descriptor-selection surface, and E17 binds the exact
+question/skeleton/catalog bytes.
+
+The coordinator freezes a register-before-offer order to prevent the dark
+worker from racing ahead of context registration. It retains context only for
+`ADMITTED`; sample skip, unavailable, backpressure and closed outcomes discard
+immediately. Duplicate registration is handled separately: because the old
+context belongs to the first request, registration failure must not call
+`discard(request_id)` and delete it. Lifecycle close stops the E16 owner before
+closing the E17 adapter/worker and resolver.
+
+The controlled audit covered all seven rule families with 112 eligible builds,
+zero secondary retrieval and zero model calls. Local preparation p50/p95/max
+was 0.623/0.921/1.523 ms. Eight enabled observations were admitted and
+completed; default-off worker calls, primary response mismatches, residual
+workers and residual contexts were all zero. A one-slot blocking-provider
+fault injected two admitted requests and one deterministic backpressure
+rejection; only the rejected context was discarded and the first two were
+consumed.
+
+The first test runs found obsolete fixture fields rather than production
+failures: the repository's current `QueryAnalysis`, `BudgetState` and
+`ControllerState` schemas had moved beyond copied test constructors. Updating
+the fixtures produced 22 focused passes. Three immutable public-evidence tests
+then brought E18 focused coverage to 25, while E16-E18 related regression
+reached 61 passes. The first 19-gate audit was also strengthened after review
+because it declared backpressure cleanup without producing queue saturation;
+the final audit executes that failure path, covers all six preparation states,
+and passes 22/22 gates.
+
+The final repository run passed 3025 tests with 29 platform skips and the same
+three known SWIG deprecation warnings. Frozen evaluation hash, quality-review
+packet, expanded-corpus quality, dependency consistency and compileall passed;
+the public repository audit scanned 1350 candidates with zero findings. The
+quality-review packet remains honestly `NOT_RUN/not_independent`.
+
+E18 remains an injectable component, not a silently enabled route. E16's
+historical evidence binds `main.py`, `config.py`, `resources.py` and the dark
+owner to exact hashes. E19 must create a versioned serving assembly and paired
+OFF/LOCAL_TEST_ONLY API evidence. E18 does not establish answer quality,
+arbitrary financial coverage, production traffic, an SLO or E11 promotion.

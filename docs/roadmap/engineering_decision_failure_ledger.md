@@ -1,6 +1,6 @@
 # Enterprise Agentic RAG 工程决策与故障总账
 
-更新日期：2026-07-16
+更新日期：2026-08-03
 
 ## 1. 先说人话
 
@@ -516,3 +516,20 @@ D4/D5 的 green 只证明默认 V2 本地数据流、prompt framing、public pro
 | `E17-I01` | Resolver snapshot showed zero-valued event keys | `Counter += 0` creates a visible key | Create counters only when an event occurs | RED 2 fail -> GREEN 16/16 |
 | `E17-I02` | First real observation was much slower than the second | Windows `spawn` startup dominated first call | Keep asynchronous/default-off; disclose cold vs warm and require lifecycle-owned persistent Worker in E18 | ~732 ms max vs ~3.6 ms warm |
 | `E17-I03` | Resolver could spoof adapter error text; NaN deadline passed comparisons | Resolver exception type was trusted and deadline finiteness was unchecked | Map all resolver exceptions to one fixed code; validate exact type; reject non-finite deadline and post-close calls | RED 3 fail -> GREEN 16 adapter tests; 24/24 gates |
+
+## 42. FinQA Gate E18 admitted context decisions and incidents
+
+| ID | Question or symptom | Root cause | Decision or repair | Evidence |
+|---|---|---|---|---|
+| `E18-D01` | Let the background provider retrieve evidence again from the question? | E16 deliberately has no tenant, group, region or Principal fields | Consume only `AdmittedEvidenceChunk` from the primary controller state; secondary retrieval calls fixed at zero | protocol + typed-input tests |
+| `E18-D02` | Use an LLM to generate online arithmetic structure immediately? | The first objective is data-boundary correctness; model planning adds semantic and injection variables | Seven narrow bilingual value-free rules, zero model calls, explicit abstention | 7/7 family audit |
+| `E18-D03` | Register context before or after E16 offer? | Offer-first lets the worker resolve before registration; register-first can leave state after rejection | Register first, retain only on `ADMITTED`, discard every other offer outcome | admission matrix |
+| `E18-D04` | What should happen when a request ID is reused? | Discard after duplicate rejection would delete the original request's context | Reject/no overwrite and do not discard unless this call registered successfully | duplicate regression |
+| `E18-D05` | Edit the existing FastAPI container now? | E16 public evidence binds main/config/resources/dark owner to exact hashes | Add injectable versioned component; leave standard route disabled until E19 versioned wiring | E16 evidence tests + E18 non-claim |
+| `E18-D06` | Is returning equal response bytes sufficient? | A wrapper could still copy or mutate response internals | Build primary first, return the exact same object, swallow observer failure | identity + serialization tests |
+| `E18-I01` | First focused run was 20 pass / 2 fail | Test fixture used removed `QueryAnalysis` fields and omitted current required fields | Align fixture with current typed domain model; do not weaken validation | final 22/22 core tests |
+| `E18-I02` | Next focused run still had the same two fixture failures | Fixture also used removed `BudgetState.started_at_ms` and omitted `ControllerState.top_k` | Remove obsolete field and supply required `top_k` | final 22/22 core tests |
+| `E18-I03` | First audit passed but had not physically saturated the queue | Backpressure cleanup was inferred from code/E16 tests rather than exercised in E18 | Add blocking resolver provider and one-slot queue; require rejected-only discard and zero residual state | final 22/22 gates |
+| `E18-X01` | How expensive is admitted evidence to typed context preparation locally? | Need a bounded mechanism baseline before route wiring | 112 controlled builds across seven families | p50/p95/max `0.623/0.921/1.523 ms`; not an SLO |
+| `E18-L01` | Does 112/112 mean answer accuracy is 100%? | Repetitions validate context construction, not semantic correctness or final execution | Keep claim mechanism-only; no quality promotion | public non-claims |
+| `E18-L02` | Is E18 active in `/agent/v2/chat`? | Historical E16 assembly remains exact-hash frozen | `DISABLED_PENDING_VERSIONED_WIRING`; E19 required | protocol/status/handoff |

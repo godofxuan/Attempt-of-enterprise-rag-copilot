@@ -1,5 +1,52 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-08-03 FinQA Gate E18 admitted evidence to typed context
+
+```text
+decision                               E18_ADMITTED_CONTEXT_MECHANISM_PASSED_ROUTE_REMAINS_DISABLED
+protocol SHA-256                       e1dabbd79901280e6d666a479d9cac15fda4c408ec2dc1412f148a6541491035
+public evidence SHA-256                82595dc7f0f2c119737a0e620bd1c1b8ce12a9c67d8b8a91335c3b0c1eac2747
+online rule families                   7 / 7
+repeated eligible typed builds         112 / 112
+preparation p50 / p95 / max            0.623 / 0.921 / 1.523 ms
+secondary retrieval / model calls      0 / 0
+enabled admissions / completions       8 / 8
+default-off worker calls               0
+primary response mismatches            0
+duplicate overwrite/delete             0 / 0
+residual workers / contexts            0 / 0
+frozen gates                           22 / 22
+focused E18 tests                      25 passed
+related E16-E18 regression             61 passed
+full repository                        3025 passed / 29 skipped / 3 warnings
+public repository audit                1350 candidates / 0 findings
+public content findings                0
+standard FastAPI route                 DISABLED_PENDING_VERSIONED_WIRING
+E11 service status                     SHADOW_DEFAULT_OFF
+internal cohort                        CONSUMED_NOT_ACCESSED
+frozen test                            UNTOUCHED
+```
+
+E18 closes the next service data-flow gap without re-retrieval. It projects
+only `AdmittedEvidenceChunk` objects from the Agent state, rescans their text
+with the current Guard, extracts bounded operand candidates, creates a
+value-free seven-family online rule skeleton and safe descriptor catalog, then
+registers the exact typed resolution before E16 admission. Every non-admitted
+outcome discards its context, duplicate registration never overwrites or
+deletes the original, and the post-primary wrapper returns the exact same
+`AnswerResponse` object.
+
+The standard FastAPI assembly remains unchanged because E16 binds its service
+files to historical exact hashes. E19 must perform versioned route/container
+wiring and new paired API evidence. E18 does not establish answer quality,
+production traffic, arbitrary financial coverage, a latency SLO, or E11
+promotion.
+
+Detailed state: [E18 engineering record](docs/external_datasets/finqa_admitted_context_gate_e18.md),
+[learning chapter](docs/learning/39_FINQA_GATE_E18_ADMITTED_CONTEXT.md),
+[handoff](docs/roadmap/finqa_gate_e18_current_handoff.md), and
+[public evidence](docs/external_datasets/evidence/finqa_admitted_context_public_v1.json).
+
 ## 2026-08-03 FinQA Gate E17 typed eligibility and adapter
 
 ```text
