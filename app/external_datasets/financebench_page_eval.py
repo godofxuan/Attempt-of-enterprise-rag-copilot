@@ -143,7 +143,10 @@ class FinanceBenchPageRunSummary(FinanceBenchPageEvalModel):
     passed_case_rate: float = Field(ge=0.0, le=1.0)
     document_recall_at_5_mean: float = Field(ge=0.0, le=1.0)
     latency_ms_mean: float = Field(ge=0.0)
+    latency_ms_p50: float | None = Field(default=None, ge=0.0)
     latency_ms_p95: float = Field(ge=0.0)
+    page_mrr_at_5: float | None = Field(default=None, ge=0.0, le=1.0)
+    page_ndcg_at_5: float | None = Field(default=None, ge=0.0, le=1.0)
     cutoffs: list[FinanceBenchPageCutoffSummary] = Field(
         min_length=1,
         max_length=10,
@@ -554,6 +557,9 @@ def summarize_financebench_page_cases(
     )
     latencies = sorted(item.latency_ms for item in rows)
     passed = sum(item.passed for item in rows)
+    page_rank_metrics = [
+        _page_rank_metrics_at_5(item.page_score) for item in rows
+    ]
     return FinanceBenchPageRunSummary(
         case_count=len(rows),
         passed_case_count=passed,
@@ -562,7 +568,10 @@ def summarize_financebench_page_cases(
             item.document_recall_at_5 for item in rows
         ),
         latency_ms_mean=_mean(item.latency_ms for item in rows),
+        latency_ms_p50=latencies[_nearest_rank_index(len(latencies), 0.50)],
         latency_ms_p95=latencies[_nearest_rank_index(len(latencies), 0.95)],
+        page_mrr_at_5=_mean(item[0] for item in page_rank_metrics),
+        page_ndcg_at_5=_mean(item[1] for item in page_rank_metrics),
         cutoffs=cutoff_summaries,
         candidate_cutoffs=candidate_cutoffs,
         reranker_cutoffs=reranker_cutoffs,
@@ -1008,6 +1017,30 @@ def _summarize_page_scores(
             )
         )
     return summaries
+
+
+def _page_rank_metrics_at_5(
+    score: PageRetrievalCaseScore,
+) -> tuple[float, float]:
+    gold_keys = {
+        (item.doc_id, item.page_number) for item in score.gold_pages
+    }
+    relevant_ranks = sorted(
+        {
+            item.first_hit_rank
+            for item in score.ranked_pages
+            if item.first_hit_rank <= 5
+            and (item.doc_id, item.page_number) in gold_keys
+        }
+    )
+    reciprocal_rank = 1.0 / relevant_ranks[0] if relevant_ranks else 0.0
+    dcg = sum(1.0 / math.log2(rank + 1) for rank in relevant_ranks)
+    ideal_relevant_count = min(len(gold_keys), 5)
+    ideal_dcg = sum(
+        1.0 / math.log2(rank + 1)
+        for rank in range(1, ideal_relevant_count + 1)
+    )
+    return reciprocal_rank, dcg / ideal_dcg
 
 
 def _read_json_array(path: Path) -> list[Any]:

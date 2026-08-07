@@ -219,6 +219,53 @@ def test_financebench_page_eval_combines_document_and_page_metrics() -> None:
     assert summary.case_count == 1
     assert summary.passed_case_rate == 1.0
     assert summary.cutoffs[-1].complete_page_recall_rate == 1.0
+    assert summary.latency_ms_p50 == details[0].latency_ms
+    assert summary.page_mrr_at_5 == 1.0
+    assert summary.page_ndcg_at_5 == 1.0
+
+
+def test_financebench_page_eval_summarizes_page_rank_quality_at_five() -> None:
+    pipeline = _Pipeline(
+        [
+            _hit(1, doc_id="doc-a", page_number=90),
+            _hit(2, doc_id="doc-a", page_number=2),
+            _hit(3, doc_id="doc-a", page_number=91),
+            _hit(4, doc_id="doc-a", page_number=4),
+            _hit(5, doc_id="doc-a", page_number=92),
+        ]
+    )
+    evidence = _evidence_case().model_copy(
+        update={
+            "evidence": [
+                FinanceBenchPreparedEvidence(
+                    doc_id="doc-a",
+                    page_number=2,
+                    evidence_text="Revenue was $1.00.",
+                    evidence_text_full_page="Revenue was $1.00 in FY2022.",
+                ),
+                FinanceBenchPreparedEvidence(
+                    doc_id="doc-a",
+                    page_number=4,
+                    evidence_text="The table confirms $1.00.",
+                    evidence_text_full_page="The table confirms $1.00 in FY2022.",
+                ),
+            ]
+        }
+    )
+
+    details = evaluate_financebench_page_cases(
+        cases=[_case()],
+        evidence_cases=[evidence],
+        pipeline=pipeline,
+    )
+    summary = summarize_financebench_page_cases(details)
+
+    expected_dcg = (1.0 / 1.584962500721156) + (1.0 / 2.321928094887362)
+    expected_ideal_dcg = 1.0 + (1.0 / 1.584962500721156)
+    assert summary.page_mrr_at_5 == 0.5
+    assert summary.page_ndcg_at_5 == pytest.approx(
+        expected_dcg / expected_ideal_dcg
+    )
 
 
 def test_financebench_page_eval_applies_explicit_document_depth() -> None:
