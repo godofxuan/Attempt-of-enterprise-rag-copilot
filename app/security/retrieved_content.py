@@ -55,6 +55,7 @@ _INSTRUCTION_ACTION = re.compile(
 _INSTRUCTION_TARGET = re.compile(
     r"\b(?:(?:all|the)\s+)?(?:previous|prior|system|developer|trusted)\s+"
     r"(?:instructions?|rules?|messages?)\b"
+    r"|\b(?:all|the)\s+(?:info(?:rmation)?|content)\b"
     r"|之前(?:的|所有)?(?:系统)?指令|系统指令|以上(?:要求|规则)|原有(?:指令|规则)"
 )
 _ROLE_BOUNDARY = re.compile(
@@ -64,6 +65,7 @@ _ROLE_BOUNDARY = re.compile(
 )
 _ROLE_ACTION = re.compile(
     r"\b(?:ignore|reveal|return|send|upload|call|execute|obey|follow|output|print)\b"
+    r"|\bfocus\s+only\b"
     r"|忽略|显示|返回|发送|上传|调用|执行|遵循|服从"
 )
 _SECRET_ACTION = re.compile(

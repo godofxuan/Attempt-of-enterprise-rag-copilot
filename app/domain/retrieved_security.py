@@ -16,7 +16,7 @@ from app.domain.queries import (
 )
 
 
-DETECTOR_VERSION = "rcg-v1.1.0"
+DETECTOR_VERSION = "rcg-v1.2.0"
 MAX_SCAN_CHARS = 20_000
 MAX_NORMALIZED_CHARS = 20_000
 MAX_DECODED_VIEWS = 8
@@ -85,7 +85,7 @@ class GuardDecision(BaseModel):
         max_length=16,
     )
     rule_ids: tuple[str, ...] = Field(default_factory=tuple, max_length=32)
-    detector_version: Literal["rcg-v1.1.0"]
+    detector_version: Literal["rcg-v1.2.0"]
     original_length: int = Field(ge=0)
     normalized_length: int = Field(ge=0, le=MAX_NORMALIZED_CHARS)
     scanned_length: int = Field(ge=0, le=MAX_SCAN_CHARS)
@@ -459,7 +459,7 @@ class SecurityCounters(_GuardedModel):
         max_length=16,
     )
     rule_ids: tuple[str, ...] = Field(default_factory=tuple, max_length=32)
-    detector_version: Literal["rcg-v1.1.0"]
+    detector_version: Literal["rcg-v1.2.0"]
 
     @field_validator("risk_categories")
     @classmethod

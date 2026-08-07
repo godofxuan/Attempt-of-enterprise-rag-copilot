@@ -12,7 +12,7 @@ from app.agent.generation_v2 import GenerationV2ResponseBuilder
 from app.agent.runner_v2 import V2AgentRunner
 from app.agent.tools_v2 import V2ToolExecution, V2ToolRegistry
 from app.domain.queries import QueryAnalysis
-from app.domain.retrieved_security import GuardedV2ToolExecution
+from app.domain.retrieved_security import DETECTOR_VERSION, GuardedV2ToolExecution
 from tests.v2_test_support import (
     RecordingNavigator,
     open_result,
@@ -299,7 +299,7 @@ def test_public_trace_excludes_retrieved_raw_text() -> None:
     assert security["rule_ids"] == sorted(set(security["rule_ids"]))
     assert "instruction_override" in security["risk_categories"]
     assert "RCG-INSTRUCTION-OVERRIDE-001" in security["rule_ids"]
-    assert security["detector_version"] == "rcg-v1.1.0"
+    assert security["detector_version"] == DETECTOR_VERSION
     assert DOCUMENT_CANARY not in serialized_trace
     assert TRACE_CANARY not in serialized_trace
     assert ATTACK_TRIGGER not in serialized_trace
