@@ -261,7 +261,11 @@ def _page_extraction_signals(
 
 def _is_numeric_or_table_question(case: FinanceBenchPreparedCase) -> bool:
     text = " ".join(
-        [case.answer, case.question_type, case.question_reasoning]
+        [
+            case.answer,
+            case.question_type,
+            case.question_reasoning or "",
+        ]
     ).lower()
     return bool(re.search(r"\d", case.answer)) or any(
         marker in text

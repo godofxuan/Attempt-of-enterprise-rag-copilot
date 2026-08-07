@@ -39,7 +39,11 @@ def _chunk(page: int, text: str):
 
 def test_failure_analysis_separates_page_ranking_from_parser_quality() -> None:
     evidence = _evidence_case().model_copy(
-        update={"answer": "$1.00", "question_type": "metrics-generated"}
+        update={
+            "answer": "$1.00",
+            "question_type": "metrics-generated",
+            "question_reasoning": None,
+        }
     )
 
     summary, rows = analyze_financebench_page_failures(
