@@ -20,7 +20,7 @@ from app.evaluation.page_retrieval import (
     PageRetrievalCaseScore,
     score_page_retrieval,
 )
-from app.evaluation.retrieval import evaluate_retrieval_case
+from app.evaluation.retrieval import RetrievalVariant, evaluate_retrieval_case
 from app.external_datasets.financebench import (
     FINANCEBENCH_REVISION,
     FinanceBenchPreparedCase,
@@ -346,6 +346,7 @@ def evaluate_financebench_page_cases(
     candidate_k: int = 20,
     max_chunks_per_doc: int = 2,
     include_parent: bool = True,
+    retrieval_variant: RetrievalVariant = "production",
     split: Literal["dev", "test"] = "dev",
     page_drilldown_backend=None,
     drilldown_max_documents: int = 3,
@@ -392,6 +393,7 @@ def evaluate_financebench_page_cases(
         evaluated = evaluate_retrieval_case(
             case,
             pipeline,
+            variant=retrieval_variant,
             top_k=top_k,
             candidate_k=candidate_k,
             max_chunks_per_doc=max_chunks_per_doc,
@@ -686,6 +688,7 @@ def build_financebench_page_manifest(
     candidate_k: int,
     max_chunks_per_doc: int,
     include_parent: bool,
+    retrieval_variant: RetrievalVariant = "production",
     page_drilldown: bool,
     drilldown_max_documents: int,
     drilldown_chunks_per_doc: int,
@@ -719,6 +722,7 @@ def build_financebench_page_manifest(
             "candidate_k": candidate_k,
             "max_chunks_per_doc": max_chunks_per_doc,
             "include_parent": str(include_parent).lower(),
+            "retrieval_variant": retrieval_variant,
             "page_drilldown": str(page_drilldown).lower(),
             "drilldown_max_documents": drilldown_max_documents,
             "drilldown_chunks_per_doc": drilldown_chunks_per_doc,

@@ -67,6 +67,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=True,
     )
     parser.add_argument(
+        "--retrieval-variant",
+        choices=["production", "bm25", "dense", "hybrid_rrf"],
+        default="production",
+    )
+    parser.add_argument(
         "--page-drilldown",
         action=argparse.BooleanOptionalAction,
         default=False,
@@ -220,6 +225,7 @@ def main(argv: list[str] | None = None) -> int:
         candidate_k=args.candidate_k,
         max_chunks_per_doc=args.max_chunks_per_doc,
         include_parent=args.include_parent,
+        retrieval_variant=args.retrieval_variant,
         split=args.split,
         page_drilldown_backend=(
             raw_pipeline if args.page_drilldown else None
@@ -253,6 +259,7 @@ def main(argv: list[str] | None = None) -> int:
         candidate_k=args.candidate_k,
         max_chunks_per_doc=args.max_chunks_per_doc,
         include_parent=args.include_parent,
+        retrieval_variant=args.retrieval_variant,
         page_drilldown=args.page_drilldown,
         drilldown_max_documents=args.drilldown_max_documents,
         drilldown_chunks_per_doc=args.drilldown_chunks_per_doc,
@@ -343,6 +350,10 @@ def _clean_git_revision() -> str:
 
 
 def _validate_frozen_configuration(args, configuration) -> None:
+    if args.retrieval_variant != "production":
+        raise ValueError(
+            "test split requires the frozen production retrieval variant"
+        )
     if args.drilldown_merge_mode != "quota":
         raise ValueError(
             "test split requires the frozen quota drilldown merge mode"

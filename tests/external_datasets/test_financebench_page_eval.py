@@ -284,6 +284,22 @@ def test_financebench_page_eval_applies_explicit_document_depth() -> None:
     assert pipeline.last_request.include_parent is False
 
 
+def test_financebench_page_eval_applies_explicit_retrieval_variant() -> None:
+    pipeline = _Pipeline([_hit(1, doc_id="doc-a", page_number=2)])
+
+    evaluate_financebench_page_cases(
+        cases=[_case()],
+        evidence_cases=[_evidence_case()],
+        pipeline=pipeline,
+        retrieval_variant="bm25",
+        include_parent=False,
+    )
+
+    assert pipeline.last_request is not None
+    assert pipeline.last_request.mode == "bm25"
+    assert pipeline.last_request.purpose == "evaluate bm25 retrieval"
+
+
 def test_financebench_page_eval_drills_into_ranked_documents() -> None:
     broad = _Pipeline(
         [
