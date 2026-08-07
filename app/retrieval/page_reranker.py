@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -36,6 +37,14 @@ class PageReranker(Protocol):
     ) -> "PageRerankResult": ...
 
 
+class CrossEncoderScoreFn(Protocol):
+    def __call__(
+        self,
+        question: str,
+        candidate_texts: Sequence[str],
+    ) -> Sequence[float]: ...
+
+
 class PageRerankResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
@@ -59,6 +68,52 @@ class PageRerankResult:
     quarantined_count: int
     guard_rule_ids: tuple[str, ...]
     attempt_count: int = 1
+
+
+class CrossEncoderPageReranker:
+    def __init__(
+        self,
+        *,
+        model_id: str,
+        score_fn: CrossEncoderScoreFn,
+        guard: RetrievedContentGuard | None = None,
+    ) -> None:
+        if not model_id.strip():
+            raise ValueError("cross-encoder model ID must be non-empty")
+        self.model_id = model_id.strip()
+        self.score_fn = score_fn
+        self.guard = guard or RetrievedContentGuard()
+
+    def rerank(
+        self,
+        *,
+        question: str,
+        candidates: Sequence[SearchHit],
+    ) -> PageRerankResult:
+        question, rows = _validate_rerank_inputs(question, candidates)
+        admitted, rule_ids = _guard_candidates(rows, self.guard)
+        if not admitted:
+            raise ValueError("cross-encoder guard quarantined every candidate")
+
+        raw_scores = self.score_fn(
+            question,
+            [item.context_text[:MAX_RERANK_TEXT_CHARS] for item in admitted],
+        )
+        scores = [float(item) for item in raw_scores]
+        if len(scores) != len(admitted):
+            raise ValueError("cross-encoder returned the wrong score count")
+        if any(not math.isfinite(item) for item in scores):
+            raise ValueError("cross-encoder scores must be finite")
+        ranked = sorted(
+            enumerate(zip(admitted, scores, strict=True)),
+            key=lambda item: (-item[1][1], item[0]),
+        )
+        return PageRerankResult(
+            hits=tuple(item[1][0] for item in ranked),
+            admitted_count=len(admitted),
+            quarantined_count=len(rows) - len(admitted),
+            guard_rule_ids=tuple(sorted(rule_ids)),
+        )
 
 
 class LocalLLMPageReranker:
@@ -85,23 +140,8 @@ class LocalLLMPageReranker:
         question: str,
         candidates: Sequence[SearchHit],
     ) -> PageRerankResult:
-        question = question.strip()
-        rows = list(candidates)
-        if not question or len(question) > 1000:
-            raise ValueError("page reranker question must contain 1-1000 characters")
-        if not 1 <= len(rows) <= MAX_RERANK_CANDIDATES:
-            raise ValueError("page reranker requires 1-20 candidates")
-        chunk_ids = [item.chunk_id for item in rows]
-        if len(chunk_ids) != len(set(chunk_ids)):
-            raise ValueError("page reranker candidates must have unique chunk IDs")
-
-        admitted: list[SearchHit] = []
-        rule_ids: set[str] = set()
-        for hit in rows:
-            decision = self.guard.scan(hit.context_text)
-            rule_ids.update(decision.rule_ids)
-            if decision.disposition == "ADMIT":
-                admitted.append(hit)
+        question, rows = _validate_rerank_inputs(question, candidates)
+        admitted, rule_ids = _guard_candidates(rows, self.guard)
         if not admitted:
             raise ValueError("page reranker guard quarantined every candidate")
 
@@ -186,6 +226,36 @@ def parse_page_rerank_response(
             "page reranker response must rank every admitted candidate exactly once"
         )
     return response
+
+
+def _validate_rerank_inputs(
+    question: str,
+    candidates: Sequence[SearchHit],
+) -> tuple[str, list[SearchHit]]:
+    normalized_question = question.strip()
+    rows = list(candidates)
+    if not normalized_question or len(normalized_question) > 1000:
+        raise ValueError("page reranker question must contain 1-1000 characters")
+    if not 1 <= len(rows) <= MAX_RERANK_CANDIDATES:
+        raise ValueError("page reranker requires 1-20 candidates")
+    chunk_ids = [item.chunk_id for item in rows]
+    if len(chunk_ids) != len(set(chunk_ids)):
+        raise ValueError("page reranker candidates must have unique chunk IDs")
+    return normalized_question, rows
+
+
+def _guard_candidates(
+    rows: Sequence[SearchHit],
+    guard: RetrievedContentGuard,
+) -> tuple[list[SearchHit], set[str]]:
+    admitted: list[SearchHit] = []
+    rule_ids: set[str] = set()
+    for hit in rows:
+        decision = guard.scan(hit.context_text)
+        rule_ids.update(decision.rule_ids)
+        if decision.disposition == "ADMIT":
+            admitted.append(hit)
+    return admitted, rule_ids
 
 
 def _build_messages(
@@ -278,6 +348,8 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 __all__ = [
+    "CrossEncoderPageReranker",
+    "CrossEncoderScoreFn",
     "LocalLLMPageReranker",
     "MAX_RERANK_CANDIDATES",
     "MAX_RERANK_TEXT_CHARS",

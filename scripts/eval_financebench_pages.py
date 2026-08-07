@@ -29,6 +29,7 @@ from app.external_datasets.financebench_page_eval import (
 from app.ollama_chat import chat_with_ollama
 from app.retrieval.entity_scope import EntityScopedSearchBackend
 from app.retrieval.page_reranker import LocalLLMPageReranker
+from app.retrieval.page_reranker import CrossEncoderPageReranker
 
 
 DEFAULT_INDEX_ROOT = DEFAULT_PRIVATE_ROOT / "indexes"
@@ -39,6 +40,13 @@ DEFAULT_FREEZE_PROTOCOL = (
     / "external_datasets"
     / "evidence"
     / "financebench_page_retrieval_freeze_v1.json"
+)
+DEFAULT_CROSS_ENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L6-v2"
+DEFAULT_RERANKER_CACHE = (
+    Path(__file__).resolve().parent.parent
+    / ".private"
+    / "model_cache"
+    / "sentence_transformers"
 )
 
 
@@ -90,10 +98,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--page-reranker",
-        choices=["none", "local_llm"],
+        choices=["none", "local_llm", "cross_encoder"],
         default="none",
     )
     parser.add_argument("--reranker-model")
+    parser.add_argument(
+        "--reranker-cache-dir",
+        type=Path,
+        default=DEFAULT_RERANKER_CACHE,
+    )
+    parser.add_argument("--reranker-batch-size", type=int, default=16)
+    parser.add_argument(
+        "--reranker-device",
+        choices=["auto", "cpu", "cuda"],
+        default="auto",
+    )
     parser.add_argument(
         "--reranker-timeout-seconds",
         type=float,
@@ -183,13 +202,16 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("dense head preservation requires a page reranker")
     if not 1 <= args.reranker_max_attempts <= 3:
         raise ValueError("reranker max attempts must be between 1 and 3")
+    if not 1 <= args.reranker_batch_size <= 128:
+        raise ValueError("reranker batch size must be between 1 and 128")
     if not float("-inf") < args.reranker_gate_threshold < float("inf"):
         raise ValueError("reranker gate threshold must be finite")
-    reranker_model = (
-        args.reranker_model or settings.evidence_model
-        if args.page_reranker == "local_llm"
-        else "none"
-    )
+    if args.page_reranker == "local_llm":
+        reranker_model = args.reranker_model or settings.evidence_model
+    elif args.page_reranker == "cross_encoder":
+        reranker_model = args.reranker_model or DEFAULT_CROSS_ENCODER_MODEL
+    else:
+        reranker_model = "none"
 
     def tracked_reranker_chat(
         model,
@@ -207,15 +229,23 @@ def main(argv: list[str] | None = None) -> int:
             timeout_seconds=args.reranker_timeout_seconds,
         )
 
-    page_reranker = (
-        LocalLLMPageReranker(
+    page_reranker = None
+    if args.page_reranker == "local_llm":
+        page_reranker = LocalLLMPageReranker(
             model=reranker_model,
             chat_fn=tracked_reranker_chat,
             max_attempts=args.reranker_max_attempts,
         )
-        if args.page_reranker == "local_llm"
-        else None
-    )
+    elif args.page_reranker == "cross_encoder":
+        page_reranker = CrossEncoderPageReranker(
+            model_id=reranker_model,
+            score_fn=_load_cross_encoder_score_fn(
+                model_id=reranker_model,
+                cache_dir=args.reranker_cache_dir,
+                batch_size=args.reranker_batch_size,
+                device=args.reranker_device,
+            ),
+        )
     embedding_calls_before = runtime.counters.embedding_calls
     generation_calls_before = runtime.counters.generation_calls
     details = evaluate_financebench_page_cases(
@@ -272,6 +302,16 @@ def main(argv: list[str] | None = None) -> int:
             if args.page_reranker == "local_llm"
             else "none"
         ),
+        reranker_batch_size=(
+            args.reranker_batch_size
+            if args.page_reranker == "cross_encoder"
+            else "none"
+        ),
+        reranker_device=(
+            args.reranker_device
+            if args.page_reranker == "cross_encoder"
+            else "none"
+        ),
         reranker_dense_head_count=args.reranker_dense_head_count,
         reranker_max_attempts=args.reranker_max_attempts,
         reranker_gate_mode=args.reranker_gate_mode,
@@ -320,6 +360,41 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
     return 0
+
+
+def _load_cross_encoder_score_fn(
+    *,
+    model_id: str,
+    cache_dir: Path,
+    batch_size: int,
+    device: str,
+):
+    try:
+        from sentence_transformers import CrossEncoder
+    except ImportError as exc:
+        raise RuntimeError(
+            "cross-encoder evaluation requires the optional "
+            "sentence-transformers dependency"
+        ) from exc
+
+    resolved_cache = Path(cache_dir).resolve()
+    resolved_cache.mkdir(parents=True, exist_ok=True)
+    model = CrossEncoder(
+        model_id,
+        device=None if device == "auto" else device,
+        cache_folder=str(resolved_cache),
+        max_length=512,
+    )
+
+    def score(question, candidate_texts):
+        pairs = [(question, text) for text in candidate_texts]
+        return model.predict(
+            pairs,
+            batch_size=batch_size,
+            show_progress_bar=False,
+        )
+
+    return score
 
 
 def _clean_git_revision() -> str:
