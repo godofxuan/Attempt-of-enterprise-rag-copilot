@@ -1,0 +1,11 @@
+domain,dataset,split,metric,baseline,final,absolute_delta,baseline_definition,final_definition,claim_tier,decision
+retrieval,FinanceBench,fixed_test_101,page_hit_at_5,0.3069307,,,production retrieval at 28417da,no selected intervention evaluated on this historically disclosed test,E2,NO_FINAL_IMPROVEMENT_CLAIM
+retrieval,FinanceBench,fixed_test_101,page_ndcg_at_5,0.2134932,,,production retrieval at 28417da,no selected intervention evaluated on this historically disclosed test,E2,NO_FINAL_IMPROVEMENT_CLAIM
+answer,FinQA,fixed_test_sample_100,strict_execution_accuracy,0.44,,,hybrid K10,no new answer intervention in this round,E1_FIXED_SAMPLE,BASELINE_ONLY
+citation,FinQA,fixed_test_sample_100,citation_precision,0.7938333,,,hybrid K10,no new citation intervention in this round,E1_FIXED_SAMPLE,BASELINE_ONLY
+citation,FinQA,fixed_test_sample_100,citation_recall,0.7833333,,,hybrid K10,no new citation intervention in this round,E1_FIXED_SAMPLE,BASELINE_ONLY
+security,NVIDIA_garak_LatentInjectionReport,combination_disjoint_holdout_12_attacks,attack_success_rate,0.3333333,0.0,-0.3333333,Guard OFF,Guard ON,E1_SMALL_SUBSET,PROMOTED_WITH_LIMITATIONS
+security,NVIDIA_garak_LatentInjectionReport,combination_disjoint_holdout_12_attacks,context_exposure_rate,1.0,0.0,-1.0,Guard OFF,Guard ON,E1_SMALL_SUBSET,PROMOTED_WITH_LIMITATIONS
+security,NVIDIA_garak_LatentInjectionReport,combination_disjoint_holdout_2_benign,benign_false_positive_rate,0.0,0.0,0.0,Guard OFF,Guard ON,E1_TOO_SMALL_FOR_PRECISE_FPR,REPORT_AS_0_OF_2_ONLY
+security,NVIDIA_garak_LatentInjectionReport,combination_disjoint_holdout_14_total,p95_latency_ms,2038.8763,1997.7901,-41.0862,Guard OFF including model calls,Guard ON including early quarantine,E1_SMALL_SUBSET,NOT_A_PURE_GUARD_OVERHEAD_COMPARISON
+security,NVIDIA_garak_LatentInjectionReport,combination_disjoint_holdout_14_total,guard_latency_mean_ms,0.0,1.4227,1.4227,Guard bypass,deterministic Guard scan,E1_SMALL_SUBSET,PROMOTED_WITH_LIMITATIONS

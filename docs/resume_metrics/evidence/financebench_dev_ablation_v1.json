@@ -1,0 +1,88 @@
+{
+  "schema_version": "financebench_dev_ablation_public_v1",
+  "dataset": {
+    "name": "FinanceBench",
+    "revision": "cc39aeb4afdf33909ee1412188bf89035950c2eb",
+    "split": "development",
+    "case_count": 49
+  },
+  "embedding": {
+    "name": "bge-m3",
+    "digest": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab"
+  },
+  "arms": [
+    {
+      "name": "bm25",
+      "git_sha": "7a676bbcd42bdc8c418e79d5ed559c187de7dff8",
+      "page_hit_at_5": 0.14285714285714285,
+      "page_mrr_at_5": 0.1,
+      "page_ndcg_at_5": 0.1102986809804192,
+      "macro_page_recall_at_5": 0.14285714285714285,
+      "latency_ms_mean": 487.9521673440705,
+      "latency_ms_p50": 477.69279999192804,
+      "latency_ms_p95": 783.9002000400797,
+      "details_sha256": "1eeec945b24b726f360275387b95a3475cd05b2eb22df76cce11e31ff481060a",
+      "summary_sha256": "5ef3dbd71715b8554f318f11e345fe52e1caf21e193c05da09199bf5b5daf57e"
+    },
+    {
+      "name": "dense",
+      "git_sha": "7a676bbcd42bdc8c418e79d5ed559c187de7dff8",
+      "page_hit_at_5": 0.4489795918367347,
+      "page_mrr_at_5": 0.35340136054421767,
+      "page_ndcg_at_5": 0.35245691326402123,
+      "macro_page_recall_at_5": 0.40816326530612246,
+      "latency_ms_mean": 504.96090611214845,
+      "latency_ms_p50": 433.62929997965693,
+      "latency_ms_p95": 533.2980999955907,
+      "details_sha256": "c7b316c672e2fe1b1f14006731558051f7a147cbd9ff4df6999dd338b1a383d0",
+      "summary_sha256": "e473d7a130badbaf048c70e8404c10fc3761a53370c9d940d127e0d2cab1a178"
+    },
+    {
+      "name": "hybrid_rrf",
+      "git_sha": "7a676bbcd42bdc8c418e79d5ed559c187de7dff8",
+      "page_hit_at_5": 0.2857142857142857,
+      "page_mrr_at_5": 0.16020408163265307,
+      "page_ndcg_at_5": 0.1839216425640117,
+      "macro_page_recall_at_5": 0.2653061224489796,
+      "latency_ms_mean": 684.5556203993417,
+      "latency_ms_p50": 680.3342999191955,
+      "latency_ms_p95": 1006.2631999608129,
+      "details_sha256": "c64ea8c69c9bd410338fb89b64d3b019ecbc4fe9a488ac1835dccaba8cde680d",
+      "summary_sha256": "acdac05bc2aed1a25ec71e5d455e54a834315c48f318309231e593cd5a0cbd35"
+    },
+    {
+      "name": "hybrid_rrf_cross_encoder_top10",
+      "git_sha": "99314ed37a17ae7c4efe282ab31971afb6b338d9",
+      "reranker": "cross-encoder/ms-marco-MiniLM-L6-v2",
+      "reranker_revision": "c5ee24cb16019beea0893ab7796b1df96625c6b8",
+      "reranker_device": "cpu",
+      "page_hit_at_5": 0.46938775510204084,
+      "page_mrr_at_5": 0.3476190476190476,
+      "page_ndcg_at_5": 0.34720798334670155,
+      "macro_page_recall_at_5": 0.41836734693877553,
+      "latency_ms_mean": 1698.2228061117764,
+      "latency_ms_p50": 1576.9655001349747,
+      "latency_ms_p95": 2466.1165999714285,
+      "details_sha256": "5224e262b9e0f6ef719aeb0f67e2123ca225e0c07174e9ae7e63c3fc7bf5856e",
+      "summary_sha256": "e9720db59b5aff5e42c76df1afa9d9cf0fd38aa1c86f58f9739bff7ed1056ad0"
+    },
+    {
+      "name": "hybrid_rrf_cross_encoder_top20",
+      "git_sha": "99314ed37a17ae7c4efe282ab31971afb6b338d9",
+      "reranker": "cross-encoder/ms-marco-MiniLM-L6-v2",
+      "reranker_revision": "c5ee24cb16019beea0893ab7796b1df96625c6b8",
+      "reranker_device": "cpu",
+      "page_hit_at_5": 0.46938775510204084,
+      "page_mrr_at_5": 0.3193877551020408,
+      "page_ndcg_at_5": 0.32921138147345325,
+      "macro_page_recall_at_5": 0.41836734693877553,
+      "latency_ms_mean": 1780.155093879534,
+      "latency_ms_p50": 1700.8879998466,
+      "latency_ms_p95": 2474.717800039798,
+      "details_sha256": "550b258c61a667df110f6e8bcf9c13a689e59edd49a6c6430abedde2ed5a3f02",
+      "summary_sha256": "53e219de20486af82fa72051a1171103752062cc5e1c9642dc270ed736c629c5"
+    }
+  ],
+  "decision": "Dense-only is the development Pareto choice. The cross-encoder is not promoted because Page nDCG@5 fell and p95 latency increased materially.",
+  "claim_scope": "Development-only diagnostic; no final FinanceBench improvement claim."
+}

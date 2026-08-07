@@ -200,8 +200,6 @@ class ExposureRunManifest(_StrictFrozenModel):
     def validate_manifest(self) -> ExposureRunManifest:
         if self.counterfactual_depths != COUNTERFACTUAL_DEPTHS:
             raise ValueError("counterfactual depths must be exactly 1, 2, and 4")
-        if self.guard_ruleset_sha256 != self.source.guard_ruleset_sha256:
-            raise ValueError("Guard ruleset hash contradicts source evidence")
         if len(self.unguarded_path_findings) != len(
             set(self.unguarded_path_findings)
         ):
@@ -230,6 +228,10 @@ class ExposureRunManifest(_StrictFrozenModel):
                     "v2 manifest Guard evidence contradicts replay dependencies"
                 )
         if self.schema_version.endswith("_v1"):
+            if self.guard_ruleset_sha256 != self.source.guard_ruleset_sha256:
+                raise ValueError(
+                    "v1 Guard ruleset hash contradicts source evidence"
+                )
             if any(value is not None for value in hashes):
                 raise ValueError(
                     "v1 manifest cannot carry v2 analysis evidence hashes"

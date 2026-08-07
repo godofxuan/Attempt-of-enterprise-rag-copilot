@@ -9,11 +9,13 @@ This file is an allowlist, not a suggestion to use every sentence.
 3. On a 36-pair custom synthetic indirect-injection suite, reduced user-visible attack success from 12.5% (3/24) with Guard OFF to 0% (0/24) with Guard ON, with 0/32 benign quarantines. This must say `custom synthetic` and must not be described as an external benchmark.
 4. Established a company-disjoint 101-case FinanceBench page-localization baseline: Document Recall@5 95.0%, but exact Page Hit@5 only 30.7%, identifying page localization rather than company-document recall as the main retrieval bottleneck. This is a diagnosis, not an improvement claim.
 
+5. On a frozen 12-attack combination-disjoint subset of NVIDIA garak's `LatentInjectionReport` probe using local Qwen3-8B, reduced ASR from 4/12 (33.3%) Guard OFF to 0/12 Guard ON and model context exposure from 12/12 to 0/12, with 1.42 ms mean Guard latency. This must say `one probe subset` and `12 attacks`.
+
 ## Not yet safe
 
 - No FinanceBench `baseline to improved` claim exists yet.
-- No external prompt-injection benchmark claim exists yet.
-- No cross-encoder quality/latency claim exists yet.
+- No full-garak or probe-family-disjoint security claim exists.
+- The cross-encoder is a development negative result, not a quality improvement.
 - No full FinQA test-set result exists.
 - No production reliability, SOTA, cross-domain, or cross-model generalization claim exists.
 - Synthetic 100% results must never be presented without the word `synthetic`.

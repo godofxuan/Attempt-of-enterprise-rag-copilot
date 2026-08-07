@@ -1,0 +1,6 @@
+experiment_id,dataset,split,configuration,page_hit_at_5,page_mrr_at_5,page_ndcg_at_5,macro_page_recall_at_5,latency_mean_ms,latency_p50_ms,latency_p95_ms,reranker_calls_per_query,decision
+RM-0101,FinanceBench,dev_49,bm25,0.1428571,0.1,0.1102987,0.1428571,487.9522,477.6928,783.9002,0,REJECT
+RM-0102,FinanceBench,dev_49,dense,0.4489796,0.3534014,0.3524569,0.4081633,504.9609,433.6293,533.2981,0,DEV_PARETO_REFERENCE
+RM-0103,FinanceBench,dev_49,bm25_dense_rrf,0.2857143,0.1602041,0.1839216,0.2653061,684.5556,680.3343,1006.2632,0,REJECT
+RM-0111,FinanceBench,dev_49,rrf_cross_encoder_top10,0.4693878,0.3476190,0.3472080,0.4183673,1698.2228,1576.9655,2466.1166,1,REJECT_NOT_PARETO
+RM-0112,FinanceBench,dev_49,rrf_cross_encoder_top20,0.4693878,0.3193878,0.3292114,0.4183673,1780.1551,1700.8880,2474.7178,1,REJECT_NOT_PARETO

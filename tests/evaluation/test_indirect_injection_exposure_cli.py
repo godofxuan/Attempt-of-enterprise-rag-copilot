@@ -76,7 +76,7 @@ def test_eval_cli_publishes_valid_evidence_and_returns_zero(
         (
             "guard_ruleset",
             "app/security/retrieved_content.py",
-            "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2",
+            "2dd035b857638614f932bcc48adeecc48425d5aa4868c4df1d7194deb7667111",
         ),
         (
             "retrieved_admission",

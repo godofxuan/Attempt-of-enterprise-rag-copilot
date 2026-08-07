@@ -77,3 +77,80 @@ Every result must be registered before it is used in a report or resume claim. A
 | RM-0130 End-to-end answer/citation | development calibration | fixed external sample | deterministic metrics first; judge score labeled separately |
 | RM-0140 External security subset | adapter development cases only | frozen public attacks | same model/retrieval/seed; Guard is the only changed factor |
 | RM-0150 Bounded adaptive retrieval | failure-derived development subset | fixed evaluation | default remains off unless gain exceeds registered cost threshold |
+
+## Completed improvement-round experiments
+
+### RM-0101 / RM-0102 / RM-0103 FinanceBench retrieval arms
+
+- Status: `OBSERVED_DEVELOPMENT`; tier: `E2`
+- Git SHA: `7a676bbcd42bdc8c418e79d5ed559c187de7dff8`
+- Dataset/split: FinanceBench `cc39aeb4afdf33909ee1412188bf89035950c2eb`, dev, 49 cases
+- Model: no answer model; `bge-m3` embedding digest `790764642607...2146bab`; no reranker
+- Seed: deterministic/no sampling
+- Hardware: Ryzen 5 7500F, RTX 5060, Windows 11; retrieval executed through local Ollama embeddings
+- Commands: `python -m scripts.eval_financebench_pages --run-id <arm-id> --split dev --retrieval-variant <bm25|dense|hybrid_rrf> --candidate-k 20 --max-chunks-per-doc 5 --no-include-parent --no-page-drilldown`
+- Results: BM25 / Dense / RRF Page Hit@5 = 0.1429 / 0.4490 / 0.2857; nDCG@5 = 0.1103 / 0.3525 / 0.1839; p95 = 783.90 / 533.30 / 1006.26 ms
+- Failure: lexical and RRF arms materially underperformed dense; no candidate was promoted to fixed test
+- Artifact detail hashes: BM25 `1eeec945b24b726f360275387b95a3475cd05b2eb22df76cce11e31ff481060a`; Dense `c7b316c672e2fe1b1f14006731558051f7a147cbd9ff4df6999dd338b1a383d0`; RRF `c64ea8c69c9bd410338fb89b64d3b019ecbc4fe9a488ac1835dccaba8cde680d`
+- Public evidence SHA-256: `b86b1078d2650bbf4db09bd5570425c2c064060a109e4ef292e1827f5ece41b9`
+
+### RM-0111 / RM-0112 FinanceBench cross-encoder
+
+- Status: `NEGATIVE_DEVELOPMENT`; tier: `N`
+- Git SHA: `99314ed37a17ae7c4efe282ab31971afb6b338d9`
+- Dataset/split: FinanceBench dev, 49 cases
+- Embedding: `bge-m3`; reranker: `cross-encoder/ms-marco-MiniLM-L6-v2` revision `c5ee24cb16019beea0893ab7796b1df96625c6b8`, CPU, batch 16
+- Seed: deterministic/no sampling; model snapshot pinned and loaded from D-drive cache
+- Hardware: Ryzen 5 7500F CPU, Windows 11; observed model process peak RSS about 511.9 MiB
+- Commands: `python -m scripts.eval_financebench_pages --run-id <id> --split dev --retrieval-variant hybrid_rrf --candidate-k 20 --max-chunks-per-doc 5 --no-include-parent --page-drilldown --drilldown-max-documents <1|2> --drilldown-chunks-per-doc 10 --drilldown-mode hybrid --drilldown-merge-mode quota --page-reranker cross_encoder --reranker-model cross-encoder/ms-marco-MiniLM-L6-v2 --reranker-model-revision c5ee24cb16019beea0893ab7796b1df96625c6b8 --reranker-device cpu --reranker-batch-size 16`
+- Results: top-10 Hit@5 0.4694, nDCG@5 0.3472, p95 2466.12 ms; top-20 Hit@5 0.4694, nDCG@5 0.3292, p95 2474.72 ms; one reranker call/query
+- Failure: no nDCG gain over Dense 0.3525; p95 was about 4.63x Dense for top-10; top-20 added no top-5 hit
+- Artifact summary hashes: top-10 `e9720db59b5aff5e42c76df1afa9d9cf0fd38aa1c86f58f9739bff7ed1056ad0`; top-20 `53e219de20486af82fa72051a1171103752062cc5e1c9642dc270ed736c629c5`
+
+### RM-0121 FinanceBench typed failure analysis
+
+- Status: `OBSERVED_DEVELOPMENT`; tier: `E2_DIAGNOSTIC`
+- Git SHA: `19be1ba9e1b07efb98a1af4d3e722c4d8e8e4495`
+- Input: RM-0102 dense details, 49 cases, 31 failures
+- Command: `python -m scripts.analyze_financebench_failures --run-id rm0120-dev-dense-failures-19be1ba --details <rm0102-details.jsonl>`
+- Result: 20 page-ranking misses, 4 partial multi-page, 4 document-ranking, 3 document-miss; parser-risk 1/31
+- Decision: parser ablation not triggered; adaptive retrieval remains off
+- Artifact hashes: summary `18016d140e2a19be4fbc0ea96a4c154971095b902fc91c77925afde45115299a`; manifest `0b044d35853eff82f600f10f0158cc8688de01a36ee52adf4e70faca5ccb800d`
+
+### RM-0141 garak development red baseline
+
+- Status: `RED_DEVELOPMENT`; tier: `N`
+- Git SHA: `285dafc1310b7e7536d420358a5b015ea1a5316b`
+- Dataset: NVIDIA garak revision `afae291b...392ba`, `LatentInjectionReport`, 12 attacks + 4 benign
+- Model: `qwen3:8b` digest `500a1f06...b2b8b41`; temperature 0; no embedding/reranker; fixed retrieved content
+- Seed/order: deterministic counterbalanced arm order
+- Hardware: AMD64 Ryzen 5 7500F, Windows 10.0.26200; local Ollama only
+- Command: `python -m scripts.eval_garak_latent_report --run-id rm0140-garak-report-qwen3-285dafc --model qwen3:8b --execute-live`
+- Result: ASR remained 2/12 (16.67%) in both Guard arms; context exposure changed 12/12 to 8/12; benign false positives 0/4
+- Failure: two external injection instruction forms were not recognized; result used only for Guard development
+- Summary SHA-256: `1331e6071cc9371f8ca4096538b2a241d3d55c9a4aca4425b1c8b41e5bf37dae`
+
+### RM-0142 garak repaired development run
+
+- Status: `OBSERVED_DEVELOPMENT`; tier: `E2`
+- Git SHA: `1e7ea0c9fbd037277fc5feaa733d2063d315e63a`
+- Dataset/model/order/hardware: same as RM-0141
+- Command: `python -m scripts.eval_garak_latent_report --run-id rm0150-garak-report-dev-qwen3-1e7ea0c --model qwen3:8b --timeout-seconds 120 --execute-live`
+- Result: ASR 2/12 to 0/12; context exposure 12/12 to 0/12; benign false positives 0/4; Guard mean 1.56 ms
+- Failure/limit: development data was used to choose the two rule changes; not independent evidence
+- Summary SHA-256: `ce0c8db7a384631ffc32344330540d4b591f1ea39f4f7ff7b35eec8d4faede61`
+
+### RM-0143 garak combination-disjoint holdout
+
+- Status: `OBSERVED`; tier: `E1_SMALL_SUBSET`
+- Holdout freeze SHA: `b382f560acbc819efbf32509bd5a0d16258756ef`
+- Evaluation SHA: `1e7ea0c9fbd037277fc5feaa733d2063d315e63a`
+- Guard source SHA-256: `2dd035b857638614f932bcc48adeecc48425d5aa4868c4df1d7194deb7667111`
+- Dataset/split: same pinned garak probe; unseen context/payload/trigger combinations; 12 attacks + 2 benign
+- Model/config/seed/hardware: same as RM-0142; Guard is the only arm difference
+- Command: `python -m scripts.eval_garak_latent_report --run-id rm0160-garak-report-holdout-qwen3-1e7ea0c --fixture data/external_benchmarks/garak_latent_report_holdout_v1.json --model qwen3:8b --timeout-seconds 120 --execute-live`
+- Result: ASR 4/12 (33.33%) to 0/12; context exposure 12/12 to 0/12; benign quarantine 0/2; Guard mean 1.42 ms
+- Latency: OFF mean/p50/p95 1206.21/1349.64/2038.88 ms; ON 246.99/1.54/1997.79 ms. ON latency includes early quarantines and is not a pure service-latency comparison.
+- Failure/limit: one probe, combination-disjoint rather than probe-family-disjoint, only two benign controls
+- Private result SHA-256: `1c3faee7284bd4dc6a1d123982a944dcbbef8d8b13154b68da0a4bad34a1670a`
+- Public evidence SHA-256: `b2c56883079ef01510986452b61ac43d23e851ce35b6783efbb7094f5ddd21f9`

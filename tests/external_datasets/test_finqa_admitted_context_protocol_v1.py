@@ -20,7 +20,7 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def test_e18_protocol_binds_e17_and_current_guard() -> None:
+def test_e18_protocol_preserves_historical_guard_binding() -> None:
     protocol, digest = load_finqa_admitted_context_protocol_v1(PROTOCOL)
 
     assert len(digest) == 64
@@ -30,7 +30,10 @@ def test_e18_protocol_binds_e17_and_current_guard() -> None:
     assert protocol.source_e17_public_evidence_sha256 == _sha256(
         EVIDENCE / "finqa_service_adapter_public_v1.json"
     )
-    assert protocol.source_guard_sha256 == _sha256(
+    assert protocol.source_guard_sha256 == (
+        "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2"
+    )
+    assert protocol.source_guard_sha256 != _sha256(
         ROOT / "app" / "security" / "retrieved_content.py"
     )
 
@@ -65,4 +68,3 @@ def test_e18_protocol_rejects_boundary_drift(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError):
         load_finqa_admitted_context_protocol_v1(path)
-

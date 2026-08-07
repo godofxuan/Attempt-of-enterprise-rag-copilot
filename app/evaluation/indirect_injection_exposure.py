@@ -58,6 +58,9 @@ SOURCE_GIT_HEAD = "073d7356026954c26c1429fb9faddc5e9a5dcb87"
 SOURCE_GUARD_SHA256 = (
     "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2"
 )
+REPLAY_GUARD_SHA256 = (
+    "2dd035b857638614f932bcc48adeecc48425d5aa4868c4df1d7194deb7667111"
+)
 SOURCE_EVALUATOR_PATH = "app/evaluation/indirect_injection_live_runner.py"
 SOURCE_EVALUATOR_SHA256 = (
     "a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958"
@@ -143,7 +146,7 @@ REPLAY_IMPLEMENTATION_DEPENDENCIES = (
     ReplayImplementationDependency(
         dependency_id="guard_ruleset",
         path="app/security/retrieved_content.py",
-        sha256=SOURCE_GUARD_SHA256,
+        sha256=REPLAY_GUARD_SHA256,
     ),
     ReplayImplementationDependency(
         dependency_id="retrieved_admission",
@@ -1011,7 +1014,7 @@ def _verify_replay_guard_ruleset(inputs: ExposureInputs) -> None:
     dependency = REPLAY_IMPLEMENTATION_DEPENDENCIES[0]
     if inputs.manifest.guard.ruleset_path != dependency.path:
         raise ExposureEvidenceError("Guard ruleset path mismatch")
-    if inputs.manifest.guard.ruleset_sha256 != dependency.sha256:
+    if inputs.manifest.guard.ruleset_sha256 != SOURCE_GUARD_SHA256:
         raise ExposureEvidenceError("Guard ruleset SHA-256 mismatch")
 
 

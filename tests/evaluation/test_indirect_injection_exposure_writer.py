@@ -42,6 +42,9 @@ from tests.evaluation.path_redirect_helpers import (
 SOURCE_GUARD_SHA256 = (
     "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2"
 )
+REPLAY_GUARD_SHA256 = (
+    "2dd035b857638614f932bcc48adeecc48425d5aa4868c4df1d7194deb7667111"
+)
 CONTENT_NAMES = (
     "commands.txt",
     "failures.csv",
@@ -54,7 +57,7 @@ REPLAY_DEPENDENCY_PAYLOADS = (
     {
         "dependency_id": "guard_ruleset",
         "path": "app/security/retrieved_content.py",
-        "sha256": SOURCE_GUARD_SHA256,
+        "sha256": REPLAY_GUARD_SHA256,
     },
     {
         "dependency_id": "retrieved_admission",
@@ -224,7 +227,7 @@ def _manifest(
         created_at_utc=datetime(2026, 7, 21, tzinfo=timezone.utc),
         source=result.source,
         guard_ruleset_path="app/security/retrieved_content.py",
-        guard_ruleset_sha256=result.source.guard_ruleset_sha256,
+        guard_ruleset_sha256=REPLAY_GUARD_SHA256,
         evaluator_path="app/evaluation/indirect_injection_exposure.py",
         evaluator_sha256=_sha256(
             Path("app/evaluation/indirect_injection_exposure.py")
@@ -324,6 +327,7 @@ def test_private_v1_manifest_keeps_legacy_dependency_schema(
     payload["unit_evidence_sha256"] = None
     payload["verification_inputs_sha256"] = None
     payload.pop("replay_dependencies")
+    payload["guard_ruleset_sha256"] = SOURCE_GUARD_SHA256
 
     manifest = ExposureRunManifest.model_validate(payload)
 

@@ -1,0 +1,31 @@
+{
+  "schema_version": "financebench_failure_analysis_public_v1",
+  "git_sha": "19be1ba9e1b07efb98a1af4d3e722c4d8e8e4495",
+  "dataset_revision": "cc39aeb4afdf33909ee1412188bf89035950c2eb",
+  "split": "development",
+  "retrieval_arm": "dense",
+  "case_count": 49,
+  "failed_case_count": 31,
+  "primary_failure_counts": {
+    "document_miss_top5": 3,
+    "document_ranking_miss": 4,
+    "page_ranking_miss": 20,
+    "partial_multi_page_recall": 4
+  },
+  "multi_page_failure_count": 11,
+  "numeric_or_table_failure_count": 26,
+  "missing_gold_page_chunk_case_count": 0,
+  "low_extraction_recall_case_count": 0,
+  "chunk_boundary_risk_case_count": 1,
+  "table_extraction_risk_case_count": 0,
+  "embedding_failure_candidate_count": 3,
+  "parser_ablation_recommended": false,
+  "parser_ablation_reason": "1/31 failed cases have a deterministic parser-risk signal; threshold=0.20.",
+  "source_artifacts": {
+    "summary_sha256": "18016d140e2a19be4fbc0ea96a4c154971095b902fc91c77925afde45115299a",
+    "manifest_sha256": "0b044d35853eff82f600f10f0158cc8688de01a36ee52adf4e70faca5ccb800d",
+    "per_case_sha256": "1a09e24746bbbbb585aec2aec2deb9cf140c8922187d1fe954a290ff990e2975",
+    "chunks_sha256": "abeca919cc0f24903235543fb77b0cfc55c5303d239188123f0d032ac39c74ce"
+  },
+  "interpretation": "Most deterministic failures are page-ranking or multi-page localization failures. The current evidence does not justify replacing the parser."
+}

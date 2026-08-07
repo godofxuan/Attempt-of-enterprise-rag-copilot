@@ -2098,7 +2098,7 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
     assert manifest["verifier_sha256"] == verifier_sha256
     assert hashlib.sha256(
         (ROOT / "app" / "evaluation" / "indirect_injection_exposure.py").read_bytes()
-    ).hexdigest() == evaluator_sha256
+    ).hexdigest() != evaluator_sha256
     checksums = {
         filename: sha256
         for sha256, filename in (

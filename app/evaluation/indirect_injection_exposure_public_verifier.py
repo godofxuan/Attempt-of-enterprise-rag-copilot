@@ -220,7 +220,7 @@ _REPLAY_IMPLEMENTATION_DEPENDENCIES = (
         "dependency_id": "guard_ruleset",
         "path": "app/security/retrieved_content.py",
         "sha256": (
-            "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2"
+            "2dd035b857638614f932bcc48adeecc48425d5aa4868c4df1d7194deb7667111"
         ),
     },
     {
@@ -244,6 +244,22 @@ _REPLAY_IMPLEMENTATION_DEPENDENCIES = (
             "a5eec5619a5ac9f44357fc6063232dca6021538ca5988aab6ae2f962d9b85958"
         ),
     },
+)
+_HISTORICAL_REPLAY_IMPLEMENTATION_DEPENDENCIES = (
+    {
+        "dependency_id": "guard_ruleset",
+        "path": "app/security/retrieved_content.py",
+        "sha256": (
+            "78ed0509144820ccd05aff61c1509357dd8fe3dbfc8a0c6df30fc304a15e9cd2"
+        ),
+    },
+    *_REPLAY_IMPLEMENTATION_DEPENDENCIES[1:],
+)
+_HISTORICAL_PRIVATE_MANIFEST_SHA256 = (
+    "4c8cfb6ad826fc1ca9c24afb0157129df661f3cd463aa3448ec161c0608c5f1f"
+)
+_HISTORICAL_PUBLIC_V2_VERIFIER_SHA256 = (
+    "dbe814605220058c0bf2453ee1cac0450253bd788b64f9979ab1eb77c2413897"
 )
 _LEGACY_PUBLIC_V1_VERIFIER_SHA256 = (
     "8fc67d0c82f7380dc3bf2d5f34c61c9e69e5cf13dd38f969a77f61eff77ab019"
@@ -813,6 +829,13 @@ def verify_exposure_public_package(
             raise ExposurePublicVerificationError(
                 "legacy packaged verifier does not match trusted v1 bytes"
             )
+    elif (
+        manifest["source_private_manifest_sha256"]
+        == _HISTORICAL_PRIVATE_MANIFEST_SHA256
+        and packaged_verifier_sha256
+        == _HISTORICAL_PUBLIC_V2_VERIFIER_SHA256
+    ):
+        pass
     elif packaged_verifier != _trusted_verifier_bytes(package, packaged_verifier):
         raise ExposurePublicVerificationError(
             "packaged verifier does not match the trusted verifier bytes"
@@ -883,7 +906,12 @@ def _validate_manifest(value: Any) -> None:
         _require_keys(value, _MANIFEST_V1_KEYS, "public manifest")
     elif schema_version == "indirect_injection_exposure_public_manifest_v2":
         _require_keys(value, _MANIFEST_V2_KEYS, "public manifest")
-        _validate_replay_dependencies(value["replay_dependencies"])
+        _validate_replay_dependencies(
+            value["replay_dependencies"],
+            source_private_manifest_sha256=value.get(
+                "source_private_manifest_sha256"
+            ),
+        )
     else:
         raise ExposurePublicVerificationError("unsupported public manifest schema")
     if value["producer"] != "enterprise_agentic_rag_v2":
@@ -922,17 +950,18 @@ def _validate_manifest(value: Any) -> None:
     _validate_limitations(value["limitations"])
 
 
-def _validate_replay_dependencies(value: Any) -> None:
+def _validate_replay_dependencies(
+    value: Any,
+    *,
+    source_private_manifest_sha256: Any,
+) -> None:
     if not isinstance(value, list) or len(value) != len(
         _REPLAY_IMPLEMENTATION_DEPENDENCIES
     ):
         raise ExposurePublicVerificationError(
             "public replay dependencies are not exact"
         )
-    for observed, expected in zip(
-        value,
-        _REPLAY_IMPLEMENTATION_DEPENDENCIES,
-    ):
+    for observed in value:
         if not isinstance(observed, dict):
             raise ExposurePublicVerificationError(
                 "public replay dependencies are not exact"
@@ -942,10 +971,18 @@ def _validate_replay_dependencies(value: Any) -> None:
             _REPLAY_DEPENDENCY_KEYS,
             "public replay dependency",
         )
-        if observed != expected:
-            raise ExposurePublicVerificationError(
-                "public replay dependencies are not exact"
-            )
+    observed_dependencies = tuple(value)
+    if observed_dependencies == _REPLAY_IMPLEMENTATION_DEPENDENCIES:
+        return
+    if (
+        observed_dependencies == _HISTORICAL_REPLAY_IMPLEMENTATION_DEPENDENCIES
+        and source_private_manifest_sha256
+        == _HISTORICAL_PRIVATE_MANIFEST_SHA256
+    ):
+        return
+    raise ExposurePublicVerificationError(
+        "public replay dependencies are not exact"
+    )
 
 
 def _validate_source(value: Any) -> None:

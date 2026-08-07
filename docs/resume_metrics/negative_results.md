@@ -25,3 +25,25 @@ The expanded enterprise corpus and custom prompt-injection pairs are valuable re
 - Running a package verifier from repository root caused `unexpected public artifact set`; explicit package paths fixed the invocation.
 - `ruff` is not installed in the project virtual environment. Python tests and `git diff --check` passed; no lint result should be claimed for this checkpoint.
 - Pytest attempted to clean historical files under the user C-drive temp directory and emitted permission warnings. Subsequent experiment commands set `TEMP` and `TMP` to `.private/tmp` on drive D.
+
+## FinanceBench retrieval and cross-encoder ablation
+
+On the 49-case development split, Dense reached Page Hit@5 44.90%, nDCG@5
+0.3525, and p95 533.30 ms. BM25 and RRF were both worse. A pinned generic
+cross-encoder top-10 reached Hit@5 46.94% but nDCG fell to 0.3472 and p95 rose
+to 2466.12 ms. It was not promoted and the historical fixed test was not rerun.
+
+## Parser and adaptive retrieval stop decisions
+
+Only 1/31 typed retrieval failures showed deterministic parser risk, below the
+pre-registered 20% trigger. A hindsight adaptive union could rescue four cases,
+but no non-oracle selector was established and tested branches caused
+regressions. Neither parser replacement nor automatic retry was enabled.
+
+## External security summary export incident
+
+The first holdout `summary.json` correctly stored all numeric 12-attack/2-benign
+counts but its limitation sentence was hard-coded as `12-attack/4-benign`.
+Commit `95fc114` made this text fixture-driven. The immutable private result hash
+is the source for the corrected public evidence; the incident is disclosed in
+`evidence/garak_latent_report_holdout_v1.json`.

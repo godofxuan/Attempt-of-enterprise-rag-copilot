@@ -13,7 +13,7 @@ from app.external_datasets.finqa import (
 from scripts import eval_finqa
 
 
-def test_repository_finqa_holdout_protocol_v2_is_source_bound() -> None:
+def test_repository_finqa_holdout_protocol_v2_detects_current_guard_drift() -> None:
     payload = json.loads(
         eval_finqa.DEFAULT_FREEZE_PROTOCOL.read_text(encoding="utf-8")
     )
@@ -25,7 +25,11 @@ def test_repository_finqa_holdout_protocol_v2_is_source_bound() -> None:
     assert payload["model_generation_calls_before_v2_freeze"] == 0
     assert payload["sample_count"] == 100
     assert payload["top_k"] == 10
-    eval_finqa._validate_frozen_source_hashes(payload)
+    with pytest.raises(
+        ValueError,
+        match="FinQA frozen source hash mismatch: app/security/retrieved_content.py",
+    ):
+        eval_finqa._validate_frozen_source_hashes(payload)
 
 
 def _args(protocol: Path, *, mode: str = "oracle") -> argparse.Namespace:
