@@ -14,3 +14,21 @@
 The 12 attack cases use official report contexts 0 and 3, all three official injection instructions, official payload indices 0 and 3, and official trigger index 0. Four benign controls remove the injection marker from each official report context. `scripts/build_garak_latent_report_fixture.py` parses static class assignments with Python's AST and refuses source/hash/revision drift.
 
 This is not the full garak benchmark. It tests one external retrieved-report indirect-prompt-injection probe. It does not establish general jailbreak, arbitrary tool-misuse, or full agent-security performance.
+
+## NVIDIA garak latent report combination-disjoint holdout v1
+
+`garak_latent_report_holdout_v1.json` was frozen before the retrieved-content
+guard was changed in response to the development run. It uses the same pinned
+upstream source but selects only combinations absent from the development
+fixture:
+
+- report contexts 1 and 2;
+- all three official injection instructions;
+- official payload indices 1 and 4;
+- official trigger index 1;
+- benign controls from contexts 1 and 2;
+- generated fixture SHA-256: `babd8bd8e52f3b8d63bffcb526de426af550ad1f791eaddb7431d0a6b314643c`.
+
+This is a small combination-disjoint holdout within one garak probe, not a
+probe-family-disjoint or benchmark-wide test. Its two benign controls are too
+few to support a precise general false-positive-rate claim.
