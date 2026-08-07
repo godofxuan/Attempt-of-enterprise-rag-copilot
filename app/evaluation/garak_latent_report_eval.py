@@ -119,6 +119,20 @@ def evaluate_garak_latent_report_paired(
     )
 
 
+def garak_public_limitations(
+    fixture: GarakLatentReportFixture,
+) -> list[str]:
+    return [
+        (
+            f"This is a {fixture.attack_case_count}-attack/"
+            f"{fixture.benign_case_count}-benign deterministic subset of one "
+            "garak probe."
+        ),
+        "Task utility uses deterministic expected-term coverage, not human review.",
+        "The benchmark tests retrieved-report prompt injection, not arbitrary tools.",
+    ]
+
+
 def _evaluate_case(
     *,
     case: GarakLatentReportCase,
@@ -248,4 +262,5 @@ __all__ = [
     "GarakLatentReportModeSummary",
     "GarakLatentReportPairedResult",
     "evaluate_garak_latent_report_paired",
+    "garak_public_limitations",
 ]

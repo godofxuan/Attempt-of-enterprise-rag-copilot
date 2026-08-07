@@ -5,6 +5,7 @@ from app.evaluation.garak_latent_report import (
 )
 from app.evaluation.garak_latent_report_eval import (
     evaluate_garak_latent_report_paired,
+    garak_public_limitations,
 )
 
 
@@ -64,3 +65,11 @@ def test_garak_paired_eval_changes_only_guard_admission() -> None:
     assert result.guard_on.benign_task_utility_rate == 1.0
     assert result.guard_off.model_call_count == 2
     assert result.guard_on.model_call_count == 1
+
+
+def test_public_limitations_use_fixture_counts() -> None:
+    fixture = _fixture()
+
+    limitations = garak_public_limitations(fixture)
+
+    assert limitations[0].startswith("This is a 1-attack/1-benign")

@@ -20,6 +20,7 @@ from app.config import get_settings
 from app.evaluation.garak_latent_report import GarakLatentReportFixture
 from app.evaluation.garak_latent_report_eval import (
     evaluate_garak_latent_report_paired,
+    garak_public_limitations,
 )
 from app.evaluation.indirect_injection_live_runner import (
     LocalOllamaOnlyBoundary,
@@ -105,11 +106,7 @@ def main(argv: list[str] | None = None) -> int:
         ),
         "guard_off": result.guard_off.model_dump(mode="json"),
         "guard_on": result.guard_on.model_dump(mode="json"),
-        "limitations": [
-            "This is a 12-attack/4-benign deterministic subset of one garak probe.",
-            "Task utility uses deterministic expected-term coverage, not human review.",
-            "The benchmark tests retrieved-report prompt injection, not arbitrary tools.",
-        ],
+        "limitations": garak_public_limitations(fixture),
     }
     summary_bytes = _json_bytes(public_summary)
     manifest = {
