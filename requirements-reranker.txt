@@ -1,3 +1,5 @@
 # Optional dependency for offline cross-encoder evaluation only.
 # Keep this out of the production service environment unless reranking is enabled.
 sentence-transformers==5.7.0
+# Required by httpx when the evaluation host uses an ALL_PROXY=socks5 URL.
+socksio==1.0.0

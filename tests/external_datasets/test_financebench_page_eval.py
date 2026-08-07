@@ -670,6 +670,9 @@ def test_financebench_page_run_is_immutable_and_self_verifying(
     assert verified.schema_version == "financebench_page_retrieval_run_v2"
     assert verified.config["drilldown_merge_mode"] == "quota"
     assert verified.config["page_reranker"] == "none"
+    assert verified.config["reranker_model_revision"] == "none"
+    assert verified.config["reranker_batch_size"] == "none"
+    assert verified.config["reranker_device"] == "none"
     assert verified.config["reranker_dense_head_count"] == 0
     assert verified.config["reranker_max_attempts"] == 2
     assert verified.config["reranker_gate_mode"] == "always"

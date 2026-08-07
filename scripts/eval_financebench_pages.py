@@ -42,6 +42,7 @@ DEFAULT_FREEZE_PROTOCOL = (
     / "financebench_page_retrieval_freeze_v1.json"
 )
 DEFAULT_CROSS_ENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L6-v2"
+DEFAULT_CROSS_ENCODER_REVISION = "c5ee24cb16019beea0893ab7796b1df96625c6b8"
 DEFAULT_RERANKER_CACHE = (
     Path(__file__).resolve().parent.parent
     / ".private"
@@ -102,6 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="none",
     )
     parser.add_argument("--reranker-model")
+    parser.add_argument("--reranker-model-revision")
     parser.add_argument(
         "--reranker-cache-dir",
         type=Path,
@@ -212,6 +214,11 @@ def main(argv: list[str] | None = None) -> int:
         reranker_model = args.reranker_model or DEFAULT_CROSS_ENCODER_MODEL
     else:
         reranker_model = "none"
+    reranker_model_revision = (
+        args.reranker_model_revision or DEFAULT_CROSS_ENCODER_REVISION
+        if args.page_reranker == "cross_encoder"
+        else "none"
+    )
 
     def tracked_reranker_chat(
         model,
@@ -241,6 +248,7 @@ def main(argv: list[str] | None = None) -> int:
             model_id=reranker_model,
             score_fn=_load_cross_encoder_score_fn(
                 model_id=reranker_model,
+                revision=reranker_model_revision,
                 cache_dir=args.reranker_cache_dir,
                 batch_size=args.reranker_batch_size,
                 device=args.reranker_device,
@@ -297,6 +305,7 @@ def main(argv: list[str] | None = None) -> int:
         drilldown_merge_mode=args.drilldown_merge_mode,
         page_reranker=args.page_reranker,
         reranker_model=reranker_model,
+        reranker_model_revision=reranker_model_revision,
         reranker_timeout_seconds=(
             args.reranker_timeout_seconds
             if args.page_reranker == "local_llm"
@@ -365,11 +374,14 @@ def main(argv: list[str] | None = None) -> int:
 def _load_cross_encoder_score_fn(
     *,
     model_id: str,
+    revision: str,
     cache_dir: Path,
     batch_size: int,
     device: str,
 ):
     try:
+        from huggingface_hub import snapshot_download
+        from huggingface_hub.errors import LocalEntryNotFoundError
         from sentence_transformers import CrossEncoder
     except ImportError as exc:
         raise RuntimeError(
@@ -379,10 +391,22 @@ def _load_cross_encoder_score_fn(
 
     resolved_cache = Path(cache_dir).resolve()
     resolved_cache.mkdir(parents=True, exist_ok=True)
+    try:
+        snapshot_path = snapshot_download(
+            repo_id=model_id,
+            revision=revision,
+            cache_dir=resolved_cache,
+            local_files_only=True,
+        )
+    except LocalEntryNotFoundError:
+        snapshot_path = snapshot_download(
+            repo_id=model_id,
+            revision=revision,
+            cache_dir=resolved_cache,
+        )
     model = CrossEncoder(
-        model_id,
+        snapshot_path,
         device=None if device == "auto" else device,
-        cache_folder=str(resolved_cache),
         max_length=512,
     )
 
