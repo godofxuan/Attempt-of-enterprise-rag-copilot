@@ -535,3 +535,17 @@ D4/D5 的 green 只证明默认 V2 本地数据流、prompt framing、public pro
 | `E18-X01` | How expensive is admitted evidence to typed context preparation locally? | Need a bounded mechanism baseline before route wiring | 112 controlled builds across seven families | p50/p95/max `0.623/0.921/1.523 ms`; not an SLO |
 | `E18-L01` | Does 112/112 mean answer accuracy is 100%? | Repetitions validate context construction, not semantic correctness or final execution | Keep claim mechanism-only; no quality promotion | public non-claims |
 | `E18-L02` | Is E18 active in `/agent/v2/chat`? | Historical E16 assembly remains exact-hash frozen | `DISABLED_PENDING_VERSIONED_WIRING`; E19 required | protocol/status/handoff |
+
+## 43. FinQA Gate E19 versioned service wiring decisions and incidents
+
+| ID | Question or symptom | Root cause | Decision or repair | Evidence |
+|---|---|---|---|---|
+| `E19-D01` | Rewrite the existing FastAPI entrypoint? | E16 source files are exact-hash evidence | Add `app.main_v2:app`; keep the Docker default unchanged pending promotion | old frozen tests + E19 protocol |
+| `E19-D02` | Where should real typed observation happen? | Route-level generic offer lacks admitted Controller evidence and can double-submit | Wrap the response builder after primary construction and consume only Guard-admitted ControllerState evidence | runner and exactly-once tests |
+| `E19-I01` | First paired fixture failed schema validation | It used answered mode without claims and citations | Use a valid not-found primary fixture; do not weaken production validation | focused suite green |
+| `E19-I02` | Versioned entrypoint imported legacy main helpers | Import also constructed the old module-level app | Keep two small readiness/identity helpers local to `main_v2.py` | source audit |
+| `E19-I03` | Derived resolver TTL could exceed its contract | Observation deadline allowed a value above 60 seconds | Clamp derived TTL to `[1, 60]` seconds | full regression |
+| `E19-I04` | Unknown metric keys could carry controlled text | Initial filter checked syntax, not semantic membership | Use fixed per-component counter allowlists and poison-snapshot regression | 0 public content findings |
+| `E19-I05` | Failed startup appeared as `NEW` | Runtime tracked counts but no failed state | Record `FAILED` and clean coordinator/resources fail-closed | startup matrix |
+| `E19-X01` | Does enabling observation change the API contract? | Needed real route-level comparison | 8 pairs, body/receipt mismatches `0/0`; OFF worker `0/0`; enabled offers/completions `8/8` | public E19 evidence |
+| `E19-L01` | Is the new entrypoint production-ready or more accurate? | No production traffic, SLO, resource soak, or answer-quality experiment was run | Decision remains default OFF and not promoted | explicit non-claims |

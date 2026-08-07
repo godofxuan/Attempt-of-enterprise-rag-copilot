@@ -1,5 +1,41 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-08-07 FinQA Gate E19 versioned service wiring
+
+```text
+decision                               E19_VERSIONED_SERVICE_WIRING_PASSED_DEFAULT_OFF_NOT_PROMOTED
+versioned entrypoint                   app.main_v2:app
+production default                     app.main:app / OFF / 0 basis points
+paired OFF/LOCAL_TEST_ONLY requests    8
+primary response / receipt mismatches  0 / 0
+OFF worker starts / calls              0 / 0
+enabled starts / offers / completions  1 / 8 / 8
+provider failure primary HTTP status   200
+backpressure rejects                   1 (bounded test)
+residual contexts after shutdown       0
+legacy generic offers                  0
+secondary retrieval / model calls      0 / 0
+public content findings                0
+protocol SHA-256                       ec21d0a894e2a00d37a2c4aae8a48cd8cd1b8c0c19c4672503643bc3a924d67f
+public evidence SHA-256                1616e1f509e61c8e65c90dba076d11ae40e20f96448be757774c4a28ed31de39
+focused E16-E19 tests                  16 passed
+full repository                        3035 passed / 29 skipped / 3 warnings
+public repository audit                1362 candidates / 0 findings
+```
+
+E19 adds a versioned FastAPI assembly that connects E18 admitted-evidence
+typed-context preparation to the real Agent route after primary response
+construction. It preserves exact primary response bytes and feedback receipts,
+starts no worker in the default OFF mode, fails local-test startup closed,
+isolates provider errors, bounds queue admission, and publishes allowlisted
+aggregate metrics only. The Docker default remains the frozen E16 entrypoint;
+this is service-wiring evidence, not serving promotion or answer-quality proof.
+
+Detailed state: [engineering record](docs/external_datasets/finqa_service_wiring_gate_e19.md),
+[learning chapter](docs/learning/40_FINQA_GATE_E19_VERSIONED_SERVICE_WIRING.md),
+[handoff](docs/roadmap/finqa_gate_e19_current_handoff.md), and
+[public evidence](docs/external_datasets/evidence/finqa_service_wiring_public_v2.json).
+
 ## 2026-08-03 FinQA Gate E18 admitted evidence to typed context
 
 ```text

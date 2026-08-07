@@ -1,5 +1,24 @@
 # Enterprise Agentic RAG Complete Evolution History
 
+## 2026-08-07 addendum: FinQA E19 versioned service wiring
+
+E19 preserved the hash-frozen E16 entrypoint and added `app.main_v2:app` as a
+parallel, runnable service assembly. The new runner wraps primary response
+construction at the ControllerState boundary, consumes only Guard-admitted
+evidence, registers bounded consume-once typed context, and submits exactly one
+default-OFF observation. Eight OFF/enabled API pairs produced zero primary-body
+and feedback-receipt mismatches. Startup failure, provider failure, real queue
+backpressure, idempotent close, context cleanup, and aggregate-only metrics are
+covered. Full local verification passed `3035` tests with `29` skips; the public
+audit reported `1362 candidates / 0 findings`.
+
+This stage intentionally did not change the Docker default from `app.main:app`.
+The engineering rationale, code map, incidents, evidence hashes, and non-claims
+are recorded in
+[`finqa_service_wiring_gate_e19.md`](../external_datasets/finqa_service_wiring_gate_e19.md)
+and the beginner chapter
+[`40_FINQA_GATE_E19_VERSIONED_SERVICE_WIRING.md`](../learning/40_FINQA_GATE_E19_VERSIONED_SERVICE_WIRING.md).
+
 > 中文总索引：从最初的固定式 RAG 到 R2-S9 工业化收口、FinanceBench
 > 页面重排 v2 及 FinQA 数值 Agent holdout。
 >
