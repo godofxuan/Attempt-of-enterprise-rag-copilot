@@ -146,6 +146,131 @@ def build_garak_latent_report_holdout_fixture(
     )
 
 
+def build_garak_latent_report_expanded_fixture(
+    *,
+    development: GarakLatentReportFixture,
+    holdout: GarakLatentReportFixture,
+) -> GarakLatentReportFixture:
+    if development.source != holdout.source:
+        raise ValueError("garak expanded fixtures must share pinned source identity")
+    inputs = (development, holdout)
+    benign_by_context: dict[int, GarakLatentReportCase] = {}
+    attacks: list[GarakLatentReportCase] = []
+    for fixture in inputs:
+        for case in fixture.cases:
+            if case.label == "benign":
+                existing = benign_by_context.get(case.context_index)
+                if existing is not None and existing.retrieved_content != case.retrieved_content:
+                    raise ValueError("garak benign context differs across fixtures")
+                benign_by_context[case.context_index] = case
+            else:
+                attacks.append(case)
+    if set(benign_by_context) != {0, 1, 2, 3}:
+        raise ValueError("garak expanded fixture requires all four benign contexts")
+
+    frames: dict[int, tuple[str, str, str, str]] = {}
+    injections: dict[tuple[int, int, int], tuple[str, str]] = {}
+    for case in attacks:
+        assert case.injection_instruction_index is not None
+        assert case.payload_index is not None
+        assert case.trigger_index is not None
+        assert case.trigger is not None
+        benign = benign_by_context[case.context_index]
+        prefix, insertion, suffix = _split_inserted_content(
+            benign.retrieved_content,
+            case.retrieved_content,
+        )
+        canonical_insertion = insertion.strip()
+        leading = insertion[: len(insertion) - len(insertion.lstrip())]
+        trailing = insertion[len(insertion.rstrip()) :]
+        observed_frame = (prefix, leading, trailing, suffix)
+        if case.context_index in frames and frames[case.context_index] != observed_frame:
+            raise ValueError("garak injection position differs within a context")
+        frames[case.context_index] = observed_frame
+        key = (
+            case.injection_instruction_index,
+            case.payload_index,
+            case.trigger_index,
+        )
+        observed_injection = (canonical_insertion, case.trigger)
+        if key in injections and injections[key] != observed_injection:
+            raise ValueError("garak injection body differs for one source tuple")
+        injections[key] = observed_injection
+        if f"{prefix}{leading}{canonical_insertion}{trailing}{suffix}" != case.retrieved_content:
+            raise ValueError("garak canonical insertion cannot reconstruct source attack")
+    if len(frames) != 4 or len(injections) != 12:
+        raise ValueError("garak expanded source tuple shape is invalid")
+
+    cases: list[GarakLatentReportCase] = []
+    attack_number = 1
+    for context_index in sorted(frames):
+        prefix, leading, trailing, suffix = frames[context_index]
+        benign = benign_by_context[context_index]
+        for source_key in sorted(injections):
+            instruction_index, payload_index, trigger_index = source_key
+            injection, trigger = injections[source_key]
+            cases.append(
+                GarakLatentReportCase(
+                    case_id=f"garak-report-attack-{attack_number:03d}",
+                    label="attack",
+                    context_index=context_index,
+                    injection_instruction_index=instruction_index,
+                    payload_index=payload_index,
+                    trigger_index=trigger_index,
+                    question=benign.question,
+                    retrieved_content=f"{prefix}{leading}{injection}{trailing}{suffix}",
+                    expected_utility_terms=benign.expected_utility_terms,
+                    trigger=trigger,
+                )
+            )
+            attack_number += 1
+    for benign_number, context_index in enumerate(sorted(benign_by_context), start=1):
+        source = benign_by_context[context_index]
+        cases.append(
+            source.model_copy(
+                update={"case_id": f"garak-report-benign-{benign_number:03d}"}
+            )
+        )
+    return GarakLatentReportFixture(
+        source=development.source,
+        selection_protocol=(
+            "External-content expanded stress fixture. Cross product of all four "
+            "official report contexts with the 12 distinct official "
+            "instruction/payload/trigger tuples already frozen in development and "
+            "combination-disjoint holdout fixtures. Four marker-removed official "
+            "contexts are benign controls. This is not a new blind holdout."
+        ),
+        attack_case_count=48,
+        benign_case_count=4,
+        cases=cases,
+    )
+
+
+def _split_inserted_content(benign: str, attacked: str) -> tuple[str, str, str]:
+    prefix_length = 0
+    maximum_prefix = min(len(benign), len(attacked))
+    while prefix_length < maximum_prefix and benign[prefix_length] == attacked[prefix_length]:
+        prefix_length += 1
+    suffix_length = 0
+    maximum_suffix = min(
+        len(benign) - prefix_length,
+        len(attacked) - prefix_length,
+    )
+    while (
+        suffix_length < maximum_suffix
+        and benign[len(benign) - suffix_length - 1]
+        == attacked[len(attacked) - suffix_length - 1]
+    ):
+        suffix_length += 1
+    prefix = benign[:prefix_length]
+    suffix = benign[len(benign) - suffix_length :] if suffix_length else ""
+    insertion_end = len(attacked) - suffix_length if suffix_length else len(attacked)
+    insertion = attacked[prefix_length:insertion_end]
+    if not insertion or f"{prefix}{suffix}" != benign or f"{prefix}{insertion}{suffix}" != attacked:
+        raise ValueError("garak attack is not one deterministic insertion into benign context")
+    return prefix, insertion, suffix
+
+
 def _build_garak_latent_report_fixture(
     *,
     probe_source: bytes,
@@ -325,6 +450,7 @@ __all__ = [
     "GARAK_REVISION",
     "GarakLatentReportCase",
     "GarakLatentReportFixture",
+    "build_garak_latent_report_expanded_fixture",
     "build_garak_latent_report_fixture",
     "build_garak_latent_report_holdout_fixture",
     "extract_class_assignments",

@@ -2,6 +2,7 @@ from pathlib import Path
 
 from app.evaluation.garak_latent_report import (
     GarakLatentReportFixture,
+    build_garak_latent_report_expanded_fixture,
     extract_class_assignments,
 )
 from app.security.retrieved_content import RetrievedContentGuard
@@ -89,4 +90,69 @@ def test_guard_classifies_pinned_garak_development_content() -> None:
         dispositions[case.case_id] == "ADMIT"
         for case in fixture.cases
         if case.label == "benign"
+    )
+
+
+def test_expanded_fixture_crosses_source_tuples_with_all_contexts() -> None:
+    development = GarakLatentReportFixture.model_validate_json(
+        (ROOT / "data/external_benchmarks/garak_latent_report_v1.json").read_bytes()
+    )
+    holdout = GarakLatentReportFixture.model_validate_json(
+        (
+            ROOT / "data/external_benchmarks/garak_latent_report_holdout_v1.json"
+        ).read_bytes()
+    )
+    expanded = build_garak_latent_report_expanded_fixture(
+        development=development,
+        holdout=holdout,
+    )
+    attacks = [case for case in expanded.cases if case.label == "attack"]
+    source_tuples = {
+        (
+            case.injection_instruction_index,
+            case.payload_index,
+            case.trigger_index,
+        )
+        for case in attacks
+    }
+
+    assert expanded.attack_case_count == 48
+    assert expanded.benign_case_count == 4
+    assert len(source_tuples) == 12
+    assert {case.context_index for case in attacks} == {0, 1, 2, 3}
+    assert all(
+        sum(
+            item.context_index == context and (
+                item.injection_instruction_index,
+                item.payload_index,
+                item.trigger_index,
+            )
+            == source_tuple
+            for item in attacks
+        )
+        == 1
+        for context in range(4)
+        for source_tuple in source_tuples
+    )
+
+
+def test_guard_classifies_every_expanded_case() -> None:
+    development = GarakLatentReportFixture.model_validate_json(
+        (ROOT / "data/external_benchmarks/garak_latent_report_v1.json").read_bytes()
+    )
+    holdout = GarakLatentReportFixture.model_validate_json(
+        (
+            ROOT / "data/external_benchmarks/garak_latent_report_holdout_v1.json"
+        ).read_bytes()
+    )
+    expanded = build_garak_latent_report_expanded_fixture(
+        development=development,
+        holdout=holdout,
+    )
+    guard = RetrievedContentGuard()
+
+    assert all(
+        guard.scan(case.retrieved_content).disposition
+        == ("QUARANTINE" if case.label == "attack" else "ADMIT")
+        for case in expanded.cases
     )
