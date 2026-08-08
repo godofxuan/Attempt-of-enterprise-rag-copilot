@@ -18,6 +18,7 @@ from app.external_datasets.uda_finance import (
     DEFAULT_SOURCE_ROOT,
     verify_uda_finance_preparation,
 )
+from app.external_datasets.uda_finance_r3 import verify_uda_finance_r3_preparation
 from app.indexing.builder import preview_build
 from app.indexing.resumable_embeddings import EmbeddingProgress, ResumableBatchEmbedder
 from app.indexing.store import build_index_version, load_index_version
@@ -32,6 +33,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--prepared-root", type=Path, default=DEFAULT_PREPARED_ROOT)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_PRIVATE_ROOT / "indexes")
     parser.add_argument("--run-id", default="uda-finance-bge-m3-v1")
+    parser.add_argument(
+        "--dataset-contract",
+        choices=("v1", "r3"),
+        default="v1",
+        help="Select the explicit prepared-manifest contract; never inferred from data.",
+    )
     parser.add_argument("--chunk-size", type=int, default=1800)
     parser.add_argument("--overlap", type=int, default=150)
     parser.add_argument("--batch-size", type=int, default=32)
@@ -48,10 +55,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    dataset = verify_uda_finance_preparation(
-        source_root=args.source_root,
-        prepared_root=args.prepared_root,
+    verifier = (
+        verify_uda_finance_preparation
+        if args.dataset_contract == "v1"
+        else verify_uda_finance_r3_preparation
     )
+    dataset = verifier(source_root=args.source_root, prepared_root=args.prepared_root)
     chunker = ChunkerConfig(mode="heading", chunk_size=args.chunk_size, overlap=args.overlap)
     if args.dry_run:
         preview = preview_build(input_dir=args.source_root.resolve(), chunker_config=chunker)

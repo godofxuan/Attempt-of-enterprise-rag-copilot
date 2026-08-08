@@ -8,6 +8,7 @@ import pytest
 import app.external_datasets.uda_finance as uda_v1
 import app.external_datasets.uda_finance_r3 as uda_r3
 from app.external_datasets.uda_finance import UdaFinanceQaRow
+from scripts.build_uda_finance_index import build_parser as build_index_parser
 
 
 def _rows() -> list[UdaFinanceQaRow]:
@@ -81,6 +82,13 @@ def test_r3_protocol_rejects_unsorted_exclusions() -> None:
     }
     with pytest.raises(ValueError, match="sorted and unique"):
         uda_r3.UdaFinanceR3Protocol.model_validate(payload)
+
+
+def test_index_builder_requires_explicit_r3_contract() -> None:
+    parser = build_index_parser()
+
+    assert parser.parse_args([]).dataset_contract == "v1"
+    assert parser.parse_args(["--dataset-contract", "r3"]).dataset_contract == "r3"
 
 
 def test_committed_r3_protocol_recomputes_selection() -> None:
