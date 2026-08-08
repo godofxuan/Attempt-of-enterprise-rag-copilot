@@ -23,7 +23,8 @@ ARCHIVE_URL = (
     f"{UDA_HF_REVISION}/src_doc_files/fin_docs.zip?download=true"
 )
 ARCHIVE_SIZE = 2_405_128_290
-ARCHIVE_SHA256 = "354563684de84b55c1328265fe7dd6f6780bc198cca5e9d00b889e099c7842a3"
+ARCHIVE_SHA256 = "e94f2eb0b80817521e3ab55cc494789b531697f77679cc75b6f953f64669dd44"
+ARCHIVE_XET_ETAG = "354563684de84b55c1328265fe7dd6f6780bc198cca5e9d00b889e099c7842a3"
 DEFAULT_OUTPUT = (
     Path(".private")
     / "external"
@@ -71,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
         start = _size(partial)
         headers = {
             "Range": f"bytes={start}-",
-            "If-Range": f'"{ARCHIVE_SHA256}"',
+            "If-Range": f'"{ARCHIVE_XET_ETAG}"',
         }
         try:
             with session.get(
@@ -132,7 +133,7 @@ def _validate_partial_response(response: requests.Response, *, expected_start: i
             f"UDA archive range mismatch: {content_range!r}"
         )
     etag = response.headers.get("etag", "").strip('"')
-    if etag != ARCHIVE_SHA256:
+    if etag != ARCHIVE_XET_ETAG:
         raise RuntimeError(f"UDA archive ETag mismatch: {etag!r}")
 
 
