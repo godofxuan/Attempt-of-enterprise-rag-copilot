@@ -83,6 +83,20 @@ requires a disk-backed/sharded lexical index, memory-mapped or sharded dense
 vectors, resumable embedding checkpoints, and a measured full-build peak below
 the local memory envelope. No 500k-document quality claim is allowed yet.
 
+### B0 disk-backed response
+
+The minimal response to the measured lexical-memory failure is a versioned
+SQLite FTS5 index, not a new retrieval framework. It stores token postings on
+disk, commits a source-row checkpoint every bounded batch, resumes only when the
+corpus and dataset-manifest hashes match, and activates a completed version only
+after database integrity, row-count, artifact-hash, and ordered-record-hash
+checks. The frozen control uses `porter unicode61`, title/body BM25 weights
+`3.0/1.0`, no official source-type filter, and top-5 document-ID scoring.
+
+This qualifies only the B0 lexical arm. Dense still requires a sharded or
+memory-mapped design and roughly 11.39 hours of measured-rate embedding work;
+RRF cannot run honestly before that arm exists.
+
 Two attempted Git metadata checkouts were stopped before corpus acquisition:
 one ordinary checkout risked fetching all blobs, and one partial clone's checkout
 triggered promisor fetches. The official Hugging Face question parquet and HEAD

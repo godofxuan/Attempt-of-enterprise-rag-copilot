@@ -35,6 +35,13 @@ unmodified source ID for gold matching. Empty raw titles/bodies are preserved in
 the raw hash; normalization uses only another official field or the source ID and
 emits explicit `raw_*_was_empty` metadata.
 
+The full-corpus lexical control is document-level FTS5 rather than an in-memory
+list of Python tokens. Its `records` table keeps row identity, source identity,
+source type, and raw hash; the contentless FTS table keeps searchable postings.
+This separation lowers memory and duplicate storage while preserving the ability
+to map every hit back to an immutable Parquet row. Search never uses benchmark
+`source_types` as an oracle filter.
+
 ## Source-preserving adapters
 
 | Source | Preserve when present | Source-aware candidate boundary |

@@ -208,3 +208,21 @@ def test_public_capacity_evidence_is_bound_and_not_a_quality_claim() -> None:
     assert payload["protocol"]["quality_labels_used"] is False
     assert payload["decision"]["full_scale_index"] == "CAPACITY_BLOCKED"
     assert payload["decision"]["formal_quality_score"] == "NOT_RUN"
+
+
+def test_retrieval_protocol_freezes_full_answerable_question_id_set() -> None:
+    protocol = json.loads(
+        (
+            ROOT
+            / "docs"
+            / "enterprise_eval"
+            / "evidence"
+            / "ENTERPRISE_RAG_BENCH_RETRIEVAL_PROTOCOL_V1.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert protocol["retrieval_case_count"] == 470
+    assert protocol["retrieval_question_ids_sha256"] == (
+        "965588f1834c7af97f461b84b8902ef09b4f0857bc9faaffb16b28f359e3b140"
+    )
+    assert protocol["source_type_filter_used"] is False
+    assert protocol["candidate_selection_allowed"] is False

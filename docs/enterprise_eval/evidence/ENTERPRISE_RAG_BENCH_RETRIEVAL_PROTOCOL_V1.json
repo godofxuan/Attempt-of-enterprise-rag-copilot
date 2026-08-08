@@ -1,0 +1,34 @@
+{
+  "answer_labels_used": false,
+  "arm": "bm25_fts5",
+  "candidate_selection_allowed": false,
+  "corpus_sha256": "6b0747bf160af9427b12101537d53056ac592ada9831c1a98ae01fa50a8d2a9f",
+  "dataset_revision": "69916e31c68aa5963c00248fd7f0bc12d04fd235",
+  "dataset_split": "test",
+  "document_row_count": 511962,
+  "gold_semantics": "order-preserving unique expected_doc_ids for set-based retrieval metrics",
+  "metrics": [
+    "Hit@1",
+    "Macro Document Recall@1",
+    "Macro Document Recall@3",
+    "Macro Document Recall@5",
+    "MRR@5",
+    "nDCG@5",
+    "Multi-document Completeness@5",
+    "mean latency",
+    "p50 latency",
+    "p95 latency"
+  ],
+  "non_retrieval_cases_excluded": {
+    "high_level": 10,
+    "info_not_found": 20
+  },
+  "query_compiler": "lowercase ASCII alphanumeric terms, stable de-duplication, frozen stopword removal, OR expression",
+  "reporting_groups": "overall and every included official question_type",
+  "retrieval_case_count": 470,
+  "retrieval_question_ids_sha256": "965588f1834c7af97f461b84b8902ef09b4f0857bc9faaffb16b28f359e3b140",
+  "schema_version": "enterprise_rag_bench_retrieval_protocol_v1",
+  "source_type_filter_used": false,
+  "status": "FROZEN_BEFORE_FORMAL_B0_RUN",
+  "top_k": 5
+}
