@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -54,8 +55,19 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("UDA retrieval arm is outside the frozen protocol")
     dataset = verify_uda_finance_preparation(prepared_root=args.prepared_root)
     cases, cases_sha256 = load_uda_finance_cases(args.prepared_root, split=args.split)
+    code_revision = _clean_git_revision()
     settings = get_settings().model_copy(update={"v2_indexes_dir": args.index_root.resolve()})
     runtime = build_live_runtime(settings)
+    test_marker = None
+    if args.split == "test":
+        test_marker = claim_frozen_test_execution(
+            args.out_root,
+            run_id=args.run_id,
+            code_revision=code_revision,
+            protocol_sha256=protocol_sha256,
+            cases_sha256=cases_sha256,
+            retrieval_arm=args.retrieval_arm,
+        )
     before = runtime.counters.embedding_calls
     details = evaluate_uda_finance_pages(
         cases=cases,
@@ -73,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
         run_id=args.run_id,
         split=args.split,
         retrieval_arm=args.retrieval_arm,
-        code_revision=_clean_git_revision(),
+        code_revision=code_revision,
         protocol_sha256=protocol_sha256,
         dataset_manifest_sha256=hashlib.sha256(dataset_manifest_path.read_bytes()).hexdigest(),
         cases_sha256=cases_sha256,
@@ -87,6 +99,13 @@ def main(argv: list[str] | None = None) -> int:
         summary=summary,
     )
     verified = verify_uda_finance_page_run(run_dir)
+    if test_marker is not None:
+        complete_frozen_test_execution(
+            test_marker,
+            result_manifest_sha256=hashlib.sha256(
+                (run_dir / "manifest.json").read_bytes()
+            ).hexdigest(),
+        )
     print(json.dumps(verified.model_dump(mode="json"), ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
@@ -106,6 +125,59 @@ def _clean_git_revision() -> str:
         capture_output=True,
         text=True,
     ).stdout.strip()
+
+
+def claim_frozen_test_execution(
+    out_root: Path,
+    *,
+    run_id: str,
+    code_revision: str,
+    protocol_sha256: str,
+    cases_sha256: str,
+    retrieval_arm: str,
+) -> Path:
+    root = Path(out_root).resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    marker = root / "frozen_test_execution_v1.json"
+    payload = {
+        "cases_sha256": cases_sha256,
+        "code_revision": code_revision,
+        "protocol_sha256": protocol_sha256,
+        "retrieval_arm": retrieval_arm,
+        "run_id": run_id,
+        "schema_version": "uda_finance_frozen_test_execution_v1",
+        "status": "STARTED",
+    }
+    with marker.open("x", encoding="utf-8", newline="\n") as output:
+        json.dump(payload, output, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+        output.write("\n")
+        output.flush()
+        os.fsync(output.fileno())
+    return marker
+
+
+def complete_frozen_test_execution(
+    marker: Path, *, result_manifest_sha256: str
+) -> None:
+    marker = Path(marker).resolve()
+    payload = json.loads(marker.read_text(encoding="utf-8"))
+    if payload.get("status") != "STARTED":
+        raise ValueError("UDA frozen test marker is not in STARTED state")
+    if not re_full_hash(result_manifest_sha256):
+        raise ValueError("UDA frozen test result manifest hash is invalid")
+    payload["result_manifest_sha256"] = result_manifest_sha256
+    payload["status"] = "COMPLETED"
+    temp = marker.with_suffix(".tmp")
+    with temp.open("x", encoding="utf-8", newline="\n") as output:
+        json.dump(payload, output, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+        output.write("\n")
+        output.flush()
+        os.fsync(output.fileno())
+    os.replace(temp, marker)
+
+
+def re_full_hash(value: str) -> bool:
+    return len(value) == 64 and all(character in "0123456789abcdef" for character in value)
 
 
 if __name__ == "__main__":
