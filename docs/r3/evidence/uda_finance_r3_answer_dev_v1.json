@@ -1,0 +1,80 @@
+{
+  "answer_campaign": {
+    "code_revision": "bfeceffb4d4b89f8b45fcc8b97dd44ac7275746a",
+    "private_manifest_sha256": "4f5d7fbfdabd344a9545cad2c5ee0a7e3abb5e396d7692a7e326d00b7e8d6437",
+    "run_id": "r3-s3-dev-paired-bfeceff"
+  },
+  "answer_protocol_sha256": "0eb83d435442fa8d43d275a54b165525a78ea594bb90a16ca9971e99c5921a60",
+  "arms": [
+    {
+      "answer_rate": 0.8385416666666666,
+      "calculator_calls": 0,
+      "citation_precision": 0.46475694444444454,
+      "citation_recall": 0.5260416666666666,
+      "generation_calls": 237,
+      "grounded_numeric_accuracy": 0.07291666666666667,
+      "latency_ms_mean": 4351.820996876389,
+      "latency_ms_p95": 8557.396499905735,
+      "numeric_accuracy": 0.078125,
+      "protocol_error_rate": 0.16145833333333334,
+      "strategy": "direct",
+      "unsupported_answer_rate": 0.3125
+    },
+    {
+      "answer_rate": 1.0,
+      "calculator_calls": 192,
+      "citation_precision": 0.3263020833333334,
+      "citation_recall": 0.4114583333333333,
+      "generation_calls": 194,
+      "grounded_numeric_accuracy": 0.010416666666666666,
+      "latency_ms_mean": 2152.377190625581,
+      "latency_ms_p95": 3745.238699950278,
+      "numeric_accuracy": 0.015625,
+      "protocol_error_rate": 0.0,
+      "strategy": "typed_candidate",
+      "unsupported_answer_rate": 0.5885416666666666
+    }
+  ],
+  "candidate_oracle_analysis": {
+    "candidate_limit_reached_count": 190,
+    "candidate_limit_reached_rate": 0.9895833333333334,
+    "candidate_oracle_count": 7,
+    "candidate_oracle_rate": 0.036458333333333336,
+    "code_revision": "5a0b8c709be2a01992395c5037ed3b404e827de2",
+    "maximum_candidates": 32,
+    "page_hit_and_candidate_oracle_count": 6,
+    "page_hit_count": 152,
+    "private_manifest_sha256": "25c24907dbe5d006fa96d28c75bfa68a72ccdf547865d320442ca36d1c12403e",
+    "run_id": "r3-s3-candidate-oracle-5a0b8c7"
+  },
+  "case_count": 192,
+  "decision": "TYPED_CANDIDATE_REJECTED_ON_DEVELOPMENT_NO_VALIDATION_OR_TEST",
+  "deltas_typed_minus_direct": {
+    "grounded_numeric_accuracy": -0.0625,
+    "latency_ms_p95": -4812.157799955457,
+    "numeric_accuracy": -0.0625,
+    "protocol_error_rate": -0.16145833333333334,
+    "unsupported_answer_rate": 0.27604166666666663
+  },
+  "failure_buckets": {
+    "direct": {
+      "correct": 15,
+      "protocol_error_after_page_hit": 26,
+      "retrieval_miss": 39,
+      "wrong_answer_despite_gold_citation": 87,
+      "wrong_answer_missing_gold_citation": 25
+    },
+    "typed_candidate": {
+      "correct": 3,
+      "retrieval_miss": 40,
+      "wrong_answer_despite_gold_citation": 77,
+      "wrong_answer_missing_gold_citation": 72
+    }
+  },
+  "model_cache_reset_every_cases": 6,
+  "model_cache_resets": 31,
+  "schema_version": "uda_finance_r3_answer_dev_evidence_v1",
+  "split": "dev",
+  "test_status": "UNTOUCHED",
+  "validation_status": "NOT_RUN"
+}

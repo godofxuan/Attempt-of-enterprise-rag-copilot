@@ -1,8 +1,8 @@
 # R3 Answer and Citation Evaluation
 
-## Pre-run status
+## Development result
 
-- Status: `NOT_RUN`
+- Status: `TYPED_CANDIDATE_REJECTED_ON_DEVELOPMENT`
 - Dataset: UDA Finance R3 company-disjoint cohort
 - Retrieval: unchanged Dense chunk baseline, document-conditioned through the
   existing ACL boundary
@@ -11,6 +11,31 @@
   `500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41`
 - Frozen protocol SHA-256:
   `0eb83d435442fa8d43d275a54b165525a78ea594bb90a16ca9971e99c5921a60`
+
+The 192-case development campaign retained the `direct` baseline and rejected
+`typed_candidate` before validation:
+
+| Metric | direct | typed_candidate |
+| --- | ---: | ---: |
+| Numeric accuracy | 7.81% | 1.56% |
+| Grounded numeric accuracy | 7.29% | 1.04% |
+| Citation precision | 46.48% | 32.63% |
+| Citation recall | 52.60% | 41.15% |
+| Unsupported-answer rate | 31.25% | 58.85% |
+| Protocol-error rate | 16.15% | 0.00% |
+| p95 latency | 8.56 s | 3.75 s |
+
+Typed planning was faster and fully schema-compliant, but numeric accuracy fell
+by 6.25 percentage points and unsupported answers increased by 27.60 points. It
+therefore failed the first development selection criterion. Validation was not
+run and the fixed test remains untouched.
+
+The reproducible candidate-oracle analysis explains the quality ceiling. Only
+7 of 192 cases had a gold-matching value among the first 32 extracted numeric
+candidates. The candidate limit was reached in 190 cases. Even among the 152
+gold-page retrieval hits, only 6 contained a gold-matching candidate. Regex
+number extraction plus position-order truncation is not a viable abstraction
+for dense financial tables.
 
 ## Compared strategies
 
@@ -60,6 +85,15 @@ validation gates pass.
 
 Validation and test execution markers are created with exclusive file creation.
 Re-running either split against the same private evidence root fails closed.
+
+## Failure interpretation
+
+The direct arm produced 15 correct answers. There were 39 retrieval misses, 26
+structured-output failures despite retrieving the gold page, 25 wrong answers
+without a gold-page citation and 87 wrong answers despite citing the gold page.
+The last bucket shows that retrieving and citing the right page is necessary but
+not sufficient: table structure, row/column semantics, units and arithmetic
+remain the dominant end-to-end bottleneck.
 
 ## Pre-run execution incident
 

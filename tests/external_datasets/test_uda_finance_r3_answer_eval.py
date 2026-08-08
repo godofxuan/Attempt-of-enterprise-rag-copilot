@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from pathlib import Path
 
@@ -248,3 +249,29 @@ def test_candidate_coverage_cli_is_development_only() -> None:
     assert "--split" not in options
     assert "--execute-validation" not in options
     assert "--execute-frozen-test" not in options
+
+
+def test_public_answer_dev_evidence_recomputes_rejection() -> None:
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "r3"
+        / "evidence"
+        / "uda_finance_r3_answer_dev_v1.json"
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    arms = {item["strategy"]: item for item in payload["arms"]}
+    delta = (
+        arms["typed_candidate"]["numeric_accuracy"]
+        - arms["direct"]["numeric_accuracy"]
+    )
+
+    assert delta == pytest.approx(payload["deltas_typed_minus_direct"]["numeric_accuracy"])
+    assert sum(payload["failure_buckets"]["direct"].values()) == payload["case_count"]
+    assert sum(payload["failure_buckets"]["typed_candidate"].values()) == payload["case_count"]
+    assert payload["candidate_oracle_analysis"]["candidate_oracle_count"] == 7
+    assert payload["decision"] == (
+        "TYPED_CANDIDATE_REJECTED_ON_DEVELOPMENT_NO_VALIDATION_OR_TEST"
+    )
+    assert payload["validation_status"] == "NOT_RUN"
+    assert payload["test_status"] == "UNTOUCHED"

@@ -85,3 +85,16 @@ observing development labels.
 The test is conditioned on a known report. It cannot support document-discovery
 or answer-accuracy claims, and its public labels make it fixed external evidence
 rather than a hidden blind holdout.
+## R3 UDA typed numeric candidate planner
+
+On the 192-case company-disjoint UDA Finance R3 development cohort, the bounded
+typed candidate planner reduced numeric accuracy from 7.81% to 1.56% and
+grounded numeric accuracy from 7.29% to 1.04%. Although it eliminated structured
+output failures and reduced p95 latency from 8.56 seconds to 3.75 seconds, its
+unsupported-answer rate increased from 31.25% to 58.85%.
+
+Oracle analysis found that the first 32 regex-extracted values contained a
+gold-matching value in only 7/192 cases; 190/192 cases reached the candidate
+limit. The candidate was rejected on development. Validation and fixed test
+were not executed. This result must not be presented as an accuracy
+improvement.
