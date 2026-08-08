@@ -1,17 +1,22 @@
 from __future__ import annotations
 
+import json
 import zipfile
 from pathlib import Path
 
 import pytest
 
+import app.external_datasets.uda_finance as uda_module
 from app.external_datasets.uda_finance import (
     DEFAULT_PROTOCOL_PATH,
     UdaFinanceQaRow,
     extract_selected_pdfs,
     load_uda_finance_protocol,
+    prepare_uda_finance,
     select_uda_finance_cases,
     selection_sha256,
+    sha256_bytes,
+    verify_uda_finance_preparation,
 )
 
 
@@ -122,3 +127,78 @@ def test_committed_protocol_is_strict_and_frozen() -> None:
         "cf167cfa4603f6d0877650721b73aec952c5ec4e8ed6d461d4eed33c401b1e4e"
     )
     assert len(protocol_sha256) == 64
+
+
+def test_prepare_and_verify_builds_a_hash_bound_private_corpus(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    qa_path = tmp_path / "fin_qa.csv"
+    lines = ["doc_name|q_uid|question|answer_1|answer_2"]
+    for company, year in (("A", 2020), ("B", 2021)):
+        for index in range(2):
+            lines.append(
+                f"{company}_{year}|{company}/{year}/page_{index + 1}.pdf-{index}|"
+                f"question {company} {index}|1|"
+            )
+    qa_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    qa_hash = sha256_bytes(qa_path.read_bytes())
+    monkeypatch.setattr(uda_module, "UDA_FIN_QA_SHA256", qa_hash)
+    rows = uda_module.load_uda_finance_rows(qa_path)
+    selections = select_uda_finance_cases(
+        rows,
+        seed="uda-fixture-00000001",
+        minimum_questions_per_document=2,
+        dev_company_count=1,
+        test_company_count=1,
+        cases_per_document=2,
+    )
+    protocol_path = tmp_path / "protocol.json"
+    protocol_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "uda_finance_page_protocol_v1",
+                "dataset": "UDA-QA/FinHybrid",
+                "repository": uda_module.UDA_REPOSITORY,
+                "repository_revision": uda_module.UDA_REVISION,
+                "huggingface_repository": uda_module.UDA_HF_REPOSITORY,
+                "huggingface_revision": uda_module.UDA_HF_REVISION,
+                "license": uda_module.UDA_LICENSE,
+                "qa_sha256": qa_hash,
+                "selection_seed": "uda-fixture-00000001",
+                "minimum_questions_per_document": 2,
+                "dev_company_count": 1,
+                "test_company_count": 1,
+                "cases_per_document": 2,
+                "selection_sha256": selection_sha256(selections),
+                "dev_case_count": 2,
+                "test_case_count": 2,
+                "retrieval_arms": ["bm25", "dense", "hybrid_rrf"],
+                "selection_metric": "page_ndcg_at_5",
+                "tie_break_metrics": ["page_hit_at_5", "latency_ms_p95"],
+                "test_execution_limit": 1,
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    pdf_root = tmp_path / "pdfs"
+    pdf_root.mkdir()
+    for name in ("A_2020", "B_2021"):
+        (pdf_root / f"{name}.pdf").write_bytes(b"%PDF-1.4 fixture")
+    source_root = tmp_path / "corpus"
+    prepared_root = tmp_path / "prepared"
+
+    manifest = prepare_uda_finance(
+        qa_path=qa_path,
+        pdf_root=pdf_root,
+        source_root=source_root,
+        prepared_root=prepared_root,
+        protocol_path=protocol_path,
+    )
+
+    assert manifest.document_count == 2
+    assert manifest.dev_case_count == 2
+    assert manifest.test_case_count == 2
+    assert verify_uda_finance_preparation(
+        source_root=source_root, prepared_root=prepared_root
+    ) == manifest
