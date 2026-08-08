@@ -25,6 +25,17 @@ def test_repository_finqa_holdout_protocol_v2_detects_current_guard_drift() -> N
     assert payload["model_generation_calls_before_v2_freeze"] == 0
     assert payload["sample_count"] == 100
     assert payload["top_k"] == 10
+
+    # Isolate the Guard assertion from unrelated source evolution. Frozen
+    # evidence must retain historical hashes, while this test specifically
+    # proves that the current Guard no longer matches the frozen run.
+    repository_root = Path(__file__).resolve().parents[2]
+    for relative_path in payload["source_file_sha256"]:
+        if relative_path == "app/security/retrieved_content.py":
+            continue
+        payload["source_file_sha256"][relative_path] = hashlib.sha256(
+            (repository_root / relative_path).read_bytes()
+        ).hexdigest()
     with pytest.raises(
         ValueError,
         match="FinQA frozen source hash mismatch: app/security/retrieved_content.py",

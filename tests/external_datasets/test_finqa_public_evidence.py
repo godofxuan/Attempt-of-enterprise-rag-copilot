@@ -1,5 +1,6 @@
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -222,10 +223,13 @@ def test_finqa_selective_execution_evidence_is_reproducible_and_private() -> Non
         "num_ctx": 4096,
         "num_batch": 512,
     }
+    freeze_revision = protocol["freeze_parent_revision"]
     for relative, expected in protocol["source_sha256"].items():
-        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == (
-            expected
+        frozen_source = subprocess.check_output(
+            ["git", "show", f"{freeze_revision}:{relative}"],
+            cwd=ROOT,
         )
+        assert hashlib.sha256(frozen_source).hexdigest() == expected
 
     quality = result["quality"]
     cost = result["routing_and_cost"]

@@ -1,5 +1,6 @@
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -440,14 +441,14 @@ def test_frozen_selective_protocol_binds_public_sources_without_content() -> Non
     assert protocol.sample_count == 100
     assert protocol.overlap_with_excluded_case_count == 0
     assert protocol.runtime_backend_requirement == "normal_cuda_no_vulkan"
-    for relative_path, expected_sha256 in protocol.source_sha256.items():
-        assert (
-            hashlib.sha256(
-                (repository_root / relative_path).read_bytes()
-            ).hexdigest()
-            == expected_sha256
-        )
     payload = json.loads(protocol_path.read_text(encoding="utf-8"))
+    freeze_revision = payload["freeze_parent_revision"]
+    for relative_path, expected_sha256 in protocol.source_sha256.items():
+        frozen_source = subprocess.check_output(
+            ["git", "show", f"{freeze_revision}:{relative_path}"],
+            cwd=repository_root,
+        )
+        assert hashlib.sha256(frozen_source).hexdigest() == expected_sha256
 
     def collect_keys(value):
         if isinstance(value, dict):

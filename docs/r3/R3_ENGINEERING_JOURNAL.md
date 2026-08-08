@@ -128,6 +128,21 @@ closeout commit. The only scientifically valid next quality experiment is a
 table/layout-aware evidence representation designed on development data and
 evaluated once on reserved companies.
 
+### Final-regression incident: historical hash versus current source
+
+The first full closeout run finished with `3100 passed`, `30 skipped` and three
+failures. All failures came from older FinQA tests after the new bounded-output
+option changed `app/ollama_chat.py`. The frozen protocol correctly retained the
+old source hash, but two tests incorrectly compared that historical hash with
+the current working-tree file. A third test assumed the Guard file would always
+be the first current-source drift and failed when Ollama appeared earlier.
+
+Historical evidence JSON was not regenerated. The repair verifies each frozen
+hash against `git show <freeze_parent_revision>:<path>`, while the Guard drift
+test normalizes unrelated current files before checking its intended boundary.
+This preserves both properties: old evidence remains immutable and new runtime
+code can evolve without making historical reproducibility tests contradictory.
+
 ## What an interview candidate should learn
 
 1. Evaluation splits are part of system design, not a final testing detail.
