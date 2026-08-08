@@ -75,13 +75,12 @@ IDs whose records differ. The adapter preserves these records using a hash-bound
 internal ID and records empty-field fallbacks in metadata. One reused ID is the
 duplicated gold ID in `qst_0413`.
 
-This changes the decision from `CORPUS_NOT_ACQUIRED` to
-`CORPUS_VERIFIED_INDEX_CAPACITY_BLOCKED`. Disk capacity is sufficient, and
-streaming parsing is proven, but the existing builder is not safe because its
-Python BM25 representation alone exceeds total host RAM. A formal quality score
-requires a disk-backed/sharded lexical index, memory-mapped or sharded dense
-vectors, resumable embedding checkpoints, and a measured full-build peak below
-the local memory envelope. No 500k-document quality claim is allowed yet.
+At the capacity-qualification checkpoint this changed the decision from
+`CORPUS_NOT_ACQUIRED` to `CORPUS_VERIFIED_INDEX_CAPACITY_BLOCKED`. Disk capacity
+was sufficient and streaming parsing was proven, but the existing builder was
+unsafe because its Python BM25 representation alone exceeded total host RAM.
+The B0 response below later removed the lexical block; Dense remains capacity-
+gated. A 500k-document quality claim was forbidden until that B0 run completed.
 
 ### B0 disk-backed response
 

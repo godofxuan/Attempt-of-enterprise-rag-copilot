@@ -1459,3 +1459,56 @@ a newly frozen population and cannot reuse these 96 labels for selection.
 Implementation and incident details are recorded in
 `docs/external_datasets/uda_finance_engineering_journal.md`; content-free public
 evidence is in `docs/external_datasets/evidence/uda_finance_test_v1.json`.
+
+## 50. Enterprise-aligned benchmark round: WixQA and EnterpriseRAG-Bench
+
+The project was repositioned from a finance-heavy benchmark story to an
+Enterprise Knowledge RAG/Agent Copilot story. WixQA was selected as the primary
+real-support benchmark and EnterpriseRAG-Bench as the scale/heterogeneity track.
+Official revisions, file hashes, consumption roles, protocols and public
+aggregate evidence were frozen before claims were published.
+
+On WixQA ExpertWritten's 200 authentic anonymized support questions, BGE-M3
+Dense reached 66.42% article Recall@5 and 52.16% nDCG@5, versus BM25 at 42.75%
+and 32.15%. Equal RRF reached 59.25% and 47.16% while taking 304.6 ms p95 versus
+Dense's 157.4 ms, so equal RRF was rejected. The much higher 97.88% Synthetic
+development Recall@5 was retained only as evidence that synthetic one-article
+questions are substantially easier.
+
+EnterpriseRAG-Bench acquisition verified 511,962 rows across nine source types.
+A streaming capacity pass estimated 1,702,370 flat chunks, 36.60 GiB for the old
+Python-token BM25 representation, 12.99 GiB for embedding cache plus FAISS, and
+11.39 hours to embed at the measured rate. Data inspection also exposed 15 empty
+titles, one empty body, and four reused source IDs with distinct records. The
+adapter was corrected to preserve raw empties, use explicit normalized fallbacks,
+and distinguish internal record identity from official gold identity.
+
+The measured memory failure drove a minimal SQLite FTS5 implementation with
+bounded checkpoints, content/hash-bound resume, staged integrity verification,
+atomic active-version switching and fault-injection tests. The full 511,962-row
+index built in 231.35 seconds, occupied 1.37 GiB and peaked at about 1.83 GiB
+working set. Its 470-question B0 produced 60.37% Recall@5, 55.89% nDCG@5,
+28.26% multi-document completeness@5 and 1821.0 ms p95 latency.
+
+Failure classification used official document IDs rather than an LLM judge:
+153 retrieval misses, 59 multi-document incomplete cases, 58 wrong-document
+rankings and 200 OK cases. Semantic questions produced 80 misses, while
+project-related questions produced 34 incomplete cases. This evidence points to
+a future sharded Dense candidate before reranking, because reranking cannot
+recover documents missing from the candidate set.
+
+The final missing WixQA B3 arm ran the actual V2 Runner, typed ToolRegistry,
+retrieved-content Guard, controller, Evidence Ledger, response builder and
+CitationVerifier against the same equal-RRF B2 rankings. During integration an
+incorrect embedding import, duplicated full-chunk context that exceeded budget,
+and missing parent provenance were repaired. After repair all 400 cases ran
+without tool errors, but every case made one search and no `find/open` calls.
+Retrieval did not improve, multi-article citation completeness was 0%, and p95
+rose 1.47-1.59x. The route was therefore recorded as
+`AGENTIC_ROUTE_REJECTED`.
+
+This round closes broad feature development. Source-aware chunking, external
+refusal metrics, Enterprise Dense/RRF/Agent, Evidence Ledger ON/OFF quality and
+HERB remain explicitly `NOT_RUN`. The authoritative closeout is
+`docs/enterprise_eval/FINAL_REPORT.md`; the beginner-oriented code explanation
+is `docs/learning/RAG_PROJECT_TEACHING_HANDOFF.md`.

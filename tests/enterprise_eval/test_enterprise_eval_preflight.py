@@ -24,9 +24,40 @@ def test_enterprise_preflight_package_is_complete() -> None:
         "CONSUMPTION_LEDGER.md",
         "CAPACITY_PLAN.md",
         "EXPERIMENT_REGISTRY.md",
+        "FINAL_REPORT.md",
+        "RESUME_SAFE_METRICS.md",
     }
     assert expected <= {path.name for path in DOCS.iterdir()}
     assert AUDIT_SHA in _read("PRE_FLIGHT.md")
+
+
+def test_enterprise_closeout_keeps_measured_and_unmeasured_claims_separate() -> None:
+    report = _read("FINAL_REPORT.md")
+    resume = _read("RESUME_SAFE_METRICS.md")
+    for required in (
+        "WixQA ExpertWritten is the primary benchmark",
+        "511,962",
+        "AGENTIC_ROUTE_REJECTED",
+        "Answer correctness was",
+        "Source-aware chunking",
+        "Stop broad feature development",
+    ):
+        assert required in report
+    assert "retrieval, not answer accuracy" in resume
+    assert "must not claim Agent quality improvement" in resume
+
+
+def test_learning_handoff_maps_resume_claims_to_evidence() -> None:
+    learning = ROOT / "docs" / "learning"
+    handoff = (learning / "RAG_PROJECT_TEACHING_HANDOFF.md").read_text(
+        encoding="utf-8"
+    )
+    mapping = (learning / "RESUME_BULLET_EVIDENCE_MAP.md").read_text(
+        encoding="utf-8"
+    )
+    assert "enterprise_rag_bench_fts.py" in handoff
+    assert "07b156ed4d1b4e7ff24a06aac7a8d8b41630e03b" in mapping
+    assert "检索 Recall@5" in mapping
 
 
 def test_primary_selection_is_bounded_and_revision_pinned() -> None:
@@ -77,3 +108,26 @@ def test_wixqa_public_baseline_preserves_claim_boundaries() -> None:
     fixed = payload["results"]["expertwritten_fixed_external"]
     assert fixed["dense"]["article_recall_at_5"] > fixed["equal_rrf"]["article_recall_at_5"]
     assert fixed["dense"]["multi_article_completeness_at_5"] > fixed["equal_rrf"]["multi_article_completeness_at_5"]
+
+
+def test_enterprise_full_corpus_and_agent_public_results_are_bounded() -> None:
+    evidence = DOCS / "evidence"
+    enterprise = json.loads(
+        (evidence / "enterprise_rag_bench_bm25_public_v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    agent = json.loads(
+        (evidence / "wixqa_agent_public_v1.json").read_text(encoding="utf-8")
+    )
+    assert enterprise["dataset"]["document_row_count"] == 511_962
+    assert enterprise["claim_boundary"]["retrieval_only"] is True
+    assert enterprise["claim_boundary"]["answer_quality"] == "NOT_MEASURED"
+    assert enterprise["metrics"]["overall"]["macro_document_recall_at_5"] < 1
+    for cohort in agent["cohorts"].values():
+        summary = cohort["summary"]
+        assert summary["search_calls_mean"] == 1
+        assert summary["find_calls_mean"] == 0
+        assert summary["open_calls_mean"] == 0
+        assert summary["search_evidence_recall"] == summary["b2_recall_at_5"]
+        assert summary["multi_article_citation_complete"] == 0

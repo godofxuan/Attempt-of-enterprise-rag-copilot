@@ -14,29 +14,30 @@ Safe wording:
 Required qualifiers: one probe subset, 12 attacks, combination-disjoint, local
 Qwen3-8B. Do not call this full garak accuracy.
 
-### 2. External FinQA end-to-end evaluation
+### 2. External WixQA enterprise-support retrieval
 
 Safe wording:
 
-> Built a deterministic answer/citation evaluator and measured 44% strict
-> execution accuracy, 93.5% evidence recall, 79.4% citation precision, and 78.3%
-> citation recall on a fixed 100-case sample from the public FinQA test split.
+> On WixQA ExpertWritten's 200 authentic anonymized support questions, compared
+> BM25, BGE-M3 Dense, and equal-weight RRF; Dense improved Article Recall@5 from
+> 42.75% to 66.42% and nDCG@5 from 32.15% to 52.16%, with p95 latency increasing
+> from 151.8 ms to 157.4 ms.
 
-Required qualifiers: fixed 100-case sample, not full 1,147-case FinQA, not SOTA,
-local Qwen3-8B/BGE-M3.
+Required qualifiers: fixed public-label 200-question cohort, retrieval only,
+not answer accuracy, not a hidden/blind holdout.
 
-### 3. External UDA financial page retrieval
+### 3. Full-corpus heterogeneous enterprise retrieval engineering
 
 Safe wording:
 
-> On a preregistered, company-disjoint fixed 96-question subset of external
-> UDA-QA FinHybrid, BGE-M3 Dense retrieval reached 74.0% Page Hit@5, 61.3%
-> nDCG@5, and 222.9 ms p95 latency when retrieving pages within the known
-> financial report.
+> Replaced an estimated 36.60 GiB in-memory lexical design with a resumable,
+> atomically activated SQLite FTS5 index over all 511,962 EnterpriseRAG-Bench
+> rows; built a verified 1.37 GiB artifact in 231.35 seconds at about 1.83 GiB
+> peak memory and measured a 60.37% document Recall@5 full-corpus B0 baseline.
 
-Required qualifiers: fixed 96 questions, 12 companies, known-report page
-retrieval, public-label test. This is not open-corpus document discovery, answer
-accuracy, a hidden holdout, or a baseline-to-improved claim.
+Required qualifiers: synthetic-company heterogeneous corpus, full lexical B0,
+470 document-grounded questions, not answer accuracy; Dense/RRF/Agent remain
+`NOT_RUN` on this corpus.
 
 ## Optional engineering bullet
 
@@ -70,6 +71,10 @@ ms`. This must be labeled non-blind recombined stress evidence.
   improvement claims.
 - R3 page-max or typed-planner improvement claims: both candidates were
   rejected, and neither reached the R3 fixed test.
+- WixQA Synthetic `97.88%` as a headline accuracy; it is development Recall@5.
+- WixQA Agent answered rate as answer correctness; semantic correctness was not
+  measured and the route was rejected.
+- EnterpriseRAG-Bench `60.37%` Recall@5 as end-to-end answer accuracy.
 
 ## Evidence chain
 
@@ -81,3 +86,8 @@ ms`. This must be labeled non-blind recombined stress evidence.
   SHA-256 `babd8bd8e52f3b8d63bffcb526de426af550ad1f791eaddb7431d0a6b314643c`.
 - UDA fixed test: `docs/external_datasets/evidence/uda_finance_test_v1.json`,
   SHA-256 `6b08e213e93ae00c9eb834a388c88460d33356282d112f2f80869e0f04a695d0`.
+- WixQA: `docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v1.json`,
+  execution SHA `234734657fe354a0ecd767022c6f7c22cdc329da`.
+- EnterpriseRAG-Bench:
+  `docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json`,
+  execution SHA `955d86f1ca244bc90025c89806fd786f978b98ff`.

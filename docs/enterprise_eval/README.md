@@ -14,6 +14,11 @@ Read in this order:
 5. `CONSUMPTION_LEDGER.md`: immutable development/test consumption labels.
 6. `CAPACITY_PLAN.md`: local storage/compute qualification before large runs.
 7. `EXPERIMENT_REGISTRY.md`: append-only experiment decisions.
+8. `ENTERPRISE_BASELINE.md`: measured WixQA, EnterpriseRAG, and Agent results.
+9. `ENTERPRISE_FAILURE_ANALYSIS.md`: deterministic full-corpus failure taxonomy.
+10. `NEGATIVE_RESULTS.md`: rejected candidates and operational incidents.
+11. `FINAL_REPORT.md`: final answers, Go/No-Go decisions, and remaining gaps.
+12. `RESUME_SAFE_METRICS.md`: claim wording bound to public evidence.
 
 The governing loop is:
 
@@ -21,3 +26,7 @@ The governing loop is:
 
 No framework, model, parser, or agent route is promoted without paired evidence.
 
+Current closeout: WixQA Dense is the accepted customer-support retrieval
+baseline; the current WixQA bounded Agent route is rejected; EnterpriseRAG-Bench
+has a complete 511,962-row disk-backed B0 run, while Dense/RRF/Agent remain
+`NOT_RUN` on that corpus.

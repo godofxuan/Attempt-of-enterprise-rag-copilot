@@ -1,5 +1,42 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-08-09 Enterprise-aligned external evaluation closeout
+
+```text
+primary enterprise benchmark             WixQA ExpertWritten
+WixQA Dense Recall@5 / nDCG@5            66.42% / 52.16%
+WixQA BM25 Recall@5 / nDCG@5             42.75% / 32.15%
+WixQA equal-RRF decision                  REJECTED
+EnterpriseRAG full corpus                 511,962 rows / 9 source types
+Enterprise FTS5 build                     1.37 GiB / 231.35 s / ~1.83 GiB peak
+Enterprise B0 Recall@5 / nDCG@5           60.37% / 55.89%
+Enterprise multi-doc complete@5           28.26% (92 cases)
+largest failure                           RETRIEVAL_MISS 153/470
+current WixQA Agent                       AGENTIC_ROUTE_REJECTED
+Enterprise Dense / RRF / Agent            NOT_RUN
+source-aware chunking / external refusal  NOT_RUN
+enterprise focused tests                  8 passed
+full repository                           3147 passed / 30 skipped / 3 warnings
+public repository audit                   1489 candidates / 0 findings
+```
+
+WixQA now supplies the primary real-support retrieval evidence. BGE-M3 Dense
+beats BM25 and equal RRF on the fixed public-label ExpertWritten cohort. The
+full EnterpriseRAG-Bench corpus was verified and indexed with a disk-backed,
+resumable FTS5 control after capacity analysis showed the old Python BM25 design
+would exceed host memory. The full B0 result exposes semantic retrieval and
+multi-document completeness as the dominant gaps.
+
+The production V2 Agent path was also evaluated with the same B2 retriever. It
+made one search and zero `find/open` calls per question, did not improve recall,
+collapsed multi-article citation completeness to zero, and added latency. It is
+therefore explicitly rejected as a quality route rather than promoted because
+the mechanism exists.
+
+Authoritative closeout: [final report](docs/enterprise_eval/FINAL_REPORT.md),
+[resume-safe metrics](docs/enterprise_eval/RESUME_SAFE_METRICS.md), and
+[teaching handoff](docs/learning/RAG_PROJECT_TEACHING_HANDOFF.md).
+
 ## 2026-08-07 FinQA Gate E19 versioned service wiring
 
 ```text
