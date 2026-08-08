@@ -144,6 +144,8 @@ class R3AnswerCampaignManifest(_StrictModel):
     index_manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     answer_model: str
     answer_model_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    model_cache_reset_every_cases: int = Field(ge=1, le=100)
+    model_cache_resets: int = Field(ge=0)
     strategies: list[R3AnswerStrategyRun] = Field(min_length=1)
 
     @model_validator(mode="after")

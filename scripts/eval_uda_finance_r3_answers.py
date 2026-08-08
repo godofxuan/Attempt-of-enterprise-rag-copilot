@@ -131,6 +131,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         for strategy in strategies
     }
+    model_cache_reset_every = answer_protocol["runtime"][
+        "reset_chat_model_cache_every_cases"
+    ]
+    model_cache_resets = 0
     details_by_strategy = {strategy: [] for strategy in strategies}
     user = UserContext(
         user_id="uda-evaluator",
@@ -190,6 +194,9 @@ def main(argv: list[str] | None = None) -> int:
                         protocol_error=error,
                     )
                 )
+            if index % model_cache_reset_every == 0 and index != len(cases):
+                unload_ollama_model(settings, answer_model)
+                model_cache_resets += 1
             if not args.quiet and (
                 index % args.progress_every == 0 or index == len(cases)
             ):
@@ -228,6 +235,8 @@ def main(argv: list[str] | None = None) -> int:
             "index_manifest_sha256": runtime.snapshot.version.manifest_sha256,
             "answer_model": answer_model,
             "answer_model_sha256": answer_model_sha,
+            "model_cache_reset_every_cases": model_cache_reset_every,
+            "model_cache_resets": model_cache_resets,
         },
         details_by_strategy=details_by_strategy,
         summaries=summaries,
@@ -314,6 +323,24 @@ def ollama_model_digest(settings, model_identifier: str) -> str:
     if not re.fullmatch(r"[0-9a-f]{64}", digest):
         raise ValueError("R3 answer model digest is invalid")
     return digest
+
+
+def unload_ollama_model(settings, model_identifier: str) -> None:
+    origin = parse_pinned_model_endpoint(settings.llm_base_url).origin
+    session = requests.Session()
+    session.trust_env = False
+    perform_model_request(
+        lambda timeout: session.post(
+            f"{origin}/api/generate",
+            json={"model": model_identifier, "keep_alive": 0},
+            timeout=timeout,
+            allow_redirects=False,
+        ),
+        operation="chat",
+        timeout_seconds=settings.model_request_timeout_seconds,
+        max_attempts=settings.model_max_attempts,
+        backoff_seconds=settings.model_retry_backoff_ms / 1000.0,
+    )
 
 
 def claim_split_execution(

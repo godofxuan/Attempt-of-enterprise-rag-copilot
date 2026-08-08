@@ -10,7 +10,7 @@
 - Answer model digest:
   `500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41`
 - Frozen protocol SHA-256:
-  `d7745a77f7abb24088ef907342a6c4b2b0dea57f416cbb0cad9bef61bd0c55c1`
+  `0eb83d435442fa8d43d275a54b165525a78ea594bb90a16ca9971e99c5921a60`
 
 ## Compared strategies
 
@@ -33,6 +33,11 @@ existing retrieved-content Guard before either strategy sees it.
 Generation is bounded to 256 output tokens for `direct` and 128 for
 `typed_candidate`. This prevents a malformed or unexpectedly verbose local
 generation from turning one case into an unbounded latency outlier.
+
+The local `qwen3:8b` process is unloaded after every six completed cases. The
+next answer reloads the exact frozen digest, and that load time remains inside
+the next case's measured generation latency. The campaign manifest records both
+the configured interval and actual reset count.
 
 ## Metrics
 
@@ -75,3 +80,9 @@ generation-token ceiling. Some financial prompts could therefore occupy the
 whole timeout and transport retry budget. The frozen protocol now binds the
 strategy-specific output budgets above. This changes the service cost boundary,
 not labels, retrieval evidence or score thresholds.
+
+Ollama's server log then exposed the underlying long-run resource condition:
+25 distinct prompt-cache entries occupied about 8.1 of an 8.2 GiB cache budget.
+The next request stalled while updating that cache. The six-case reset policy
+keeps the long campaign below this observed saturation point even when both
+answer strategies need their permitted repair attempt.

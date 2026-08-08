@@ -204,6 +204,7 @@ def test_answer_protocol_is_frozen_and_bound() -> None:
     assert protocol["answer_model"] == "qwen3:8b"
     assert protocol["generation"]["direct"]["max_output_tokens"] == 256
     assert protocol["generation"]["typed_candidate"]["max_output_tokens"] == 128
+    assert protocol["runtime"]["reset_chat_model_cache_every_cases"] == 6
     assert protocol["promotion_gates"]["min_numeric_accuracy_delta"] == 0.05
     assert protocol["typed_contract"]["max_candidates"] == 32
     assert protocol["typed_contract"]["raw_numeric_literals_in_plan"] is False

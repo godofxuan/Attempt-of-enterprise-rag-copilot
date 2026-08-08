@@ -36,6 +36,9 @@
     "strategy": "unchanged_dense_chunk",
     "top_k": 5
   },
+  "runtime": {
+    "reset_chat_model_cache_every_cases": 6
+  },
   "schema_version": "uda_finance_r3_answer_protocol_v1",
   "strategies": {
     "direct": "guarded Qwen3 JSON answer and cited evidence IDs",
