@@ -1,0 +1,48 @@
+{
+  "agent": {
+    "controller": "current deterministic V2AgentController",
+    "response_builder": "ExtractiveResponseBuilder",
+    "retrieved_content_admission": "current RetrievedContentAdmission and Guard",
+    "tool_budget": {
+      "deadline_ms": 15000,
+      "max_context_chars": 12000,
+      "max_find_calls": 2,
+      "max_open_calls": 4,
+      "max_search_calls": 3,
+      "max_steps": 12
+    },
+    "tools": [
+      "search",
+      "find",
+      "open"
+    ]
+  },
+  "baseline": "single-shot equal BM25+dense RRF with k=60",
+  "candidate_selection_allowed": false,
+  "cohorts": {
+    "expertwritten": {
+      "case_count": 200,
+      "consumption": "FIXED_CONSUMED_MISSING_ARM",
+      "question_ids_sha256": "ec11e3e4733bd6701441b127952fa98b0973f9961a0aacabfae570da45976110"
+    },
+    "simulated": {
+      "case_count": 200,
+      "consumption": "VALIDATION_BASELINE_ALREADY_OBSERVED",
+      "question_ids_sha256": "871550a19297d3c267f03f2d819f0fd1cef566a8e3c11fdb92ea18792d71b465"
+    }
+  },
+  "fixed_chunk_candidate_k": 200,
+  "metrics": [
+    "B2 article Recall@5",
+    "Agent searched-evidence recall",
+    "citation precision",
+    "citation recall",
+    "multi-article citation completeness",
+    "answered rate",
+    "search/find/open calls",
+    "B2 p95 latency",
+    "Agent p95 latency"
+  ],
+  "schema_version": "wixqa_agent_protocol_v1",
+  "status": "FROZEN_BEFORE_MISSING_ARM_RUN"
+}

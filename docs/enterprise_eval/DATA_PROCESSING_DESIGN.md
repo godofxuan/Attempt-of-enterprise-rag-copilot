@@ -101,6 +101,13 @@ tokens when available, latency distribution, answer/retrieval success, and stop
 reason. If Agent quality is equivalent and latency is at least 3x, the decision
 is `AGENTIC_ROUTE_REJECTED`.
 
+The WixQA B3 adapter does not rebuild or replace retrieval. It maps a frozen RRF
+article ranking into the production typed search contract, chooses a query-linked
+representative chunk from each ranked article, and represents the short matched
+preview plus full chunk as child/parent evidence for the retrieved-content Guard.
+The Agent's first original-question search reuses the exact B2 ranking cache;
+only controller-generated subqueries may add retrieval/model calls.
+
 ## What this design does not claim
 
 It does not claim source-aware chunks improve quality, that a 500k-document
