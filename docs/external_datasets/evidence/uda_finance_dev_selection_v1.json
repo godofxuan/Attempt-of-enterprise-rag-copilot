@@ -1,0 +1,47 @@
+{
+  "arms": [
+    {
+      "embedding_calls": 0,
+      "latency_ms_p95": 123.68200009223074,
+      "manifest_sha256": "b67caf785c5e7e714191830c42843d75e96fc2dbf503bb574bed10285896bdac",
+      "page_hit_at_5": 0.671875,
+      "page_mrr_at_5": 0.4846354166666666,
+      "page_ndcg_at_5": 0.5317415979541101,
+      "retrieval_arm": "bm25",
+      "run_id": "uda-rm0201-dev-bm25-eb7b782"
+    },
+    {
+      "embedding_calls": 64,
+      "latency_ms_p95": 235.42440007440746,
+      "manifest_sha256": "8f98816d87a03f28de9c808d496b7781be5199eee5deea1ab1c0304a9b62cd08",
+      "page_hit_at_5": 0.84375,
+      "page_mrr_at_5": 0.6057291666666667,
+      "page_ndcg_at_5": 0.6653961164129085,
+      "retrieval_arm": "dense",
+      "run_id": "uda-rm0202-dev-dense-eb7b782"
+    },
+    {
+      "embedding_calls": 64,
+      "latency_ms_p95": 297.91970003861934,
+      "manifest_sha256": "b148caadaad7a034fc9064b4dfcfb7a54cfb28dc914a8118182c64b04bef0089",
+      "page_hit_at_5": 0.796875,
+      "page_mrr_at_5": 0.6161458333333333,
+      "page_ndcg_at_5": 0.6614251417744529,
+      "retrieval_arm": "hybrid_rrf",
+      "run_id": "uda-rm0203-dev-rrf-eb7b782"
+    }
+  ],
+  "case_count": 64,
+  "code_revision": "eb7b7824ad85c4a16ea119e5adeaccb7e86cd502",
+  "dataset": "UDA-QA/FinHybrid",
+  "dataset_manifest_sha256": "b9e12c78f638908e3199adad93835731d6a7cb9e2b51e625bb20ee4ab87596d8",
+  "decision": "SELECT_DENSE_FOR_ONE_FROZEN_TEST_RUN",
+  "index_build_duration_ms": 329887.67130009364,
+  "index_manifest_sha256": "db8b933ddbd69f1736c0c3f20a5bc9e4586c645a98be788dd159b01511eae18b",
+  "protocol_sha256": "73cd9980ac84e9267688fe700767a8431f1d3a17675adbef4e69ee7a20180343",
+  "schema_version": "uda_finance_dev_selection_public_v1",
+  "selected_retrieval_arm": "dense",
+  "selection_metric": "page_ndcg_at_5",
+  "split": "development",
+  "test_status": "NOT_RUN"
+}

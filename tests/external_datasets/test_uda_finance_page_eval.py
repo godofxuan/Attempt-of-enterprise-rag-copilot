@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -135,3 +136,21 @@ def test_page_run_is_immutable_and_hash_verified(tmp_path: Path) -> None:
     (run_dir / "summary.json").write_text("{}", encoding="utf-8")
     with pytest.raises(ValueError, match="hash mismatch"):
         verify_uda_finance_page_run(run_dir)
+
+
+def test_public_dev_selection_precedes_test_and_follows_ndcg_rule() -> None:
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "external_datasets"
+        / "evidence"
+        / "uda_finance_dev_selection_v1.json"
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    arms = payload["arms"]
+    selected = max(arms, key=lambda item: item["page_ndcg_at_5"])
+
+    assert payload["test_status"] == "NOT_RUN"
+    assert payload["selected_retrieval_arm"] == "dense"
+    assert selected["retrieval_arm"] == payload["selected_retrieval_arm"]
+    assert all(len(item["manifest_sha256"]) == 64 for item in arms)
