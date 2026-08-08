@@ -8,6 +8,14 @@
   "answer_model_sha256": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
   "dataset_protocol_sha256": "7dce0fca09caf029189def01e847df7562c57aab5cbe4b0a072509ff0cf9f05f",
   "fixed_test_execution_limit": 1,
+  "generation": {
+    "direct": {
+      "max_output_tokens": 256
+    },
+    "typed_candidate": {
+      "max_output_tokens": 128
+    }
+  },
   "index_manifest_sha256": "08773dde88cf71bbccc199a45390af89802355a2f3ca7ff1482e3901513ba27b",
   "max_attempts": 2,
   "numeric_metric": {

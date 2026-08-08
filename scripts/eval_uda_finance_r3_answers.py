@@ -104,22 +104,28 @@ def main(argv: list[str] | None = None) -> int:
 
     generation_calls = 0
 
-    def tracked_chat(model, messages, *, response_format=None, think=None):
-        nonlocal generation_calls
-        generation_calls += 1
-        return chat_with_ollama(
-            model,
-            messages,
-            response_format=response_format,
-            think=think,
-            timeout_seconds=args.timeout_seconds,
-        )
+    def tracked_chat_for(strategy: str):
+        def tracked_chat(model, messages, *, response_format=None, think=None):
+            nonlocal generation_calls
+            generation_calls += 1
+            return chat_with_ollama(
+                model,
+                messages,
+                response_format=response_format,
+                think=think,
+                timeout_seconds=args.timeout_seconds,
+                max_output_tokens=answer_protocol["generation"][strategy][
+                    "max_output_tokens"
+                ],
+            )
+
+        return tracked_chat
 
     answerers = {
         strategy: make_answerer(
             strategy,
             model=answer_model,
-            chat_fn=tracked_chat,
+            chat_fn=tracked_chat_for(strategy),
             max_attempts=answer_protocol["max_attempts"],
             max_candidates=answer_protocol["typed_contract"]["max_candidates"],
         )

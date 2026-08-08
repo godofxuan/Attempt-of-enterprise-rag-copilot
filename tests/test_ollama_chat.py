@@ -55,6 +55,31 @@ def test_chat_with_ollama_passes_json_format_without_changing_defaults(monkeypat
     assert captured["timeout"] == 7.0
 
 
+def test_chat_with_ollama_applies_bounded_output_budget(monkeypatch):
+    captured = {}
+
+    def fake_post(url, payload, timeout):
+        captured["payload"] = payload
+        return FakeResponse()
+
+    monkeypatch.setattr(ollama_chat, "get_settings", settings)
+    monkeypatch.setattr(ollama_chat, "_post_ollama", fake_post)
+
+    result = ollama_chat.chat_with_ollama("qwen3:8b", [], max_output_tokens=128)
+
+    assert result == '{"verdict": "sufficient"}'
+    assert captured["payload"]["options"] == {
+        "temperature": 0,
+        "num_predict": 128,
+    }
+
+
+@pytest.mark.parametrize("value", [0, 4097])
+def test_chat_with_ollama_rejects_unbounded_output_budget(value):
+    with pytest.raises(ValueError, match="max output tokens"):
+        ollama_chat.chat_with_ollama("qwen3:8b", [], max_output_tokens=value)
+
+
 def test_chat_with_ollama_uses_explicit_timeout_override(monkeypatch):
     captured = {}
 

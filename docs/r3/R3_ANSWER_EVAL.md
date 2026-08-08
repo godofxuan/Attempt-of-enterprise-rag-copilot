@@ -10,7 +10,7 @@
 - Answer model digest:
   `500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41`
 - Frozen protocol SHA-256:
-  `06735a68587e8eba2c0b98ef8bdda4e21dde34e2bf7bfd46791b8ef96437b105`
+  `d7745a77f7abb24088ef907342a6c4b2b0dea57f416cbb0cad9bef61bd0c55c1`
 
 ## Compared strategies
 
@@ -29,6 +29,10 @@ This separates two responsibilities:
 
 The retrieved text is still untrusted. Every evidence unit passes through the
 existing retrieved-content Guard before either strategy sees it.
+
+Generation is bounded to 256 output tokens for `direct` and 128 for
+`typed_candidate`. This prevents a malformed or unexpectedly verbose local
+generation from turning one case into an unbounded latency outlier.
 
 ## Metrics
 
@@ -64,3 +68,10 @@ showed that this host can block on the first native stderr line, so the CLI now
 also provides `--quiet` to suppress progress output completely. Normal terminal
 runs remain bounded to one line per 16 cases. No model, retrieval, metric or
 promotion parameter changed, and validation/test markers were never created.
+
+A later all-thread stack dump found an additional issue inside an active
+`/api/chat` response read: the shared Ollama client had a request timeout but no
+generation-token ceiling. Some financial prompts could therefore occupy the
+whole timeout and transport retry budget. The frozen protocol now binds the
+strategy-specific output budgets above. This changes the service cost boundary,
+not labels, retrieval evidence or score thresholds.
