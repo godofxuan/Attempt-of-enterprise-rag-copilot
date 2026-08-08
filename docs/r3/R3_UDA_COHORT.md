@@ -55,3 +55,16 @@ required confirmatory check; no success claim is made from development.
 The fixed structure score was a negative result: it reduced Hit@1 from `44.27%`
 to `39.58%` and nDCG@5 from `63.05%` to `62.20%`. It is rejected rather than
 retuned after observing the development results.
+
+## S2 paired validation decision
+
+The one-shot validation campaign compared unchanged Dense chunk retrieval with
+the selected page-max candidate on 96 questions from 12 companies absent from
+development. Hit@5 changed from `81.25%` to `82.29%` (`+1.04` points), and
+nDCG@5 changed from `67.58%` to `68.46%` (`+0.88` points). Candidate p95 was
+`276.87 ms`, below the baseline `281.16 ms`, but both preregistered quality
+gates failed.
+
+Decision: `VALIDATION_REJECTED_FIXED_TEST_UNTOUCHED`. Page max remains an
+evaluation-only candidate and the production/runtime Dense path is unchanged.
+The R3 page-retrieval fixed test was not executed.

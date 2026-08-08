@@ -122,3 +122,23 @@ def test_public_dev_selection_follows_frozen_metric_and_tie_break() -> None:
     assert payload["validation_status"] == "NOT_RUN"
     assert selected["strategy"] == payload["selected_strategy"] == "dense_page_max"
     assert payload["development_deltas_vs_dense_chunk"]["page_hit_at_5"] < 0.05
+
+
+def test_public_validation_rejects_candidate_and_preserves_test() -> None:
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "r3"
+        / "evidence"
+        / "uda_finance_r3_page_validation_v1.json"
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    hit_delta = payload["candidate"]["page_hit_at_5"] - payload["baseline"]["page_hit_at_5"]
+    ndcg_delta = payload["candidate"]["page_ndcg_at_5"] - payload["baseline"]["page_ndcg_at_5"]
+
+    assert hit_delta == pytest.approx(payload["deltas"]["page_hit_at_5"])
+    assert ndcg_delta == pytest.approx(payload["deltas"]["page_ndcg_at_5"])
+    assert not payload["gate_checks"]["min_page_hit_at_5_delta_0_05"]
+    assert not payload["gate_checks"]["min_page_ndcg_at_5_delta_0_03"]
+    assert payload["decision"] == "VALIDATION_REJECTED_FIXED_TEST_UNTOUCHED"
+    assert payload["test_status"] == "UNTOUCHED"

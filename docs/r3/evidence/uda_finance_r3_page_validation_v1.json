@@ -1,0 +1,39 @@
+{
+  "baseline": {
+    "latency_ms_p95": 281.15599998272955,
+    "page_hit_at_5": 0.8125,
+    "page_ndcg_at_5": 0.675757402590175,
+    "strategy": "dense_chunk"
+  },
+  "candidate": {
+    "latency_ms_p95": 276.86970005743206,
+    "page_hit_at_5": 0.8229166666666666,
+    "page_ndcg_at_5": 0.6846064339320567,
+    "strategy": "dense_page_max"
+  },
+  "case_count": 96,
+  "code_revision": "9c45fbf53dfdcc1d6e41284a1e56944f03e367b5",
+  "decision": "VALIDATION_REJECTED_FIXED_TEST_UNTOUCHED",
+  "deltas": {
+    "page_hit_at_5": 0.01041666666666663,
+    "page_ndcg_at_5": 0.008849031341881752,
+    "p95_latency_multiplier": 0.9847547273151824
+  },
+  "gate_checks": {
+    "max_p95_latency_multiplier_1_5": true,
+    "min_page_hit_at_5_delta_0_05": false,
+    "min_page_ndcg_at_5_delta_0_03": false
+  },
+  "limitations": [
+    "This is a consumed company-disjoint validation result, not fixed-test evidence.",
+    "The candidate is not promoted and is not used by the answer pipeline.",
+    "The R3 page-retrieval fixed test remains untouched."
+  ],
+  "page_protocol_sha256": "14597af19c878dfde159a038ebff467275ceb5a43ab98958c2ea97f303cba4e2",
+  "private_manifest_sha256": "3bce998a2eebc4e508fcd7e25ab7b87d5f014746853fa259ecea3b51b66c89c6",
+  "run_id": "r3-s2-validation-paired-9c45fbf",
+  "schema_version": "uda_finance_r3_page_validation_public_v1",
+  "split": "validation",
+  "test_status": "UNTOUCHED",
+  "validation_marker_sha256": "3d15c46c2104a086f86708efb93df73e1bbb14ab4b9b3857acc04f16123f86df"
+}

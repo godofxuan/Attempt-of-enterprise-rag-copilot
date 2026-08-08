@@ -69,6 +69,19 @@ warning, not a regression against a production baseline. No post-test parser,
 chunker, fusion, or reranker change was evaluated on an unused population, so
 the UDA result must not be written as `baseline -> improved`.
 
+## R3 page continuity failed validation promotion
+
+On 192 newly selected UDA development questions, page-level deduplication moved
+Hit@5 from 79.17% to 81.77% and nDCG@5 from 63.05% to 64.59%. The independently
+selected 96-question company-disjoint validation result was only 81.25% to
+82.29% Hit@5 and 67.58% to 68.46% nDCG@5. The `+1.04` and `+0.88` point quality
+deltas failed the preregistered `+5` and `+3` point gates. The fixed test was
+not run, and page max was not promoted.
+
+The fixed neighbor policy produced no development Top-5 change relative to page
+max. The fixed structure score reduced Hit@1 and nDCG. Neither was retuned after
+observing development labels.
+
 The test is conditioned on a known report. It cannot support document-discovery
 or answer-accuracy claims, and its public labels make it fixed external evidence
 rather than a hidden blind holdout.
