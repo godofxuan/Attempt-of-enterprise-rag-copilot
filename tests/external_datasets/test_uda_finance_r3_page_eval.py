@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -102,3 +103,22 @@ def test_validation_marker_is_one_shot(tmp_path: Path) -> None:
     assert marker.is_file()
     with pytest.raises(FileExistsError):
         claim_split_execution(tmp_path, **kwargs)
+
+
+def test_public_dev_selection_follows_frozen_metric_and_tie_break() -> None:
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "r3"
+        / "evidence"
+        / "uda_finance_r3_page_dev_v1.json"
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    arms = payload["arms"]
+    best_ndcg = max(item["page_ndcg_at_5"] for item in arms)
+    finalists = [item for item in arms if item["page_ndcg_at_5"] == best_ndcg]
+    selected = min(finalists, key=lambda item: item["latency_ms_p95"])
+
+    assert payload["validation_status"] == "NOT_RUN"
+    assert selected["strategy"] == payload["selected_strategy"] == "dense_page_max"
+    assert payload["development_deltas_vs_dense_chunk"]["page_hit_at_5"] < 0.05

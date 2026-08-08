@@ -1,0 +1,58 @@
+{
+  "arms": [
+    {
+      "latency_ms_p95": 275.4545999923721,
+      "page_hit_at_1": 0.4427083333333333,
+      "page_hit_at_5": 0.7916666666666666,
+      "page_mrr_at_5": 0.5766493055555554,
+      "page_ndcg_at_5": 0.6304558145940516,
+      "strategy": "dense_chunk"
+    },
+    {
+      "latency_ms_p95": 278.1422999687493,
+      "page_hit_at_1": 0.4427083333333333,
+      "page_hit_at_5": 0.8177083333333334,
+      "page_mrr_at_5": 0.5885416666666666,
+      "page_ndcg_at_5": 0.6459359090376204,
+      "strategy": "dense_page_max"
+    },
+    {
+      "latency_ms_p95": 282.2869000956416,
+      "page_hit_at_1": 0.4427083333333333,
+      "page_hit_at_5": 0.8177083333333334,
+      "page_mrr_at_5": 0.5885416666666666,
+      "page_ndcg_at_5": 0.6459359090376204,
+      "strategy": "dense_page_neighbor"
+    },
+    {
+      "latency_ms_p95": 282.35730004962534,
+      "page_hit_at_1": 0.3958333333333333,
+      "page_hit_at_5": 0.8072916666666666,
+      "page_mrr_at_5": 0.5597222222222221,
+      "page_ndcg_at_5": 0.6220111321859327,
+      "strategy": "dense_page_structure"
+    }
+  ],
+  "case_count": 192,
+  "code_revision": "95d4163df85b4b54f6fd32e0d820839f23797d2b",
+  "decision": "SELECT_DENSE_PAGE_MAX_FOR_PAIRED_VALIDATION",
+  "development_deltas_vs_dense_chunk": {
+    "page_hit_at_5": 0.02604166666666674,
+    "page_ndcg_at_5": 0.0154800944435688,
+    "p95_latency_multiplier": 1.009754417269507
+  },
+  "limitations": [
+    "Development selection is not confirmatory evidence.",
+    "The development deltas are below the preregistered final promotion thresholds.",
+    "Neighbor expansion produced no Top-5 change at the fixed 0.7 decay.",
+    "Structure scoring reduced Page Hit@1 and nDCG@5."
+  ],
+  "page_protocol_sha256": "14597af19c878dfde159a038ebff467275ceb5a43ab98958c2ea97f303cba4e2",
+  "private_manifest_sha256": "7712d8e9aaea09284bf6edd028b6448cf38bf1a60079f340d56c352edb729175",
+  "run_id": "r3-s2-dev-four-arm-95d4163",
+  "schema_version": "uda_finance_r3_page_dev_public_v1",
+  "selected_strategy": "dense_page_max",
+  "selection_metric": "page_ndcg_at_5",
+  "split": "development",
+  "validation_status": "NOT_RUN"
+}

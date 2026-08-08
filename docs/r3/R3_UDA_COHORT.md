@@ -41,3 +41,17 @@ but its 96 test questions are consumed. R3 does not recycle them. It selects
 entirely different companies and keeps 28 further companies untouched, allowing
 the repository to make a legitimate same-population baseline/candidate
 comparison and still retain data for a later round.
+
+## S2 development selection
+
+The four fixed page strategies were executed on all 192 development questions
+at code revision `95d4163`. `dense_page_max` and `dense_page_neighbor` tied on
+nDCG@5 (`64.59%`) and Hit@5 (`81.77%`), while page max had lower p95 latency.
+It was therefore selected for paired validation. Against the unchanged Dense
+chunk baseline, its development deltas were only `+2.60` Hit@5 points and
+`+1.55` nDCG points, below the final promotion gates. Validation remains the
+required confirmatory check; no success claim is made from development.
+
+The fixed structure score was a negative result: it reduced Hit@1 from `44.27%`
+to `39.58%` and nDCG@5 from `63.05%` to `62.20%`. It is rejected rather than
+retuned after observing the development results.
