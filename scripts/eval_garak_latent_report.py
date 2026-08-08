@@ -17,6 +17,7 @@ from pathlib import Path
 import requests
 
 from app.config import get_settings
+from app.evaluation.ollama_evaluation_lock import evaluation_lock
 from app.evaluation.garak_latent_report import GarakLatentReportFixture
 from app.evaluation.garak_latent_report_eval import (
     evaluate_garak_latent_report_paired,
@@ -39,9 +40,11 @@ DEFAULT_FIXTURE = (
 DEFAULT_OUT_ROOT = (
     ROOT / ".private" / "external_security" / "garak_latent_report"
 )
+MAX_OUTPUT_TOKENS = 256
+CACHE_RESET_EVERY_MODEL_CALLS = 12
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Run the pinned garak latent-report Guard OFF/ON benchmark."
     )
@@ -51,6 +54,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", default="qwen3:8b")
     parser.add_argument("--timeout-seconds", type=float, default=120.0)
     parser.add_argument("--execute-live", action="store_true")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
     args = parser.parse_args(argv)
     if not args.execute_live:
         raise ValueError("live garak benchmark requires --execute-live")
@@ -63,7 +71,12 @@ def main(argv: list[str] | None = None) -> int:
     fixture_sha256 = hashlib.sha256(fixture_bytes).hexdigest()
     settings = get_settings()
 
-    with LocalOllamaOnlyBoundary(settings.llm_base_url) as boundary:
+    cache_reset_count = 0
+    model_call_count = 0
+    lock_root = Path(settings.runtime_cache_dir).resolve() / "evaluation_locks"
+    with evaluation_lock(settings.llm_base_url, lock_root=lock_root), LocalOllamaOnlyBoundary(
+        settings.llm_base_url
+    ) as boundary:
         session = requests.Session()
         session.trust_env = False
         tags_response = session.get(
@@ -75,14 +88,23 @@ def main(argv: list[str] | None = None) -> int:
             tags_response.json(),
             args.model,
         )
+        unload_ollama_model(boundary.allowed_origin, args.model)
+        cache_reset_count += 1
 
         def live_chat(model, messages):
-            return chat_with_ollama(
+            nonlocal cache_reset_count, model_call_count
+            output = chat_with_ollama(
                 model,
                 messages,
                 think=False,
                 timeout_seconds=args.timeout_seconds,
+                max_output_tokens=MAX_OUTPUT_TOKENS,
             )
+            model_call_count += 1
+            if model_call_count % CACHE_RESET_EVERY_MODEL_CALLS == 0:
+                unload_ollama_model(boundary.allowed_origin, args.model)
+                cache_reset_count += 1
+            return output
 
         result = evaluate_garak_latent_report_paired(
             fixture=fixture,
@@ -90,6 +112,13 @@ def main(argv: list[str] | None = None) -> int:
             model=args.model,
             chat_fn=live_chat,
         )
+        summarized_model_calls = (
+            result.guard_off.model_call_count + result.guard_on.model_call_count
+        )
+        if model_call_count != summarized_model_calls:
+            raise ValueError("garak model call accounting mismatch")
+        if cache_reset_count != 1 + model_call_count // CACHE_RESET_EVERY_MODEL_CALLS:
+            raise ValueError("garak model cache reset accounting mismatch")
 
     result_bytes = _json_bytes(result.model_dump(mode="json"))
     public_summary = {
@@ -100,6 +129,13 @@ def main(argv: list[str] | None = None) -> int:
         "model": model_identity.model_dump(mode="json"),
         "temperature": 0,
         "think": False,
+        "runtime": {
+            "max_output_tokens": MAX_OUTPUT_TOKENS,
+            "initial_chat_model_cache_reset": True,
+            "cache_reset_every_model_calls": CACHE_RESET_EVERY_MODEL_CALLS,
+            "cache_reset_count": cache_reset_count,
+            "observed_model_call_count": model_call_count,
+        },
         "retrieval": (
             "Fixed retrieved report content per case; no retrieval ranking changes "
             "between Guard arms."
@@ -128,6 +164,7 @@ def main(argv: list[str] | None = None) -> int:
             "allowed_socket_connect_count": boundary.allowed_socket_connect_count,
             "blocked_attempt_count": boundary.blocked_attempt_count,
         },
+        "runtime": public_summary["runtime"],
         "artifacts": {
             "result.private.json": {
                 "sha256": hashlib.sha256(result_bytes).hexdigest(),
@@ -165,6 +202,18 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
     return 0
+
+
+def unload_ollama_model(origin: str, model: str) -> None:
+    session = requests.Session()
+    session.trust_env = False
+    response = session.post(
+        f"{origin}/api/generate",
+        json={"model": model, "keep_alive": 0},
+        timeout=30,
+        allow_redirects=False,
+    )
+    response.raise_for_status()
 
 
 def _publish(
