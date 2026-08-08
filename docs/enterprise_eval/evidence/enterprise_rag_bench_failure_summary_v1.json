@@ -1,0 +1,75 @@
+{
+  "analysis_git_sha": "ad3005201e73dd7d5af3d8621c39b3e9c670bbca",
+  "by_question_type": {
+    "basic": {
+      "OK": 92,
+      "RETRIEVAL_MISS": 57,
+      "WRONG_DOCUMENT": 26
+    },
+    "completeness": {
+      "MULTI_DOC_INCOMPLETE": 15,
+      "OK": 1,
+      "RETRIEVAL_MISS": 4
+    },
+    "conflicting_info": {
+      "MULTI_DOC_INCOMPLETE": 2,
+      "OK": 15,
+      "RETRIEVAL_MISS": 2,
+      "WRONG_DOCUMENT": 1
+    },
+    "constrained": {
+      "MULTI_DOC_INCOMPLETE": 8,
+      "OK": 18,
+      "RETRIEVAL_MISS": 2,
+      "WRONG_DOCUMENT": 2
+    },
+    "intra_document_reasoning": {
+      "OK": 30,
+      "RETRIEVAL_MISS": 4,
+      "WRONG_DOCUMENT": 6
+    },
+    "miscellaneous": {
+      "OK": 16,
+      "RETRIEVAL_MISS": 3,
+      "WRONG_DOCUMENT": 1
+    },
+    "project_related": {
+      "MULTI_DOC_INCOMPLETE": 34,
+      "OK": 5,
+      "RETRIEVAL_MISS": 1
+    },
+    "semantic": {
+      "OK": 23,
+      "RETRIEVAL_MISS": 80,
+      "WRONG_DOCUMENT": 22
+    }
+  },
+  "case_count": 470,
+  "classification_priority": [
+    "RETRIEVAL_MISS",
+    "MULTI_DOC_INCOMPLETE",
+    "WRONG_DOCUMENT",
+    "OK"
+  ],
+  "not_assessed_by_retrieval_only_run": [
+    "CONFLICT_NOT_DETECTED",
+    "ANSWER_REASONING_ERROR",
+    "UNSUPPORTED_CLAIM",
+    "CITATION_ERROR",
+    "FALSE_REFUSAL",
+    "FAILED_TO_REFUSE",
+    "TOOL_BUDGET_EXHAUSTED",
+    "PARSER_ERROR"
+  ],
+  "overall_counts": {
+    "MULTI_DOC_INCOMPLETE": 59,
+    "OK": 200,
+    "RETRIEVAL_MISS": 153,
+    "WRONG_DOCUMENT": 58
+  },
+  "schema_version": "enterprise_rag_bench_failure_summary_v1",
+  "source_details_sha256": "9c5a46d7f6b92b87540cf42ffb976d2af7d97ba7112588b763dbd9db2257e7dd",
+  "source_execution_git_sha": "955d86f1ca244bc90025c89806fd786f978b98ff",
+  "source_run_id": "enterprise-rag-bench-b0-v1-955d86f",
+  "taxonomy_csv_sha256": "521574611460989fadd6d108bbda47042aed87f854a954a14d5715502d68f316"
+}

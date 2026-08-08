@@ -249,3 +249,24 @@ def test_public_bm25_evidence_is_full_corpus_and_retrieval_only() -> None:
     )
     assert payload["claim_boundary"]["retrieval_only"] is True
     assert payload["claim_boundary"]["answer_quality"] == "NOT_MEASURED"
+
+
+def test_failure_summary_is_bound_to_formal_private_details() -> None:
+    payload = json.loads(
+        (
+            ROOT
+            / "docs"
+            / "enterprise_eval"
+            / "evidence"
+            / "enterprise_rag_bench_failure_summary_v1.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert payload["analysis_git_sha"] == (
+        "ad3005201e73dd7d5af3d8621c39b3e9c670bbca"
+    )
+    assert payload["case_count"] == 470
+    assert sum(payload["overall_counts"].values()) == 470
+    assert payload["overall_counts"]["RETRIEVAL_MISS"] == 153
+    assert payload["taxonomy_csv_sha256"] == (
+        "521574611460989fadd6d108bbda47042aed87f854a954a14d5715502d68f316"
+    )
