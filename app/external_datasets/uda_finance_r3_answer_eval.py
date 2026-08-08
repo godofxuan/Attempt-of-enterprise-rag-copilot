@@ -56,7 +56,7 @@ class R3NumericCandidate(_StrictModel):
     unit_id: str = Field(pattern=r"^text_\d+$")
     surface: str = Field(min_length=1, max_length=64)
     value: str = Field(min_length=1, max_length=128)
-    context: str = Field(min_length=1, max_length=240)
+    context: str = Field(min_length=1, max_length=180)
 
 
 class R3TypedPlan(_StrictModel):
@@ -258,8 +258,8 @@ def extract_numeric_candidates(
                 value = parse_numeric_surface(surface)
             except ValueError:
                 continue
-            start = max(0, match.start() - 70)
-            end = min(len(text), match.end() + 70)
+            start = max(0, match.start() - 50)
+            end = min(len(text), match.end() + 50)
             context = " ".join(text[start:end].split())
             found.append((surface, value, context))
         per_unit.append(found)
@@ -537,12 +537,20 @@ def summarize_answer_results(
 
 
 def make_answerer(
-    strategy: R3AnswerStrategy, *, model: str, chat_fn: Callable, max_attempts: int
+    strategy: R3AnswerStrategy,
+    *,
+    model: str,
+    chat_fn: Callable,
+    max_attempts: int,
+    max_candidates: int = 32,
 ):
     if strategy == "direct":
         return LocalFinQAAnswerer(model=model, chat_fn=chat_fn, max_attempts=max_attempts)
     return LocalUdaTypedCandidateAnswerer(
-        model=model, chat_fn=chat_fn, max_attempts=max_attempts
+        model=model,
+        chat_fn=chat_fn,
+        max_attempts=max_attempts,
+        max_candidates=max_candidates,
     )
 
 

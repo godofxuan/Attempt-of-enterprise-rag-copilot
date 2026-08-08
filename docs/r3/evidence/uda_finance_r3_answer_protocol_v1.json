@@ -34,7 +34,7 @@
     "typed_candidate": "guarded numeric candidate IDs, bounded typed operation, host Decimal execution"
   },
   "typed_contract": {
-    "max_candidates": 96,
+    "max_candidates": 32,
     "operations": [
       "direct",
       "add",

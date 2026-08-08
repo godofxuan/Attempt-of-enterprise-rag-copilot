@@ -119,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
             model=answer_model,
             chat_fn=tracked_chat,
             max_attempts=answer_protocol["max_attempts"],
+            max_candidates=answer_protocol["typed_contract"]["max_candidates"],
         )
         for strategy in strategies
     }

@@ -10,14 +10,14 @@
 - Answer model digest:
   `500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41`
 - Frozen protocol SHA-256:
-  `30b4842153eaf3596649c0143e350c502dbc4c14c85ec606dbad50f52e1c38ee`
+  `06735a68587e8eba2c0b98ef8bdda4e21dde34e2bf7bfd46791b8ef96437b105`
 
 ## Compared strategies
 
 `direct` asks the guarded local model for one final answer, a calculation
 description and evidence IDs. It is the unchanged generation baseline.
 
-`typed_candidate` extracts bounded numeric candidates from admitted evidence.
+`typed_candidate` extracts at most 32 numeric candidates from admitted evidence.
 The model can select candidate IDs and one of seven operations, but it cannot
 submit raw numeric literals. The host validates candidate membership, operation
 arity and citation coverage, then executes the calculation with `Decimal`.
