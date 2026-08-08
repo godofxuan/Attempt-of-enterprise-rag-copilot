@@ -37,7 +37,7 @@ Local protocol before label use:
 - Repository revision inspected:
   `d36685e273713975ee20299bbf1ab64165575b3c`
 - Repository license: MIT.
-- Official description: slightly over 500,000 documents and 500 questions from
+- Official Hugging Face release: 511,962 documents and 500 questions from
   a synthetic company, spanning Slack, Gmail, Linear, Drive, HubSpot,
   Fireflies, GitHub, Jira, and Confluence.
 - Categories include basic, semantic, intra-document, project-related,
@@ -48,6 +48,14 @@ Why selected: it is the strongest match for heterogeneous internal enterprise
 knowledge, conflict, completeness, and refusal. Formal claims are forbidden
 until the full official corpus/protocol runs. A subset may only debug the
 pipeline and must be labeled `PIPELINE_DEBUG`.
+
+The verified question schema is `question_id`, `question_type`, `source_types`,
+`question`, `expected_doc_ids`, `gold_answer`, and `answer_facts`. The document
+schema is only `doc_id`, `source_type`, `title`, and `content`; source-native
+thread, author, timestamp, project, version, freshness, and ACL fields are not
+available and must not be inferred. One official conflicting-info row,
+`qst_0413`, repeats the same expected document ID; the adapter preserves the raw
+annotation and exposes an order-preserving set view for retrieval metrics.
 
 ### Primary C: HERB - conditionally selected for E3
 
@@ -80,4 +88,3 @@ The primary set is capped at WixQA, EnterpriseRAG-Bench, and conditional HERB.
 TechQA and MTRAG are replacements, not additions. DocLayNet remains an optional
 parser stress track. This prevents dataset count from becoming a substitute for
 credible evaluation.
-

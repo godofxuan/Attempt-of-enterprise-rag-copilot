@@ -43,6 +43,43 @@ If the full formal corpus does not fit, the project may run a deterministic
 `PIPELINE_DEBUG` subset but must not report a formal benchmark score or claim a
 500k-document evaluation.
 
+## E2 measured qualification
+
+Official Hugging Face revision:
+`69916e31c68aa5963c00248fd7f0bc12d04fd235`.
+
+Measured/official facts on `2026-08-09`:
+
+- questions: 500 rows, 408,737 bytes, locally verified SHA-256
+  `e25066f4eff3843dd0f3df0d1348113471e072e75007ffe390a0aa83f2a80af2`;
+- documents: 511,962 rows and an exact remote content length of
+  1,409,893,131 bytes; not downloaded and no local SHA-256 yet;
+- host RAM: 31.62 GiB total, approximately 16.95 GiB free during audit;
+- `D:` free space: approximately 68.9 GiB before a full corpus download.
+
+Conservative vector-only scenarios for 1,024-dimensional float32 BGE-M3:
+
+| Average chunks/document | Chunk count | One vector matrix | Cache + FAISS vectors |
+|---:|---:|---:|---:|
+| 1 | 511,962 | 1.95 GiB | 3.91 GiB |
+| 2 | 1,023,924 | 3.91 GiB | 7.81 GiB |
+| 3 | 1,535,886 | 5.86 GiB | 11.72 GiB |
+
+Disk is probably sufficient after reserving 20%, but the current in-memory
+builder is not yet qualified: it simultaneously materializes documents, chunks,
+BM25 Python token objects, the embedding matrix, and FAISS. With only 16.95 GiB
+free during audit, the 2-3 chunk scenarios risk memory exhaustion. Formal E2 is
+therefore `CAPACITY_BLOCKED` until a streaming sample measures actual chunk/token
+distribution and the builder proves bounded peak RSS. The 1.41 GB raw corpus is
+not itself the limiting factor.
+
+Two attempted Git metadata checkouts were stopped before corpus acquisition:
+one ordinary checkout risked fetching all blobs, and one partial clone's checkout
+triggered promisor fetches. The official Hugging Face question parquet and HEAD
+metadata were used instead. These attempts created no formal dataset artifact or
+score.
+
+
 ## Runtime controls
 
 - Download and indexing are resumable and content-addressed.
