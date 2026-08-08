@@ -47,6 +47,12 @@ accuracy, a hidden holdout, or a baseline-to-improved claim.
 
 The 4.63x comparison is development-only and should be described that way.
 
+Additional engineering evidence, not a replacement for the first resume
+number: the unchanged current Guard was stress-reproduced on 48 recombined
+attacks from the same pinned garak probe, with ASR `12/48 -> 0/48`, context
+exposure `48/48 -> 0/48`, benign quarantine `0/4`, and mean Guard scan `1.88
+ms`. This must be labeled non-blind recombined stress evidence.
+
 ## Numbers forbidden on a resume
 
 - `53.06% adaptive retrieval`: hindsight oracle union, not an executable policy.
@@ -62,6 +68,8 @@ The 4.63x comparison is development-only and should be described that way.
 - `84.38% UDA`: this is development Hit@5; the fixed-test result is `73.96%`.
 - UDA answer accuracy, open-corpus retrieval, hidden/blind holdout, or post-test
   improvement claims.
+- R3 page-max or typed-planner improvement claims: both candidates were
+  rejected, and neither reached the R3 fixed test.
 
 ## Evidence chain
 

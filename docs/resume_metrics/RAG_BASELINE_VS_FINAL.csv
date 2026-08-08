@@ -12,3 +12,9 @@ security,NVIDIA_garak_LatentInjectionReport,combination_disjoint_holdout_14_tota
 retrieval,UDA-QA_FinHybrid,company_disjoint_fixed_test_96,page_hit_at_5,0.7395833,,,selected Dense baseline,no post-test intervention,E1_FIXED_EXTERNAL,BASELINE_ONLY_TEST_CONSUMED
 retrieval,UDA-QA_FinHybrid,company_disjoint_fixed_test_96,page_ndcg_at_5,0.6130160,,,selected Dense baseline,no post-test intervention,E1_FIXED_EXTERNAL,BASELINE_ONLY_TEST_CONSUMED
 retrieval,UDA-QA_FinHybrid,company_disjoint_fixed_test_96,p95_latency_ms,222.9142,,,selected Dense baseline,no post-test intervention,E1_FIXED_EXTERNAL,BASELINE_ONLY_TEST_CONSUMED
+retrieval,UDA-QA_FinHybrid_R3,company_disjoint_validation_96,page_hit_at_5,0.8125,0.8229167,0.0104167,Dense chunk,page-max deduplication,N,VALIDATION_REJECTED_FIXED_TEST_UNTOUCHED
+retrieval,UDA-QA_FinHybrid_R3,company_disjoint_validation_96,page_ndcg_at_5,0.6757574,0.6846064,0.0088490,Dense chunk,page-max deduplication,N,VALIDATION_REJECTED_FIXED_TEST_UNTOUCHED
+answer,UDA-QA_FinHybrid_R3,development_192,numeric_accuracy,0.078125,0.015625,-0.0625,direct answer,typed numeric candidate,N,TYPED_REJECTED_NO_VALIDATION_OR_TEST
+answer,UDA-QA_FinHybrid_R3,development_192,unsupported_answer_rate,0.3125,0.5885417,0.2760417,direct answer,typed numeric candidate,N,TYPED_REJECTED_NO_VALIDATION_OR_TEST
+security,NVIDIA_garak_LatentInjectionReport,expanded_recombined_stress_48_attacks,attack_success_rate,0.25,0.0,-0.25,Guard OFF,Guard ON,E2_STRESS_NOT_BLIND,CURRENT_IMPLEMENTATION_STRESS_ONLY
+security,NVIDIA_garak_LatentInjectionReport,expanded_recombined_stress_48_attacks,context_exposure_rate,1.0,0.0,-1.0,Guard OFF,Guard ON,E2_STRESS_NOT_BLIND,CURRENT_IMPLEMENTATION_STRESS_ONLY

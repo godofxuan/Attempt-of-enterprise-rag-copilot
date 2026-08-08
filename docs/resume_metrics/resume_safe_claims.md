@@ -11,6 +11,7 @@ This file is an allowlist, not a suggestion to use every sentence.
 
 5. On a frozen 12-attack combination-disjoint subset of NVIDIA garak's `LatentInjectionReport` probe using local Qwen3-8B, reduced ASR from 4/12 (33.3%) Guard OFF to 0/12 Guard ON and model context exposure from 12/12 to 0/12, with 1.42 ms mean Guard latency. This must say `one probe subset` and `12 attacks`.
 6. On a preregistered, company-disjoint fixed 96-question subset of the external UDA-QA FinHybrid benchmark, BGE-M3 Dense retrieval reached 74.0% Page Hit@5, 61.3% nDCG@5, and 222.9 ms p95 latency when retrieving pages within the known financial report. This must say `within the known report`; it is not document discovery or answer accuracy.
+7. As additional non-blind stress evidence, on 48 recombined attacks from one pinned NVIDIA garak retrieved-report probe, the unchanged current Guard reduced ASR from 12/48 to 0/48 and prevented attack context from reaching the model in 48/48 cases; benign quarantine was 0/4 and mean Guard scan was 1.88 ms. This must say `recombined stress fixture`, `one probe`, and `not a new blind holdout`; the 12-attack combination-disjoint result remains the primary resume claim.
 
 ## Not yet safe
 

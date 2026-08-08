@@ -1386,3 +1386,28 @@ Delivery note: exact implementation commit
 `30759155310` in approximately 9m59s. Ubuntu/Windows completed successfully,
 the Linux container contract passed in about 4m09s, readiness/rollback drills
 passed and one runtime SBOM artifact was published.
+
+## 31. R3 external credibility closeout
+
+R3 is complete except for the activity that intrinsically requires two
+independent human reviewers. It added no new serving framework or Agent. The
+accepted production paths remain unchanged because both quality candidates
+failed their frozen gates.
+
+The new unused-company UDA cohort contains 24/12/12 development/validation/test
+companies and 28 reserve companies. Page-max changed validation Hit@5 from
+81.25% to 82.29% and nDCG@5 from 67.58% to 68.46%; it failed the +5/+3 point
+gates, so fixed test stayed unopened. On 192 development questions, typed
+numeric generation reduced accuracy from 7.81% to 1.56% and was rejected before
+validation. Candidate-oracle coverage of only 7/192 identifies table semantics,
+not planner structure, as the next quality bottleneck.
+
+Expanded current-Guard stress measured ASR 12/48 to 0/48 and context exposure
+48/48 to 0/48 with 0/4 benign quarantines and 1.88 ms mean scan time. This is a
+recombined stress population, not a new blind holdout; the older 12-attack
+combination-disjoint result remains the safer resume claim.
+
+Resume at `docs/r3/R3_EVIDENCE_INDEX.md`. Read
+`docs/r3/R3_ENGINEERING_JOURNAL.md` for implementation and incident history,
+and run `python -m scripts.r3_evidence_tour` for the offline review. Do not open
+the R3 fixed test or spend the reserve companies on a prompt-only candidate.

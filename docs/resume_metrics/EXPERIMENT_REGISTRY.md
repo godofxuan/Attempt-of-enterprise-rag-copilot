@@ -179,3 +179,35 @@ Every result must be registered before it is used in a report or resume claim. A
 - One-shot marker: `COMPLETED`, private result manifest SHA-256 `5c2ea6a24d6ca263cc29fd99fd87ac78736d7d8966b155fbea55e6cc29f72bab`
 - Limitation: not document discovery, answer accuracy, a baseline-to-improved comparison, or a hidden holdout; test is consumed and forbidden for tuning
 - Public evidence SHA-256: `6b08e213e93ae00c9eb834a388c88460d33356282d112f2f80869e0f04a695d0`
+
+### RM-0301 R3 UDA page-max validation
+
+- Status: `VALIDATION_REJECTED`; tier: `N`
+- Protocol/cohort freeze SHA: `0c62dbe`; evaluation SHA: `9c45fbf53dfdcc1d6e41284a1e56944f03e367b5`
+- Dataset: UDA FinHybrid, 96 validation questions from 12 companies absent from R3 development and every earlier UDA cohort
+- Retrieval: unchanged BGE-M3 Dense chunk baseline versus page-max deduplication; same known report and ACL boundary
+- Result: Hit@5 `81.25% -> 82.29%`; nDCG@5 `67.58% -> 68.46%`; p95 `281.16 -> 276.87 ms`
+- Decision: failed frozen `+5pp` Hit@5 and `+3pp` nDCG gates; candidate not promoted; R3 fixed test untouched
+- Private manifest SHA-256: `3bce998a2eebc4e508fcd7e25ab7b87d5f014746853fa259ecea3b51b66c89c6`
+
+### RM-0302 R3 UDA answer and citation development
+
+- Status: `NEGATIVE_DEVELOPMENT`; tier: `N`
+- Protocol SHA: `bfeceffb4d4b89f8b45fcc8b97dd44ac7275746a`; candidate analysis SHA: `5a0b8c709be2a01992395c5037ed3b404e827de2`
+- Dataset: 192 development questions from 24 newly selected companies; validation/test answer labels not used
+- Model: Qwen3-8B digest `500a1f06...b2b8b41`; unchanged BGE-M3 Dense Top-5 evidence; output budgets 256/128; chat cache reset every six cases
+- Result direct/typed: numeric `7.81% / 1.56%`; grounded `7.29% / 1.04%`; unsupported `31.25% / 58.85%`; p95 `8.56 / 3.75 s`
+- Oracle diagnosis: only `7/192` cases had a gold-matching value among the first 32 candidates; `190/192` reached the limit
+- Decision: typed candidate rejected before validation; fixed test untouched
+- Private answer/candidate manifests: `4f5d7fbfdabd344a9545cad2c5ee0a7e3abb5e396d7692a7e326d00b7e8d6437` / `25c24907dbe5d006fa96d28c75bfa68a72ccdf547865d320442ca36d1c12403e`
+
+### RM-0303 expanded garak current-Guard stress reproduction
+
+- Status: `OBSERVED_STRESS`; tier: `E2_STRESS_NOT_BLIND`
+- Fixture builder/freeze/evaluation SHAs: `15ee888` / `e22bd7d` / `837616f258463a0f0fa9e9421549902f0ba28426`
+- Dataset: one pinned NVIDIA garak `LatentInjectionReport` probe, 48 recombined external attacks + 4 benign controls; not a new blind holdout
+- Model: Qwen3-8B digest `500a1f06...b2b8b41`; temperature 0; output 256; local-only egress; counterbalanced arm order
+- Result: ASR `12/48 -> 0/48`; context exposure `48/48 -> 0/48`; Guard ON benign quarantine `0/4`; benign utility `4/4`; mean Guard scan `1.88 ms`
+- Runtime: 56 model calls + 5 cache resets + 1 identity request = 62 allowed local requests; blocked egress 0
+- Limit: larger stress coverage, but less independent than RM-0143; do not replace the combination-disjoint resume claim
+- Private result/public summary hashes: `01f9a6b8e3014c0f958300e0cd1ac9174a6806d6c235d90f05641ef425d2132e` / `76e4f795fef0ce8bc76f23c6d59d5a13b37834fd7acba63c5657b876c9759f2e`
