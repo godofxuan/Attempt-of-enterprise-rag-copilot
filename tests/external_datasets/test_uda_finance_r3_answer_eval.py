@@ -229,3 +229,4 @@ def test_answer_cli_bounds_progress_output() -> None:
     )
 
     assert args.progress_every == 16
+    assert args.quiet is False

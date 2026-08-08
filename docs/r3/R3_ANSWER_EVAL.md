@@ -59,6 +59,8 @@ diagnostics showed roughly 0.34 seconds for retrieval and 1.5 seconds for each
 answer strategy, but the long process later had no network activity or CPU
 growth. The host command wrapper buffered child stderr instead of draining it;
 per-case progress output filled the Windows pipe and blocked Python in `print`.
-The abandoned process trees were stopped by their exact PIDs. Progress output
-is now bounded to one line per 16 cases. No model, retrieval, metric or promotion
-parameter changed, and validation/test markers were never created.
+The abandoned process trees were stopped by their exact PIDs. A second launch
+showed that this host can block on the first native stderr line, so the CLI now
+also provides `--quiet` to suppress progress output completely. Normal terminal
+runs remain bounded to one line per 16 cases. No model, retrieval, metric or
+promotion parameter changed, and validation/test markers were never created.

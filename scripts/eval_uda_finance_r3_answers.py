@@ -62,6 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--answer-protocol", type=Path, default=R3_ANSWER_PROTOCOL_PATH)
     parser.add_argument("--timeout-seconds", type=float, default=120.0)
     parser.add_argument("--progress-every", type=int, default=16)
+    parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--execute-validation", action="store_true")
     parser.add_argument("--execute-frozen-test", action="store_true")
     return parser
@@ -183,7 +184,9 @@ def main(argv: list[str] | None = None) -> int:
                         protocol_error=error,
                     )
                 )
-            if index % args.progress_every == 0 or index == len(cases):
+            if not args.quiet and (
+                index % args.progress_every == 0 or index == len(cases)
+            ):
                 print(
                     f"[{index}/{len(cases)}] "
                     + " ".join(
