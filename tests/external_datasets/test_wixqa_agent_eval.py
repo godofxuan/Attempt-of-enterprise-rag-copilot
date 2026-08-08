@@ -146,3 +146,27 @@ def test_agent_publication_rejects_debug_runs() -> None:
             simulated_private_sha256="b" * 64,
             expertwritten_private_sha256="c" * 64,
         )
+
+
+def test_public_agent_evidence_is_bound_and_rejected() -> None:
+    payload = json.loads(
+        (
+            ROOT
+            / "docs"
+            / "enterprise_eval"
+            / "evidence"
+            / "wixqa_agent_public_v1.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert payload["execution_git_sha"] == (
+        "07b156ed4d1b4e7ff24a06aac7a8d8b41630e03b"
+    )
+    simulated = payload["cohorts"]["simulated"]["summary"]
+    expert = payload["cohorts"]["expertwritten"]["summary"]
+    assert simulated["search_evidence_recall"] == simulated["b2_recall_at_5"]
+    assert expert["search_evidence_recall"] == expert["b2_recall_at_5"]
+    assert simulated["open_calls_mean"] == 0.0
+    assert expert["find_calls_mean"] == 0.0
+    assert simulated["multi_article_citation_complete"] == 0.0
+    assert expert["multi_article_citation_complete"] == 0.0
+    assert payload["claim_boundary"]["answer_correctness"] == "NOT_MEASURED"

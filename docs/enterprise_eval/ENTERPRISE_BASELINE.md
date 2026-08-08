@@ -109,3 +109,29 @@ quality gaps; global OR BM25 scoring is also too slow for an interactive SLO.
 
 Public aggregate evidence:
 `evidence/enterprise_rag_bench_bm25_public_v1.json`.
+
+## WixQA E1 bounded-Agent missing arm
+
+Execution SHA: `07b156ed4d1b4e7ff24a06aac7a8d8b41630e03b`.
+
+The missing B3 arm ran the actual V2 Runner, typed ToolRegistry, retrieved-content
+Guard, deterministic controller, evidence ledger, extractive response builder,
+and citation verifier. Its first search reused the exact equal-RRF B2 ranking;
+no stronger retriever or model was substituted.
+
+| Cohort | B2 Recall@5 | Agent search-evidence recall | Citation precision | Citation recall | Multi-article citation complete | B2 / Agent p95 |
+|---|---:|---:|---:|---:|---:|---:|
+| Simulated (200) | 52.92% | 52.92% | 26.50% | 23.25% | 0.00% (27 cases) | 299.3 / 476.7 ms |
+| ExpertWritten (200) | 59.25% | 59.25% | 35.18% | 30.92% | 0.00% (52 cases) | 342.5 / 502.7 ms |
+
+Every case made exactly one search; mean find and open calls were both zero.
+Simulated produced 129 answered and 71 partial responses. ExpertWritten produced
+144 answered, 55 partial, and one not-found response. None of the 400 cases had
+a structured tool error.
+
+Decision: `AGENTIC_ROUTE_REJECTED`. The controller did not expand retrieval,
+while final source selection collapsed multi-article evidence to one cited source.
+Latency rose 1.59x on Simulated and 1.47x on ExpertWritten. This run measures
+retrieval/citation identity and tool behavior, not answer correctness.
+
+Public aggregate evidence: `evidence/wixqa_agent_public_v1.json`.

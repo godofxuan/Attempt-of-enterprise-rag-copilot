@@ -76,3 +76,22 @@ as evidence that disk-backed indexing controls memory. Do not present its 60.37%
 Recall@5 as a final system accuracy or claim it proves Agent, answer, citation,
 or refusal quality. The next candidate must target semantic and multi-document
 failures while reporting latency cost.
+
+## Current bounded Agent does not improve WixQA retrieval
+
+The production V2 Runner/Registry/Guard path was evaluated as the missing B3 arm
+on both fixed 200-question WixQA cohorts. It preserved the same B2 RRF ranking,
+but every case made exactly one search and no case called `find` or `open`.
+Therefore Agent searched-evidence recall was identical to B2: 52.92% on
+Simulated and 59.25% on ExpertWritten.
+
+The extractive response selected one source for the single rule-derived required
+aspect. Citation recall fell to 23.25% and 30.92%, and multi-article citation
+completeness was 0% on both cohorts. p95 latency rose from 299.3 to 476.7 ms on
+Simulated and from 342.5 to 502.7 ms on ExpertWritten.
+
+This was not a crash or Guard rejection: all 400 cases had no tool error. The
+rule analyzer produced one required aspect, and the controller's open branch is
+limited to explicit `completeness` intent. Real support wording did not trigger
+that route. Decision: `AGENTIC_ROUTE_REJECTED`. The code remains an audited
+bounded mechanism, but must not be presented as measured Agent quality gain.

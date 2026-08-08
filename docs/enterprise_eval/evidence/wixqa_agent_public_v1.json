@@ -1,0 +1,74 @@
+{
+  "agent_budget": {
+    "deadline_ms": 15000,
+    "max_context_chars": 12000,
+    "max_find_calls": 2,
+    "max_open_calls": 4,
+    "max_search_calls": 3,
+    "max_steps": 12
+  },
+  "claim_boundary": {
+    "agent_promotion_rule": "reject when quality does not improve or latency is at least 3x",
+    "agent_search_evidence": "union of top-5 results per actual search call",
+    "answer_correctness": "NOT_MEASURED",
+    "citation_precision_recall_gold": "official article IDs"
+  },
+  "cohorts": {
+    "expertwritten": {
+      "private_summary_sha256": "de7c6f0922da0740f866f3924674ff610322b77a030bb6892eeb83ff4a199c2e",
+      "query_embedding_calls": 200,
+      "question_ids_sha256": "ec11e3e4733bd6701441b127952fa98b0973f9961a0aacabfae570da45976110",
+      "summary": {
+        "agent_latency_ms_p95": 502.71889998111874,
+        "answered_rate": 0.995,
+        "b2_latency_ms_p95": 342.4789001001045,
+        "b2_recall_at_5": 0.5925,
+        "case_count": 200,
+        "citation_precision": 0.35175879396984927,
+        "citation_recall": 0.30916666666666665,
+        "cohort": "expertwritten",
+        "find_calls_mean": 0.0,
+        "latency_ratio_p95": 1.4678828384293954,
+        "multi_article_case_count": 52,
+        "multi_article_citation_complete": 0.0,
+        "open_calls_mean": 0.0,
+        "open_case_rate": 0.0,
+        "schema_version": "wixqa_agent_summary_v1",
+        "search_calls_mean": 1.0,
+        "search_evidence_recall": 0.5925
+      }
+    },
+    "simulated": {
+      "private_summary_sha256": "e54adb091a6e58110d48056922088d2a8b56ec0c52b324d87b8412e5f0474d42",
+      "query_embedding_calls": 200,
+      "question_ids_sha256": "871550a19297d3c267f03f2d819f0fd1cef566a8e3c11fdb92ea18792d71b465",
+      "summary": {
+        "agent_latency_ms_p95": 476.7022000160068,
+        "answered_rate": 1.0,
+        "b2_latency_ms_p95": 299.3281000526622,
+        "b2_recall_at_5": 0.5291666666666667,
+        "case_count": 200,
+        "citation_precision": 0.265,
+        "citation_recall": 0.2325,
+        "cohort": "simulated",
+        "find_calls_mean": 0.0,
+        "latency_ratio_p95": 1.592574168386257,
+        "multi_article_case_count": 27,
+        "multi_article_citation_complete": 0.0,
+        "open_calls_mean": 0.0,
+        "open_case_rate": 0.0,
+        "schema_version": "wixqa_agent_summary_v1",
+        "search_calls_mean": 1.0,
+        "search_evidence_recall": 0.5291666666666667
+      }
+    }
+  },
+  "dataset_manifest_sha256": "e40972d70a8c80685b3730733efd90ac82a01fd52a949a0d27e122809bc290dd",
+  "embedding_model": "bge-m3",
+  "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+  "execution_git_sha": "07b156ed4d1b4e7ff24a06aac7a8d8b41630e03b",
+  "fixed_chunk_candidate_k": 200,
+  "index_manifest_sha256": "d21b3aa78bc578a86d421c4db724b6441d404e13ed628bd8c22fdaff002daa09",
+  "protocol_sha256": "043625d1d5d4d82daab91fc3d0bf024259619d0242b9d8f80234fcdcf87cb389",
+  "schema_version": "wixqa_agent_public_v1"
+}
