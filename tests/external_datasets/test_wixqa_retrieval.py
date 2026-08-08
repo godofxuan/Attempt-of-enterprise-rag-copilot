@@ -1,0 +1,139 @@
+from __future__ import annotations
+
+import hashlib
+from datetime import datetime, timezone
+
+from pathlib import Path
+
+import numpy as np
+
+import pytest
+
+from app.domain.enterprise_documents import EnterpriseDocument, RawProvenance
+from app.external_datasets.wixqa import WIXQA_REVISION, WixQAQuestion
+from app.external_datasets.wixqa_retrieval import (
+    build_flat_chunks,
+    build_wixqa_flat_index,
+    load_wixqa_flat_index,
+    reciprocal_rank_fusion,
+    score_wixqa_ranking,
+    summarize_wixqa_scores,
+    verify_wixqa_flat_index,
+)
+
+
+def _article(article_id: str, text: str) -> EnterpriseDocument:
+    raw_hash = hashlib.sha256(text.encode()).hexdigest()
+    return EnterpriseDocument(
+        document_id=f"wixqa:article:{article_id}",
+        source_type="support_article",
+        source_native_id=article_id,
+        title=f"Title {article_id}",
+        text=text,
+        timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        raw_provenance=RawProvenance(
+            dataset_name="WixQA",
+            source_revision=WIXQA_REVISION,
+            source_file="fixture.jsonl",
+            source_row=1,
+            source_native_id=article_id,
+            raw_record_sha256=raw_hash,
+        ),
+    )
+
+
+def _question() -> WixQAQuestion:
+    return WixQAQuestion(
+        question_id="wixqa:simulated:" + "a" * 24,
+        cohort="simulated",
+        source_row=1,
+        question="question",
+        answer="answer",
+        article_ids=["a", "b"],
+        raw_record_sha256="b" * 64,
+    )
+
+
+def test_flat_chunks_are_deterministic_and_repeat_title() -> None:
+    articles = [_article("a", "0123456789")]
+    first = build_flat_chunks(articles, chunk_size=6, overlap=2)
+    second = build_flat_chunks(articles, chunk_size=6, overlap=2)
+    assert first == second
+    assert [item.ordinal for item in first] == [1, 2]
+    assert all(item.text.startswith("Title a\n") for item in first)
+
+
+def test_flat_chunk_configuration_is_bounded() -> None:
+    with pytest.raises(ValueError, match="invalid"):
+        build_flat_chunks([_article("a", "text")], chunk_size=5, overlap=5)
+
+
+def test_rrf_rewards_cross_retriever_agreement() -> None:
+    ranking = reciprocal_rank_fusion(["a", "b", "c"], ["b", "a", "d"])
+    assert ranking[:2] == ["a", "b"]
+    assert set(ranking) == {"a", "b", "c", "d"}
+
+
+def test_multi_article_metrics_separate_hit_from_completeness() -> None:
+    question = _question()
+    partial = score_wixqa_ranking(
+        question,
+        arm="hybrid_rrf",
+        ranked_article_ids=["a", "x", "y", "z", "q"],
+        latency_ms=1.0,
+    )
+    complete = score_wixqa_ranking(
+        question,
+        arm="hybrid_rrf",
+        ranked_article_ids=["x", "a", "b", "z", "q"],
+        latency_ms=2.0,
+    )
+    assert partial.hit_at_1 == 1.0
+    assert partial.recall_at_5 == 0.5
+    assert partial.complete_at_5 == 0.0
+    assert complete.recall_at_5 == 1.0
+    assert complete.complete_at_5 == 1.0
+    summary = summarize_wixqa_scores(
+        [partial, complete], cohort="simulated", arm="hybrid_rrf"
+    )
+    assert summary.article_recall_at_5 == 0.75
+    assert summary.multi_article_completeness_at_5 == 0.5
+
+
+def test_flat_index_is_hash_bound_and_loadable(tmp_path: Path) -> None:
+    articles = [
+        _article("a", "alpha setup instructions"),
+        _article("b", "beta billing instructions"),
+    ]
+    state: dict[str, str] = {}
+
+    def embed(chunks):
+        state["build_id"] = "c" * 64
+        rows = []
+        for chunk in chunks:
+            rows.append(
+                [
+                    1.0 if "alpha" in chunk.text else 0.0,
+                    1.0 if "beta" in chunk.text else 0.0,
+                ]
+            )
+        return np.asarray(rows, dtype="float32")
+
+    manifest = build_wixqa_flat_index(
+        output_root=tmp_path,
+        run_id="fixture-v1",
+        articles=articles,
+        dataset_manifest_sha256="a" * 64,
+        embedding_model="fixture",
+        embedding_model_sha256="b" * 64,
+        embed_chunks=embed,
+        embedding_cache_build_id=lambda: state["build_id"],
+        chunk_size=100,
+        overlap=10,
+    )
+    version = tmp_path / "versions" / "fixture-v1"
+    assert verify_wixqa_flat_index(version) == manifest
+    loaded = load_wixqa_flat_index(tmp_path)
+    assert loaded.dense_article_ranking(
+        np.asarray([[0.0, 1.0]], dtype="float32"), candidate_k=2
+    )[0] == "b"
