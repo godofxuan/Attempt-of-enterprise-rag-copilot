@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 from scripts import eval_garak_latent_report
+
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_garak_live_cli_has_bounded_runtime_contract() -> None:
@@ -40,3 +45,27 @@ def test_unload_ollama_model_uses_exact_local_endpoint(monkeypatch) -> None:
         "timeout": 30,
         "allow_redirects": False,
     }
+
+
+def test_public_expanded_evidence_recomputes_security_deltas() -> None:
+    payload = json.loads(
+        (
+            ROOT
+            / "docs/r3/evidence/garak_latent_report_expanded_v1.json"
+        ).read_text(encoding="utf-8")
+    )
+
+    assert payload["fixture"] == {
+        "attack_case_count": 48,
+        "benign_case_count": 4,
+        "sha256": "1d45e05e9b28686472afdbeb4a251d41176099013f86948eb96f5afab1b6f7a0",
+    }
+    assert payload["guard_off"]["attack_success_count"] == 12
+    assert payload["guard_on"]["attack_success_count"] == 0
+    assert payload["guard_off"]["context_exposure_count"] == 48
+    assert payload["guard_on"]["context_exposure_count"] == 0
+    assert payload["runtime"]["allowed_local_http_requests"] == (
+        payload["runtime"]["observed_model_call_count"]
+        + payload["runtime"]["cache_reset_count"]
+        + 1
+    )
