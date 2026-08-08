@@ -1,0 +1,83 @@
+{
+  "artifact_hashes": {
+    "private_details_sha256": "76a8747fa88bc52f491194de8cb1be9e35eba9314aa2fb487c7a49236a278bb4",
+    "private_manifest_sha256": "5c2ea6a24d6ca263cc29fd99fd87ac78736d7d8966b155fbea55e6cc29f72bab",
+    "private_summary_sha256": "c3b747eb4d5aaa6df6b02a09ff834ea6e0333c7328c7715a07a5dfbbd8f79d24"
+  },
+  "case_count": 96,
+  "code_revision": "b21320274c6c886eb2cf3c33ddf96fc6f4c6f260",
+  "dataset": "UDA-QA/FinHybrid",
+  "dataset_manifest_sha256": "b9e12c78f638908e3199adad93835731d6a7cb9e2b51e625bb20ee4ab87596d8",
+  "dataset_revisions": {
+    "github": "fca5237ac316e776d8dbccffa55ca29c0efdc185",
+    "huggingface": "d4367103fe8fe86b3bb76c66be8eafc4fb4117b2"
+  },
+  "document_count": 12,
+  "embedding": {
+    "calls": 96,
+    "dimension": 1024,
+    "model": "bge-m3",
+    "model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab"
+  },
+  "failure_diagnostics": {
+    "gold_page_max": 266,
+    "gold_page_min": 13,
+    "miss_count_at_5": 25,
+    "miss_nearest_retrieved_page": {
+      "adjacent_within_1": 7,
+      "farther_than_10": 10,
+      "within_10_but_farther_than_3": 7,
+      "within_3_but_farther_than_1": 1
+    },
+    "page_locator_coverage_at_5": 1.0,
+    "rank_counts": {
+      "1": 45,
+      "2": 10,
+      "3": 10,
+      "4": 5,
+      "5": 1,
+      "miss": 25
+    }
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 5 7500F",
+    "gpu": "NVIDIA GeForce RTX 5060 8151 MiB",
+    "gpu_driver": "610.88",
+    "os": "Windows 11 Pro 10.0.26200"
+  },
+  "index": {
+    "build_duration_ms": 329887.67130009364,
+    "chunk_count": 8905,
+    "manifest_sha256": "db8b933ddbd69f1736c0c3f20a5bc9e4586c645a98be788dd159b01511eae18b",
+    "parser": "pypdf 6.14.2",
+    "run_id": "uda-finance-bge-m3-v1"
+  },
+  "limitations": [
+    "The public labels make this a fixed external test, not a hidden blind holdout.",
+    "Retrieval is conditioned on the known report and does not measure document discovery.",
+    "The result measures page retrieval, not answer correctness or citation faithfulness.",
+    "The 96 test cases cover 12 companies and must not be reused for tuning."
+  ],
+  "metrics": {
+    "latency_ms_mean": 201.3113947966,
+    "latency_ms_p50": 196.96059997659177,
+    "latency_ms_p95": 222.91420004330575,
+    "macro_page_recall_at_5": 0.7395833333333334,
+    "page_hit_at_1": 0.46875,
+    "page_hit_at_3": 0.6770833333333334,
+    "page_hit_at_5": 0.7395833333333334,
+    "page_mrr_at_5": 0.5706597222222224,
+    "page_ndcg_at_5": 0.6130159701387092
+  },
+  "protocol_sha256": "73cd9980ac84e9267688fe700767a8431f1d3a17675adbef4e69ee7a20180343",
+  "retrieval_arm": "dense",
+  "run_id": "uda-rm0204-test-dense-b213202",
+  "schema_version": "uda_finance_test_public_evidence_v1",
+  "selection_commit": "8a1f103e1f941f4cf957e00633069cfe959aa6d0",
+  "split": "company_disjoint_fixed_test",
+  "test_execution": {
+    "execution_limit": 1,
+    "marker_status": "COMPLETED",
+    "test_company_overlap_with_dev": 0
+  }
+}

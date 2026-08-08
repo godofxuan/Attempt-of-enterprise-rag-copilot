@@ -60,3 +60,15 @@ so those historical protocols now correctly reject the current source tree.
 Their published aggregates remain evidence for their original exact revisions;
 reproduction requires checking out that revision. The old protocol/evidence
 JSON was not rewritten to make the new tree appear source-identical.
+
+## UDA fixed test is a baseline, not an improvement
+
+UDA development Dense Hit@5 was 84.38%, while the company-disjoint 96-case
+fixed test reached 73.96%. This 10.42 percentage-point drop is a generalization
+warning, not a regression against a production baseline. No post-test parser,
+chunker, fusion, or reranker change was evaluated on an unused population, so
+the UDA result must not be written as `baseline -> improved`.
+
+The test is conditioned on a known report. It cannot support document-discovery
+or answer-accuracy claims, and its public labels make it fixed external evidence
+rather than a hidden blind holdout.

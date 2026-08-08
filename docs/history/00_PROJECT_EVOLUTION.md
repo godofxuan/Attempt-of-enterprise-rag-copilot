@@ -1400,3 +1400,62 @@ full `3025 passed / 29 skipped` suite. Replacement remote acceptance is run
 `9m36s`; readiness/rollback and SBOM publication also passed. The runtime SBOM
 artifact digest is
 `sha256:0f93fcc2d3d7cef9dc0470b901ae663de1a0a273cd6b04a939db70a9d79d9b9a`.
+
+## 47. FinQA Gate E19: versioned service assembly and explicit enablement
+
+E18 had implemented the admitted-evidence typed context path, but it was still
+an injectable mechanism rather than a complete serving assembly. E19 added a
+versioned composition root, made lifecycle ownership explicit and produced
+paired `OFF` versus `LOCAL_TEST_ONLY` API evidence. The default remained off:
+the primary answer path, ACL, Guard and grounding behavior were not silently
+changed.
+
+This gate matters operationally because a feature is not production-ready just
+because its classes exist. Construction, dependency ownership, shutdown order,
+configuration validation and rollback behavior must be testable at the service
+boundary. E19 closed that wiring gap without claiming production traffic,
+answer-quality gain or broad model support.
+
+## 48. External credibility round: frozen metrics before more features
+
+The next round deliberately stopped adding Agent frameworks. It created an
+experiment registry and resume-safe claims, then evaluated the existing system
+on FinanceBench retrieval, FinQA end-to-end numeric QA and a pinned garak
+retrieved-content injection subset. Every public claim records dataset/split,
+model, command, latency, status, limitations and artifact hashes.
+
+The experiments also preserved negative results. An optional cross-encoder did
+not produce a stable FinanceBench page-retrieval gain worth its cost, so it was
+not promoted. FinQA showed that evidence retrieval was much stronger than
+strict numeric answer accuracy, locating the bottleneck in semantic operation
+and operand planning rather than in adding another vector database. The garak
+paired experiment measured the Guard with the same attacks and model in OFF/ON
+arms instead of inferring safety from unit tests alone.
+
+## 49. UDA-QA FinHybrid: company-disjoint page-retrieval baseline
+
+FinanceBench had already consumed its development and test populations. To add
+new independent evidence without post-test tuning, the project pinned the
+official UDA-Benchmark Git revision, UDA-QA Hugging Face revision and archive
+content hash. A stable-hash protocol selected 8 development companies (64
+questions) and 12 disjoint test companies (96 questions), with one report per
+company and eight questions per report.
+
+The experiment follows UDA's known-document QA contract: retrieval is restricted
+to the gold report and measures page localization, not open-corpus document
+discovery or answer accuracy. On development, BM25, BGE-M3 Dense and RRF were
+compared under one index. Dense won the preregistered nDCG@5 criterion and was
+frozen before test execution. A one-shot marker then prevented rerunning the
+fixed test under a different run ID.
+
+The 96-question fixed test produced Page Hit@1/3/5 of 46.88%/67.71%/73.96%,
+MRR@5 57.07%, nDCG@5 61.30% and p95 query latency 222.91 ms. Development
+Hit@5 had been 84.38%, so the 10.42 percentage-point drop is retained as a
+generalization warning rather than hidden. Of 25 Top-5 misses, seven had a
+retrieved page adjacent to the gold page; the remaining failures were more
+distant. The test is public-label and now consumed. Further UDA tuning requires
+a newly frozen population and cannot reuse these 96 labels for selection.
+
+Implementation and incident details are recorded in
+`docs/external_datasets/uda_finance_engineering_journal.md`; content-free public
+evidence is in `docs/external_datasets/evidence/uda_finance_test_v1.json`.

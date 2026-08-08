@@ -56,8 +56,20 @@
 
 ## 14. 你会怎么继续？
 
-**回答：** 不再加框架。优先获取新的独立 financial page-ranking 数据；在 dev 上尝试 domain-matched reranker 或 query/page representation，冻结后只评一次 holdout。安全侧扩展到 probe-family-disjoint 的 retrieved-content injection 和更多 benign 文档；答题侧补 claim-level citation coverage、unsupported-claim 和 refusal 的 deterministic/human-reviewed protocol。没有新数据就停止调参。
+**回答：** 不再加框架。项目后来接入了外部 UDA-QA FinHybrid，并按公司隔离为 64 题 dev 和 96 题固定 test。Dense 在 dev 被选中后只运行了一次 test，因此这 96 题现在也已经消费，不能继续用于选择 reranker 或调参数。若继续质量优化，必须再建立新的未消费数据；安全侧则需要 probe-family-disjoint 攻击集和更多 benign 文档。没有新数据就停止调参。
 
 ## 15. 修改 Guard 后为什么一度有 166 个失败/错误？
 
-**回答：** 不是 166 个业务 bug，而是同一个 provenance 不变量被安全升级触发。历史 live run 使用旧 Guard，当前 replay 使用新 Guard；旧 schema 错误要求两者 hash 永远相等，导致依赖它的 fixture 级联失败。我没有重写历史 evidence，而是把 source provenance 与 replay provenance 分开，并仅对已知 historical manifest 接受其旧 verifier。最终全量 `3056 passed / 30 skipped`。这说明 hash 绑定不仅能防篡改，也必须支持显式版本演进。
+**回答：** 不是 166 个业务 bug，而是同一个 provenance 不变量被安全升级触发。历史 live run 使用旧 Guard，当前 replay 使用新 Guard；旧 schema 错误要求两者 hash 永远相等，导致依赖它的 fixture 级联失败。我没有重写历史 evidence，而是把 source provenance 与 replay provenance 分开，并仅对已知 historical manifest 接受其旧 verifier。当时全量结果为 `3056 passed / 30 skipped`；加入 UDA 外部评测后，当前全量为 `3069 passed / 30 skipped`。这说明 hash 绑定不仅能防篡改，也必须支持显式版本演进。
+
+## 16. 为什么选择 UDA-QA FinHybrid？
+
+**回答：** FinanceBench 的失败分析指向“已找到正确报告，但正确页面没有排进 Top-5”。UDA-QA FinHybrid 使用真实金融年报 PDF，问题带有来源页，并且文本和表格混合，正好可以独立验证页定位。它由外部团队构建、采用 CC-BY-SA-4.0，并能固定 Git、Hugging Face revision 和文件 hash。实验按 UDA 原任务在已知报告内找页面，所以我只声称 page retrieval，不声称开放语料 document discovery。
+
+## 17. 为什么 UDA dev 是 84.38%，test 只有 73.96%？
+
+**回答：** dev 和 test 按公司完全隔离，报告和问题都不重叠。Dense 是根据 dev nDCG@5 选择的，因此 dev 本来就包含选择偏差；固定 test 下降 10.42 个百分点是正常的泛化回落，也是冻结 test 的意义。如果只写 84.38%，就是把调参集结果冒充最终效果。简历必须写 96 题 test 的 73.96% Hit@5，并说明这是已知报告内页检索。
+
+## 18. 为什么不根据 UDA test 的 25 个失败继续修？
+
+**回答：** 可以用失败做诊断，但不能再用同一 test 选择方案并声称它仍是独立评测。25 个失败中，7 个候选页与 gold 相邻，10 个相距超过 10 页，说明同时存在页边界和语义排序问题；这只能形成下一轮假设。真正修改 parser、chunk 或 reranker，需要新的 dev 数据，并在另一个未消费 test 上验证。当前 one-shot marker 已把这次 test 状态锁为 `COMPLETED`，重复运行会被拒绝。

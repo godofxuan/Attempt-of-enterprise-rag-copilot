@@ -228,6 +228,24 @@
 | 216 | 2026-08-03 | [`416c5b1`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/416c5b1666abd9924bfc74d28373ac03f1ee32f2) | docs(finqa): record E18 implementation checkpoint [skip ci] |
 | 217 | 2026-08-03 | [`1ccdfa0`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/1ccdfa0821ba881a5233dd3410c48fd58c0d3ab1) | docs(finqa): start E18 remote acceptance |
 | 218 | 2026-08-03 | [`2a73cbb`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/2a73cbb6ce06d2c872fbfcd5d5cd847121a1a6e6) | fix(cache): serialize root validation after lock |
+| 219 | 2026-08-03 | [`d33fbe7`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/d33fbe75314f2ac0ac713646f43fa4ac1f48709d) | docs(finqa): close E18 remote delivery [skip ci] |
+| 220 | 2026-08-07 | [`28417da`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/28417da2a6988c7c61820b68e8b59dbed267dd9c) | feat: complete FinQA E19 versioned service wiring |
+| 221 | 2026-08-07 | [`d8cda10`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/d8cda100d3a92935f987a5e58ab053e546e7cd11) | eval: add FinanceBench rank and p50 metrics |
+| 222 | 2026-08-07 | [`7a676bb`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/7a676bbcd42bdc8c418e79d5ed559c187de7dff8) | eval: freeze resume baseline registry |
+| 223 | 2026-08-07 | [`6794977`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/6794977e86dfd050a0be16a89f9e20a555835d45) | eval: add optional guarded cross encoder reranker |
+| 224 | 2026-08-07 | [`99314ed`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/99314ed37a17ae7c4efe282ab31971afb6b338d9) | eval: pin cross encoder snapshot and cache |
+| 225 | 2026-08-07 | [`e6128f4`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/e6128f4f32554e2226ff38f0494b27596e862a44) | eval: add typed FinanceBench failure analysis |
+| 226 | 2026-08-07 | [`19be1ba`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/19be1ba9e1b07efb98a1af4d3e722c4d8e8e4495) | fix: normalize optional FinanceBench reasoning |
+| 227 | 2026-08-07 | [`285dafc`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/285dafc1310b7e7536d420358a5b015ea1a5316b) | eval: add pinned garak latent injection benchmark |
+| 228 | 2026-08-07 | [`b382f56`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/b382f560acbc819efbf32509bd5a0d16258756ef) | eval: freeze garak latent report holdout |
+| 229 | 2026-08-07 | [`1e7ea0c`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/1e7ea0c9fbd037277fc5feaa733d2063d315e63a) | security: close garak report guard gaps |
+| 230 | 2026-08-07 | [`95fc114`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/95fc1142690132c48621904ee128803057027da5) | fix: report garak fixture counts dynamically |
+| 231 | 2026-08-07 | [`e1bc42a`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/e1bc42ac29fe8720fd4ccc976387cb46f701f802) | eval: close external credibility metrics round |
+| 232 | 2026-08-08 | [`b539787`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/b539787021a2088dbe19e9df27c28a58071451b6) | eval: freeze UDA finance page protocol |
+| 233 | 2026-08-08 | [`ef5aa61`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/ef5aa61d7b419efb961e45e1c4aa7d1d57c8f910) | eval: add UDA finance page runner |
+| 234 | 2026-08-08 | [`eb7b782`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/eb7b7824ad85c4a16ea119e5adeaccb7e86cd502) | fix(eval): verify UDA archive content hash |
+| 235 | 2026-08-08 | [`8a1f103`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/8a1f103e1f941f4cf957e00633069cfe959aa6d0) | eval: freeze UDA dense test selection |
+| 236 | 2026-08-08 | [`b213202`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/commit/b21320274c6c886eb2cf3c33ddf96fc6f4c6f260) | eval: enforce one-shot UDA frozen test |
 
 ## 范围说明
 

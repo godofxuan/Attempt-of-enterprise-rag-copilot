@@ -154,3 +154,28 @@ Every result must be registered before it is used in a report or resume claim. A
 - Failure/limit: one probe, combination-disjoint rather than probe-family-disjoint, only two benign controls
 - Private result SHA-256: `1c3faee7284bd4dc6a1d123982a944dcbbef8d8b13154b68da0a4bad34a1670a`
 - Public evidence SHA-256: `b2c56883079ef01510986452b61ac43d23e851ce35b6783efbb7094f5ddd21f9`
+
+### RM-0201 / RM-0202 / RM-0203 UDA FinHybrid development arms
+
+- Status: `OBSERVED_DEVELOPMENT`; tier: `E2`
+- Protocol freeze SHA: `b539787`; runner SHA: `eb7b7824ad85c4a16ea119e5adeaccb7e86cd502`
+- Dataset: UDA-QA FinHybrid, Git revision `fca5237...dc185`, Hugging Face revision `d436710...117b2`, CC-BY-SA-4.0
+- Split: 64 questions, eight reports from eight companies; no company overlaps the fixed test
+- Retrieval: known-report page localization; BGE-M3 digest `790764...2146bab`; 8,905 chunks; no answer model or reranker
+- Hardware: Ryzen 5 7500F, RTX 5060 8151 MiB, Windows 11 Pro 10.0.26200
+- Command: `python -m scripts.eval_uda_finance_pages --run-id <id> --split dev --retrieval-arm <bm25|dense|hybrid_rrf> --candidate-k 20 --max-chunks-per-doc 5 --no-include-parent`
+- Results BM25 / Dense / RRF: Hit@5 `0.6719 / 0.8438 / 0.7969`; nDCG@5 `0.5317 / 0.6654 / 0.6614`; p95 `123.68 / 235.42 / 297.92 ms`
+- Decision: Dense selected by preregistered nDCG@5 before test; RRF's higher MRR did not change the metric after observation
+- Public selection evidence SHA-256: `f05acb50aa4a2d11fded62ce8fc72603c263aab7f929ca8577e76d9024ce9d44`
+
+### RM-0204 UDA FinHybrid company-disjoint fixed test
+
+- Status: `OBSERVED_TEST_CONSUMED`; tier: `E1_FIXED_EXTERNAL`
+- Selection SHA: `8a1f103e1f941f4cf957e00633069cfe959aa6d0`; evaluation SHA: `b21320274c6c886eb2cf3c33ddf96fc6f4c6f260`
+- Split: 96 questions, 12 reports from 12 companies absent from development; deterministic public-label fixed test, not hidden blind review
+- Retrieval: Dense page retrieval conditioned on the known report; BGE-M3 digest `790764...2146bab`; candidate-k 20; top-k 5
+- Result: Hit@1/3/5 `0.4688 / 0.6771 / 0.7396`; MRR@5 `0.5707`; nDCG@5 `0.6130`; p95 `222.91 ms`
+- Failure: 25/96 misses; seven nearest retrieved pages were adjacent and ten were more than ten pages away
+- One-shot marker: `COMPLETED`, private result manifest SHA-256 `5c2ea6a24d6ca263cc29fd99fd87ac78736d7d8966b155fbea55e6cc29f72bab`
+- Limitation: not document discovery, answer accuracy, a baseline-to-improved comparison, or a hidden holdout; test is consumed and forbidden for tuning
+- Public evidence SHA-256: `6b08e213e93ae00c9eb834a388c88460d33356282d112f2f80869e0f04a695d0`

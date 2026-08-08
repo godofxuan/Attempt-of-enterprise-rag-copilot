@@ -116,7 +116,7 @@ manifests bind the current Guard dependency separately. Frozen FinQA protocols
 also retain their old source hash and now explicitly detect current-source drift
 instead of being silently rewritten.
 
-Final verification on Windows:
+External-credibility closeout verification on Windows before UDA continuation:
 
 - full pytest: `3056 passed, 30 skipped, 3 known FAISS/SWIG warnings` in 164.73 s;
 - closeout schema/hash gate: `4 passed`;
@@ -126,9 +126,27 @@ Final verification on Windows:
   `2dd035b857638614f932bcc48adeecc48425d5aa4868c4df1d7194deb7667111`;
 - historical evidence files were not regenerated or mutated.
 
+Final verification after the UDA continuation:
+
+- UDA focused tests: `11 passed, 3 known FAISS/SWIG warnings` in 0.45 s;
+- full pytest: `3069 passed, 30 skipped, 3 known FAISS/SWIG warnings` in
+  232.05 s;
+- public repository audit: `1406 candidates / 0 findings` under the
+  implemented static audit rules;
+- the public UDA test artifact SHA-256 is
+  `6b08e213e93ae00c9eb834a388c88460d33356282d112f2f80869e0f04a695d0`;
+- external PDFs, questions, answers, embeddings and per-case details remain in
+  ignored `.private/` storage and were not included in the public evidence.
+
 ## Stop decision
 
-Stop adding frameworks or agents. Continue only if a new independent financial
-page-ranking dataset or a pre-registered probe-family-disjoint security holdout
-is available. The current evidence supports engineering credibility; repeated
-tuning on the same 150 FinanceBench cases would reduce it.
+The continuation condition was met once by adding the external UDA-QA
+FinHybrid protocol. It was frozen at `b539787`, selected Dense on 64 development
+questions, and consumed one company-disjoint 96-question fixed test at
+`b213202`. Test Page Hit@5 was `73.96%`, nDCG@5 `61.30%`, and p95 `222.91 ms`.
+This adds an external fixed page-retrieval baseline, not an improvement claim.
+
+Stop adding frameworks, agents, or post-test tuning. The UDA test is consumed,
+the FinanceBench test was historically visible, and no new intervention has an
+unused independent evaluation population. Continue only with a newly frozen
+dataset or an independently administered probe-family security holdout.

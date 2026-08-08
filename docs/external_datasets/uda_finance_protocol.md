@@ -1,6 +1,6 @@
 # UDA FinHybrid Page-Retrieval Protocol
 
-Status: `DEV COMPLETE; DENSE SELECTED; FROZEN TEST NOT RUN`
+Status: `COMPLETE; FROZEN TEST CONSUMED ONCE`
 
 ## Purpose
 
@@ -60,3 +60,17 @@ the highest development Page nDCG@5 (`0.665396`), narrowly above RRF
 (`0.661425`) and above BM25 (`0.531742`). The frozen choice is therefore Dense.
 RRF's higher Hit@1 and MRR do not change the preregistered primary metric. The
 content-free aggregate is stored in `evidence/uda_finance_dev_selection_v1.json`.
+
+## Frozen test result
+
+The one-shot marker was completed at code revision
+`b21320274c6c886eb2cf3c33ddf96fc6f4c6f260`. On 96 questions from 12 companies
+that do not occur in development, Dense reached Page Hit@5 `73.96%`, MRR@5
+`57.07%`, nDCG@5 `61.30%`, and p95 query latency `222.91 ms`. Development Hit@5
+was `84.38%`, so the fixed test exposed a 10.42 percentage-point generalization
+drop instead of preserving the more flattering development result.
+
+This is a page-retrieval result conditioned on the known report. It is not
+open-corpus document retrieval, answer accuracy, a hidden blind holdout, or a
+baseline-to-improved claim. The 96 test labels are now consumed and may not be
+used for further configuration selection.

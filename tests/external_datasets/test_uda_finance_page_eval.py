@@ -154,3 +154,26 @@ def test_public_dev_selection_precedes_test_and_follows_ndcg_rule() -> None:
     assert payload["selected_retrieval_arm"] == "dense"
     assert selected["retrieval_arm"] == payload["selected_retrieval_arm"]
     assert all(len(item["manifest_sha256"]) == 64 for item in arms)
+
+
+def test_public_fixed_test_evidence_recomputes_core_counts() -> None:
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "external_datasets"
+        / "evidence"
+        / "uda_finance_test_v1.json"
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    rank_counts = payload["failure_diagnostics"]["rank_counts"]
+    hits = sum(rank_counts[str(rank)] for rank in range(1, 6))
+    misses = rank_counts["miss"]
+
+    assert payload["split"] == "company_disjoint_fixed_test"
+    assert payload["test_execution"]["marker_status"] == "COMPLETED"
+    assert payload["test_execution"]["test_company_overlap_with_dev"] == 0
+    assert hits == 71
+    assert misses == 25
+    assert hits + misses == payload["case_count"] == 96
+    assert payload["metrics"]["page_hit_at_5"] == hits / 96
+    assert payload["limitations"]

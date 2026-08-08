@@ -17,3 +17,9 @@ registry](metrics.csv).
 
 The `evidence/` directory contains aggregate, content-free JSON. Raw model
 outputs, external dataset rows, and private run artifacts are not published.
+
+The newest external page-retrieval result is documented in
+`../external_datasets/uda_finance_protocol.md`, with public aggregate evidence
+at `../external_datasets/evidence/uda_finance_test_v1.json`. The implementation,
+download incidents, decisions, and interview explanation are recorded in
+`../external_datasets/uda_finance_engineering_journal.md`.

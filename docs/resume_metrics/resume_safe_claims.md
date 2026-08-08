@@ -10,6 +10,7 @@ This file is an allowlist, not a suggestion to use every sentence.
 4. Established a company-disjoint 101-case FinanceBench page-localization baseline: Document Recall@5 95.0%, but exact Page Hit@5 only 30.7%, identifying page localization rather than company-document recall as the main retrieval bottleneck. This is a diagnosis, not an improvement claim.
 
 5. On a frozen 12-attack combination-disjoint subset of NVIDIA garak's `LatentInjectionReport` probe using local Qwen3-8B, reduced ASR from 4/12 (33.3%) Guard OFF to 0/12 Guard ON and model context exposure from 12/12 to 0/12, with 1.42 ms mean Guard latency. This must say `one probe subset` and `12 attacks`.
+6. On a preregistered, company-disjoint fixed 96-question subset of the external UDA-QA FinHybrid benchmark, BGE-M3 Dense retrieval reached 74.0% Page Hit@5, 61.3% nDCG@5, and 222.9 ms p95 latency when retrieving pages within the known financial report. This must say `within the known report`; it is not document discovery or answer accuracy.
 
 ## Not yet safe
 
@@ -19,6 +20,7 @@ This file is an allowlist, not a suggestion to use every sentence.
 - No full FinQA test-set result exists.
 - No production reliability, SOTA, cross-domain, or cross-model generalization claim exists.
 - Synthetic 100% results must never be presented without the word `synthetic`.
+- The UDA 96-case test is consumed and cannot be retuned or presented as hidden/blind.
 
 ## Promotion rule
 

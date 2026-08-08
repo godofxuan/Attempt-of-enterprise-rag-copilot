@@ -25,16 +25,18 @@ Safe wording:
 Required qualifiers: fixed 100-case sample, not full 1,147-case FinQA, not SOTA,
 local Qwen3-8B/BGE-M3.
 
-### 3. FinanceBench bottleneck diagnosis
+### 3. External UDA financial page retrieval
 
 Safe wording:
 
-> Established a company-disjoint 101-case FinanceBench baseline with 95.0%
-> Document Recall@5 but 30.7% Page Hit@5, then used a typed 49-case development
-> failure analysis to identify page ranking and multi-page localization as the
-> dominant retrieval bottlenecks.
+> On a preregistered, company-disjoint fixed 96-question subset of external
+> UDA-QA FinHybrid, BGE-M3 Dense retrieval reached 74.0% Page Hit@5, 61.3%
+> nDCG@5, and 222.9 ms p95 latency when retrieving pages within the known
+> financial report.
 
-This is a diagnosis and evaluation-system claim, not a quality improvement.
+Required qualifiers: fixed 96 questions, 12 companies, known-report page
+retrieval, public-label test. This is not open-corpus document discovery, answer
+accuracy, a hidden holdout, or a baseline-to-improved claim.
 
 ## Optional engineering bullet
 
@@ -57,6 +59,9 @@ The 4.63x comparison is development-only and should be described that way.
   cross-model generalization claims.
 - Claim-level unsupported-claim rate, citation coverage, refusal precision, or
   refusal recall: these were not measured in the frozen end-to-end artifact.
+- `84.38% UDA`: this is development Hit@5; the fixed-test result is `73.96%`.
+- UDA answer accuracy, open-corpus retrieval, hidden/blind holdout, or post-test
+  improvement claims.
 
 ## Evidence chain
 
@@ -66,3 +71,5 @@ The 4.63x comparison is development-only and should be described that way.
   `525c93a2f9437a5880fbed68e536fb351414ca0c50c8736951aa0474b744bb56`.
 - garak holdout: `evidence/garak_latent_report_holdout_v1.json` and fixture
   SHA-256 `babd8bd8e52f3b8d63bffcb526de426af550ad1f791eaddb7431d0a6b314643c`.
+- UDA fixed test: `docs/external_datasets/evidence/uda_finance_test_v1.json`,
+  SHA-256 `6b08e213e93ae00c9eb834a388c88460d33356282d112f2f80869e0f04a695d0`.

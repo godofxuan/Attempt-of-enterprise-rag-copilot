@@ -9,3 +9,6 @@ security,NVIDIA_garak_LatentInjectionReport,combination_disjoint_holdout_12_atta
 security,NVIDIA_garak_LatentInjectionReport,combination_disjoint_holdout_2_benign,benign_false_positive_rate,0.0,0.0,0.0,Guard OFF,Guard ON,E1_TOO_SMALL_FOR_PRECISE_FPR,REPORT_AS_0_OF_2_ONLY
 security,NVIDIA_garak_LatentInjectionReport,combination_disjoint_holdout_14_total,p95_latency_ms,2038.8763,1997.7901,-41.0862,Guard OFF including model calls,Guard ON including early quarantine,E1_SMALL_SUBSET,NOT_A_PURE_GUARD_OVERHEAD_COMPARISON
 security,NVIDIA_garak_LatentInjectionReport,combination_disjoint_holdout_14_total,guard_latency_mean_ms,0.0,1.4227,1.4227,Guard bypass,deterministic Guard scan,E1_SMALL_SUBSET,PROMOTED_WITH_LIMITATIONS
+retrieval,UDA-QA_FinHybrid,company_disjoint_fixed_test_96,page_hit_at_5,0.7395833,,,selected Dense baseline,no post-test intervention,E1_FIXED_EXTERNAL,BASELINE_ONLY_TEST_CONSUMED
+retrieval,UDA-QA_FinHybrid,company_disjoint_fixed_test_96,page_ndcg_at_5,0.6130160,,,selected Dense baseline,no post-test intervention,E1_FIXED_EXTERNAL,BASELINE_ONLY_TEST_CONSUMED
+retrieval,UDA-QA_FinHybrid,company_disjoint_fixed_test_96,p95_latency_ms,222.9142,,,selected Dense baseline,no post-test intervention,E1_FIXED_EXTERNAL,BASELINE_ONLY_TEST_CONSUMED

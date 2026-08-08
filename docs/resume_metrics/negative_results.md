@@ -47,3 +47,10 @@ counts but its limitation sentence was hard-coded as `12-attack/4-benign`.
 Commit `95fc114` made this text fixture-driven. The immutable private result hash
 is the source for the corrected public evidence; the incident is disclosed in
 `evidence/garak_latent_report_holdout_v1.json`.
+
+## UDA fixed-test generalization gap
+
+The preregistered Dense arm reached 84.38% Page Hit@5 on 64 development
+questions and 73.96% on the company-disjoint 96-question fixed test. The test is
+now consumed. No tuning on its 25 failures is allowed, and no UDA improvement
+claim exists until another unused evaluation population is frozen.

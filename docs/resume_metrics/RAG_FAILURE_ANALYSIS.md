@@ -58,3 +58,22 @@ not a model result and is forbidden in a resume claim.
 Evidence:
 `evidence/financebench_failure_analysis_v1.json` and
 `evidence/financebench_dev_ablation_v1.json`.
+
+## UDA FinHybrid fixed-test diagnosis
+
+The separately frozen UDA experiment evaluates page localization within a known
+financial report. Dense hit the gold page in the first five results for 71/96
+cases (`73.96%`), leaving 25 misses. All returned hits had valid page locators,
+so locator loss is not the explanation.
+
+Of the 25 misses, the nearest retrieved page was adjacent to gold in seven
+cases, two to three pages away in one, four to ten pages away in seven, and more
+than ten pages away in ten. This supports two failure modes: page/table boundary
+localization for the nearby misses, and semantic page ranking for the distant
+misses. One report, EOG 2017, contributed five misses; no parser replacement was
+selected from this test because the test is now consumed and cannot become a
+development set.
+
+Rank distribution was 45 at rank 1, 10 at rank 2, 10 at rank 3, five at rank 4,
+one at rank 5, and 25 misses. The content-free evidence is
+`../external_datasets/evidence/uda_finance_test_v1.json`.
