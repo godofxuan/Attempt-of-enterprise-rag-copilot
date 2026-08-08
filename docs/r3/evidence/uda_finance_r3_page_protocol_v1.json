@@ -1,0 +1,56 @@
+{
+  "baseline_revision": "169e84ed1ee845cd07085f16e553bd5021fd73a2",
+  "candidate_k": 40,
+  "candidates": {
+    "dense_chunk": {
+      "description": "unchanged Dense top-five chunk baseline",
+      "source_max_chunks_per_doc": 5,
+      "source_top_k": 5
+    },
+    "dense_page_max": {
+      "description": "collapse retrieved chunks to the best hit per unique page",
+      "source_max_chunks_per_doc": 10,
+      "source_top_k": 20
+    },
+    "dense_page_neighbor": {
+      "description": "page max plus ACL-checked adjacent pages with fixed score decay",
+      "neighbor_decay": 0.7,
+      "neighbor_distance": 1,
+      "source_max_chunks_per_doc": 10,
+      "source_top_k": 20
+    },
+    "dense_page_structure": {
+      "description": "page max plus bounded multi-chunk and numeric-density bonuses",
+      "extra_chunk_bonus": 0.05,
+      "max_extra_chunks": 2,
+      "minimum_numeric_tokens": 8,
+      "numeric_density_bonus": 0.03,
+      "source_max_chunks_per_doc": 10,
+      "source_top_k": 20
+    }
+  },
+  "dataset_protocol_sha256": "7dce0fca09caf029189def01e847df7562c57aab5cbe4b0a072509ff0cf9f05f",
+  "development_selection_metric": "page_ndcg_at_5",
+  "development_tie_break": [
+    "page_hit_at_5",
+    "latency_ms_p95"
+  ],
+  "fixed_test_execution_limit": 1,
+  "index_build": {
+    "batch_size": 16,
+    "chunk_size": 1800,
+    "embedding_model": "bge-m3",
+    "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+    "index_manifest_sha256": "08773dde88cf71bbccc199a45390af89802355a2f3ca7ff1482e3901513ba27b",
+    "max_batch_chars": 24000,
+    "overlap": 150,
+    "run_id": "uda-finance-r3-bge-m3-v1"
+  },
+  "promotion_gates": {
+    "max_p95_latency_multiplier": 1.5,
+    "min_page_hit_at_5_delta": 0.05,
+    "min_page_ndcg_at_5_delta": 0.03
+  },
+  "schema_version": "uda_finance_r3_page_protocol_v1",
+  "validation_execution_limit": 1
+}
