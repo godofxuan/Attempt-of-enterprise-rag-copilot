@@ -82,8 +82,18 @@ class EnterpriseRAGBenchQuestion(_StrictModel):
 class EnterpriseRAGBenchRawDocument(_StrictModel):
     doc_id: str = Field(pattern=r"^dsid_[A-Za-z0-9_-]+$")
     source_type: SourceType
-    title: str = Field(min_length=1)
-    content: str = Field(min_length=1)
+    # The pinned official corpus contains 15 empty Slack titles and one empty
+    # Slack body. The raw contract must represent those records faithfully.
+    title: str
+    content: str
+
+    @property
+    def normalized_title(self) -> str:
+        return self.title or self.doc_id
+
+    @property
+    def normalized_text(self) -> str:
+        return self.content or self.title or self.doc_id
 
 
 def load_enterprise_rag_bench_questions(
@@ -121,23 +131,29 @@ def iter_enterprise_rag_bench_documents(
     expected = {"doc_id", "source_type", "title", "content"}
     if set(parquet.schema_arrow.names) != expected:
         raise ValueError("EnterpriseRAG-Bench document schema mismatch")
-    seen: set[str] = set()
     source_row = 0
     for batch in parquet.iter_batches(batch_size=batch_size):
         for payload in batch.to_pylist():
             source_row += 1
             raw = EnterpriseRAGBenchRawDocument.model_validate(payload)
-            if raw.doc_id in seen:
-                raise ValueError(f"duplicate EnterpriseRAG-Bench doc ID: {raw.doc_id}")
-            seen.add(raw.doc_id)
             raw_hash = hashlib.sha256(canonical_json_bytes(payload)).hexdigest()
             yield EnterpriseDocument(
-                document_id=f"enterprise-rag-bench:{raw.doc_id}",
+                # Four source IDs are reused by different official records. A
+                # record hash preserves every occurrence without pretending
+                # that source_native_id is a corpus-wide primary key.
+                document_id=(
+                    f"enterprise-rag-bench:{raw.doc_id}:{raw_hash[:16]}"
+                ),
                 source_type=raw.source_type,
                 source_native_id=raw.doc_id,
-                title=raw.title,
-                text=raw.content,
-                source_metadata={"source_type": raw.source_type},
+                title=raw.normalized_title,
+                text=raw.normalized_text,
+                source_metadata={
+                    "source_type": raw.source_type,
+                    "raw_title_was_empty": not bool(raw.title),
+                    "raw_content_was_empty": not bool(raw.content),
+                    "raw_record_sha256": raw_hash,
+                },
                 raw_provenance=RawProvenance(
                     dataset_name="EnterpriseRAG-Bench",
                     source_revision=ENTERPRISE_RAG_BENCH_DATASET_REVISION,

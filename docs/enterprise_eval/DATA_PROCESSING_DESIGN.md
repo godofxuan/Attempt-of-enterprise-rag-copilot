@@ -27,6 +27,14 @@ Optional fields copied only when official data provides them:
 Every transformed record must bind dataset name, source revision, source file,
 source row/native ID, and raw-record SHA-256. Unknown values remain null.
 
+EnterpriseRAG-Bench demonstrates why `source_native_id` is not assumed to be a
+primary key. Four IDs are reused by distinct official records, including the
+conflicting evidence referenced by `qst_0413`. Its adapter therefore identifies
+an internal record as `source_native_id + raw-record hash`, while retaining the
+unmodified source ID for gold matching. Empty raw titles/bodies are preserved in
+the raw hash; normalization uses only another official field or the source ID and
+emits explicit `raw_*_was_empty` metadata.
+
 ## Source-preserving adapters
 
 | Source | Preserve when present | Source-aware candidate boundary |
@@ -91,4 +99,3 @@ is `AGENTIC_ROUTE_REJECTED`.
 It does not claim source-aware chunks improve quality, that a 500k-document
 index fits locally, that the current Agent outperforms RAG, or that benchmark
 metadata provides real ACLs/version truth. Those are experiment outcomes.
-

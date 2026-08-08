@@ -1,42 +1,5 @@
 {
-  "corpus": {
-    "download_status": "NOT_DOWNLOADED",
-    "expected_byte_count": 1409893131,
-    "expected_document_count": 511962,
-    "official_path": "data/documents/test.parquet",
-    "sha256": null
-  },
-  "dataset_name": "EnterpriseRAG-Bench",
-  "dataset_revision": "69916e31c68aa5963c00248fd7f0bc12d04fd235",
-  "download_date": "2026-08-09",
-  "github_revision": "d36685e273713975ee20299bbf1ab64165575b3c",
-  "license": "MIT",
-  "limitations": [
-    "Only the official questions parquet is locally verified at this stage; no corpus baseline has run.",
-    "The corpus exposes doc_id, source_type, title, and content only. Thread, participant, timestamp, version, freshness, project, and ACL fields must not be inferred as gold metadata.",
-    "The benchmark company and documents are synthetic, although designed to simulate realistic company-internal data.",
-    "The official answer leaderboard uses GPT-5.4 as a judge; any local deterministic retrieval score must be reported separately.",
-    "Question qst_0413 contains the same expected document ID twice. The adapter preserves the raw list and exposes an order-preserving unique view for set-based retrieval metrics."
-  ],
-  "official_source": "https://huggingface.co/datasets/onyx-dot-app/EnterpriseRAG-Bench",
-  "official_split": "test",
-  "questions": {
-    "byte_count": 408737,
-    "category_counts": {
-      "basic": 175,
-      "completeness": 20,
-      "conflicting_info": 20,
-      "constrained": 30,
-      "high_level": 10,
-      "info_not_found": 20,
-      "intra_document_reasoning": 40,
-      "miscellaneous": 20,
-      "project_related": 40,
-      "semantic": 125
-    },
-    "download_status": "VERIFIED",
-    "question_count": 500,
-    "sha256": "e25066f4eff3843dd0f3df0d1348113471e072e75007ffe390a0aa83f2a80af2"
-  },
-  "schema_version": "enterprise_rag_bench_partial_manifest_v1"
+  "deprecated": true,
+  "replacement": "data_manifests/ENTERPRISERAG_MANIFEST.json",
+  "schema_version": "manifest_redirect_v1"
 }

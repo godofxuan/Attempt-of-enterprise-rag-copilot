@@ -53,9 +53,11 @@ The verified question schema is `question_id`, `question_type`, `source_types`,
 `question`, `expected_doc_ids`, `gold_answer`, and `answer_facts`. The document
 schema is only `doc_id`, `source_type`, `title`, and `content`; source-native
 thread, author, timestamp, project, version, freshness, and ACL fields are not
-available and must not be inferred. One official conflicting-info row,
-`qst_0413`, repeats the same expected document ID; the adapter preserves the raw
-annotation and exposes an order-preserving set view for retrieval metrics.
+available and must not be inferred. Four official source IDs are each reused by
+two distinct records. One official conflicting-info row, `qst_0413`, repeats one
+such expected ID; the adapter preserves both corpus records and the raw
+annotation, and exposes an order-preserving set view only for explicitly
+set-based retrieval metrics.
 
 ### Primary C: HERB - conditionally selected for E3
 

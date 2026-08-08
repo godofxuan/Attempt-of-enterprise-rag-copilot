@@ -52,32 +52,49 @@ Measured/official facts on `2026-08-09`:
 
 - questions: 500 rows, 408,737 bytes, locally verified SHA-256
   `e25066f4eff3843dd0f3df0d1348113471e072e75007ffe390a0aa83f2a80af2`;
-- documents: 511,962 rows and an exact remote content length of
-  1,409,893,131 bytes; not downloaded and no local SHA-256 yet;
+- documents: 511,962 rows and 1,409,893,131 bytes, locally verified SHA-256
+  `6b0747bf160af9427b12101537d53056ac592ada9831c1a98ae01fa50a8d2a9f`;
 - host RAM: 31.62 GiB total, approximately 16.95 GiB free during audit;
 - `D:` free space: approximately 68.9 GiB before a full corpus download.
 
-Conservative vector-only scenarios for 1,024-dimensional float32 BGE-M3:
+The streaming profiler scanned every row without using question labels. With
+the frozen flat `1,800` character / `150` overlap control it measured:
 
-| Average chunks/document | Chunk count | One vector matrix | Cache + FAISS vectors |
-|---:|---:|---:|---:|
-| 1 | 511,962 | 1.95 GiB | 3.91 GiB |
-| 2 | 1,023,924 | 3.91 GiB | 7.81 GiB |
-| 3 | 1,535,886 | 5.86 GiB | 11.72 GiB |
+| Item | Measured or deterministic estimate |
+|---|---:|
+| Documents / unique source IDs | 511,962 / 511,958 |
+| Flat chunks | 1,702,370 (3.325188/document) |
+| One 1,024-d float32 vector matrix | 6.49 GiB |
+| Embedding cache + FAISS vector copy | 12.99 GiB |
+| Python BM25 token objects, fixed 2% hash sample extrapolation | 36.60 GiB |
+| Capacity-profiler peak working set | 1.68 GiB |
+| Embedding time at measured 41.5 chunks/second | 11.39 hours |
 
-Disk is probably sufficient after reserving 20%, but the current in-memory
-builder is not yet qualified: it simultaneously materializes documents, chunks,
-BM25 Python token objects, the embedding matrix, and FAISS. With only 16.95 GiB
-free during audit, the 2-3 chunk scenarios risk memory exhaustion. Formal E2 is
-therefore `CAPACITY_BLOCKED` until a streaming sample measures actual chunk/token
-distribution and the builder proves bounded peak RSS. The 1.41 GB raw corpus is
-not itself the limiting factor.
+The profiler also found 15 empty titles, one empty body, and four reused source
+IDs whose records differ. The adapter preserves these records using a hash-bound
+internal ID and records empty-field fallbacks in metadata. One reused ID is the
+duplicated gold ID in `qst_0413`.
+
+This changes the decision from `CORPUS_NOT_ACQUIRED` to
+`CORPUS_VERIFIED_INDEX_CAPACITY_BLOCKED`. Disk capacity is sufficient, and
+streaming parsing is proven, but the existing builder is not safe because its
+Python BM25 representation alone exceeds total host RAM. A formal quality score
+requires a disk-backed/sharded lexical index, memory-mapped or sharded dense
+vectors, resumable embedding checkpoints, and a measured full-build peak below
+the local memory envelope. No 500k-document quality claim is allowed yet.
 
 Two attempted Git metadata checkouts were stopped before corpus acquisition:
 one ordinary checkout risked fetching all blobs, and one partial clone's checkout
 triggered promisor fetches. The official Hugging Face question parquet and HEAD
 metadata were used instead. These attempts created no formal dataset artifact or
 score.
+
+The first full profiler attempt stopped after exposing an official empty-title
+record that violated the adapter's overly strict raw schema. The raw contract was
+corrected to preserve official empty fields, normalized fallbacks became explicit,
+and a second pass exposed the missing Windows RSS dependency. The final pass used
+the native Windows process-memory API and completed with non-zero peak RSS. These
+are data-contract and observability corrections, not discarded runs.
 
 
 ## Runtime controls
