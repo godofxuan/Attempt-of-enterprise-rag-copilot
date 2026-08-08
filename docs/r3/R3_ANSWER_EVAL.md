@@ -51,3 +51,14 @@ validation gates pass.
 
 Validation and test execution markers are created with exclusive file creation.
 Re-running either split against the same private evidence root fails closed.
+
+## Pre-run execution incident
+
+The first two development launches produced no campaign artifact. Single-case
+diagnostics showed roughly 0.34 seconds for retrieval and 1.5 seconds for each
+answer strategy, but the long process later had no network activity or CPU
+growth. The host command wrapper buffered child stderr instead of draining it;
+per-case progress output filled the Windows pipe and blocked Python in `print`.
+The abandoned process trees were stopped by their exact PIDs. Progress output
+is now bounded to one line per 16 cases. No model, retrieval, metric or promotion
+parameter changed, and validation/test markers were never created.

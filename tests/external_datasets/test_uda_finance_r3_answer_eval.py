@@ -23,7 +23,7 @@ from app.external_datasets.uda_finance_r3_answer_eval import (
     summarize_answer_results,
     uda_answer_match,
 )
-from scripts.eval_uda_finance_r3_answers import claim_split_execution
+from scripts.eval_uda_finance_r3_answers import build_parser, claim_split_execution
 
 
 def _unit(index: int, text: str) -> FinQAEvidenceUnit:
@@ -221,3 +221,11 @@ def test_answer_validation_marker_is_one_shot(tmp_path: Path) -> None:
     assert marker.is_file()
     with pytest.raises(FileExistsError):
         claim_split_execution(tmp_path, **kwargs)
+
+
+def test_answer_cli_bounds_progress_output() -> None:
+    args = build_parser().parse_args(
+        ["--run-id", "dev", "--split", "dev", "--strategy", "direct"]
+    )
+
+    assert args.progress_every == 16

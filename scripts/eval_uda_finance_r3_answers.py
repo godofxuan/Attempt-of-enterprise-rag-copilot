@@ -61,6 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dataset-protocol", type=Path, default=R3_PROTOCOL_PATH)
     parser.add_argument("--answer-protocol", type=Path, default=R3_ANSWER_PROTOCOL_PATH)
     parser.add_argument("--timeout-seconds", type=float, default=120.0)
+    parser.add_argument("--progress-every", type=int, default=16)
     parser.add_argument("--execute-validation", action="store_true")
     parser.add_argument("--execute-frozen-test", action="store_true")
     return parser
@@ -182,16 +183,17 @@ def main(argv: list[str] | None = None) -> int:
                         protocol_error=error,
                     )
                 )
-            print(
-                f"[{index}/{len(cases)}] {case.case_id} "
-                + " ".join(
-                    f"{strategy}={details_by_strategy[strategy][-1].status}:"
-                    f"{int(details_by_strategy[strategy][-1].answer_correct)}"
-                    for strategy in strategies
-                ),
-                file=sys.stderr,
-                flush=True,
-            )
+            if index % args.progress_every == 0 or index == len(cases):
+                print(
+                    f"[{index}/{len(cases)}] "
+                    + " ".join(
+                        f"{strategy}_correct="
+                        f"{sum(item.answer_correct for item in details_by_strategy[strategy])}"
+                        for strategy in strategies
+                    ),
+                    file=sys.stderr,
+                    flush=True,
+                )
 
     summaries = {
         strategy: summarize_answer_results(rows, strategy=strategy)
@@ -238,6 +240,8 @@ def _validate_arguments(args, strategies: list[str]) -> None:
         raise ValueError("R3 answer campaign strategies must be unique")
     if not 0 < args.timeout_seconds <= 300:
         raise ValueError("R3 answer timeout must be between 0 and 300 seconds")
+    if not 1 <= args.progress_every <= 10_000:
+        raise ValueError("R3 answer progress interval must be between 1 and 10000")
     if args.split == "validation" and not args.execute_validation:
         raise ValueError("R3 answer validation requires --execute-validation")
     if args.split == "test" and not args.execute_frozen_test:
