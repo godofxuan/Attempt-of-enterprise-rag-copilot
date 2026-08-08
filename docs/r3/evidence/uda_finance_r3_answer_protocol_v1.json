@@ -1,0 +1,50 @@
+{
+  "answer_label_firewall": {
+    "development": "available for answer strategy development",
+    "fixed_test": "untouched for retrieval and answer evaluation",
+    "validation": "page labels consumed by S2; answer values not previously scored or used for selection"
+  },
+  "answer_model": "qwen3:8b",
+  "answer_model_sha256": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+  "dataset_protocol_sha256": "7dce0fca09caf029189def01e847df7562c57aab5cbe4b0a072509ff0cf9f05f",
+  "fixed_test_execution_limit": 1,
+  "index_manifest_sha256": "08773dde88cf71bbccc199a45390af89802355a2f3ca7ff1482e3901513ba27b",
+  "max_attempts": 2,
+  "numeric_metric": {
+    "binary_labels": "case-insensitive exact match",
+    "numeric": "UDA symmetric relative difference below 0.01",
+    "reference": "pinned UDA uda/eval/utils/fin_eval.py"
+  },
+  "promotion_gates": {
+    "max_p95_latency_multiplier": 2.0,
+    "max_unsupported_answer_rate_delta": 0.0,
+    "min_grounded_numeric_accuracy_delta": 0.0,
+    "min_numeric_accuracy_delta": 0.05
+  },
+  "retrieval": {
+    "candidate_k": 40,
+    "include_parent": false,
+    "max_chunks_per_doc": 5,
+    "strategy": "unchanged_dense_chunk",
+    "top_k": 5
+  },
+  "schema_version": "uda_finance_r3_answer_protocol_v1",
+  "strategies": {
+    "direct": "guarded Qwen3 JSON answer and cited evidence IDs",
+    "typed_candidate": "guarded numeric candidate IDs, bounded typed operation, host Decimal execution"
+  },
+  "typed_contract": {
+    "max_candidates": 96,
+    "operations": [
+      "direct",
+      "add",
+      "subtract",
+      "multiply",
+      "divide",
+      "percent_change",
+      "average"
+    ],
+    "raw_numeric_literals_in_plan": false
+  },
+  "validation_execution_limit": 1
+}
