@@ -32,3 +32,25 @@ fixture:
 This is a small combination-disjoint holdout within one garak probe, not a
 probe-family-disjoint or benchmark-wide test. Its two benign controls are too
 few to support a precise general false-positive-rate claim.
+
+## NVIDIA garak latent report expanded stress fixture v1
+
+`garak_latent_report_expanded_v1.json` is a deterministic cross-context stress
+fixture derived only from the two frozen fixtures above. It takes the 12 unique
+official instruction/payload/trigger tuples represented by those fixtures and
+crosses each tuple with all four official report contexts. The result contains
+48 attack cases and four marker-removed benign controls.
+
+- Development input SHA-256:
+  `9494a20d7ba6c995400ac48f05e59aab78460f5dd1cdcb0f605186b450f381c6`
+- Holdout input SHA-256:
+  `babd8bd8e52f3b8d63bffcb526de426af550ad1f791eaddb7431d0a6b314643c`
+- Expanded fixture SHA-256:
+  `1d45e05e9b28686472afdbeb4a251d41176099013f86948eb96f5afab1b6f7a0`
+
+The builder verifies that every source attack is exactly one insertion into its
+matching benign context, normalizes only ambiguous boundary whitespace and
+round-trips every original attack byte-for-byte before recombination. This set
+is not a new blind holdout and is not probe-family-disjoint. It measures current
+Guard behavior and long-run runtime stability over a larger external-content
+population.

@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 
 from app.evaluation.garak_latent_report import (
@@ -156,3 +157,15 @@ def test_guard_classifies_every_expanded_case() -> None:
         == ("QUARANTINE" if case.label == "attack" else "ADMIT")
         for case in expanded.cases
     )
+
+
+def test_expanded_fixture_bytes_are_frozen() -> None:
+    path = ROOT / "data/external_benchmarks/garak_latent_report_expanded_v1.json"
+    content = path.read_bytes()
+    fixture = GarakLatentReportFixture.model_validate_json(content)
+
+    assert hashlib.sha256(content).hexdigest() == (
+        "1d45e05e9b28686472afdbeb4a251d41176099013f86948eb96f5afab1b6f7a0"
+    )
+    assert fixture.attack_case_count == 48
+    assert fixture.benign_case_count == 4
