@@ -62,6 +62,7 @@ def test_ci_is_read_only_deterministic_and_does_not_call_live_services() -> None
         "contents: read",
         "os: [ubuntu-latest, windows-latest]",
         "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+        "fetch-depth: 0",
         "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
         "python-version: \"3.11.9\"",
         "cache: pip",
@@ -76,6 +77,8 @@ def test_ci_is_read_only_deterministic_and_does_not_call_live_services() -> None
         "python -m scripts.audit_public_repo",
     ]:
         assert required in workflow
+
+    assert workflow.count("fetch-depth: 0") == 2
 
     for forbidden in [
         "ollama",

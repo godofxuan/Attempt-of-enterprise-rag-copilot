@@ -143,6 +143,14 @@ test normalizes unrelated current files before checking its intended boundary.
 This preserves both properties: old evidence remains immutable and new runtime
 code can evolve without making historical reproducibility tests contradictory.
 
+The first exact-SHA GitHub Actions run then exposed a second environment
+boundary: local Git contained the frozen parent, but `actions/checkout` used its
+default shallow history. Historical `git show` verification therefore failed
+on the runner even though 3,103 local tests passed. Both workflow checkouts now
+set `fetch-depth: 0`, and repository configuration tests require exactly those
+two full-history declarations. The verification was kept strict instead of
+falling back to current files or silently skipping unavailable history.
+
 ## What an interview candidate should learn
 
 1. Evaluation splits are part of system design, not a final testing detail.
