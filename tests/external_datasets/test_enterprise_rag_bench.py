@@ -188,3 +188,23 @@ def test_capacity_publication_rejects_quality_label_use() -> None:
             execution_git_sha="a" * 40,
             profile_sha256="b" * 64,
         )
+
+
+def test_public_capacity_evidence_is_bound_and_not_a_quality_claim() -> None:
+    payload = json.loads(
+        (
+            ROOT
+            / "docs"
+            / "enterprise_eval"
+            / "evidence"
+            / "enterprise_rag_bench_capacity_public_v1.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert payload["execution_git_sha"] == (
+        "7c10f48d35c587edb6cf5a6d9d90c76d3f95e392"
+    )
+    assert payload["dataset"]["row_count"] == 511_962
+    assert payload["measured_capacity"]["flat_chunk_count"] == 1_702_370
+    assert payload["protocol"]["quality_labels_used"] is False
+    assert payload["decision"]["full_scale_index"] == "CAPACITY_BLOCKED"
+    assert payload["decision"]["formal_quality_score"] == "NOT_RUN"

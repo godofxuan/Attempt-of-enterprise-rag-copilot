@@ -1,0 +1,63 @@
+{
+  "data_quality": {
+    "empty_content_count": 1,
+    "empty_title_count": 15,
+    "gold_anomaly": "qst_0413 repeats one reused source ID twice; raw annotation is preserved and set-based metrics use an order-preserving unique view",
+    "record_identity": "source_native_id + raw_record_sha256 prefix",
+    "reused_source_id_group_count": 4,
+    "reused_source_id_row_count": 4,
+    "reused_source_ids_have_distinct_records": true
+  },
+  "dataset": {
+    "corpus_byte_count": 1409893131,
+    "corpus_sha256": "6b0747bf160af9427b12101537d53056ac592ada9831c1a98ae01fa50a8d2a9f",
+    "name": "EnterpriseRAG-Bench",
+    "official_split": "test",
+    "revision": "69916e31c68aa5963c00248fd7f0bc12d04fd235",
+    "row_count": 511962,
+    "source_counts": {
+      "confluence": 5189,
+      "fireflies": 10173,
+      "github": 8052,
+      "gmail": 121390,
+      "google_drive": 25108,
+      "hubspot": 15017,
+      "jira": 6120,
+      "linear": 35308,
+      "slack": 285605
+    },
+    "unique_source_id_count": 511958
+  },
+  "decision": {
+    "formal_quality_score": "NOT_RUN",
+    "full_corpus_download": "VERIFIED",
+    "full_scale_index": "CAPACITY_BLOCKED",
+    "reason": "The current all-in-memory BM25 plus dense builder exceeds the measured local RAM envelope and lacks resumable sharded indexing.",
+    "required_before_formal_run": [
+      "disk-backed or sharded lexical index",
+      "memory-mapped or sharded dense vectors",
+      "resumable embedding checkpoints",
+      "measured build peak RSS below the local envelope"
+    ]
+  },
+  "execution_git_sha": "7c10f48d35c587edb6cf5a6d9d90c76d3f95e392",
+  "measured_capacity": {
+    "cache_plus_faiss_vector_bytes": 13945815040,
+    "chunks_per_document": 3.325188,
+    "estimated_embedding_hours": 11.395,
+    "estimated_python_bm25_token_bytes": 39300404294,
+    "flat_chunk_count": 1702370,
+    "measured_embedding_chunks_per_second": 41.5,
+    "one_float32_vector_matrix_bytes": 6972907520,
+    "profile_duration_seconds": 65.476,
+    "profile_peak_rss_bytes": 1816875008
+  },
+  "private_profile_sha256": "afd8e26c6a0ca04f74508820260f35911f9fc7d92e19ae56f65156712a880ee9",
+  "protocol": {
+    "bm25_sample_selection": "sha256(doc_id)[0:8] modulo 50 == 0",
+    "chunk_size_characters": 1800,
+    "overlap_characters": 150,
+    "quality_labels_used": false
+  },
+  "schema_version": "enterprise_rag_bench_capacity_public_v1"
+}

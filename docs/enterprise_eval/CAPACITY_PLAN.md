@@ -67,7 +67,7 @@ the frozen flat `1,800` character / `150` overlap control it measured:
 | One 1,024-d float32 vector matrix | 6.49 GiB |
 | Embedding cache + FAISS vector copy | 12.99 GiB |
 | Python BM25 token objects, fixed 2% hash sample extrapolation | 36.60 GiB |
-| Capacity-profiler peak working set | 1.68 GiB |
+| Capacity-profiler peak working set | approximately 1.69 GiB |
 | Embedding time at measured 41.5 chunks/second | 11.39 hours |
 
 The profiler also found 15 empty titles, one empty body, and four reused source
