@@ -18,6 +18,7 @@ from app.external_datasets.enterprise_rag_bench_fts import (
     verify_enterprise_rag_bench_fts,
 )
 from scripts.publish_enterprise_rag_bench_fts_eval import build_public_evidence
+from scripts.analyze_enterprise_rag_bench_failures import classify_failure
 
 
 def _write_documents(path: Path) -> None:
@@ -154,3 +155,28 @@ def test_public_eval_rejects_debug_or_oracle_filtered_runs() -> None:
             {"document_row_count": 511_962},
             private_summary_sha256="a" * 64,
         )
+
+
+@pytest.mark.parametrize(
+    ("row", "expected"),
+    [
+        (
+            {"recall_at_5": 0.0, "gold_document_count": 1, "hit_at_1": 0.0},
+            "RETRIEVAL_MISS",
+        ),
+        (
+            {"recall_at_5": 0.5, "gold_document_count": 2, "hit_at_1": 1.0},
+            "MULTI_DOC_INCOMPLETE",
+        ),
+        (
+            {"recall_at_5": 1.0, "gold_document_count": 1, "hit_at_1": 0.0},
+            "WRONG_DOCUMENT",
+        ),
+        (
+            {"recall_at_5": 1.0, "gold_document_count": 1, "hit_at_1": 1.0},
+            "OK",
+        ),
+    ],
+)
+def test_failure_classification_priority(row: dict, expected: str) -> None:
+    assert classify_failure(row) == expected

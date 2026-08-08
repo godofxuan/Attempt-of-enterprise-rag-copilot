@@ -60,3 +60,19 @@ Decision: no index-load optimization was justified. Future monitoring must use
 process/resource signals or direct terminal streaming rather than assuming a
 buffered tool call is stalled.
 
+## Full-corpus lexical retrieval is not sufficient
+
+The full EnterpriseRAG-Bench FTS5 arm solved the previous in-memory capacity
+failure but did not solve enterprise retrieval. Overall Recall@5 was 60.37% and
+multi-document completeness@5 was 28.26%. Semantic Recall@5 was only 36.00%, and
+completeness questions retrieved every required source in only 5.00% of cases.
+
+Mean query latency was 1,101.3 ms and p95 was 1,821.0 ms; constrained questions
+reached 2,662.3 ms p95. The frozen OR query compiler computes BM25 over broad
+posting unions and is not an acceptable interactive endpoint as-is.
+
+Decision: `BM25_FTS5_BASELINE_ONLY`. Keep it as the reproducible lexical B0 and
+as evidence that disk-backed indexing controls memory. Do not present its 60.37%
+Recall@5 as a final system accuracy or claim it proves Agent, answer, citation,
+or refusal quality. The next candidate must target semantic and multi-document
+failures while reporting latency cost.

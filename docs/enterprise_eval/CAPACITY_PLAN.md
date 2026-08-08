@@ -97,6 +97,12 @@ This qualifies only the B0 lexical arm. Dense still requires a sharded or
 memory-mapped design and roughly 11.39 hours of measured-rate embedding work;
 RRF cannot run honestly before that arm exists.
 
+The formal B0 build at `955d86f` completed all 511,962 rows in 231.35 active
+seconds. Its verified database is 1,472,634,880 bytes and peak working set was
+1,966,538,752 bytes (approximately 1.83 GiB). The old capacity decision remains
+valid for the old all-in-memory builder; FTS5 specifically removes the lexical
+part of that block.
+
 Two attempted Git metadata checkouts were stopped before corpus acquisition:
 one ordinary checkout risked fetching all blobs, and one partial clone's checkout
 triggered promisor fetches. The official Hugging Face question parquet and HEAD

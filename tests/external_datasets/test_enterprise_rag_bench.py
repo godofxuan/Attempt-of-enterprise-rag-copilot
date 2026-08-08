@@ -226,3 +226,26 @@ def test_retrieval_protocol_freezes_full_answerable_question_id_set() -> None:
     )
     assert protocol["source_type_filter_used"] is False
     assert protocol["candidate_selection_allowed"] is False
+
+
+def test_public_bm25_evidence_is_full_corpus_and_retrieval_only() -> None:
+    payload = json.loads(
+        (
+            ROOT
+            / "docs"
+            / "enterprise_eval"
+            / "evidence"
+            / "enterprise_rag_bench_bm25_public_v1.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert payload["execution_git_sha"] == (
+        "955d86f1ca244bc90025c89806fd786f978b98ff"
+    )
+    assert payload["dataset"]["document_row_count"] == 511_962
+    assert payload["dataset"]["retrieval_case_count"] == 470
+    assert payload["index"]["source_type_filter_used"] is False
+    assert payload["metrics"]["overall"]["macro_document_recall_at_5"] == (
+        0.6037411347517729
+    )
+    assert payload["claim_boundary"]["retrieval_only"] is True
+    assert payload["claim_boundary"]["answer_quality"] == "NOT_MEASURED"

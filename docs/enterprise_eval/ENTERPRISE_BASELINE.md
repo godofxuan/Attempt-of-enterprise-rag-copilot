@@ -78,3 +78,34 @@ nDCG@5, and 11.54 points multi-article completeness while p95 latency is 1.94x.
 Public aggregate evidence:
 `evidence/wixqa_retrieval_baseline_public_v1.json`.
 
+## EnterpriseRAG-Bench E2 full-corpus B0
+
+Execution SHA: `955d86f1ca244bc90025c89806fd786f978b98ff`.
+
+The disk-backed BM25 control indexed all 511,962 official rows (511,958 unique
+source IDs) without source-type oracle filtering. The 1.37 GiB FTS5 artifact was
+built in 231.35 seconds with approximately 1.83 GiB peak working set. The frozen
+retrieval cohort contains all 470 questions with document gold; high-level and
+information-not-found questions are excluded from retrieval metrics rather than
+counted as misses.
+
+| Group | Cases | Recall@5 | MRR@5 | nDCG@5 | Multi-doc complete@5 | p95 latency |
+|---|---:|---:|---:|---:|---:|---:|
+| Overall | 470 | 60.37% | 57.96% | 55.89% | 28.26% (92 cases) | 1,821.0 ms |
+| Basic | 175 | 67.43% | 58.83% | 61.01% | N/A | 1,326.7 ms |
+| Semantic | 125 | 36.00% | 25.47% | 28.13% | N/A | 2,192.2 ms |
+| Intra-document reasoning | 40 | 90.00% | 81.13% | 83.35% | N/A | 1,466.2 ms |
+| Project-related | 40 | 49.70% | 84.38% | 55.55% | 12.50% | 1,795.4 ms |
+| Constrained | 30 | 80.00% | 82.61% | 76.36% | 38.46% | 2,662.3 ms |
+| Conflicting information | 20 | 85.00% | 84.17% | 83.07% | 78.95% | 800.2 ms |
+| Completeness | 20 | 34.39% | 66.67% | 45.28% | 5.00% | 1,684.4 ms |
+| Miscellaneous | 20 | 85.00% | 82.50% | 83.15% | N/A | 1,019.0 ms |
+
+The result supports a narrow claim: a bounded disk-backed lexical baseline now
+runs on the complete heterogeneous corpus. It does not measure answer quality,
+citations, refusal, conflict acknowledgement, Evidence Ledger behavior, or Agent
+value. Semantic retrieval and multi-document completeness are the dominant
+quality gaps; global OR BM25 scoring is also too slow for an interactive SLO.
+
+Public aggregate evidence:
+`evidence/enterprise_rag_bench_bm25_public_v1.json`.
