@@ -1,0 +1,64 @@
+{
+  "claims": {
+    "agent_quality": "NOT_RUN",
+    "answer_correctness": "NOT_RUN",
+    "blind_holdout": false,
+    "citation_quality": "NOT_RUN",
+    "retrieval_champion": "dense"
+  },
+  "dataset_manifest_sha256": "e40972d70a8c80685b3730733efd90ac82a01fd52a949a0d27e122809bc290dd",
+  "dataset_revision": "d662dc42479c14e202eccd832f8c4b66a035c4cc",
+  "embedding_model": "bge-m3",
+  "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+  "execution_revision": "234734657fe354a0ecd767022c6f7c22cdc329da",
+  "index_manifest_sha256": "d21b3aa78bc578a86d421c4db724b6441d404e13ed628bd8c22fdaff002daa09",
+  "private_run_bindings": {
+    "expertwritten": {
+      "details_sha256": "092eacdde152cf39bd63e7133087e225d75c2a1331ca593910d9a4be5c157903",
+      "summary_sha256": "dd15a7f146b76b74b57618b8b530e45d888797d390344f5cea6e45a5a88cf850"
+    },
+    "simulated": {
+      "details_sha256": "7e928fd87740fd226bb5874b7e0ccd972e4b7e6c64c30f6605c981b3535a3358",
+      "summary_sha256": "deae2c35cfa4b17873bf364354e61eed7affb514605217fd2d3cca197850fda5"
+    },
+    "synthetic": {
+      "details_sha256": "2b3390bbc51e0a369d75d8f3bd3ac6265474208a7bd3c9486de086d5e3f40cd1",
+      "summary_sha256": "ee36fb0cc529ae6870161c83e309edfb4f8cba08ea599f51cc31f049a1881702"
+    }
+  },
+  "protocol_sha256": "4229a558d637fd4449bdb70887c480fb01c50621f0ae96c9db1562e3ebfeb531",
+  "results": {
+    "expertwritten_fixed_external": {
+      "case_count": 200,
+      "dense": {
+        "article_recall_at_5": 0.6641666666666666,
+        "latency_ms_p95": 157.40569995250553,
+        "mrr_at_5": 0.49608333333333327,
+        "multi_article_completeness_at_5": 0.3076923076923077,
+        "ndcg_at_5": 0.521583326944466
+      },
+      "equal_rrf": {
+        "article_recall_at_5": 0.5925,
+        "latency_ms_p95": 304.6403999906033,
+        "mrr_at_5": 0.4589166666666666,
+        "multi_article_completeness_at_5": 0.19230769230769232,
+        "ndcg_at_5": 0.4716126288236298
+      },
+      "multi_article_case_count": 52
+    },
+    "simulated_validation_baseline": {
+      "case_count": 200,
+      "dense_article_recall_at_5": 0.6141666666666667,
+      "dense_multi_article_completeness_at_5": 0.14814814814814814,
+      "multi_article_case_count": 27
+    },
+    "synthetic_development": {
+      "case_count": 6221,
+      "dense_article_recall_at_5": 0.9787815463751809,
+      "dense_latency_ms_p95": 160.66120006144047,
+      "equal_rrf_article_recall_at_5": 0.9440604404436586
+    }
+  },
+  "schema_version": "wixqa_retrieval_baseline_public_v1"
+}
+

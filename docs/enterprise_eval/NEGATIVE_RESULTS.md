@@ -1,0 +1,62 @@
+# Enterprise Evaluation Negative Results
+
+## Equal-weight RRF is rejected on WixQA E1
+
+The project began with a legitimate hypothesis: BM25 may add lexical support to
+BGE-M3 Dense, and reciprocal-rank fusion may combine complementary evidence.
+The paired result did not support adopting equal RRF.
+
+On all 6,221 Synthetic development questions, Dense Recall@5 was 97.88% and RRF
+was 94.41%. Pairwise analysis found 831 Dense-only successes versus 66 BM25-only
+successes. RRF rescued 67 Dense misses but regressed 283 Dense successes.
+
+On the 200 fixed external ExpertWritten questions, Dense versus RRF was:
+
+- Recall@5: 66.42% versus 59.25%;
+- nDCG@5: 52.16% versus 47.16%;
+- multi-article completeness@5: 30.77% versus 19.23%;
+- p95 latency: 157.4 ms versus 304.6 ms.
+
+Decision: `EQUAL_RRF_REJECTED`. BM25 and fusion code remain available for
+benchmarking, but Dense is the E1 champion. This is dataset-specific and does not
+erase prior synthetic-corpus evidence where lexical retrieval was useful.
+
+## Dense-dominant fusion exploration is not an external result
+
+A development-only offline analysis of stored Synthetic Top-5 rankings found:
+
+- increasing Dense RRF weight preserved Dense Recall@5 but reduced MRR/nDCG;
+- replacing Dense rank 5 with the first BM25 result not already in Dense top 4
+  moved Recall@5 from 97.88% to 98.18%, with 35 gains and 16 regressions.
+
+This is only a candidate-generation observation. It was not frozen before the
+Simulated and ExpertWritten baseline aggregates were observed, so neither public
+cohort may be called an independent candidate holdout. No improvement claim is
+made from this exploration.
+
+## Transient Ollama index-build incident
+
+The first BGE-M3 build stopped after 5,738/11,975 chunks when Ollama returned one
+HTTP 400 for batch 180. The exact 32-input batch was replayed unchanged and
+returned HTTP 200; two 16-input halves also succeeded. This falsified a stable
+length, content, and batch-size violation. The second build reused all 180
+hash-bound shards and completed the remaining 196 batches.
+
+No global HTTP-400 retry was added because 400 normally indicates a caller error
+and retrying it indiscriminately would hide invalid requests. The incident is
+recorded as a non-reproducible local service-state failure. Resumable shards
+prevented lost computation.
+
+## Long-run progress observation correction
+
+During the first full Synthetic invocation, the orchestration layer buffered
+child stdout. Lack of visible progress was initially mistaken for cold-start
+work. Stage instrumentation later measured source verification at 0.12 seconds,
+index loading at 1.14 seconds, BM25 construction at 0.48 seconds, and model probe
+at 0.25 seconds. The run was stopped before artifact publication and produced no
+partial result. The successful rerun took 1,297.4 seconds.
+
+Decision: no index-load optimization was justified. Future monitoring must use
+process/resource signals or direct terminal streaming rather than assuming a
+buffered tool call is stalled.
+

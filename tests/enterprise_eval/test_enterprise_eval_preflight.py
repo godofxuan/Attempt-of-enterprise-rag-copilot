@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import json
+
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs" / "enterprise_eval"
@@ -48,7 +50,7 @@ def test_claim_boundaries_cover_known_overstatements() -> None:
     assert "must not report a formal benchmark score" in capacity
 
 
-def test_new_dataset_consumption_is_frozen_before_download() -> None:
+def test_dataset_consumption_statuses_are_explicit() -> None:
     ledger = _read("CONSUMPTION_LEDGER.md")
     for status in (
         "UNTOUCHED",
@@ -58,6 +60,20 @@ def test_new_dataset_consumption_is_frozen_before_download() -> None:
         "REGRESSION_ONLY",
     ):
         assert status in ledger
-    assert "WixQA Synthetic" in ledger and "DEVELOPMENT" in ledger
-    assert "WixQA Simulated" in ledger and "VALIDATION" in ledger
-    assert "WixQA ExpertWritten" in ledger and "UNTOUCHED" in ledger
+    assert "WixQA Synthetic | DEVELOPMENT" in ledger
+    assert "WixQA Simulated | VALIDATION" in ledger
+    assert "WixQA ExpertWritten | FIXED_CONSUMED" in ledger
+
+
+def test_wixqa_public_baseline_preserves_claim_boundaries() -> None:
+    payload = json.loads(
+        (DOCS / "evidence" / "wixqa_retrieval_baseline_public_v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert payload["claims"]["retrieval_champion"] == "dense"
+    assert payload["claims"]["blind_holdout"] is False
+    assert payload["claims"]["answer_correctness"] == "NOT_RUN"
+    fixed = payload["results"]["expertwritten_fixed_external"]
+    assert fixed["dense"]["article_recall_at_5"] > fixed["equal_rrf"]["article_recall_at_5"]
+    assert fixed["dense"]["multi_article_completeness_at_5"] > fixed["equal_rrf"]["multi_article_completeness_at_5"]

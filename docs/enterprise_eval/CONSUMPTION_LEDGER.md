@@ -23,9 +23,9 @@ Allowed status vocabulary:
 | FinQA 40-case E11 internal cohort | FIXED_CONSUMED | shadow/regression only |
 | Synthetic enterprise corpus dev/test | DEVELOPMENT / REGRESSION_ONLY per v2 manifests | system contract regression, not external claims |
 | garak initial, holdout, and recombined stress fixtures | FIXED_CONSUMED | Guard regression only |
-| WixQA Synthetic | UNTOUCHED; assigned DEVELOPMENT before download | development after manifest verification |
-| WixQA Simulated | UNTOUCHED; assigned VALIDATION before download | one fixed candidate decision |
-| WixQA ExpertWritten | UNTOUCHED | one fixed external evaluation after protocol freeze |
+| WixQA Synthetic | DEVELOPMENT; 6,221-case B0/B1/B2 baseline consumed at `2347346` | failure analysis and candidate development only |
+| WixQA Simulated | VALIDATION; 200-case baseline observed at `2347346` | no longer an untouched candidate holdout |
+| WixQA ExpertWritten | FIXED_CONSUMED; 200-case B0/B1/B2 baseline observed once at `2347346` | reporting and preregistered missing baseline arms only; never tune |
 | EnterpriseRAG-Bench official questions | UNTOUCHED | remain untouched until capacity and protocol gates pass |
 | HERB official tasks | UNTOUCHED | remain untouched until license/resource qualification passes |
 
@@ -33,4 +33,3 @@ The legacy `DEVELOPMENT_CONSUMED` phrase is retained to describe old records; ne
 experiments must use only the five formal statuses plus `PIPELINE_DEBUG`.
 Moving a cohort forward is append-only. It never moves from consumed back to
 untouched.
-
