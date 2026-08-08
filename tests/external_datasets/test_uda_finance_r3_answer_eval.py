@@ -24,6 +24,9 @@ from app.external_datasets.uda_finance_r3_answer_eval import (
     uda_answer_match,
 )
 from scripts.eval_uda_finance_r3_answers import build_parser, claim_split_execution
+from scripts.analyze_uda_finance_r3_candidate_coverage import (
+    build_parser as build_coverage_parser,
+)
 
 
 def _unit(index: int, text: str) -> FinQAEvidenceUnit:
@@ -233,3 +236,15 @@ def test_answer_cli_bounds_progress_output() -> None:
 
     assert args.progress_every == 16
     assert args.quiet is False
+
+
+def test_candidate_coverage_cli_is_development_only() -> None:
+    options = {
+        option
+        for action in build_coverage_parser()._actions
+        for option in action.option_strings
+    }
+
+    assert "--split" not in options
+    assert "--execute-validation" not in options
+    assert "--execute-frozen-test" not in options
