@@ -1,5 +1,21 @@
 # Demo Runbook
 
+## Rapid release demo path
+
+For a new clone, follow [Quick Reproduction](reproduction/QUICK_REPRODUCTION.md)
+through the small `expanded` corpus build, then use the identity/API/UI commands
+below. A useful interview demonstration is:
+
+1. ask an enterprise policy question and inspect its cited sources;
+2. switch to a persona without the required group and show that invisible
+   evidence does not enter the response;
+3. inspect Trace for bounded search/open counts and evidence coverage;
+4. use the checked-in Evaluation page to show WixQA retrieval, full-corpus FTS5,
+   and Guard OFF/ON evidence with their limitations.
+
+The demo is not the external benchmark runner. It uses synthetic local policies
+so a reviewer needs no private key or downloaded 511k corpus.
+
 ## R2-S5 identity setup (run before the historical steps below)
 
 All commands run from the repository root. The generated files are ignored by

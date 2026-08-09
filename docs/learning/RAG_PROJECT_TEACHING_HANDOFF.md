@@ -175,3 +175,103 @@ Agent 与 B2 使用同一个 RRF 排名，避免 Agent 偷换更强 retriever。
 - `docs/enterprise_eval/FINAL_REPORT.md`
 - `docs/enterprise_eval/RESUME_SAFE_METRICS.md`
 - `docs/learning/RESUME_BULLET_EVIDENCE_MAP.md`
+
+---
+
+## 2026-08-09 Rapid Quality Sprint：从“有功能”走到“有可信结论”
+
+这一轮没有继续添加框架，而是围绕四个已测量问题做收口：引用判断的否定句漏洞、公开证据不完整、FTS 激活并发边界、多文档 Agent 效果不成立。最后只在条件满足时做 Dense 容量资格测试。
+
+### 1. 否定句为什么会击穿朴素的引用支持
+
+旧逻辑把“Revenue was 10 million”和“Revenue was not 10 million”看成词面高度重合：数字一样、关键词一样，只差一个否定词。如果系统只看 token overlap，就可能把矛盾证据判为支持。
+
+修复思路不是让另一个 LLM 打分，而是先找与 claim 相关、数字/日期一致的 evidence 句，再比较两边是否出现显式否定。只有不相关的负面句子不会否决真正支持句。
+
+| 学习入口 | 位置 |
+|---|---|
+| 源码 | `app/agent/citation_verifier.py`：`_negation_mismatch`、`_negation_comparable`、`_has_explicit_negation` |
+| 测试 | `tests/agent_v2/test_citation_verifier.py`：英文/中文、数字/非数字、年份、权限、数量双向否定 |
+| 实验结果 | focused `22 passed`；Agent 132、FinQA 19、Guard/ACL 72、domain/retrieval 48 回归通过 |
+| Commit | `0848fc0 fix(grounding): reject asymmetric negation contradictions` |
+
+这仍不是语义蕴含模型。它解决的是可确定编码的不变量，遇到同义改写、反讽或复杂条件逻辑仍需要人工或经过校准的语义 judge。
+
+### 2. 为什么 Agent 类存在，不等于 Agent 有效果
+
+旧 WixQA Agent 的真实轨迹是每题 `search=1, find=0, open=0`。这说明 Runner、Controller 和工具边界确实执行了，但行为退化成一次检索后立即回答。机制运行成功与质量提升是两个问题。
+
+代码审计又发现 `ExtractiveResponseBuilder` 对每个 supported aspect 只取 `hits[0]`。因此即使 top-5 已经包含两篇 gold 文章，最终答案也只可能引用一篇，多文档引用完整率自然是 0。
+
+本轮给 Builder 增加显式的 `max_evidence_per_aspect`，默认仍为 1，实验候选设为 5。这样只改变最终证据聚合，不偷换 retriever、embedding、Guard、ACL 或 top-k。
+
+| 学习入口 | 位置 |
+|---|---|
+| 源码 | `app/agent/runner_v2.py`：`ExtractiveResponseBuilder` |
+| Agent 状态 | `app/agent/controller_v2.py`：`evidence_by_aspect`、`next_decision`、`observe` |
+| 评测 | `scripts/eval_wixqa_multidoc_fast_track.py` |
+| Cohort | `docs/rapid_upgrade/evidence/MULTIDOC_DEV_COHORT.json` |
+| 测试 | `tests/agent_v2/test_runner_v2.py`、`tests/external_datasets/test_wixqa_multidoc_fast_track.py` |
+| 证据 | `docs/rapid_upgrade/evidence/MULTIDOC_FAST_TRACK_PUBLIC.json` |
+
+结果是完整率 `0% -> 22.22%`，但引用精确率 `44.44% -> 18.52%`。这证明“单来源坍缩”是真根因之一，也证明“把 top-5 全引用”不是合格产品解法。因为这 27 题已经观察过，不能称 fresh validation，更不能写成简历上的 Agent 提升。
+
+### 3. multi-document completeness 到底测什么
+
+- `Article Recall@5`：每题所有 gold article 中，有多少比例进入前 5。
+- `Multi-document Retrieval Completeness`：只要少一篇就记 0；全部进入前 5 才记 1。
+- `Required Evidence Completeness`：所有必须证据是否进入最终 accepted evidence。
+- `Citation Completeness`：所有 gold source 是否最终真的被引用。
+- `Citation Precision`：已引用 source 中有多少是 gold。
+
+它们不能互相替代。候选的 Recall 没变，但 completeness 提高，是因为它把已检索证据保留到了最终输出；precision 大跌，则说明它同时保留了不相关候选。Evidence completeness 也不等于 answer correctness：证据齐了，模型仍可能算错、漏答或错误解释。
+
+### 4. 为什么 Dense 可能比 BM25 好，RRF 却可能更差
+
+BM25 依赖词面匹配，适合专有名词、编号和原词复用。Dense 把问题和文档编码成语义向量，适合同义改写和自然客服问法。WixQA ExpertWritten 上 Dense Recall@5 `66.42%`，BM25 `42.75%`，说明语义匹配在该数据集更重要。
+
+RRF 只融合名次，不理解哪一路更可靠。等权融合把较弱 BM25 的高排名注入 Dense top-5，可能挤掉正确文档；本项目 Equal RRF Recall@5 `59.25%`，低于 Dense，p95 又从 `157.4 ms` 增至 `304.6 ms`，所以被拒绝。技术名词更多不代表效果更强。
+
+对应源码和证据：
+
+- `app/external_datasets/wixqa_retrieval.py`：Dense/BM25/RRF 排名；
+- `scripts/eval_wixqa_retrieval.py`：同协议三臂评测；
+- `docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json`：完整聚合；
+- `tests/external_datasets/test_wixqa_public_evidence.py`：协议三臂和字段完整性。
+
+### 5. 511,962 条数据为什么不能继续用 Python 内存 BM25
+
+容量 profiler 估计 1,702,370 chunks。Python token/list/string 对象不仅保存文本，还带对象头和指针，估算约 36.60 GiB，超过本机约 31.6 GiB RAM。SQLite FTS5 把倒排表放磁盘，最终 1.37 GiB artifact、约 1.83 GiB peak RSS，并支持 checkpoint、校验和原子 active pointer。
+
+本轮新增 single-writer lock：第二个 builder 在接触 staging/SQLite 前就 fail fast。流程是：获取根级 lock -> 私有 staging 构建 -> 完整性/行数/hash 校验 -> 原子提升 immutable version -> 原子替换 active pointer -> token 所有者释放 lock。进程硬崩溃后保留 stale owner 信息，要求显式处理，不会偷偷抢锁。
+
+| 学习入口 | 位置 |
+|---|---|
+| 源码 | `app/external_datasets/enterprise_rag_bench_fts.py` |
+| 测试 | `tests/external_datasets/test_enterprise_rag_bench_fts.py`：中断、验证失败、并发、路径穿越 |
+| Contract | `docs/rapid_upgrade/02_FTS_ACTIVATION_CONTRACT.md` |
+| 外部证据 | `docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json` |
+
+### 6. mmap/sharded Dense 为什么没有直接实现
+
+真实 1k/10k/50k BGE-M3 资格测试得到 `35.74/35.93/36.76 chunks/s`，吞吐稳定，但全量投影 12.87 小时；向量矩阵约 6.49 GiB，若再保留平面索引副本约 12.99 GiB。磁盘够，但项目没有 full-corpus resumable shard builder，也没有未消费的 Enterprise development protocol。此时直接烧 12.87 小时只能得到一个已消费 fixed regression，不能形成更可信的简历指标。
+
+源码/测试/证据：`app/external_datasets/enterprise_dense_capacity.py`、`scripts/qualify_enterprise_dense_capacity.py`、`tests/external_datasets/test_enterprise_dense_capacity.py`、`docs/rapid_upgrade/evidence/ENTERPRISE_DENSE_CAPACITY_PUBLIC.json`。
+
+### 7. public-label fixed、consumed benchmark 和 blind holdout
+
+- public-label fixed：题目和标签公开，但协议冻结后只做一次正式比较；不是盲测。
+- consumed：结果或逐题错误已经看过，之后只能做回归/开发，不能再称独立验证。
+- blind holdout：开发期间看不到标签或样本，由独立流程一次性揭盲。
+
+本轮 27 题 Agent cohort 明确写 `RETROSPECTIVE_DEVELOPMENT_ONLY_ALREADY_OBSERVED`；这比把旧 test 改名成 validation 更可信。证据入口是 `docs/enterprise_eval/CONSUMPTION_LEDGER.md` 和各 public JSON 的 `consumption/claim_boundary` 字段。
+
+### 8. ACL admission 的准确边界
+
+ACL 在候选进入融合、parent context、Agent state 和 citation output 前执行。项目能证明“不可见内容不能进入可见 evidence 流”。但当前 FAISS 仍可能先做全局 ANN 候选搜索，再对候选执行 visible filtering；因此不能声称物理层 pre-ANN tenant partition。准确说法是 logical pre-context admission，不是独立向量分区。
+
+源码：`app/retrieval/pipeline.py`、`app/security/access.py`；测试：`tests/retrieval/test_pipeline_acl.py`；架构说明：`docs/architecture.md`。
+
+### 9. 最终工程结论
+
+项目已经有三类外部证据：WixQA enterprise retrieval、EnterpriseRAG scale、garak retrieved-content security。Agent mechanism 强，但外部正向 effect 未证明；full Dense 因预注册门失败停止。正确下一步不是继续堆 LangGraph/GraphRAG/更多模型，而是学习源码、准备演示和面试，并只在拿到真正新数据或业务验收集时恢复效果开发。

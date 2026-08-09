@@ -1,5 +1,35 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-08-09 Rapid quality and resume release closeout
+
+```text
+CORE_RAG             VERIFIED
+ENTERPRISE_SCALE     VERIFIED
+SECURITY             VERIFIED_LIMITED
+AGENT_MECHANISM      VERIFIED
+AGENT_EFFECT         REJECTED
+FULL_DENSE           REJECTED_FOR_THIS_SPRINT / QUALITY_NOT_RUN
+PRODUCTION           NOT_CLAIMED
+HIDDEN_HOLDOUT       NOT_CLAIMED
+```
+
+The rapid sprint fixed asymmetric-negation citation contradictions, completed
+the public WixQA three-arm evidence, and enforced a single-writer atomic FTS5
+activation contract. A 27-case retrospective multi-document Agent ablation
+raised evidence/citation completeness `0% -> 22.22%`, but citation precision
+fell `44.44% -> 18.52%`; the candidate remains held and is not a resume result.
+A real BGE-M3 1k/10k/50k capacity qualification sustained
+`35.74/35.93/36.76 chunks/s`, projecting a full Dense build at `12.87 h`.
+Full Dense is a no-go because runtime, resumable-shard, and unconsumed-quality-
+protocol gates are not all satisfied.
+
+Current decision: `STOP FEATURE DEVELOPMENT`. Retain the verified RAG, scale,
+and limited security evidence; move to demonstration, code study, interview
+practice, and job-specific adaptation. See the
+[rapid report](docs/rapid_upgrade/FINAL_REPORT.md),
+[Agent decision](docs/rapid_upgrade/03_AGENT_FAST_TRACK.md), and
+[Dense capacity decision](docs/rapid_upgrade/04_DENSE_CAPACITY_RESULT.md).
+
 ## 2026-08-09 Enterprise-aligned external evaluation closeout
 
 ```text

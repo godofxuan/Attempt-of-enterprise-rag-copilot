@@ -2,13 +2,34 @@
 
 [![ci](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml/badge.svg?branch=codex%2Frag-eval-system)](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml?query=branch%3Acodex%2Frag-eval-system)
 
-An evidence-aware enterprise knowledge copilot that enforces access control before retrieval, plans bounded tools, verifies citations, and exposes auditable decisions instead of returning an opaque generated paragraph.
+An enterprise knowledge RAG/Agent Copilot with hybrid retrieval, bounded tools,
+identity-aware ACL, host-side evidence/citation checks, retrieved-content prompt
+injection defense, versioned knowledge lifecycle, and external evaluation.
+
+## Measured Results
+
+| Capability | Verified result | Evidence boundary |
+|---|---|---|
+| External support-KB retrieval | On 200 WixQA ExpertWritten questions, BGE-M3 Dense improved Recall@5 `42.75% -> 66.42%` and nDCG@5 `32.15% -> 52.16%`; p95 `151.8 -> 157.4 ms` | [Aggregate evidence](docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json); public-label fixed retrieval, not answer accuracy or a blind test |
+| Enterprise-scale indexing | Built and atomically activated a `1.37 GiB` SQLite FTS5 index over `511,962` records from 9 source types in `231.35 s`, about `1.83 GiB` peak RSS | [Aggregate evidence](docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json); full lexical baseline, not end-to-end accuracy |
+| Retrieved-content security | On a pinned garak `LatentInjectionReport` subset, Guard reduced attack success `4/12 -> 0/12` and context exposure `12/12 -> 0/12`; mean scan `1.42 ms` | [Aggregate evidence](docs/resume_metrics/evidence/garak_latent_report_holdout_v1.json); one small probe subset, not universal safety or full garak |
+
+The project is different from a "PDF plus vector database" demo because models
+cannot grant tools, widen identity scope, or directly publish unsupported
+claims. The Python host owns authorization, budgets, evidence admission,
+citations, lifecycle activation, and safe terminal states. Failed experiments
+remain visible in [negative results](docs/enterprise_eval/NEGATIVE_RESULTS.md)
+and the [rapid closeout](docs/rapid_upgrade/FINAL_REPORT.md).
 
 ## Business Problem
 
 Enterprise knowledge is fragmented across policies, wikis, tickets, mail, meetings, and tables. A useful copilot must do more than find semantically similar text: it must respect tenant and group visibility, prefer current authoritative versions, gather every required fact, distinguish missing from forbidden information, cite visible evidence, and stop safely when evidence or execution budget is insufficient.
 
-This repository implements that workflow locally with synthetic enterprise data. It is designed as an inspectable AI Agent/RAG engineering project, not as a production identity or compliance system.
+The local demo uses deterministic synthetic enterprise policies so a public clone
+can run without private data. External retrieval and security claims come from
+the separately bound WixQA, EnterpriseRAG-Bench, and garak evidence above. This
+is an inspectable AI Agent/RAG engineering project, not a production identity or
+compliance system.
 
 ## Architecture
 
