@@ -3,7 +3,7 @@
 ## 2026-08-10 Final evidence closure
 
 ```text
-portfolio decision                 PORTFOLIO_READY_STOP_DEVELOPMENT (final CI pending)
+portfolio decision                 PORTFOLIO_READY_STOP_DEVELOPMENT
 WixQA clean replay                 VERIFIED / 63 quality comparisons / tolerance 0.0
 fresh WixQA index                  6,221 articles / 11,975 chunks / BGE-M3 1024d
 historical private inputs          NOT USED
@@ -17,7 +17,8 @@ Full Enterprise Dense             NO-GO / quality NOT_RUN
 production                        NOT_CLAIMED
 focused closeout tests            26 passed
 full local pre-repair gate        3182 passed / 29 skipped / 2 doc-contract failures
-public repository audit           1536 candidates / 0 findings
+public repository audit           1539 candidates / 0 findings
+release payload / Actions          dad6336a / Run 31325310671 / SUCCESS
 ```
 
 The clean replay downloaded official LF source into a new root, rebuilt every

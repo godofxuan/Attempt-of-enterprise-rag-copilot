@@ -10,7 +10,7 @@ Command:
 .\.venv\Scripts\python.exe -m scripts.audit_public_repo --root .
 ```
 
-Final result: `1536 candidates / 0 findings`.
+Final result: `1539 candidates / 0 findings`.
 
 The audit checks forbidden/private paths, credentials and private keys,
 non-example email addresses, author-specific absolute paths, missing local
