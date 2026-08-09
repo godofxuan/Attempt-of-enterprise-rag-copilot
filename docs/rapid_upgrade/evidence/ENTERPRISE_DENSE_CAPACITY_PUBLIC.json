@@ -1,0 +1,121 @@
+{
+  "batch_size": 32,
+  "capacity_decision": {
+    "available_disk_bytes": 70124494848,
+    "checkpoints": [
+      {
+        "chunk_count": 1000,
+        "chunks_per_second": 35.738666249543016,
+        "elapsed_seconds": 27.980898699956015,
+        "error_count": 0,
+        "input_characters": 1732944,
+        "process_peak_rss_bytes": 1596862464,
+        "vector_bytes": 4096000
+      },
+      {
+        "chunk_count": 10000,
+        "chunks_per_second": 35.92726811557993,
+        "elapsed_seconds": 278.3401166999247,
+        "error_count": 0,
+        "input_characters": 17357203,
+        "process_peak_rss_bytes": 1612578816,
+        "vector_bytes": 40960000
+      },
+      {
+        "chunk_count": 50000,
+        "chunks_per_second": 36.755096262437476,
+        "elapsed_seconds": 1360.355571999913,
+        "error_count": 0,
+        "input_characters": 86968705,
+        "process_peak_rss_bytes": 1681207296,
+        "vector_bytes": 204800000
+      }
+    ],
+    "decision": "FULL_DENSE_NO_GO",
+    "dtype_bytes": 4,
+    "embedding_dimension": 1024,
+    "full_chunk_count": 1702370,
+    "gates": {
+      "all_checkpoints_zero_errors": true,
+      "development_quality_protocol_ready": false,
+      "disk_fit_with_20_percent_reserve": true,
+      "projected_runtime_at_most_8_hours": false,
+      "resumable_sharded_builder_ready": false,
+      "throughput_retains_80_percent_at_50k": true
+    },
+    "matrix_plus_index_copy_bytes": 13945815040,
+    "projected_embedding_hours": 12.865713972808289,
+    "projected_embedding_seconds": 46316.57030210984,
+    "raw_vector_bytes": 6972907520,
+    "reasons": [
+      "projected_runtime_at_most_8_hours",
+      "resumable_sharded_builder_ready",
+      "development_quality_protocol_ready"
+    ],
+    "schema_version": "enterprise_dense_capacity_decision_v1"
+  },
+  "checkpoints": [
+    {
+      "chunk_count": 1000,
+      "chunks_per_second": 35.738666249543016,
+      "elapsed_seconds": 27.980898699956015,
+      "error_count": 0,
+      "input_characters": 1732944,
+      "process_peak_rss_bytes": 1596862464,
+      "vector_bytes": 4096000
+    },
+    {
+      "chunk_count": 10000,
+      "chunks_per_second": 35.92726811557993,
+      "elapsed_seconds": 278.3401166999247,
+      "error_count": 0,
+      "input_characters": 17357203,
+      "process_peak_rss_bytes": 1612578816,
+      "vector_bytes": 40960000
+    },
+    {
+      "chunk_count": 50000,
+      "chunks_per_second": 36.755096262437476,
+      "elapsed_seconds": 1360.355571999913,
+      "error_count": 0,
+      "input_characters": 86968705,
+      "process_peak_rss_bytes": 1681207296,
+      "vector_bytes": 204800000
+    }
+  ],
+  "chunking": {
+    "chunk_size_characters": 1800,
+    "overlap_characters": 150
+  },
+  "claim_boundary": {
+    "persistent_dense_index_built": false,
+    "production_throughput_claim_allowed": false,
+    "quality_labels_used": false,
+    "resume_quality_claim_allowed": false,
+    "retrieval_quality_measured": false
+  },
+  "dataset_revision": "69916e31c68aa5963c00248fd7f0bc12d04fd235",
+  "documents_byte_count": 1409893131,
+  "documents_sha256": "6b0747bf160af9427b12101537d53056ac592ada9831c1a98ae01fa50a8d2a9f",
+  "embedding": {
+    "dimension": 1024,
+    "dtype": "float32",
+    "model_identifier": "bge-m3",
+    "model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab"
+  },
+  "execution_git_sha": "7e050e45e484e67d5e8f85cba2cd405117ed9b55",
+  "hardware": {
+    "disk_free_bytes_at_end": 70124494848,
+    "gpu": "NVIDIA GeForce RTX 5060, 8151",
+    "logical_cpu_count": 12,
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "ram_available_bytes_at_publication": 14600876032,
+    "ram_total_bytes": 33947549696
+  },
+  "hardware_augmentation": "Windows GlobalMemoryStatusEx at publication",
+  "private_summary_sha256": "05b112a112960aee574bf74b371534fc554d1c7f6715d4553ece3291562fa9bc",
+  "schema_version": "enterprise_dense_capacity_public_v1",
+  "selection": "canonical source order first 50000 flat chunks",
+  "vector_stream_sha256": "e8ed8740264c206df9f732c866c87acab6a5f2da053d0b5fd5167de3bef2d0c8"
+}

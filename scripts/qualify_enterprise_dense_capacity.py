@@ -273,8 +273,7 @@ def _hardware_snapshot(free_disk_bytes: int) -> dict:
         ram_total = memory.total
         ram_available = memory.available
     except ImportError:
-        ram_total = 0
-        ram_available = 0
+        ram_total, ram_available = _windows_memory_snapshot()
     gpu = "UNAVAILABLE"
     try:
         gpu = subprocess.check_output(
@@ -297,6 +296,32 @@ def _hardware_snapshot(free_disk_bytes: int) -> dict:
         "disk_free_bytes_at_end": free_disk_bytes,
         "gpu": gpu,
     }
+
+
+def _windows_memory_snapshot() -> tuple[int, int]:
+    if os.name != "nt":
+        return 0, 0
+    import ctypes
+
+    class MemoryStatusEx(ctypes.Structure):
+        _fields_ = [
+            ("dwLength", ctypes.c_ulong),
+            ("dwMemoryLoad", ctypes.c_ulong),
+            ("ullTotalPhys", ctypes.c_ulonglong),
+            ("ullAvailPhys", ctypes.c_ulonglong),
+            ("ullTotalPageFile", ctypes.c_ulonglong),
+            ("ullAvailPageFile", ctypes.c_ulonglong),
+            ("ullTotalVirtual", ctypes.c_ulonglong),
+            ("ullAvailVirtual", ctypes.c_ulonglong),
+            ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+        ]
+
+    status = MemoryStatusEx()
+    status.dwLength = ctypes.sizeof(status)
+    succeeded = ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status))
+    if not succeeded:
+        return 0, 0
+    return int(status.ullTotalPhys), int(status.ullAvailPhys)
 
 
 if __name__ == "__main__":
