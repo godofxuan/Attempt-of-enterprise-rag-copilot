@@ -11,7 +11,7 @@ It does not replace the broader project metrics in `docs/resume_metrics`.
 > anonymized support questions; Dense improved article Recall@5 from 42.75% to
 > 66.42% and nDCG@5 from 32.15% to 52.16%, with p95 latency 151.8 to 157.4 ms.
 
-Evidence: `evidence/wixqa_retrieval_baseline_public_v1.json`, execution
+Evidence: `evidence/wixqa_retrieval_baseline_public_v2.json`, execution
 `234734657fe354a0ecd767022c6f7c22cdc329da`. This is retrieval, not answer accuracy,
 and the public-label fixed cohort is not a blind holdout.
 

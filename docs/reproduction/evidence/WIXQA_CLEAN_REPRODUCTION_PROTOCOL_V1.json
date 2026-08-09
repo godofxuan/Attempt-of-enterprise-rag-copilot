@@ -1,0 +1,58 @@
+{
+  "arms": [
+    "bm25",
+    "dense",
+    "hybrid_rrf"
+  ],
+  "candidate_k_chunks": 200,
+  "chunking": {
+    "overlap_characters": 150,
+    "size_characters": 1800,
+    "title_repeated_per_chunk": true
+  },
+  "clean_root_policy": {
+    "embedding_cache_must_not_exist_before_run": true,
+    "eval_output_must_not_exist_before_run": true,
+    "historical_private_artifacts_allowed_as_input": false,
+    "index_root_must_not_exist_before_run": true,
+    "source_root_must_not_exist_before_run": true
+  },
+  "cohorts": {
+    "expertwritten": {
+      "case_count": 200,
+      "question_ids_sha256": "ec11e3e4733bd6701441b127952fa98b0973f9961a0aacabfae570da45976110"
+    },
+    "simulated": {
+      "case_count": 200,
+      "question_ids_sha256": "871550a19297d3c267f03f2d819f0fd1cef566a8e3c11fdb92ea18792d71b465"
+    },
+    "synthetic": {
+      "case_count": 6221,
+      "question_ids_sha256": "83beb0298665bcb1b5151dfd6dd23e1ddae6cf5e16d4e21ccafac82df8bb04ee"
+    }
+  },
+  "dataset_manifest_sha256": "e40972d70a8c80685b3730733efd90ac82a01fd52a949a0d27e122809bc290dd",
+  "dataset_revision": "d662dc42479c14e202eccd832f8c4b66a035c4cc",
+  "embedding_dimension": 1024,
+  "embedding_model": "bge-m3",
+  "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+  "historical_public_evidence_sha256": "dc3873a4abb4feb5ff83c601edcbaa2693e2b08ee26f3159655804fc8a9c4ab0",
+  "historical_protocol_sha256": "4229a558d637fd4449bdb70887c480fb01c50621f0ae96c9db1562e3ebfeb531",
+  "latency_policy": "REPORT_NEW_MACHINE_OBSERVATION_NO_EQUALITY_GATE",
+  "metric_fields": [
+    "article_hit_at_1",
+    "article_recall_at_1",
+    "article_recall_at_3",
+    "article_recall_at_5",
+    "mrr_at_5",
+    "ndcg_at_5",
+    "multi_article_completeness_at_5"
+  ],
+  "official_source": "https://huggingface.co/datasets/Wix/WixQA",
+  "protocol_id": "wixqa-clean-reproduction-v1",
+  "public_label_boundary": "REGRESSION_REPLAY_NOT_NEW_HOLDOUT",
+  "quality_absolute_tolerance": 0.0,
+  "registration_base_git_sha": "37b07d23fb4d0a25cecc6cd4599f7748c7af0bcd",
+  "rrf_k": 60,
+  "schema_version": "wixqa_clean_reproduction_protocol_v1"
+}

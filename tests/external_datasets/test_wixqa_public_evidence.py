@@ -10,7 +10,12 @@ from scripts.publish_wixqa_retrieval_eval import (
     SUMMARY_FIELDS,
     build_public_evidence,
 )
-from scripts.reproduce_wixqa_retrieval import build_parser, command_plan
+from scripts.reproduce_wixqa_retrieval import (
+    _verify_clean_roots,
+    build_parser,
+    command_plan,
+)
+from scripts.verify_wixqa_clean_reproduction import compare_reproduction
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -82,7 +87,14 @@ def test_publisher_rejects_missing_protocol_arm() -> None:
 
 
 def test_reproduction_plan_freezes_all_three_cohorts_and_fixed_replay_label() -> None:
-    args = build_parser().parse_args(["--run-prefix", "repro-v1"])
+    args = build_parser().parse_args(
+        [
+            "--run-prefix",
+            "repro-v1",
+            "--embedding-cache",
+            ".private/repro-v1/cache",
+        ]
+    )
     plan = command_plan(args)
     eval_commands = [command for command in plan if "scripts.eval_wixqa_retrieval" in command]
     assert len(eval_commands) == 3
@@ -91,3 +103,69 @@ def test_reproduction_plan_freezes_all_three_cohorts_and_fixed_replay_label() ->
     assert plan[-1][plan[-1].index("--reproduction-metadata") + 1].endswith(
         "repro-v1-machine.json"
     )
+    build = next(command for command in plan if "scripts.build_wixqa_index" in command)
+    assert Path(build[build.index("--embedding-cache") + 1]) == Path(
+        ".private/repro-v1/cache"
+    )
+
+
+def test_resume_safe_metrics_points_to_complete_v2_evidence() -> None:
+    text = (ROOT / "docs" / "enterprise_eval" / "RESUME_SAFE_METRICS.md").read_text(
+        encoding="utf-8"
+    )
+    assert "evidence/wixqa_retrieval_baseline_public_v2.json" in text
+    assert "evidence/wixqa_retrieval_baseline_public_v1.json" not in text
+
+
+def test_clean_root_preflight_rejects_existing_input(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    args = build_parser().parse_args(
+        [
+            "--run-prefix",
+            "repro-v1",
+            "--source-root",
+            str(source),
+            "--index-root",
+            str(tmp_path / "index"),
+            "--embedding-cache",
+            str(tmp_path / "cache"),
+            "--output-root",
+            str(tmp_path / "runs"),
+            "--require-clean-roots",
+        ]
+    )
+    with pytest.raises(FileExistsError, match="source_root"):
+        _verify_clean_roots(args)
+
+
+def test_clean_reproduction_comparison_requires_exact_quality_and_clean_roots() -> None:
+    historical = json.loads(
+        (EVIDENCE / "wixqa_retrieval_baseline_public_v2.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    candidate = json.loads(json.dumps(historical))
+    candidate["reproduction_metadata"] = {
+        "clean_reproduction": {
+            "required": True,
+            "historical_private_artifacts_used_as_input": False,
+        }
+    }
+    result = compare_reproduction(
+        historical,
+        candidate,
+        {"quality_absolute_tolerance": 0.0},
+    )
+    assert result["status"] == "VERIFIED"
+
+    candidate["results"]["expertwritten_fixed_external"]["arms"]["dense"][
+        "article_recall_at_5"
+    ] -= 0.001
+    result = compare_reproduction(
+        historical,
+        candidate,
+        {"quality_absolute_tolerance": 0.0},
+    )
+    assert result["status"] == "REPRODUCTION_GAP"
+    assert result["quality_difference_count"] == 1

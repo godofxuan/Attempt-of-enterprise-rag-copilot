@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import importlib.metadata
 import json
+import os
 import platform
 import subprocess
 import sys
@@ -32,9 +35,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output-root", type=Path, default=Path(".private/external/wixqa/eval_runs")
     )
+    parser.add_argument(
+        "--embedding-cache",
+        type=Path,
+        default=Path(".private/external/wixqa/embedding_cache"),
+    )
     parser.add_argument("--public-output", type=Path, default=DEFAULT_PUBLIC_OUTPUT)
     parser.add_argument("--reuse-verified-index", action="store_true")
     parser.add_argument("--publish-existing", action="store_true")
+    parser.add_argument("--require-clean-roots", action="store_true")
     return parser
 
 
@@ -64,6 +73,8 @@ def command_plan(args: argparse.Namespace) -> list[list[str]]:
                     str(args.source_root),
                     "--output-root",
                     str(args.index_root),
+                    "--embedding-cache",
+                    str(args.embedding_cache),
                     "--run-id",
                     f"{args.run_prefix}-index",
                 ]
@@ -113,10 +124,21 @@ def command_plan(args: argparse.Namespace) -> list[list[str]]:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.require_clean_roots:
+        _verify_clean_roots(args)
     args.output_root.mkdir(parents=True, exist_ok=True)
     metadata_path = args.output_root / f"{args.run_prefix}-machine.json"
+    metadata = _machine_metadata()
+    metadata["clean_reproduction"] = {
+        "required": bool(args.require_clean_roots),
+        "historical_private_artifacts_used_as_input": False,
+        "source_root": str(args.source_root.resolve()),
+        "index_root": str(args.index_root.resolve()),
+        "embedding_cache": str(args.embedding_cache.resolve()),
+        "output_root": str(args.output_root.resolve()),
+    }
     metadata_path.write_text(
-        json.dumps(_machine_metadata(), indent=2, sort_keys=True) + "\n",
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     for command in command_plan(args):
@@ -125,6 +147,18 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _machine_metadata() -> dict[str, object]:
+    from app.config import get_settings
+    from app.runtime.ollama_embeddings import OllamaEmbeddingClient
+
+    import faiss
+    import numpy
+
+    client = OllamaEmbeddingClient.from_settings(
+        get_settings(),
+        probe_text="WixQA clean reproduction metadata probe",
+        endpoint_context="WixQA clean reproduction metadata",
+    )
+    requirements = Path("requirements.txt")
     return {
         "captured_at": datetime.now(timezone.utc).isoformat(),
         "git_sha": subprocess.check_output(
@@ -133,9 +167,57 @@ def _machine_metadata() -> dict[str, object]:
         "platform": platform.platform(),
         "python": platform.python_version(),
         "processor": platform.processor() or "UNKNOWN",
+        "logical_cpu_count": os.cpu_count(),
+        "requirements_sha256": hashlib.sha256(requirements.read_bytes()).hexdigest(),
+        "numpy": numpy.__version__,
+        "faiss": faiss.__version__,
+        "torch": _package_version("torch"),
+        "blas": numpy.__config__.CONFIG.get("Build Dependencies", {}).get("blas"),
+        "embedding_model": client.model_identifier,
+        "embedding_model_sha256": client.model_sha256,
+        "embedding_dimension": client.dimension,
+        "gpu": _gpu_identity(),
         "latency_comparability": "MACHINE_SPECIFIC",
         "fixed_labels": "REGRESSION_REPLAY_NOT_NEW_HOLDOUT",
     }
+
+
+def _verify_clean_roots(args: argparse.Namespace) -> None:
+    roots = {
+        "source_root": args.source_root.resolve(),
+        "index_root": args.index_root.resolve(),
+        "embedding_cache": args.embedding_cache.resolve(),
+        "output_root": args.output_root.resolve(),
+    }
+    if len(set(roots.values())) != len(roots):
+        raise ValueError("WixQA clean reproduction roots must be distinct")
+    dirty = [name for name, path in roots.items() if path.exists()]
+    if dirty:
+        raise FileExistsError(
+            "WixQA clean reproduction roots already exist: " + ", ".join(dirty)
+        )
+
+
+def _package_version(name: str) -> str:
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return "NOT_INSTALLED"
+
+
+def _gpu_identity() -> str:
+    try:
+        return subprocess.check_output(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,memory.total,driver_version",
+                "--format=csv,noheader",
+            ],
+            text=True,
+            timeout=10,
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        return "UNAVAILABLE"
 
 
 def _cohorts() -> tuple[str, ...]:
