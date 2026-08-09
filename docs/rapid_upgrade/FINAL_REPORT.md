@@ -4,9 +4,9 @@
 
 Implementation/evidence base SHA: `49131de5f5b48718c72b06854cb424fcd8784a0c`.
 Clean-reproduced release candidate SHA: `a3ef9c8`.
-The final documentation/gate/push SHA is established after this report is
-committed and is reported by `git rev-parse HEAD` plus the final GitHub Actions
-run. Experiment metrics remain bound to their individual execution SHAs.
+Remote-validated release payload SHA:
+`68523e840a8f03b32d02ac78efd14af9889765ec`. Experiment metrics remain bound to
+their individual execution SHAs.
 
 Decision: `STOP FEATURE DEVELOPMENT`.
 
@@ -19,8 +19,8 @@ reduce credibility rather than increase it.
 
 ## Required closeout answers
 
-1. **Current HEAD.** Evidence/code base `49131de5...`; final pushed HEAD and
-   Actions run are recorded after the final gate.
+1. **Validated release payload.** Evidence/code base `49131de5...`; pushed
+   payload `68523e8...` passed exact-SHA GitHub Actions Run `31316231539`.
 2. **Did the P1 citation bug exist?** Yes. Affirmative/negative pairs could evade
    mismatch because affirmative polarity was treated as neutral.
 3. **How was it fixed?** Relevant evidence sentences now undergo explicit
@@ -64,10 +64,11 @@ reduce credibility rather than increase it.
 16. **ACL regression.** ACL pipeline tests passed in the clean focused gate;
    same ACL was held across Agent arms.
 17. **CI.** Local final gate is `3174 passed / 29 skipped / 3 warnings`; public
-   audit is `1517/0`. Exact-HEAD GitHub CI remains pending until push, and local
-   pass is not reported as CI.
-18. **GitHub Actions Run IDs.** Added after the final push/remote query; historical
-   run IDs do not establish current SHA.
+   audit is `1517/0`. Exact-SHA remote payload gate is GitHub Actions Run
+   `31316231539`, conclusion `success`.
+18. **GitHub Actions jobs.** Ubuntu `93251819794`, Windows `93251819819`, and
+   Linux container contract `93252615946` all concluded `success` for
+   `68523e8...`.
 19. **Pushed commits in this sprint.** Local milestone commits before final
    release: `0848fc0`, `86b1844`, `7b1d3b3`, `62522f6`, `7e050e4`, `49131de`.
 20. **Strongest three resume metrics.** WixQA Dense improvement; EnterpriseRAG

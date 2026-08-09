@@ -42,6 +42,11 @@ previewed 216 canonical documents/chunks, passed `214` focused tests, and
 skipped only official-source reconstruction because external WixQA raw data is
 not committed. Public audit remained `1517 candidates / 0 findings`.
 
+GitHub Actions Run `31316231539` verified pushed payload `68523e8` with
+successful Ubuntu, Windows, and Linux container-contract jobs. This is a
+repository/deployment gate, not promotion evidence for the held Agent or Dense
+experiments. See [remote verification](docs/rapid_upgrade/REMOTE_VERIFICATION.md).
+
 Current decision: `STOP FEATURE DEVELOPMENT`. Retain the verified RAG, scale,
 and limited security evidence; move to demonstration, code study, interview
 practice, and job-specific adaptation. See the

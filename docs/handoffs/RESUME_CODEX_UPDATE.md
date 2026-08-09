@@ -7,8 +7,8 @@
 - Branch: `codex/rag-eval-system`
 - Evidence/code base SHA: `49131de5f5b48718c72b06854cb424fcd8784a0c`
 - Clean-reproduced release candidate SHA: `a3ef9c8`
-- Final release HEAD: use `git rev-parse HEAD` after checkout
-- CI status: pending final exact-HEAD GitHub Actions at document creation
+- Remote-validated release payload SHA: `68523e840a8f03b32d02ac78efd14af9889765ec`
+- CI status: `success`, Run `31316231539`, Ubuntu/Windows/container all passed
 - Production status: `NOT_CLAIMED`
 
 ## Top verified positive results
