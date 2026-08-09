@@ -1,118 +1,113 @@
 # 简历 Bullet 与证据映射
 
-每条简历描述都必须能回答：数据是什么、代码在哪里、指标是什么、对照是谁、
-限制是什么。面试官追问时不要只背数字。
+每条项目描述都要能回答：数据是什么、分母是多少、代码在哪里、如何测试、指标
+表示什么、什么不能推出。下列五条是优先候选。
 
-## Bullet 1：真实客服知识库检索
+全文中的 `Recall@5` 都是检索 Recall@5，不是答案或业务准确率。
 
-**可写描述**
+## 1. WixQA 外部检索
 
-> 在 WixQA ExpertWritten 200 条匿名真实客服问题上，对比 BM25、BGE-M3 Dense
-> 与 RRF；Dense 将 Article Recall@5 从 42.75% 提升至 66.42%，nDCG@5 从
-> 32.15% 提升至 52.16%，p95 仅由 151.8 ms 增至 157.4 ms。
+**中文原句：** 在 200 条 WixQA ExpertWritten 匿名真实客服问题上对比 BM25、
+BGE-M3 Dense 与等权 RRF；Dense 将 Article Recall@5 从 42.75% 提升至 66.42%、
+nDCG@5 从 32.15% 提升至 52.16%，p95 由 151.8 ms 增至 157.4 ms。
 
-**证据与代码**
+**English:** Benchmarked BM25, BGE-M3 Dense, and equal RRF on 200 anonymized
+real-support WixQA ExpertWritten questions; Dense improved Article Recall@5
+from 42.75% to 66.42% and nDCG@5 from 32.15% to 52.16%, with p95 moving from
+151.8 to 157.4 ms.
 
-- 数据：WixQA revision `d662dc42479c14e202eccd832f8c4b66a035c4cc`。
-- 代码：`app/external_datasets/wixqa.py`、`wixqa_index.py`、`wixqa_eval.py`。
-- 协议：`docs/enterprise_eval/evidence/WIXQA_RETRIEVAL_PROTOCOL_V1.json`。
-- 聚合结果：`wixqa_retrieval_baseline_public_v1.json`。
-- 执行 SHA：`234734657fe354a0ecd767022c6f7c22cdc329da`。
+- 代码：`app/external_datasets/wixqa.py`、`wixqa_retrieval.py`；
+  `scripts/eval_wixqa_retrieval.py`
+- 测试：`tests/external_datasets/test_wixqa_public_evidence.py`
+- 数据/协议：WixQA revision `d662dc4`；固定 public-label protocol
+- 执行 SHA：`234734657fe354a0ecd767022c6f7c22cdc329da`
+- 公开证据：`docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json`
+- 限制：检索指标，不是答案准确率；标签公开且已消费，不是 blind test
+- 禁止扩大：不得说“RAG 准确率 66.42%”或“SOTA”
 
-**为什么这个指标合理**
+追问“为什么 RRF 变差？”：等权 RRF 让明显更弱的 BM25 获得同等影响，把 Dense
+正确结果挤出 Top-5，并把 p95 提高到 304.6 ms，因此按门禁拒绝该候选。
 
-检索器的任务是把 gold article 放进有限上下文，所以 Recall@5 衡量“证据有没有
-机会被模型看到”，nDCG@5 衡量“证据是否排得足够靠前”。它们不等于答案正确率。
+## 2. Clean reproduction
 
-**可能追问**
+**中文原句：** 将数据 revision、模型 digest、冻结协议和消费状态写入证据合同；在
+全新目录重建 11,975 个 WixQA chunk，63 项质量指标在零容差下完全复现。
 
-问：为什么 RRF 反而更差？
+**English:** Bound dataset revision, model digest, frozen protocol, and
+consumption state into an evidence contract; rebuilt 11,975 WixQA chunks in
+fresh roots and reproduced 63 quality values exactly at zero tolerance.
 
-答：等权融合假设两个检索器质量和互补性相近，但本数据上 Dense 明显更强。
-BM25 的较差排名通过 RRF 获得同等影响，导致 Dense 的正确文档被挤出 Top-5；
-同时需要执行两套检索，p95 接近翻倍。因此根据 paired result 拒绝等权 RRF。
+- 代码：`scripts/reproduce_wixqa_retrieval.py`、
+  `scripts/verify_wixqa_clean_reproduction.py`
+- 测试：`tests/external_datasets/test_wixqa_public_evidence.py`
+- 数据/协议：官方 LF manifest + canonical transport equivalence + protocol v2
+- 执行 SHA：`4d07d6a4f14bf4eaded8ff1bd6987b8a094dc064`
+- 公开证据：`docs/reproduction/evidence/wixqa_clean_reproduction_public_v1.json`
+- 限制：本地 clean regression replay，不是第三方复现或新 holdout
+- 禁止扩大：不得说“独立机构复现”
 
-问：这算真实准确率吗？
+追问“为什么第一次失败？”：历史 Windows 副本是 CRLF，官方下载是 LF，每条 JSONL
+多 1 byte。代码没有忽略哈希，而是证明 canonical JSON row 与派生 ID 完全相同，
+再冻结 transport-corrected v2；检索参数和零容差均未改变。
 
-答：不是。这是公开标签固定外部集上的 article retrieval 指标。问题来源真实，
-但不是隐藏盲测，也没有在本轮测生成答案正确率。
+## 3. 51 万行 FTS5
 
-## Bullet 2：51 万文档可落地索引
+**中文原句：** 将预计 36.60 GiB 内存的 Python BM25 替换为可恢复 SQLite FTS5，
+以约 1.83 GiB 峰值内存在 231.35 秒内构建 511,962 行、9 类来源、1.37 GiB 索引。
 
-**可写描述**
+**English:** Replaced an estimated 36.60 GiB in-memory Python BM25 design with
+resumable SQLite FTS5, building a 1.37 GiB index over 511,962 rows from nine
+source types in 231.35 seconds at about 1.83 GiB peak RSS.
 
-> 面向 EnterpriseRAG-Bench 511,962 条异构企业文档，将预计 36.60 GiB 的 Python
-> 内存 BM25 改为可恢复、原子激活的 SQLite FTS5 索引；以约 1.83 GiB 峰值内存
-> 在 231.35 秒构建 1.37 GiB 全量索引，并建立 60.37% Recall@5 词法基线。
+- 代码：`app/external_datasets/enterprise_rag_bench_fts.py`
+- 测试：`tests/external_datasets/test_enterprise_rag_bench_fts.py`
+- 协议：single-writer offline builder + verified staging + atomic activation
+- 执行 SHA：`955d86f1ca244bc90025c89806fd786f978b98ff`
+- 公开证据：`docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json`
+- 限制：词法检索；Recall@5 60.3741%，record-aware sensitivity 60.2677%
+- 禁止扩大：不得说“51 万文档系统准确率 60.37%”或“分布式在线索引”
 
-**证据与代码**
+追问“为什么不用 Elasticsearch？”：已测瓶颈是单机 Python 对象内存，不是集群
+分片或高可用。FTS5 是最小可验证方案；真实多机写入、HA、在线扩缩容出现后再选型。
 
-- 代码：`app/external_datasets/enterprise_rag_bench_fts.py`。
-- 构建入口：`scripts/build_enterprise_rag_bench_fts.py`。
-- 评测入口：`scripts/eval_enterprise_rag_bench_retrieval.py`。
-- 容量证据：`enterprise_rag_bench_capacity_public_v1.json`。
-- 结果证据：`enterprise_rag_bench_bm25_public_v1.json`。
-- 执行 SHA：构建/评测 `955d86f1ca244bc90025c89806fd786f978b98ff`。
+## 4. Retrieved-content Guard
 
-**为什么这是工业化内容**
+**中文原句：** 在固定 garak 子集上，Guard 将 ASR 从 4/12 降到 0/12、上下文暴露
+从 12/12 降到 0/12，平均扫描 1.42 ms。
 
-真实系统不仅要“算法能写出来”，还要能处理中断、版本错配、内存上限和半成品
-索引。Checkpoint 解决长任务恢复；哈希绑定防止接错数据版本；staging + 验证 +
-active pointer 解决半成品被线上读取；故障注入测试证明恢复路径不是纸面设计。
+**English:** On a pinned garak subset, the Guard reduced ASR from 4/12 to 0/12
+and context exposure from 12/12 to 0/12 at 1.42 ms mean scan latency.
 
-**可能追问**
+- 代码：`app/security/retrieved_content_guard.py` 及 admission data flow
+- 测试：`tests/security/test_retrieved_content_guard.py`
+- 协议：同攻击集、同模型、同检索，只切换 Guard OFF/ON
+- 执行 SHA：`1e7ea0c9fbd037277fc5feaa733d2063d315e63a`
+- 公开证据：`docs/resume_metrics/evidence/garak_latent_report_holdout_v1.json`
+- 限制：12 攻击 + 2 benign 的窄子集
+- 禁止扩大：不得说“100% 防注入”或“通过完整 garak”
 
-问：60.37% 好不好？
+追问“为什么不用 LLM 判断注入？”：Guard 是 host-side admission boundary，需要低
+延迟、可复现和 fail-closed；LLM 可用于离线语义研究，不能单独决定是否把原文送入
+Controller。规则也有误报风险，所以同时报告 benign controls。
 
-答：它是全语料、无 source oracle 的 B0 Recall@5，不是最终答案准确率。优点是
-规模和协议真实；缺点是 semantic 只有 36%，多文档完整率只有 28.26%，p95 1.82
-秒。它的价值是建立可信基线并定位下一瓶颈，而不是声称已经达到生产质量。
+## 5. Bounded Agent 与负结果门禁
 
-问：为什么不直接做向量索引？
+**中文原句：** 实现 host 控制的 search/find/open Agent、ACL、工具预算、Evidence
+Ledger 与 citation gate；在同检索器成对评测中发现 Agent 无外部质量增益并阻止升级。
 
-答：容量测量显示约 170 万 chunk，按当前速率嵌入约 11.39 小时，cache+FAISS
-约 12.99 GiB。先用低风险 FTS5 证明全量数据、ID、评测和恢复链路，再决定是否
-投入一次受控 Dense 实验，避免把长时间计算当成默认动作。
+**English:** Implemented a host-controlled search/find/open Agent with ACL,
+tool budgets, evidence ledger, and citation gate; paired evaluation found no
+external quality gain and blocked promotion.
 
-## Bullet 3：用负结果约束 Agent
+- 代码：`app/agent/controller_v2.py`、`app/agent/tools_v2.py`、
+  `app/agent/citation_verifier.py`
+- 测试：`tests/agent_v2/`、`tests/security/`
+- 数据/协议：WixQA 同 retriever control/candidate，400 cases
+- 执行 SHA：`07b156ed4d1b4e7ff24a06aac7a8d8b41630e03b`
+- 公开证据：`docs/enterprise_eval/evidence/wixqa_agent_public_v1.json`
+- 限制：证明机制与工程决策，不证明 Agent 提升质量
+- 禁止扩大：不得写“Agent accuracy 100%”或“自适应检索已上线”
 
-**可写描述**
-
-> 构建同 retriever 的 RAG/Agent 成对评测；在 400 条 WixQA 问题上发现现有
-> controller 的 `find/open` 调用均为 0、检索无增益、多文章引用完整率为 0%，
-> 且 p95 增加 1.47-1.59 倍，因此阻止该 Agent 路径升级。
-
-**证据与代码**
-
-- 代码：`app/external_datasets/wixqa_agent_eval.py`。
-- 执行：`scripts/eval_wixqa_agent.py`。
-- 证据：`docs/enterprise_eval/evidence/wixqa_agent_public_v1.json`。
-- 执行 SHA：`07b156ed4d1b4e7ff24a06aac7a8d8b41630e03b`。
-
-**为什么负结果有价值**
-
-Agentic 不等于工具类存在。必须观察真实 trace 中工具是否被调用、是否获得额外
-证据、质量是否提高、成本是否合理。这里链路无报错，但策略没有展开检索，说明
-瓶颈在 controller/aspect 分析，而不是基础设施。拒绝升级比继续包装更可信。
-
-**可能追问**
-
-问：为什么引用完整率会变成 0？
-
-答：规则分析器只产生一个 required aspect，response builder 最终选择一个来源；
-而 open 分支只对显式 completeness intent 开启，真实客服问法没有触发。因此多
-文章问题即使初始 Top-5 含多个 gold，最终也被压缩成单引用。
-
-问：接下来怎么改？
-
-答：不能直接加更多 Agent。先用 development-safe 多文档样本验证“required
-aspects 分解 + 条件 open”能否提高 citation completeness，再与相同 B2 检索做
-paired comparison；达不到质量/延迟门槛则继续默认关闭。
-
-## 禁止写法
-
-- “RAG 准确率 97.88%”：这是 WixQA Synthetic development Recall@5。
-- “Agent 回答准确率 100%”：只是 answered rate，没测语义正确性。
-- “51 万文档系统准确率 60.37%”：这是检索 Recall@5。
-- “Evidence Ledger 解决冲突”：没有外部 ON/OFF answer experiment。
-- “已完成 HERB / source-aware / 企业 Dense”：这些状态都是 `NOT_RUN`。
+追问“负结果为什么值得讲？”：它证明用 trace 和 paired metrics 决定是否上线，避免
+为了技术栈保留无收益链路。当前 controller 的 find/open 未被真实问题触发，应该等待
+新未消费多文档数据，而不是继续叠框架。

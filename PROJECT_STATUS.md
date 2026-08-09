@@ -1,5 +1,45 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-08-10 Final evidence closure
+
+```text
+portfolio decision                 PORTFOLIO_READY_STOP_DEVELOPMENT (final CI pending)
+WixQA clean replay                 VERIFIED / 63 quality comparisons / tolerance 0.0
+fresh WixQA index                  6,221 articles / 11,975 chunks / BGE-M3 1024d
+historical private inputs          NOT USED
+ExpertWritten Dense                Recall@5 66.42% / nDCG@5 52.16%
+reproduction gap                  NONE IN QUALITY / latency machine-specific
+Enterprise reused IDs             4 groups / 8 physical rows / 1 affected question
+record-aware sensitivity          Recall@5 60.3741% -> 60.2677% (-0.1064pp)
+FTS lifecycle                     SINGLE_WRITER_OFFLINE_BUILDER / ATOMIC_ACTIVATION
+Agent effect                      REJECTED / no new Agent experiment run
+Full Enterprise Dense             NO-GO / quality NOT_RUN
+production                        NOT_CLAIMED
+focused closeout tests            26 passed
+full local pre-repair gate        3182 passed / 29 skipped / 2 doc-contract failures
+public repository audit           1536 candidates / 0 findings
+```
+
+The clean replay downloaded official LF source into a new root, rebuilt every
+embedding and the index in new roots, and evaluated Synthetic 6,221, Simulated
+200, and ExpertWritten 200. An independent verifier found no quality difference
+from historical public v2 evidence. Attempt 1 remains recorded: it stopped on
+the historical CRLF versus official LF byte mismatch; canonical JSON and derived
+question IDs were proved equal before transport-corrected protocol v2 was frozen.
+
+The 511,962-row EnterpriseRAG-Bench audit found four reused source IDs. Only
+`qst_0413` is affected; strict physical-record scoring changes overall Macro
+Recall@5 by 0.1064 percentage points. The official ID-aware metric remains the
+benchmark result and the record-aware value is explicitly a sensitivity.
+
+No new Agent, framework, model, or Dense experiment was added. The existing
+Agent route and equal RRF remain rejected; full Dense remains NO-GO. Release
+work is limited to evidence, demo, resume, teaching, interview, audit, local
+gate, and exact-SHA CI synchronization. See
+[clean evidence](docs/reproduction/evidence/wixqa_clean_reproduction_public_v1.json),
+[identity sensitivity](docs/final_closeout/02_REUSED_SOURCE_ID_SENSITIVITY.md),
+and [demo](docs/demo/INTERVIEW_DEMO_RUNBOOK.md).
+
 ## 2026-08-09 Rapid quality and resume release closeout
 
 ```text

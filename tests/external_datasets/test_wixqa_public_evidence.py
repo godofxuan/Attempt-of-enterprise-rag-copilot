@@ -181,6 +181,13 @@ def test_clean_reproduction_comparison_requires_exact_quality_and_clean_roots() 
         "candidate": 0.6641666666666666,
         "delta": 0.0,
     }
+    public_metadata = json.dumps(
+        result["candidate_reproduction_metadata"], sort_keys=True
+    )
+    assert '"source_root":' not in public_metadata
+    assert '"embedding_cache":' not in public_metadata
+    assert "C:/Users/" not in public_metadata
+    assert "D:\\\\" not in public_metadata
 
     candidate["results"]["expertwritten_fixed_external"]["arms"]["dense"][
         "article_recall_at_5"

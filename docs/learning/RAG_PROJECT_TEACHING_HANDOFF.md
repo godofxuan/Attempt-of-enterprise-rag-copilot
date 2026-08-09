@@ -274,4 +274,89 @@ ACL 在候选进入融合、parent context、Agent state 和 citation output 前
 
 ### 9. 最终工程结论
 
-项目已经有三类外部证据：WixQA enterprise retrieval、EnterpriseRAG scale、garak retrieved-content security。Agent mechanism 强，但外部正向 effect 未证明；full Dense 因预注册门失败停止。正确下一步不是继续堆 LangGraph/GraphRAG/更多模型，而是学习源码、准备演示和面试，并只在拿到真正新数据或业务验收集时恢复效果开发。
+项目已经有三类外部证据：WixQA enterprise retrieval、EnterpriseRAG scale、garak
+retrieved-content security。Agent mechanism 强，但外部正向 effect 未证明；full
+Dense 因预注册门失败停止。正确下一步不是继续堆 LangGraph/GraphRAG/更多模型，
+而是学习源码、准备演示和面试，并只在拿到真正新数据或业务验收集时恢复效果开发。
+
+## 十、Final Evidence Closure：如何证明结果不是本机历史残留
+
+### 学习目标
+
+理解“代码能跑”“历史结果有 JSON”和“从干净输入可复现”三者的区别；学会处理
+数据传输字节差异、冻结协议、零容差比较和业务 ID 非唯一问题。
+
+### 核心概念
+
+1. **Clean root**：source、index、embedding cache、eval output 四个目录执行前均不
+   存在，防止复用旧下载、旧向量或旧结果。
+2. **Identity binding**：数据 revision/manifest、模型名与 digest、chunk 参数、RRF
+   参数、问题 ID 集、代码 SHA 和 evidence hash 都必须绑定。
+3. **Quality versus latency**：排序质量在同数据/模型/协议下要求零差异；延迟依赖
+   机器、后台负载和运行时，只作为新机器观测，不能要求与历史逐毫秒相等。
+4. **Transport versus semantics**：JSONL 的 CRLF/LF 会改变文件 SHA 和字节数，但
+   不一定改变 JSON row。必须先拒绝不匹配，再用 canonical parser 证明语义等价，
+   单独冻结新的 transport manifest，不能直接忽略哈希。
+5. **Business ID versus physical identity**：`source_native_id` 是 benchmark gold
+   identity；`record_id` 是物理行 identity。四个业务 ID 被复用时，二者不能混为一谈。
+
+### 对应源码和测试
+
+- `scripts/reproduce_wixqa_retrieval.py`：执行 clean-root preflight、下载、建索引、
+  三 cohort 评测和候选聚合。
+- `scripts/verify_wixqa_clean_reproduction.py`：比较 3 cohort × 3 arm × 7 quality
+  metrics，并把 historical/candidate/delta 写入公开证据。
+- `scripts/analyze_enterprise_reused_source_ids.py`：扫描 511,962 行，按 canonical
+  record hash 枚举复用 ID，并对受影响问题重算 record-aware sensitivity。
+- `tests/external_datasets/test_wixqa_public_evidence.py`：锁定零容差、clean roots、
+  transport contract 与公开 quality observation。
+- `tests/external_datasets/test_enterprise_reused_source_ids.py`：锁定重复 gold 应按
+  两条物理记录计分的敏感性算法。
+
+### 对应实验与真实数据
+
+Attempt 1 在下载校验阶段停止：历史 Windows 问题文件比官方文件多 6,621 bytes，
+恰好等于 6,221 rows 加两个 200-row cohort。逐行检查证明差异来自 CRLF/LF，
+canonical row 和派生 question IDs 完全相同。Attempt 2 使用官方 LF manifest、全新
+目录和不变的检索协议，重新计算 11,975 个 BGE-M3 embeddings。63 项 quality delta
+全部为 0，状态 `VERIFIED`。
+
+EnterpriseRAG-Bench 的 511,962 行中有 4 个复用 ID、8 条物理记录；470 个可检索
+问题只有 `qst_0413` 受影响。按物理记录严格计分时，该题 Recall@5 从 1.0 降至
+0.5，整体 Macro Recall@5 从 60.3741% 降至 60.2677%，差 0.1064 个百分点。
+
+### 为什么这样设计、替代方案与 trade-off
+
+直接复制旧 cache 更快，但无法证明结果不依赖本机状态；删掉所有缓存最慢，却能提供
+最强本地复现证据。Docker 能进一步固定 Python 依赖，但本地 BGE-M3/Ollama 模型和
+GPU 挂载仍需额外工程，且不能把本地重跑变成第三方复现。对复用 ID，重写 benchmark
+会偏离官方协议；影响仅 0.1064pp 时，公开 sensitivity 比篡改正式分数更诚实。
+
+### 常见误区
+
+- “VERIFIED”不等于 blind test，也不等于第三方复现。
+- `quality_difference_count=0` 不表示两次 latency 必须相同。
+- canonical 等价证明不能替代原始 byte manifest；两个身份都要保留。
+- 60.2677% 是敏感性，不是新的官方 benchmark score。
+- 只比较 README 四舍五入数字不够，必须比较 JSON 原始浮点值和哈希。
+
+### 面试官可能追问
+
+**为什么 protocol v2 不是调参？** v2 只改变官方 LF 文件的 transport identity；
+问题、corpus、模型、chunk、candidate K、RRF、指标和零容差均未改变，且在看到质量
+结果之前已提交。
+
+**为什么不把 latency 变快写成优化？** 本次没有改检索算法，机器状态也没有历史完整
+记录。把 157.4 ms 到 153.6 ms 说成代码优化会混淆环境噪声与因果效果。
+
+**为什么正式 Recall 仍是 60.3741%？** 官方 gold 只定义 source ID，没有 record hash。
+正式评测遵循官方 contract；同时公开 60.2677% sensitivity，说明物理身份歧义的上界。
+
+### 练习问题
+
+1. 如果 candidate 的一个 nDCG 值差 `1e-12`，零容差 verifier 应如何处理，为什么？
+2. 如果旧 cache 目录存在但为空，`--require-clean-roots` 应通过还是失败？设计你的理由。
+3. 画出 source manifest、protocol、index manifest、run summary 和 public verifier 的
+   哈希依赖图。
+4. 若复用 ID 影响 20% 问题，应继续做 sensitivity 还是升级 benchmark identity？
+5. 说明“独立第三方复现”还需要哪些本项目当前没有的参与方和环境证据。

@@ -42,12 +42,47 @@ files are intentionally not committed; the committed evidence contract passes.
 Read these aggregate artifacts:
 
 - `docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json`
+- `docs/reproduction/evidence/wixqa_clean_reproduction_public_v1.json`
 - `docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json`
+- `docs/final_closeout/evidence/enterprise_reused_source_id_sensitivity_v1.json`
 - `docs/resume_metrics/evidence/garak_latent_report_holdout_v1.json`
 - `docs/rapid_upgrade/evidence/MULTIDOC_FAST_TRACK_PUBLIC.json`
 - `docs/rapid_upgrade/evidence/ENTERPRISE_DENSE_CAPACITY_PUBLIC.json`
 
-## 4. Build the small live demo
+## 4. Reproduce WixQA from clean roots
+
+This optional full replay needs Ollama with the bound BGE-M3 model and network
+access to the pinned official source. It downloads data and creates all large
+artifacts under ignored repository-local `.private/final_closeout` roots.
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.reproduce_wixqa_retrieval `
+  --run-prefix wixqa-clean-v2 `
+  --manifest data_manifests\WIXQA_OFFICIAL_RAW_MANIFEST.json `
+  --protocol docs\reproduction\evidence\WIXQA_CLEAN_RETRIEVAL_PROTOCOL_V2.json `
+  --source-root .private\final_closeout\wixqa_clean_v2\source `
+  --index-root .private\final_closeout\wixqa_clean_v2\indexes `
+  --embedding-cache .private\final_closeout\wixqa_clean_v2\embedding_cache `
+  --output-root .private\final_closeout\wixqa_clean_v2\eval_runs `
+  --public-output .private\final_closeout\wixqa_clean_v2\candidate_public.json `
+  --require-clean-roots
+```
+
+The roots must not exist before execution. Verify the result without changing
+the frozen zero-tolerance contract:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.verify_wixqa_clean_reproduction `
+  --historical docs\enterprise_eval\evidence\wixqa_retrieval_baseline_public_v2.json `
+  --candidate .private\final_closeout\wixqa_clean_v2\candidate_public.json `
+  --contract docs\reproduction\evidence\WIXQA_CLEAN_REPRODUCTION_PROTOCOL_V2.json `
+  --output .private\final_closeout\wixqa_clean_v2\verification.json
+```
+
+Expected status is `VERIFIED` with `quality_difference_count: 0`. See
+`docs/reproduction/WIXQA_CLEAN_ENVIRONMENT.md` for model and machine boundaries.
+
+## 5. Build the small live demo
 
 Install Ollama separately and make `bge-m3` plus the configured chat model
 available. Then run:
@@ -72,7 +107,7 @@ Start the API and UI in separate terminals:
 Open `http://127.0.0.1:8501`. The Ask/Trace workflow demonstrates retrieval,
 bounded Agent decisions, citations, ACL-scoped personas, and safe outcomes.
 
-## 5. Large benchmark boundary
+## 6. Large benchmark boundary
 
 WixQA raw data/indexes and the 511,962-row EnterpriseRAG-Bench corpus are not in
 Git. Their download/build scripts require explicit commands and store assets

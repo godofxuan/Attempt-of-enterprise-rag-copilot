@@ -21,6 +21,24 @@ LATENCY_FIELDS = (
     "latency_ms_p50",
     "latency_ms_p95",
 )
+PUBLIC_METADATA_FIELDS = (
+    "captured_at",
+    "embedding_dimension",
+    "embedding_model",
+    "embedding_model_sha256",
+    "faiss",
+    "fixed_labels",
+    "git_sha",
+    "gpu",
+    "latency_comparability",
+    "logical_cpu_count",
+    "numpy",
+    "platform",
+    "processor",
+    "python",
+    "requirements_sha256",
+    "torch",
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -126,9 +144,40 @@ def compare_reproduction(
         "quality_observation": quality,
         "candidate_execution_revision": candidate.get("execution_revision"),
         "candidate_index_manifest_sha256": candidate.get("index_manifest_sha256"),
-        "candidate_reproduction_metadata": metadata,
+        "candidate_reproduction_metadata": _public_reproduction_metadata(
+            metadata
+        ),
         "candidate_latency_observation": latency,
     }
+
+
+def _public_reproduction_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    public = {
+        field: metadata.get(field)
+        for field in PUBLIC_METADATA_FIELDS
+        if field in metadata
+    }
+    blas = metadata.get("blas", {})
+    if isinstance(blas, dict):
+        public["blas"] = {
+            field: blas.get(field)
+            for field in ("name", "version", "openblas configuration")
+            if field in blas
+        }
+    clean = metadata.get("clean_reproduction", {})
+    if isinstance(clean, dict):
+        public["clean_reproduction"] = {
+            "required": clean.get("required"),
+            "historical_private_artifacts_used_as_input": clean.get(
+                "historical_private_artifacts_used_as_input"
+            ),
+            "dataset_manifest_sha256": clean.get("dataset_manifest_sha256"),
+            "source_root_class": "FRESH_REPOSITORY_LOCAL_IGNORED",
+            "index_root_class": "FRESH_REPOSITORY_LOCAL_IGNORED",
+            "embedding_cache_class": "FRESH_REPOSITORY_LOCAL_IGNORED",
+            "output_root_class": "FRESH_REPOSITORY_LOCAL_IGNORED",
+        }
+    return public
 
 
 def main(argv: list[str] | None = None) -> int:

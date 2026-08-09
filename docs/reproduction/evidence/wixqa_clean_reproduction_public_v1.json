@@ -57,25 +57,19 @@
   "candidate_public_sha256": "64ec1e8fbbfebdb0c499edd0f70ef9cd700cb944f04f4f78a4ce305947feb394",
   "candidate_reproduction_metadata": {
     "blas": {
-      "detection method": "pkgconfig",
-      "found": true,
-      "include directory": "C:/Users/runneradmin/AppData/Local/Temp/cibw-run-b3ecbnku/cp311-win_amd64/build/venv/Lib/site-packages/scipy_openblas64/include",
-      "lib directory": "C:/Users/runneradmin/AppData/Local/Temp/cibw-run-b3ecbnku/cp311-win_amd64/build/venv/Lib/site-packages/scipy_openblas64/lib",
       "name": "scipy-openblas",
       "openblas configuration": "OpenBLAS 0.3.31.188.0  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=24",
-      "pc file directory": "D:/a/numpy-release/numpy-release/.openblas",
       "version": "0.3.31.188.0"
     },
     "captured_at": "2026-08-09T16:03:33.956312+00:00",
     "clean_reproduction": {
-      "dataset_manifest_path": "D:\\\u6587\u6863\\agent\\RAG_try\\data_manifests\\WIXQA_OFFICIAL_RAW_MANIFEST.json",
       "dataset_manifest_sha256": "d325412340c110d3f76b832080c702978643d517e296c97bba1abc088ec65b1f",
-      "embedding_cache": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\final_closeout\\wixqa_clean_v2\\embedding_cache",
+      "embedding_cache_class": "FRESH_REPOSITORY_LOCAL_IGNORED",
       "historical_private_artifacts_used_as_input": false,
-      "index_root": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\final_closeout\\wixqa_clean_v2\\indexes",
-      "output_root": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\final_closeout\\wixqa_clean_v2\\eval_runs",
+      "index_root_class": "FRESH_REPOSITORY_LOCAL_IGNORED",
+      "output_root_class": "FRESH_REPOSITORY_LOCAL_IGNORED",
       "required": true,
-      "source_root": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\final_closeout\\wixqa_clean_v2\\source"
+      "source_root_class": "FRESH_REPOSITORY_LOCAL_IGNORED"
     },
     "embedding_dimension": 1024,
     "embedding_model": "bge-m3",

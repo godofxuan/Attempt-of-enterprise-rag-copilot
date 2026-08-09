@@ -2,6 +2,15 @@
 
 下面问题按“结论 -> 证据 -> 边界”回答。面试时不要只背数字，要能指出源码、测试和为什么这样设计。
 
+## 分类索引
+
+- RAG / Retrieval：2-4、9-16、20、22
+- Agent：5-11、21、28-29
+- Security / Identity：23-27、30
+- Evaluation：12-16、31-33、35
+- Backend / Data Engineering：17-20、33
+- System Design / Production：1、21-24、28-30、34-35
+
 ## 1. 这个项目是什么？
 
 它是 Enterprise Knowledge RAG / bounded Agent Copilot，不是通用自主 Agent。系统处理混合企业知识、ACL、版本、检索内容注入、证据完整性和引用；Python host 控制工具、预算、权限和最终 claim，模型只提供 embedding 或候选文本。入口见 `docs/architecture.md`。
@@ -113,3 +122,53 @@ FTS5 builder 用 bounded batch checkpoint，绑定 corpus/manifest hash；在 st
 ## 28. 如果再给一周，只做什么？
 
 没有新独立数据时停止 feature development，完善演示、源码学习和面试。如果能获得真正未消费的企业验收集，再做 selective multi-source evidence policy；只有它保持 precision 且 fresh validation 达标，才重新讨论 Agent promotion。Full Dense 还需 resumable shard builder 和独立 quality protocol。
+
+## 29. 为什么不用 MCP？
+
+MCP 解决工具/资源接入协议，不会自动提高证据召回、引用完整性或权限正确性。当前
+search/find/open 已有 typed schema 和 host authorization，外部 Agent 评测的瓶颈是
+controller 没触发额外工具，而不是工具协议不统一。在需要跨产品复用同一工具服务、
+并能用实验证明接入成本成为瓶颈之前，引入 MCP 只会增加依赖和攻击面。
+
+## 30. JWT、RS256、JWKS 在项目里如何配合？
+
+本地 issuer 用 RSA 私钥签 JWT；API 只加载固定 public JWKS，通过 `kid` 选公钥并
+校验签名、issuer、audience、过期时间，再从可信 claims 构造 Principal。tenant、region、
+group 由服务端验证结果派生，客户端不能通过请求体扩权。它是可复现本地身份源，不是
+真实企业 IdP 或生产密钥管理。
+
+## 31. 如何证明 WixQA 指标可复现？
+
+先冻结官方数据 revision/manifest、BGE-M3 digest、chunk、candidate K、RRF、metrics
+和 tolerance；再要求 source/index/cache/output 四个根目录不存在，从官方下载、重建
+11,975 个 embeddings 和三组评测。独立 verifier 比较 63 个原始质量值，零容差差异为
+0，并绑定候选 SHA、索引 manifest、机器信息和公开证据 hash。这仍是本地 consumed-label
+regression replay，不是第三方 blind replication。
+
+## 32. 第一次 clean reproduction 为什么失败，怎么修？
+
+下载阶段发现历史 Windows manifest 与官方下载 byte hash 不同，差异恰好每 JSONL
+row 一个 byte。没有关闭校验，而是证明历史 CRLF 与官方 LF 的 canonical JSON rows
+及派生 question IDs 完全相同，保留历史 manifest，并新增官方 raw manifest、transport
+equivalence evidence 和预先提交的 protocol v2。质量参数和零容差未改。
+
+## 33. Reused Source ID 会不会让 60.37% 虚高？
+
+会有极小影响。511,962 physical rows 对应 511,958 unique IDs，共 4 组复用。470 个
+检索问题只有 `qst_0413` 受影响；按物理 record identity，它从 1.0 降到 0.5，整体
+Macro Recall@5 从 60.3741% 到 60.2677%，差 0.1064pp。正式指标遵循官方 ID gold，
+同时公开 sensitivity；不能隐瞒，也不应为一个小边界擅自重写 benchmark。
+
+## 34. 项目距离 production 还差什么？
+
+缺真实企业 IdP/KMS、真实数据治理与 owner review、线上增量/并发索引、备份恢复和
+容量 SLO、生产流量与告警、独立安全红队、隐私合规、人工 answer/citation 校准、
+未消费验收集及部署运维责任。当前 Linux container/readiness/rollback 是单机合成契约，
+只能说明工程基础，不等于生产认证。
+
+## 35. 为什么 exact SHA 和 GitHub Actions 也不能证明模型效果？
+
+exact SHA + CI 证明“哪份代码在 Ubuntu/Windows/container 上通过了哪些自动测试”，
+不能替代数据集、指标和模型实验。模型效果必须由绑定数据、协议、模型 digest、run
+artifact 和消费状态的 evidence 支持。CI 是交付一致性证据，retrieval/security JSON
+是效果证据，两者缺一不可但含义不同。
