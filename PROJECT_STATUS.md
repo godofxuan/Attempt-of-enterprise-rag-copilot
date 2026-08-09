@@ -11,6 +11,8 @@ AGENT_EFFECT         REJECTED
 FULL_DENSE           REJECTED_FOR_THIS_SPRINT / QUALITY_NOT_RUN
 PRODUCTION           NOT_CLAIMED
 HIDDEN_HOLDOUT       NOT_CLAIMED
+clean detached reproduction   205 PASSED / public audit 1517/0
+final full local suite         3174 PASSED / 29 SKIPPED / 3 WARNINGS
 ```
 
 The rapid sprint fixed asymmetric-negation citation contradictions, completed
@@ -22,6 +24,18 @@ A real BGE-M3 1k/10k/50k capacity qualification sustained
 `35.74/35.93/36.76 chunks/s`, projecting a full Dense build at `12.87 h`.
 Full Dense is a no-go because runtime, resumable-shard, and unconsumed-quality-
 protocol gates are not all satisfied.
+
+The first sandboxed full-suite attempt reached `3171 passed` and hit one
+Windows `PermissionError` in a four-process computation-cache lock test. The
+isolated test then passed once in the default environment and `10/10` outside
+the sandbox; the complete non-sandboxed suite passed `3172/3172`. No code change
+was made for an unconfirmed root cause.
+
+The final CI-hardening pass made `pyarrow` lazy for the optional Dense capacity
+runner and split the WixQA cohort test into an always-public evidence contract
+plus a source-present reconstruction check. With the official source available
+locally, the final suite passed `3174 passed / 29 skipped / 3 warnings` in
+191.90 s.
 
 Current decision: `STOP FEATURE DEVELOPMENT`. Retain the verified RAG, scale,
 and limited security evidence; move to demonstration, code study, interview

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+import pytest
+
+from app.external_datasets.wixqa import DEFAULT_WIXQA_ROOT
 from app.external_datasets.wixqa_multidoc_fast_track import (
     score_arm_case,
     summarize_arm,
@@ -13,17 +17,8 @@ from scripts.publish_wixqa_multidoc_fast_track import build_public_evidence
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_multidoc_cohort_is_hash_bound_and_explicitly_retrospective() -> None:
-    payload = build_cohort()
-
-    assert payload["question_count"] == 27
-    assert payload["consumption"] == (
-        "RETROSPECTIVE_DEVELOPMENT_ONLY_ALREADY_OBSERVED"
-    )
-    assert all(
-        item["required_source_count"] >= 2 for item in payload["records"]
-    )
-    assert payload == __import__("json").loads(
+def _committed_cohort() -> dict:
+    return json.loads(
         (
             ROOT
             / "docs"
@@ -32,6 +27,27 @@ def test_multidoc_cohort_is_hash_bound_and_explicitly_retrospective() -> None:
             / "MULTIDOC_DEV_COHORT.json"
         ).read_text(encoding="utf-8")
     )
+
+
+def test_multidoc_cohort_is_hash_bound_and_explicitly_retrospective() -> None:
+    payload = _committed_cohort()
+
+    assert payload["question_count"] == 27
+    assert payload["consumption"] == (
+        "RETROSPECTIVE_DEVELOPMENT_ONLY_ALREADY_OBSERVED"
+    )
+    assert all(
+        item["required_source_count"] >= 2 for item in payload["records"]
+    )
+    assert len(payload["question_ids_sha256"]) == 64
+    assert len(payload["records_sha256"]) == 64
+
+
+def test_multidoc_cohort_rebuilds_from_official_source_when_available() -> None:
+    if not DEFAULT_WIXQA_ROOT.exists():
+        pytest.skip("official WixQA source is intentionally not stored in Git")
+
+    assert build_cohort() == _committed_cohort()
 
 
 def test_fast_track_scores_evidence_and_citations_separately() -> None:

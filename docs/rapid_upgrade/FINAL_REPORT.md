@@ -3,6 +3,7 @@
 ## Executive result
 
 Implementation/evidence base SHA: `49131de5f5b48718c72b06854cb424fcd8784a0c`.
+Release documentation candidate SHA: `f289f8f`.
 The final documentation/gate/push SHA is established after this report is
 committed and is reported by `git rev-parse HEAD` plus the final GitHub Actions
 run. Experiment metrics remain bound to their individual execution SHAs.
@@ -28,8 +29,10 @@ reduce credibility rather than increase it.
 4. **Is public evidence complete?** WixQA v2 now contains BM25, Dense, and equal
    RRF with the full frozen metric set for Synthetic, Simulated, and
    ExpertWritten, plus protocol/private hashes.
-5. **Did clean reproduction succeed?** The public deterministic clone gate and
-   evidence-schema path are run at final verification. A new clean-machine full
+5. **Did clean reproduction succeed?** Yes for the public deterministic path: a
+   detached clean worktree at `f289f8f` generated 240 source documents, dry-ran
+   216 canonical/chunks, passed 205 focused tests, and audited `1517/0`. A new
+   clean-machine full
    WixQA raw/index/BGE-M3 replay is `NOT_RUN`; v2 is a verified republication of
    historical real private summaries.
 6. **FTS activation contract.** `SINGLE_WRITER_OFFLINE_BUILDER` plus verified
@@ -53,13 +56,14 @@ reduce credibility rather than increase it.
    231.35 s build, about 1.83 GiB peak RSS. Dense qualification: 50k chunks in
    1,360.36 s at 36.755/s; full projection 12.87 h and about 12.99 GiB for a raw
    matrix plus flat-index copy before reserve.
-15. **Security regression.** Focused Guard/security and full gates are recorded
-   by final verification; no Guard production logic changed in the quality
+15. **Security regression.** Guard/security tests are included in clean focused
+   and final full gates; no Guard production logic changed in the quality
    experiment.
-16. **ACL regression.** ACL pipeline tests are included in final verification;
+16. **ACL regression.** ACL pipeline tests passed in the clean focused gate;
    same ACL was held across Agent arms.
-17. **CI.** Pending final exact-HEAD push at document creation. Local pass is not
-   reported as CI.
+17. **CI.** Local final gate is `3174 passed / 29 skipped / 3 warnings`; public
+   audit is `1517/0`. Exact-HEAD GitHub CI remains pending until push, and local
+   pass is not reported as CI.
 18. **GitHub Actions Run IDs.** Added after the final push/remote query; historical
    run IDs do not establish current SHA.
 19. **Pushed commits in this sprint.** Local milestone commits before final
@@ -79,6 +83,22 @@ reduce credibility rather than increase it.
    high-probability questions and bounded answers.
 25. **Continue or stop?** Stop feature development. Resume only with genuinely
    new business acceptance data or an independently held validation cohort.
+
+## Final gate incident
+
+The first sandboxed full-suite run ended with `3171 passed` plus one Windows
+`PermissionError` when four spawned processes wrote the same computation-cache
+lock file. The exact isolated test immediately passed in the default environment
+and then passed `10/10` with non-sandboxed process permissions. The complete
+non-sandboxed suite passed `3172 passed / 30 skipped / 3 warnings` in 177.06 s.
+This is recorded as a transient Windows/sandbox handle event; no speculative
+production fix was made without a reproducible code defect.
+
+After the incident review, the public-CI compatibility pass removed a mandatory
+module-import dependency on optional `pyarrow` and made raw WixQA cohort
+reconstruction conditional on the separately downloaded official source. The
+committed evidence contract remains mandatory in every clone. The resulting
+full suite passed `3174 passed / 29 skipped / 3 warnings` in 191.90 s.
 
 ## Positive results and rejected candidates
 

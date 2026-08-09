@@ -10,8 +10,6 @@ import subprocess
 import time
 from pathlib import Path
 
-import pyarrow.parquet as pq
-
 from app.config import get_settings
 from app.external_datasets.enterprise_dense_capacity import (
     DenseQualificationCheckpoint,
@@ -51,6 +49,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        import pyarrow.parquet as pq
+    except ImportError as exc:
+        raise RuntimeError(
+            "EnterpriseRAG Dense qualification requires the optional "
+            "'pyarrow' package"
+        ) from exc
+
     args = build_parser().parse_args(argv)
     if args.batch_size < 1 or args.batch_size > 128:
         raise ValueError("batch size must be between 1 and 128")
@@ -184,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _iter_raw_documents(parquet: pq.ParquetFile):
+def _iter_raw_documents(parquet):
     for record_batch in parquet.iter_batches(batch_size=2_000):
         for payload in record_batch.to_pylist():
             yield EnterpriseRAGBenchRawDocument.model_validate(payload)

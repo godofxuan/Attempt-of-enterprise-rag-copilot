@@ -27,6 +27,10 @@ This checks corpus contracts, Agent state/tool behavior, ACL filtering,
 retrieved-content Guard behavior, public paths, secrets, and committed evidence.
 It does not reproduce live model quality.
 
+The release-candidate detached worktree reproduced this path at `f289f8f` with
+240 source documents, 216 canonical documents/chunks in index preview,
+`205 passed`, and public audit `1517 candidates / 0 findings`.
+
 ## 3. Inspect external evidence without downloading large corpora
 
 ```powershell

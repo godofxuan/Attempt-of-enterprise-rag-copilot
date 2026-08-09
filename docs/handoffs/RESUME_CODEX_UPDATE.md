@@ -6,6 +6,7 @@
 - Positioning: Enterprise Knowledge RAG / bounded Agent Copilot
 - Branch: `codex/rag-eval-system`
 - Evidence/code base SHA: `49131de5f5b48718c72b06854cb424fcd8784a0c`
+- Release documentation candidate SHA: `f289f8f`
 - Final release HEAD: use `git rev-parse HEAD` after checkout
 - CI status: pending final exact-HEAD GitHub Actions at document creation
 - Production status: `NOT_CLAIMED`
@@ -28,6 +29,13 @@
   precision `44.44% -> 18.52%`; `HOLD_NO_UNCONSUMED_VALIDATION`.
 - Dense capacity: 50k BGE-M3 chunks at `36.755/s`, full projection `12.87 h`;
   `FULL_DENSE_NO_GO`, no persistent full index.
+- Final local gate after public-CI hardening: `3174 passed / 29 skipped / 3
+  warnings`; detached clean
+  reproduction at `f289f8f`: 240 source / 216 canonical/chunks dry-run,
+  `205 passed`, public audit `1517/0`.
+- Public-clone compatibility: Dense evidence publication imports without the
+  optional `pyarrow` runtime; committed WixQA evidence is always checked and
+  raw-source reconstruction runs only when the official external source exists.
 
 ## Do not use
 
