@@ -56,12 +56,15 @@ def compare_reproduction(
         for field in identity_fields
     }
     differences: list[dict[str, Any]] = []
+    quality: dict[str, Any] = {}
     latency: dict[str, Any] = {}
     for cohort, expected_cohort in historical["results"].items():
         actual_cohort = candidate["results"].get(cohort, {})
+        cohort_quality: dict[str, Any] = {}
         cohort_latency: dict[str, Any] = {}
         for arm, expected_arm in expected_cohort["arms"].items():
             actual_arm = actual_cohort.get("arms", {}).get(arm, {})
+            arm_quality: dict[str, Any] = {}
             for metric in QUALITY_FIELDS:
                 expected = expected_arm.get(metric)
                 actual = actual_arm.get(metric)
@@ -71,6 +74,11 @@ def compare_reproduction(
                 else:
                     delta = float(actual) - float(expected)
                     matches = abs(delta) <= tolerance
+                arm_quality[metric] = {
+                    "historical": expected,
+                    "candidate": actual,
+                    "delta": delta,
+                }
                 if not matches:
                     differences.append(
                         {
@@ -82,9 +90,11 @@ def compare_reproduction(
                             "delta": delta,
                         }
                     )
+            cohort_quality[arm] = arm_quality
             cohort_latency[arm] = {
                 field: actual_arm.get(field) for field in LATENCY_FIELDS
             }
+        quality[cohort] = cohort_quality
         latency[cohort] = cohort_latency
 
     metadata = candidate.get("reproduction_metadata", {})
@@ -113,6 +123,7 @@ def compare_reproduction(
         "source_transport_boundary": contract.get("source_transport_boundary"),
         "quality_difference_count": len(differences),
         "quality_differences": differences,
+        "quality_observation": quality,
         "candidate_execution_revision": candidate.get("execution_revision"),
         "candidate_index_manifest_sha256": candidate.get("index_manifest_sha256"),
         "candidate_reproduction_metadata": metadata,

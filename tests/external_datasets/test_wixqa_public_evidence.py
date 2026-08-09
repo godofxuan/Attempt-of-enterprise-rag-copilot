@@ -173,6 +173,14 @@ def test_clean_reproduction_comparison_requires_exact_quality_and_clean_roots() 
         {"quality_absolute_tolerance": 0.0},
     )
     assert result["status"] == "VERIFIED"
+    dense = result["quality_observation"]["expertwritten_fixed_external"][
+        "dense"
+    ]["article_recall_at_5"]
+    assert dense == {
+        "historical": 0.6641666666666666,
+        "candidate": 0.6641666666666666,
+        "delta": 0.0,
+    }
 
     candidate["results"]["expertwritten_fixed_external"]["arms"]["dense"][
         "article_recall_at_5"
@@ -184,6 +192,9 @@ def test_clean_reproduction_comparison_requires_exact_quality_and_clean_roots() 
     )
     assert result["status"] == "REPRODUCTION_GAP"
     assert result["quality_difference_count"] == 1
+    assert result["quality_observation"]["expertwritten_fixed_external"][
+        "dense"
+    ]["article_recall_at_5"]["delta"] == pytest.approx(-0.001)
 
 
 def test_transport_corrected_protocol_keeps_zero_quality_tolerance() -> None:

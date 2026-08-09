@@ -1,0 +1,92 @@
+{
+  "affected_question_count": 1,
+  "affected_questions": [
+    {
+      "official_expected_id_occurrences": {
+        "dsid_6df52fdb96ae4edcb76464738bca3340": 2
+      },
+      "published_recall_at_5": 1.0,
+      "published_unique_gold_count": 1,
+      "question_id": "qst_0413",
+      "question_type": "conflicting_info",
+      "recall_at_5_reduction": 0.5,
+      "record_aware_gold_count": 2,
+      "record_aware_recall_at_5": 0.5,
+      "retrieved_record_ids": [
+        "enterprise-rag-bench:dsid_6df52fdb96ae4edcb76464738bca3340:687be93beae4d5c3"
+      ],
+      "reused_gold_ids": [
+        "dsid_6df52fdb96ae4edcb76464738bca3340"
+      ]
+    }
+  ],
+  "claim_boundary": {
+    "published_metric_replaced": false,
+    "record_hash_gold_available": false,
+    "sensitivity_not_new_benchmark": true
+  },
+  "documents_sha256": "6b0747bf160af9427b12101537d53056ac592ada9831c1a98ae01fa50a8d2a9f",
+  "execution_git_sha": "f30187d6e35dd8fe3fe0b32ab2abe0575d8037e1",
+  "index_run_id": "enterprise-rag-bench-fts5-v1-955d86f",
+  "interpretation": "Sensitivity only: duplicate official expected-ID occurrences are treated as the distinct physical records sharing that ID.",
+  "macro_recall_at_5_reduction": 0.0010638297872340426,
+  "macro_recall_at_5_reduction_percentage_points": 0.10638297872340426,
+  "private_details_sha256": "9c5a46d7f6b92b87540cf42ffb976d2af7d97ba7112588b763dbd9db2257e7dd",
+  "published_macro_recall_at_5": 0.6037411347517729,
+  "questions_sha256": "e25066f4eff3843dd0f3df0d1348113471e072e75007ffe390a0aa83f2a80af2",
+  "record_aware_macro_recall_at_5": 0.6026773049645389,
+  "retrieval_case_count": 470,
+  "reused_groups": {
+    "dsid_6df52fdb96ae4edcb76464738bca3340": [
+      {
+        "raw_record_sha256": "cf567f5dc0ce8fe5d0f6287aad80f94017cd445d49b5c6990c60df8eda4a836f",
+        "source_row": 189418,
+        "source_type": "jira"
+      },
+      {
+        "raw_record_sha256": "687be93beae4d5c324b85687e6910f9320ca68bcc8a4da67b0e5c5f3a49e07f3",
+        "source_row": 191030,
+        "source_type": "jira"
+      }
+    ],
+    "dsid_8a0c5430bac64f8da21c2cee5a7f4df5": [
+      {
+        "raw_record_sha256": "25d35a6245f190368328814b5b59128fe92f92327b1d3bb483892b1e1603623b",
+        "source_row": 111,
+        "source_type": "confluence"
+      },
+      {
+        "raw_record_sha256": "c0f296373895c73aae50b67a30ebc0c74cc8cf3b12f76acddecd0e398c62be65",
+        "source_row": 183922,
+        "source_type": "hubspot"
+      }
+    ],
+    "dsid_f292876dbb47462d85997383af306490": [
+      {
+        "raw_record_sha256": "ed743e1ea35aeacebd4181ae8fcc49f102fd20e9006f2d2692cb6b4eb093294b",
+        "source_row": 3307,
+        "source_type": "confluence"
+      },
+      {
+        "raw_record_sha256": "6da2d4c3addc64c1841268022f18840499f00b3b56e382998f0d0aebe5891510",
+        "source_row": 168464,
+        "source_type": "google_drive"
+      }
+    ],
+    "dsid_feb1e9063ebb4947bb4f935393c01f0f": [
+      {
+        "raw_record_sha256": "7e2857864a124e8bfdc59c31b2c91ac4ad0922d42c24bfc237b655d8f75df603",
+        "source_row": 2762,
+        "source_type": "confluence"
+      },
+      {
+        "raw_record_sha256": "e9172b59c494f623fd9fb0442d4498087e7bb4f2ebdc6b930ab73c74b53f552d",
+        "source_row": 190837,
+        "source_type": "jira"
+      }
+    ]
+  },
+  "reused_physical_record_count": 8,
+  "reused_source_id_group_count": 4,
+  "schema_version": "enterprise_reused_source_id_sensitivity_v1"
+}
