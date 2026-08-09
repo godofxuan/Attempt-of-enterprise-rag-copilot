@@ -3,7 +3,7 @@
 ## Executive result
 
 Implementation/evidence base SHA: `49131de5f5b48718c72b06854cb424fcd8784a0c`.
-Release documentation candidate SHA: `f289f8f`.
+Clean-reproduced release candidate SHA: `a3ef9c8`.
 The final documentation/gate/push SHA is established after this report is
 committed and is reported by `git rev-parse HEAD` plus the final GitHub Actions
 run. Experiment metrics remain bound to their individual execution SHAs.
@@ -30,8 +30,10 @@ reduce credibility rather than increase it.
    RRF with the full frozen metric set for Synthetic, Simulated, and
    ExpertWritten, plus protocol/private hashes.
 5. **Did clean reproduction succeed?** Yes for the public deterministic path: a
-   detached clean worktree at `f289f8f` generated 240 source documents, dry-ran
-   216 canonical/chunks, passed 205 focused tests, and audited `1517/0`. A new
+   detached clean worktree at `a3ef9c8` generated 240 source documents, dry-ran
+   216 canonical/chunks, passed 214 focused tests, skipped one official-source
+   reconstruction because WixQA raw data is not committed, and audited
+   `1517/0`. A new
    clean-machine full
    WixQA raw/index/BGE-M3 replay is `NOT_RUN`; v2 is a verified republication of
    historical real private summaries.

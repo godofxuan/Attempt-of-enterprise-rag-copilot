@@ -11,7 +11,7 @@ AGENT_EFFECT         REJECTED
 FULL_DENSE           REJECTED_FOR_THIS_SPRINT / QUALITY_NOT_RUN
 PRODUCTION           NOT_CLAIMED
 HIDDEN_HOLDOUT       NOT_CLAIMED
-clean detached reproduction   205 PASSED / public audit 1517/0
+clean detached reproduction   214 PASSED / 1 SKIPPED / public audit 1517/0
 final full local suite         3174 PASSED / 29 SKIPPED / 3 WARNINGS
 ```
 
@@ -36,6 +36,11 @@ runner and split the WixQA cohort test into an always-public evidence contract
 plus a source-present reconstruction check. With the official source available
 locally, the final suite passed `3174 passed / 29 skipped / 3 warnings` in
 191.90 s.
+
+The detached public-clone gate at `a3ef9c8` generated 240 source documents,
+previewed 216 canonical documents/chunks, passed `214` focused tests, and
+skipped only official-source reconstruction because external WixQA raw data is
+not committed. Public audit remained `1517 candidates / 0 findings`.
 
 Current decision: `STOP FEATURE DEVELOPMENT`. Retain the verified RAG, scale,
 and limited security evidence; move to demonstration, code study, interview

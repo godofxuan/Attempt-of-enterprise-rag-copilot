@@ -27,9 +27,11 @@ This checks corpus contracts, Agent state/tool behavior, ACL filtering,
 retrieved-content Guard behavior, public paths, secrets, and committed evidence.
 It does not reproduce live model quality.
 
-The release-candidate detached worktree reproduced this path at `f289f8f` with
+The release-candidate detached worktree reproduced this path at `a3ef9c8` with
 240 source documents, 216 canonical documents/chunks in index preview,
-`205 passed`, and public audit `1517 candidates / 0 findings`.
+`214 passed / 1 skipped`, and public audit `1517 candidates / 0 findings`. The
+single skip is raw WixQA cohort reconstruction because official external source
+files are intentionally not committed; the committed evidence contract passes.
 
 ## 3. Inspect external evidence without downloading large corpora
 
