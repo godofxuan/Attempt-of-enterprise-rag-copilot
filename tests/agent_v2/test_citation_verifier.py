@@ -216,6 +216,102 @@ def test_negation_mismatch_rejects_allow_against_prohibit() -> None:
     assert result.unsupported_reason == "negation_mismatch"
 
 
+@pytest.mark.parametrize(
+    ("claim_text", "evidence_text"),
+    [
+        (
+            "Revenue was 10 million.",
+            "Revenue was not 10 million.",
+        ),
+        (
+            "Revenue was not 10 million.",
+            "Revenue was 10 million.",
+        ),
+        (
+            "收入为100万元。",
+            "收入并非100万元。",
+        ),
+        (
+            "收入并非100万元。",
+            "收入为100万元。",
+        ),
+        (
+            "The office is open on weekends.",
+            "The office is not open on weekends.",
+        ),
+        (
+            "Policy A applies in 2026.",
+            "Policy A does not apply in 2026.",
+        ),
+        (
+            "Employees use unapproved suppliers.",
+            "Employees may not use unapproved suppliers.",
+        ),
+        (
+            "The approved quantity is 20 units.",
+            "The approved quantity is not 20 units.",
+        ),
+    ],
+    ids=[
+        "english-affirmative-vs-negative-numeric",
+        "english-negative-vs-affirmative-numeric",
+        "chinese-affirmative-vs-negative",
+        "chinese-negative-vs-affirmative",
+        "english-non-numeric",
+        "year",
+        "permission-modality",
+        "quantity",
+    ],
+)
+def test_asymmetric_explicit_negation_is_a_contradiction(
+    claim_text: str,
+    evidence_text: str,
+) -> None:
+    result = verify_claims(
+        [
+            Claim(
+                claim_id="claim-asymmetric-negation",
+                text=claim_text,
+                cited_chunk_ids=["chunk-remote"],
+            )
+        ],
+        [
+            hit(
+                matched_text=evidence_text,
+                context_text=evidence_text,
+            )
+        ],
+    )[0]
+
+    assert result.supported is False
+    assert result.unsupported_reason == "negation_mismatch"
+
+
+def test_unrelated_negative_sentence_does_not_override_matching_support() -> None:
+    result = verify_claims(
+        [
+            Claim(
+                claim_id="claim-revenue",
+                text="Revenue was 10 million.",
+                cited_chunk_ids=["chunk-remote"],
+            )
+        ],
+        [
+            hit(
+                parent_chunk_id="parent-revenue",
+                matched_text="Revenue was 10 million.",
+                context_text=(
+                    "Revenue was 10 million. Expenses were not 10 million."
+                ),
+                context_from_parent=True,
+            )
+        ],
+    )[0]
+
+    assert result.supported is True
+    assert result.unsupported_reason is None
+
+
 def test_date_status_mismatch_rejects_effective_against_repealed() -> None:
     result = verify_claims(
         [

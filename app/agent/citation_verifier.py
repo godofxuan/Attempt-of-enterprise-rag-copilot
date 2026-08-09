@@ -49,7 +49,7 @@ _INACTIVE_STATUS_PATTERN = re.compile(
 _NEGATIVE_PATTERN = re.compile(
     r"\b(?:cannot|can't|disallow(?:ed)?|forbid(?:den)?|may not|must not|"
     r"never|no|not|prohibit(?:ed)?)\b"
-    r"|不得|不允许|不能|不可|禁止|严禁|无权|未获准",
+    r"|不得|不允许|不能|不可|禁止|严禁|无权|未获准|并非|不是|没有",
     re.IGNORECASE,
 )
 _POSITIVE_PATTERN = re.compile(
@@ -257,13 +257,52 @@ def _numeric_mismatch(claim_text: str, evidence_text: str) -> bool:
 
 
 def _negation_mismatch(claim_text: str, evidence_text: str) -> bool:
-    claim_polarity = _statement_polarity(claim_text)
-    evidence_polarity = _statement_polarity(evidence_text)
-    return (
-        claim_polarity != 0
-        and evidence_polarity != 0
-        and claim_polarity != evidence_polarity
-    )
+    claim_is_negative = _has_explicit_negation(claim_text)
+    comparable_sentences = [
+        sentence
+        for sentence in _sentences(evidence_text)
+        if _negation_comparable(claim_text, sentence)
+    ]
+    if not comparable_sentences:
+        return False
+    evidence_polarities = {
+        _has_explicit_negation(sentence) for sentence in comparable_sentences
+    }
+    return claim_is_negative not in evidence_polarities
+
+
+def _negation_comparable(claim_text: str, evidence_sentence: str) -> bool:
+    if _shared_content_token_count(claim_text, evidence_sentence) < 2:
+        return False
+    claim_numbers = {
+        _normalize_number(value) for value in _NUMBER_PATTERN.findall(claim_text)
+    }
+    evidence_numbers = {
+        _normalize_number(value)
+        for value in _NUMBER_PATTERN.findall(evidence_sentence)
+    }
+    if claim_numbers and not claim_numbers.issubset(evidence_numbers):
+        return False
+    claim_dates = {
+        _normalize_date(value) for value in _DATE_PATTERN.findall(claim_text)
+    }
+    evidence_dates = {
+        _normalize_date(value)
+        for value in _DATE_PATTERN.findall(evidence_sentence)
+    }
+    return not claim_dates or claim_dates.issubset(evidence_dates)
+
+
+def _sentences(text: str) -> list[str]:
+    return [
+        sentence.strip()
+        for sentence in re.split(r"(?<=[.!?。！？;；\n])\s*", text)
+        if sentence.strip()
+    ]
+
+
+def _has_explicit_negation(text: str) -> bool:
+    return bool(_NEGATIVE_PATTERN.search(text))
 
 
 def _lifecycle_status(text: str) -> str | None:
