@@ -1,0 +1,100 @@
+{
+  "agent_budget": {
+    "deadline_ms": 15000,
+    "max_context_chars": 12000,
+    "max_find_calls": 1,
+    "max_open_calls": 2,
+    "max_search_calls": 3,
+    "max_steps": 4
+  },
+  "arm_summaries": {
+    "candidate_aggregate": {
+      "arm": "candidate_aggregate",
+      "budget_exhaustion_rate": 0.0,
+      "case_count": 27,
+      "citation_completeness": 0.2222222222222222,
+      "citation_precision": 0.18518518518518523,
+      "citation_recall": 0.43827160493827155,
+      "find_calls_mean": 0.0,
+      "generation_model_calls": 0,
+      "generation_tokens": 0,
+      "latency_ms_mean": 455.9986333328265,
+      "latency_ms_p50": 416.84429987799376,
+      "latency_ms_p95": 591.9819000409916,
+      "open_calls_mean": 0.0,
+      "required_evidence_completeness": 0.2222222222222222,
+      "retrieval_completeness": 0.2222222222222222,
+      "retrieval_recall": 0.43827160493827155,
+      "search_calls_mean": 1.0,
+      "tool_calls_mean": 1.0,
+      "tool_error_count": 0
+    },
+    "current_agent": {
+      "arm": "current_agent",
+      "budget_exhaustion_rate": 0.0,
+      "case_count": 27,
+      "citation_completeness": 0.0,
+      "citation_precision": 0.4444444444444444,
+      "citation_recall": 0.2037037037037037,
+      "find_calls_mean": 0.0,
+      "generation_model_calls": 0,
+      "generation_tokens": 0,
+      "latency_ms_mean": 385.902674075354,
+      "latency_ms_p50": 338.99259997997433,
+      "latency_ms_p95": 531.7686999915168,
+      "open_calls_mean": 0.0,
+      "required_evidence_completeness": 0.0,
+      "retrieval_completeness": 0.2222222222222222,
+      "retrieval_recall": 0.43827160493827155,
+      "search_calls_mean": 1.0,
+      "tool_calls_mean": 1.0,
+      "tool_error_count": 0
+    }
+  },
+  "candidate_vs_current": {
+    "citation_completeness_pp": 22.22222222222222,
+    "citation_precision_pp": -25.92592592592592,
+    "p95_latency_ratio": 1.11323193721337,
+    "required_evidence_completeness_pp": 22.22222222222222,
+    "retrieval_recall_pp": 0.0
+  },
+  "claim_boundary": {
+    "answer_correctness": "NOT_MEASURED",
+    "development_only": true,
+    "generation_model": "NOT_USED_EXTRACTIVE_ABLATION",
+    "generation_tokens": 0,
+    "resume_quality_claim_allowed": false
+  },
+  "cohort_sha256": "9cb50b370dc562ba38072ac12fdb1ebbe718d13386f0b03fa1e4d0eba33ff3b1",
+  "dataset_manifest_sha256": "e40972d70a8c80685b3730733efd90ac82a01fd52a949a0d27e122809bc290dd",
+  "embedding_model": "bge-m3",
+  "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+  "execution_git_sha": "62522f6be65fa498bd901180e1d987615a8f6beb",
+  "index_manifest_sha256": "d21b3aa78bc578a86d421c4db724b6441d404e13ed628bd8c22fdaff002daa09",
+  "index_run_id": "wixqa-flat-bge-m3-v1",
+  "mode": "RETROSPECTIVE_DEVELOPMENT_ONLY_ALREADY_OBSERVED",
+  "precision_tradeoff_status": "REVIEW_REQUIRED",
+  "private_summary_sha256": "cf0693a1226533a3330b371f1f7f54eb34b0ddccb29e8d0385ba6effca4386aa",
+  "promotion_status": "HOLD_NO_UNCONSUMED_VALIDATION",
+  "registered_gate_status": "PASS",
+  "registered_gates": {
+    "budget_exhaustion_below_2_percent": true,
+    "citation_completeness_gain_at_least_15pp": true,
+    "p95_latency_no_more_than_1_8x": true,
+    "required_evidence_completeness_gain_at_least_15pp": true,
+    "retrieval_recall_drop_no_more_than_2pp": true,
+    "tool_error_count_zero": true
+  },
+  "retrieval_baseline": {
+    "arm": "b2_single_shot_retrieval",
+    "article_recall_at_5": 0.43827160493827155,
+    "case_count": 27,
+    "latency_ms_mean": 233.65754443996897,
+    "latency_ms_p50": 204.4698999961838,
+    "latency_ms_p95": 311.12900003790855,
+    "multi_document_retrieval_completeness": 0.2222222222222222
+  },
+  "same_guard_acl_across_agent_arms": true,
+  "same_retriever_across_arms": true,
+  "schema_version": "wixqa_multidoc_fast_track_public_v1"
+}

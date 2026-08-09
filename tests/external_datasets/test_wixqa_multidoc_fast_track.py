@@ -92,3 +92,22 @@ def test_publication_preserves_retrospective_and_resume_boundaries() -> None:
 
     assert payload["promotion_status"] == "HOLD_NO_UNCONSUMED_VALIDATION"
     assert payload["claim_boundary"]["resume_quality_claim_allowed"] is False
+
+
+def test_published_fast_track_result_preserves_quality_tradeoff() -> None:
+    payload = __import__("json").loads(
+        (
+            ROOT
+            / "docs"
+            / "rapid_upgrade"
+            / "evidence"
+            / "MULTIDOC_FAST_TRACK_PUBLIC.json"
+        ).read_text(encoding="utf-8")
+    )
+
+    assert payload["registered_gate_status"] == "PASS"
+    assert payload["promotion_status"] == "HOLD_NO_UNCONSUMED_VALIDATION"
+    assert payload["precision_tradeoff_status"] == "REVIEW_REQUIRED"
+    assert payload["candidate_vs_current"]["citation_completeness_pp"] > 15
+    assert payload["candidate_vs_current"]["citation_precision_pp"] < -10
+    assert payload["claim_boundary"]["resume_quality_claim_allowed"] is False
