@@ -41,6 +41,11 @@ class ResponseBuilder(Protocol):
 
 
 class ExtractiveResponseBuilder:
+    def __init__(self, *, max_evidence_per_aspect: int = 1) -> None:
+        if max_evidence_per_aspect < 1 or max_evidence_per_aspect > 8:
+            raise ValueError("max_evidence_per_aspect must be between 1 and 8")
+        self.max_evidence_per_aspect = max_evidence_per_aspect
+
     def build(
         self,
         *,
@@ -59,29 +64,31 @@ class ExtractiveResponseBuilder:
         supported_aspects = (
             state.ledger.supported_aspects if state.ledger is not None else []
         )
-        for index, aspect in enumerate(supported_aspects, start=1):
+        claim_index = 0
+        for aspect in supported_aspects:
             hits = state.evidence_by_aspect.get(aspect, [])
             if not hits:
                 continue
-            evidence = hits[0]
-            hit = evidence.hit
-            claims.append(
-                Claim(
-                    claim_id=f"claim-{index}",
-                    text=hit.matched_text,
-                    cited_chunk_ids=[hit.chunk_id],
-                )
-            )
-            if all(source.chunk_id != hit.chunk_id for source in sources):
-                sources.append(
-                    AnswerSource(
-                        doc_id=hit.doc_id,
-                        source_path=hit.source_path,
-                        section_path=hit.section_path,
-                        chunk_id=hit.chunk_id,
-                        preview=hit.matched_text[:1000],
+            for evidence in hits[: self.max_evidence_per_aspect]:
+                hit = evidence.hit
+                claim_index += 1
+                claims.append(
+                    Claim(
+                        claim_id=f"claim-{claim_index}",
+                        text=hit.matched_text,
+                        cited_chunk_ids=[hit.chunk_id],
                     )
                 )
+                if all(source.chunk_id != hit.chunk_id for source in sources):
+                    sources.append(
+                        AnswerSource(
+                            doc_id=hit.doc_id,
+                            source_path=hit.source_path,
+                            section_path=hit.section_path,
+                            chunk_id=hit.chunk_id,
+                            preview=hit.matched_text[:1000],
+                        )
+                    )
 
         if not claims or not sources:
             return _source_free_response(

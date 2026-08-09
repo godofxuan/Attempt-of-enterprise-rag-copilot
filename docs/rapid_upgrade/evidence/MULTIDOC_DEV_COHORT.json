@@ -1,0 +1,288 @@
+{
+  "claim_boundary": "Development mechanism evidence only; not fresh validation, fixed test, or a resume quality claim.",
+  "cohort_id": "wixqa-simulated-multidoc-retrospective-v1",
+  "consumption": "RETROSPECTIVE_DEVELOPMENT_ONLY_ALREADY_OBSERVED",
+  "dataset": "WixQA",
+  "dataset_manifest_sha256": "e40972d70a8c80685b3730733efd90ac82a01fd52a949a0d27e122809bc290dd",
+  "dataset_revision": "d662dc42479c14e202eccd832f8c4b66a035c4cc",
+  "dataset_split": "simulated",
+  "question_count": 27,
+  "question_ids_sha256": "3c83d9e78782cb18da5a6d00305418490e60d0c7b71af687376734c70a442aad",
+  "records": [
+    {
+      "question_id": "wixqa:simulated:a0001bce411a0585e410cb93",
+      "raw_record_sha256": "a0001bce411a0585e410cb9301d8267e673a8fc1c83e4a653ef55bcfdcd11cee",
+      "required_article_ids": [
+        "cfb55ec5149580885e427e55389dcc803ed2b069682e389617bd12f67b0a4779",
+        "fcb6dbe7f29b0f8e6ccf54ff1eb1331935ed5e1584e258dd8e94973effd8f77f"
+      ],
+      "required_source_count": 2,
+      "source_row": 3
+    },
+    {
+      "question_id": "wixqa:simulated:64768c2ad121eda8e713cd16",
+      "raw_record_sha256": "64768c2ad121eda8e713cd16d4177274dc0743b7872ad009cd45b983a94b3a83",
+      "required_article_ids": [
+        "115cf85cc17ded8ab766cad5991bc8d5d7089bc7302a5027bec17154302483c3",
+        "0bc2a5a8a9b6e398472863b9b5d7a027402d49d1b5ac5337275dbf6d8b330174",
+        "9b3ebf37d63abb6ffc84114331b6ff32acacbd15b093ffab40810ab334215538"
+      ],
+      "required_source_count": 3,
+      "source_row": 14
+    },
+    {
+      "question_id": "wixqa:simulated:27467513664b6e166856fcdf",
+      "raw_record_sha256": "27467513664b6e166856fcdf9ea881aaf45943641dba677661aadbaf8d228ca8",
+      "required_article_ids": [
+        "5fbc47de05f77213b05973a3ad35aa082c84b11e939a70914ed66ab02fc8b617",
+        "568140964e5e7c1628d295e9991367ed4d3c2090a79105d435231030b620a506",
+        "7a41c2861f9b080e4c17b7dd870e5b3bdd92a9a8ba284b6f0018788f5d4abbbc"
+      ],
+      "required_source_count": 3,
+      "source_row": 17
+    },
+    {
+      "question_id": "wixqa:simulated:9bc3e9fcf0dadd68bedb4621",
+      "raw_record_sha256": "9bc3e9fcf0dadd68bedb46212cc7e319859f70c0051a02d073e34119a386f702",
+      "required_article_ids": [
+        "5ce85d608b0f1f8b3e9341a3773f0ff23e44485a21dd9f23ae9a49553e4176cf",
+        "30e947f31d1aa3cce6c8a56a558ad7b26c8b832019ad1fc43a77c968948bc543",
+        "ac52db95f0cfec00e71b43d37c7428fb694f9bc262cd7f2770fe661de581c8be"
+      ],
+      "required_source_count": 3,
+      "source_row": 19
+    },
+    {
+      "question_id": "wixqa:simulated:003e6afa373f67566a47d045",
+      "raw_record_sha256": "003e6afa373f67566a47d045027add7649d1971a19024c995bba5961e50bd69d",
+      "required_article_ids": [
+        "79dc16843d8a0dfd5b12f8e260801c1f27e02c813cff37b75e04f023b01cee8c",
+        "086889ad91fb2f346a1726ab309948ff3f13c8b82401780cd57d9eeed03d9846"
+      ],
+      "required_source_count": 2,
+      "source_row": 24
+    },
+    {
+      "question_id": "wixqa:simulated:bc22dc4405446741f0362d1a",
+      "raw_record_sha256": "bc22dc4405446741f0362d1ade1d2575db5c599f440728ca9f23cdc022a606f1",
+      "required_article_ids": [
+        "056bff264f2a5f5a0812b24253519f1442441f3de5bb499edcbb9771042166a4",
+        "94f56a17d8ed9cdcbe129b8f738abb2a8bce8fc5df564cb10fc2b1cf6af8c947"
+      ],
+      "required_source_count": 2,
+      "source_row": 27
+    },
+    {
+      "question_id": "wixqa:simulated:175db1eac81d1fccbfa9c2af",
+      "raw_record_sha256": "175db1eac81d1fccbfa9c2afec575723a5c2a1941a6c63c335f1ac555919116d",
+      "required_article_ids": [
+        "b7a22176a4173e2a1edcb286710965d8c1c2afc70533d49c7607f210bc3d9c62",
+        "c8783e7cee11b09c015c396cebcd60a7c1c93a4be6d73383d41d11369527cde3"
+      ],
+      "required_source_count": 2,
+      "source_row": 40
+    },
+    {
+      "question_id": "wixqa:simulated:bd28497070e09c399b54699d",
+      "raw_record_sha256": "bd28497070e09c399b54699d13a3051e8ad719d2bee69325a696427ae1207bd3",
+      "required_article_ids": [
+        "0cb65c6c64d2b1d3c54f04b08cd7c801334d1984fc5f07e6e1396b12fb9e1a08",
+        "ac52db95f0cfec00e71b43d37c7428fb694f9bc262cd7f2770fe661de581c8be"
+      ],
+      "required_source_count": 2,
+      "source_row": 45
+    },
+    {
+      "question_id": "wixqa:simulated:fdec064af569e2b73d8523b1",
+      "raw_record_sha256": "fdec064af569e2b73d8523b1e0168f849e18134f701986bfe13f5c93cb79f148",
+      "required_article_ids": [
+        "c5d82d4a0741f072da98db371148bfb349e37561fd94b32c1326dd77d44a4ca0",
+        "5eb416fe9b1828587d4420cc44170ffbecf7cf59da5eba0826dcc8c88977d359"
+      ],
+      "required_source_count": 2,
+      "source_row": 47
+    },
+    {
+      "question_id": "wixqa:simulated:79c78c6c047e7331d8344fda",
+      "raw_record_sha256": "79c78c6c047e7331d8344fda6d02f480ad31bbd14d2f2a4258de97bc632ae188",
+      "required_article_ids": [
+        "b04d70eee300e05d32a3690a44f947cdeb5bc389edf039bc8538873d2c5f5d01",
+        "e6c75e305dee6a7b7c825546d563986086aee0ccf497b6adda458d53cd0ef1ef"
+      ],
+      "required_source_count": 2,
+      "source_row": 50
+    },
+    {
+      "question_id": "wixqa:simulated:2ffaaa32eec24fa7b4a23873",
+      "raw_record_sha256": "2ffaaa32eec24fa7b4a238731e8e41f64b57324e8188df039e9d0dd3dc8bc1ec",
+      "required_article_ids": [
+        "5af9f8d065ffc9499873f23f912e41b1e3adcbb03ad072cc7f7f1ee4eb011b76",
+        "03db5358176ca06a9fcf2354b3ce13d9f084ddd595f105104190e31b8931fb4a"
+      ],
+      "required_source_count": 2,
+      "source_row": 88
+    },
+    {
+      "question_id": "wixqa:simulated:0e7cf906f130509f1c5b4f04",
+      "raw_record_sha256": "0e7cf906f130509f1c5b4f047e259178cd85ce522575aded92a874bf72cf9eda",
+      "required_article_ids": [
+        "33546053092c64ba24d5a9fcc8366fb3c2424e6d92e160bef79dcca0813a6e15",
+        "34a0d0a099c177940e46f01882f4be430c8209244b45aa402985dd010acb7ea8"
+      ],
+      "required_source_count": 2,
+      "source_row": 89
+    },
+    {
+      "question_id": "wixqa:simulated:ae82ef51bb2c51fa4e72f06b",
+      "raw_record_sha256": "ae82ef51bb2c51fa4e72f06b5c66cf48bc7e0e907788e7effb7475a2e1c7f8d4",
+      "required_article_ids": [
+        "5641574289f2768293891471cfcc69b935623ef2723abd28fcb9dddf430ce5e8",
+        "2d2313593a6d93ceed58105a0fdfd7e6f26d15274c36d51281940fe0de1d87ea"
+      ],
+      "required_source_count": 2,
+      "source_row": 110
+    },
+    {
+      "question_id": "wixqa:simulated:cc4ef1fad01b91e8121dd522",
+      "raw_record_sha256": "cc4ef1fad01b91e8121dd52250f9df548124219980fcc4c1914260016e676d78",
+      "required_article_ids": [
+        "5641574289f2768293891471cfcc69b935623ef2723abd28fcb9dddf430ce5e8",
+        "2d2313593a6d93ceed58105a0fdfd7e6f26d15274c36d51281940fe0de1d87ea"
+      ],
+      "required_source_count": 2,
+      "source_row": 118
+    },
+    {
+      "question_id": "wixqa:simulated:605c86d60d74f2d229886bce",
+      "raw_record_sha256": "605c86d60d74f2d229886bcedda5f000d6f700a326b24e933fb0b68f1d522ca5",
+      "required_article_ids": [
+        "d3642a56325a2f02f8eb896a7928901fb0010cedfe15a2ea5cf49144cfd13db2",
+        "a4e961a185fa6ceaa1bce7766f2ae55a7b1a1e337493f07fa6cf68a10834bb1c"
+      ],
+      "required_source_count": 2,
+      "source_row": 122
+    },
+    {
+      "question_id": "wixqa:simulated:ced28ee8e12245e2c5b2dd39",
+      "raw_record_sha256": "ced28ee8e12245e2c5b2dd3939c2d3793e19d3b5b7a66ca360cfc3af855a0831",
+      "required_article_ids": [
+        "926ba4f78520f3519fcd7d16f8e657a98913593ffe974a4d0acfa2b899706cbf",
+        "fc77f819a1aa63b79ce1da3773d855ad14d1469c0ecd351abed9a7645a8ee08a"
+      ],
+      "required_source_count": 2,
+      "source_row": 128
+    },
+    {
+      "question_id": "wixqa:simulated:7e10c1ce38bad09c21079e48",
+      "raw_record_sha256": "7e10c1ce38bad09c21079e48f2c395441ac5934a68aff8b6a323af4b6f8de55c",
+      "required_article_ids": [
+        "5641574289f2768293891471cfcc69b935623ef2723abd28fcb9dddf430ce5e8",
+        "2d2313593a6d93ceed58105a0fdfd7e6f26d15274c36d51281940fe0de1d87ea"
+      ],
+      "required_source_count": 2,
+      "source_row": 135
+    },
+    {
+      "question_id": "wixqa:simulated:d5bb25d6c890fd065aa9748f",
+      "raw_record_sha256": "d5bb25d6c890fd065aa9748f3a74acfbfb84e8ecb4ddb31beb5cd3af5ce31ffd",
+      "required_article_ids": [
+        "5ac8b5aca71fd129fee573d34097f56d7027fee87759363b598173604794f1a9",
+        "a5bc5c2e9c8a6e8e6488d016f792e13d2b075ec5b291ea09c850b266ca62bb83"
+      ],
+      "required_source_count": 2,
+      "source_row": 138
+    },
+    {
+      "question_id": "wixqa:simulated:5c4fca4b0f620e882ad11983",
+      "raw_record_sha256": "5c4fca4b0f620e882ad119838603088a988a74e0797be873dacc291e3dc37e2f",
+      "required_article_ids": [
+        "3a298780639ec3835829c6f157c3abdb350758b67332ee656cfb75c86a89b509",
+        "ca8580cca10d5bd3fb0257e79a60d30785eca79e1917a033692f47dbfffc1f5a"
+      ],
+      "required_source_count": 2,
+      "source_row": 150
+    },
+    {
+      "question_id": "wixqa:simulated:e644703dfee5c436e4a95ace",
+      "raw_record_sha256": "e644703dfee5c436e4a95ace61c1913315611ecc7582ca81552c203c8fce8b0e",
+      "required_article_ids": [
+        "ba3d0013f5be977b6dec0864e55228406bd1d4c6870fdf342e2eaad681609671",
+        "ac52db95f0cfec00e71b43d37c7428fb694f9bc262cd7f2770fe661de581c8be"
+      ],
+      "required_source_count": 2,
+      "source_row": 154
+    },
+    {
+      "question_id": "wixqa:simulated:4336ae80739cc78413b17a96",
+      "raw_record_sha256": "4336ae80739cc78413b17a96d155197f96d064d4686c384e9a7dbcf943e96285",
+      "required_article_ids": [
+        "cf18d0def5791d095b0b422d562fa99eae8e40d0821d65ae59ea60fb51de48d2",
+        "23eae82e9cf478eb99fb3209b8b0fc8e293350496808ea360600808902270228"
+      ],
+      "required_source_count": 2,
+      "source_row": 160
+    },
+    {
+      "question_id": "wixqa:simulated:b09c1d04a273f65b913491ec",
+      "raw_record_sha256": "b09c1d04a273f65b913491ec9614696dc1f18faafb0fc0cd7f7a0f5b90c023cb",
+      "required_article_ids": [
+        "b93cbc4952c105873cf38ae77156a80f0c496dd6f33befae0d98988755637cce",
+        "ec5bf4142222e9313d9d0d1931b71b5c9bf0e812e6708a09e323202c4a546ac6"
+      ],
+      "required_source_count": 2,
+      "source_row": 161
+    },
+    {
+      "question_id": "wixqa:simulated:d62ee55db027d44c29f1edf3",
+      "raw_record_sha256": "d62ee55db027d44c29f1edf3d41ca00fa655a412450707fb91f230432eaf1664",
+      "required_article_ids": [
+        "aaeac809b69520cb72635db0fcec66c4382ee2f6f37d8527f67fd5517eb54728",
+        "89bd8fb2548fafd8d6efe52f176c2b81df7e40aa83b04cc87efc31ffe44ecc90"
+      ],
+      "required_source_count": 2,
+      "source_row": 176
+    },
+    {
+      "question_id": "wixqa:simulated:cc1dea7bf1db8c0104f7c419",
+      "raw_record_sha256": "cc1dea7bf1db8c0104f7c419fc5d1993264a4d1c2e9b9115999f8a120f92feac",
+      "required_article_ids": [
+        "897d73c3084173d159d367aa61cce9023498b0442335cec40e899aa310bcd14d",
+        "89e39fdcca5874eb36d1ac6e359aad2cd93b601cac1cf7b8743449ff7893ead8"
+      ],
+      "required_source_count": 2,
+      "source_row": 190
+    },
+    {
+      "question_id": "wixqa:simulated:6cc7a057a9da235500595050",
+      "raw_record_sha256": "6cc7a057a9da235500595050597f7cfa5c1b037b7af6354f670cfa63abe87b42",
+      "required_article_ids": [
+        "bef3f28eee94edd10f02f6fec491e4fe6795234a49ba975db9870dd0ac8b942a",
+        "5af9f8d065ffc9499873f23f912e41b1e3adcbb03ad072cc7f7f1ee4eb011b76"
+      ],
+      "required_source_count": 2,
+      "source_row": 195
+    },
+    {
+      "question_id": "wixqa:simulated:ae0a6709a26beaa041081ad7",
+      "raw_record_sha256": "ae0a6709a26beaa041081ad79720ee3cbf73227ab3a17695375f613ff7eb539f",
+      "required_article_ids": [
+        "d262c28f3f0024e0dfb60eb25002640afa800a29d6b4263c4158996b59cd3b51",
+        "5641574289f2768293891471cfcc69b935623ef2723abd28fcb9dddf430ce5e8"
+      ],
+      "required_source_count": 2,
+      "source_row": 197
+    },
+    {
+      "question_id": "wixqa:simulated:44e1d064657d3434e8060aa9",
+      "raw_record_sha256": "44e1d064657d3434e8060aa9c737a02cf768bda9c68fca75dc38ea4f8c674051",
+      "required_article_ids": [
+        "f1ea7e9d3ffa1285fcad6b15128b3a8fe222452d5c7f2f4fa140fe81fcca9cc0",
+        "2bc6896a0b1b74ba70ee4d71b01d4104f55f81c93fb5e3573066af86c00b38af"
+      ],
+      "required_source_count": 2,
+      "source_row": 199
+    }
+  ],
+  "records_sha256": "4732d51aad217465d616b715a32c4e1df5d90ea459fe6883331eed6a65a6072c",
+  "schema_version": "wixqa_multidoc_dev_cohort_v1"
+}

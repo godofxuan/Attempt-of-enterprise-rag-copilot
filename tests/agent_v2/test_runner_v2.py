@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from app.agent.runner_v2 import V2AgentRunner, budget_from_settings
+from app.agent.runner_v2 import (
+    ExtractiveResponseBuilder,
+    V2AgentRunner,
+    budget_from_settings,
+)
 from app.agent.tools_v2 import V2ToolExecution, V2ToolRegistry
 from app.config import Settings
 from tests.v2_test_support import (
@@ -71,6 +75,52 @@ def test_fact_run_returns_extractively_grounded_answer() -> None:
     assert [step["tool"] for step in response.trace["steps"]] == [
         "search",
         "answer",
+    ]
+
+
+def test_extractive_builder_can_preserve_multiple_sources_per_aspect() -> None:
+    navigator = RecordingNavigator(
+        search_results=[
+            search_result(
+                [
+                    search_hit(),
+                    search_hit(
+                        chunk_id="chunk-b",
+                        doc_id="doc-b",
+                        policy_id="policy-b",
+                        source_path="documents/doc-b.md",
+                        matched_text=(
+                            "Remote work requirements include the approval checklist "
+                            "maintained in Policy B."
+                        ),
+                        context_text=(
+                            "Remote work requirements include the approval checklist "
+                            "maintained in Policy B."
+                        ),
+                        version_id="policy-b@2026",
+                        fact_ids=["fact-b"],
+                    ),
+                ]
+            )
+        ]
+    )
+    runner = V2AgentRunner(
+        registry=V2ToolRegistry(navigator, clock_ms=lambda: 0.0),
+        response_builder=ExtractiveResponseBuilder(
+            max_evidence_per_aspect=2,
+        ),
+        clock_ms=lambda: 0.0,
+    )
+
+    response = runner.run("What are the remote work requirements?", USER)
+
+    assert [source.chunk_id for source in response.sources] == [
+        "chunk-a",
+        "chunk-b",
+    ]
+    assert [claim.cited_chunk_ids for claim in response.claims] == [
+        ["chunk-a"],
+        ["chunk-b"],
     ]
 
 
