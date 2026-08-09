@@ -1,0 +1,42 @@
+{
+  "arms": [
+    "bm25",
+    "dense",
+    "hybrid_rrf"
+  ],
+  "candidate_k_chunks": 200,
+  "clean_root_policy": {
+    "attempt_2_root": ".private/final_closeout/wixqa_clean_v2",
+    "all_four_roots_must_not_exist_before_run": true,
+    "historical_private_artifacts_allowed_as_input": false
+  },
+  "expected_candidate_identity": {
+    "dataset_manifest_sha256": "d325412340c110d3f76b832080c702978643d517e296c97bba1abc088ec65b1f",
+    "dataset_revision": "d662dc42479c14e202eccd832f8c4b66a035c4cc",
+    "embedding_model": "bge-m3",
+    "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+    "protocol_sha256": "b1b5d1bbb8944b524c6e6c3c52cbaf00daca7d0d44fa3e34193cc084a23b95d3"
+  },
+  "historical_public_evidence_sha256": "dc3873a4abb4feb5ff83c601edcbaa2693e2b08ee26f3159655804fc8a9c4ab0",
+  "latency_policy": "REPORT_NEW_MACHINE_OBSERVATION_NO_EQUALITY_GATE",
+  "metric_fields": [
+    "article_hit_at_1",
+    "article_recall_at_1",
+    "article_recall_at_3",
+    "article_recall_at_5",
+    "mrr_at_5",
+    "ndcg_at_5",
+    "multi_article_completeness_at_5"
+  ],
+  "quality_absolute_tolerance": 0.0,
+  "registration_base_git_sha": "e08d134",
+  "rrf_k": 60,
+  "schema_version": "wixqa_clean_reproduction_protocol_v2",
+  "source_transport_boundary": {
+    "canonical_equivalence_evidence_sha256": "827828f7ba749b9f16509a490567250289ae1d4ac03379a91b5b490194635952",
+    "historical_manifest_sha256": "e40972d70a8c80685b3730733efd90ac82a01fd52a949a0d27e122809bc290dd",
+    "official_raw_manifest_sha256": "d325412340c110d3f76b832080c702978643d517e296c97bba1abc088ec65b1f",
+    "question_transport_difference": "HISTORICAL_CRLF_OFFICIAL_LF",
+    "semantic_policy": "CANONICAL_JSON_ROWS_AND_DERIVED_QUESTION_IDS_MUST_MATCH"
+  }
+}

@@ -47,8 +47,12 @@ def compare_reproduction(
         "embedding_model_sha256",
         "protocol_sha256",
     )
+    expected_candidate = {
+        field: historical.get(field) for field in identity_fields
+    }
+    expected_candidate.update(contract.get("expected_candidate_identity", {}))
     identity_matches = {
-        field: historical.get(field) == candidate.get(field)
+        field: candidate.get(field) == expected_candidate.get(field)
         for field in identity_fields
     }
     differences: list[dict[str, Any]] = []
@@ -106,6 +110,7 @@ def compare_reproduction(
         "quality_absolute_tolerance": tolerance,
         "identity_matches": identity_matches,
         "clean_root_contract_satisfied": clean_contract,
+        "source_transport_boundary": contract.get("source_transport_boundary"),
         "quality_difference_count": len(differences),
         "quality_differences": differences,
         "candidate_execution_revision": candidate.get("execution_revision"),

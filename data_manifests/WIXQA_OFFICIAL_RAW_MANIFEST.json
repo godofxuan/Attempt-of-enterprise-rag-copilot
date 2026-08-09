@@ -1,0 +1,75 @@
+{
+  "acquisition": "official_huggingface_dataset_repository",
+  "data_types": [
+    "support_article_text",
+    "support_article_html",
+    "question",
+    "answer",
+    "gold_article_ids"
+  ],
+  "dataset_name": "WixQA",
+  "dataset_version": "huggingface-revision-d662dc4-official-raw-lf",
+  "download_date": "2026-08-09",
+  "files": [
+    {
+      "byte_count": 53743863,
+      "path": "wix_kb_corpus/wix_kb_corpus.jsonl",
+      "role": "corpus",
+      "row_count": 6221,
+      "sha256": "46b852c60b85fb1828e7c6118bb56ba796eba99120a6b69c6b984c06e1c5e1fe"
+    },
+    {
+      "byte_count": 6216364,
+      "path": "wixqa_synthetic/test.jsonl",
+      "role": "development",
+      "row_count": 6221,
+      "sha256": "1d7e79f328db46537934081b3d9814b02dd0098d67a072cac5dadac636432054"
+    },
+    {
+      "byte_count": 88188,
+      "path": "wixqa_simulated/test.jsonl",
+      "role": "validation",
+      "row_count": 200,
+      "sha256": "9a2b9f42c081467b3de5bd92511e770bca3cc7977f169526fd78dd3c985ac4a8"
+    },
+    {
+      "byte_count": 255510,
+      "path": "wixqa_expertwritten/test.jsonl",
+      "role": "fixed_external",
+      "row_count": 200,
+      "sha256": "a1bb6888a8394f980bc88f0d09b873fcd283ff4c9782600bc203f8103c2f1bad"
+    }
+  ],
+  "license": "MIT",
+  "limitations": [
+    "All official QA configurations are published as test files; local consumption roles are project protocol labels, not official hidden splits.",
+    "The QA files do not contain official question IDs; stable local IDs are derived from canonical source-row content and are explicitly labeled derived.",
+    "This manifest binds direct official LF transport bytes; the historical Windows manifest bound CRLF question files with canonically identical JSON rows.",
+    "ExpertWritten and Simulated contain only 200 questions each, so uncertainty and per-category counts must be reported.",
+    "The knowledge-base snapshot is English-only and dated 2024-12-02."
+  ],
+  "locally_used_split": {
+    "wixqa_expertwritten/test.jsonl": "FIXED_CONSUMED_REGRESSION_REPLAY",
+    "wixqa_simulated/test.jsonl": "VALIDATION_CONSUMED_REGRESSION_REPLAY",
+    "wixqa_synthetic/test.jsonl": "DEVELOPMENT_CONSUMED_REGRESSION_REPLAY"
+  },
+  "number_of_documents": 6221,
+  "number_of_questions": {
+    "expertwritten": 200,
+    "simulated": 200,
+    "synthetic": 6221
+  },
+  "official_source": "https://huggingface.co/datasets/Wix/WixQA",
+  "official_split": {
+    "wixqa_expertwritten": "test",
+    "wixqa_simulated": "test",
+    "wixqa_synthetic": "test"
+  },
+  "provenance": {
+    "kb_snapshot_date": "2024-12-02",
+    "paper": "https://arxiv.org/abs/2505.08643",
+    "repository": "https://huggingface.co/datasets/Wix/WixQA"
+  },
+  "schema_version": "wixqa_dataset_manifest_v1",
+  "source_commit": "d662dc42479c14e202eccd832f8c4b66a035c4cc"
+}

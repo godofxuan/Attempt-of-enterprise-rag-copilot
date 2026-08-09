@@ -59,3 +59,37 @@ The candidate is then compared without tuning:
 
 Any identity or quality mismatch yields `REPRODUCTION_GAP`. The tolerance must
 not be changed after seeing results.
+
+## Registered transport addendum after attempt 1
+
+Attempt 1 stopped before indexing because the historical Windows manifest bound
+CRLF question files while direct official downloads use LF. Canonical JSON rows
+and derived question IDs are equal. The failure and diagnosis are recorded in
+`REPRODUCTION_DIFF.md`; no quality result was observed.
+
+Attempt 2 is frozen by:
+
+- `WIXQA_OFFICIAL_RAW_MANIFEST.json`
+- `WIXQA_SOURCE_TRANSPORT_EQUIVALENCE_V1.json`
+- `WIXQA_CLEAN_RETRIEVAL_PROTOCOL_V2.json`
+- `WIXQA_CLEAN_REPRODUCTION_PROTOCOL_V2.json`
+
+Quality tolerance remains `0.0`. Attempt 2 uses new roots:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.reproduce_wixqa_retrieval `
+  --run-prefix wixqa-clean-v2 `
+  --manifest data_manifests\WIXQA_OFFICIAL_RAW_MANIFEST.json `
+  --protocol docs\reproduction\evidence\WIXQA_CLEAN_RETRIEVAL_PROTOCOL_V2.json `
+  --source-root .private\final_closeout\wixqa_clean_v2\source `
+  --index-root .private\final_closeout\wixqa_clean_v2\indexes `
+  --embedding-cache .private\final_closeout\wixqa_clean_v2\embedding_cache `
+  --output-root .private\final_closeout\wixqa_clean_v2\eval_runs `
+  --public-output .private\final_closeout\wixqa_clean_v2\candidate_public.json `
+  --require-clean-roots
+```
+
+The verification command uses
+`WIXQA_CLEAN_REPRODUCTION_PROTOCOL_V2.json`. Official LF transport is the
+candidate identity; the committed equivalence artifact is the explicit bridge
+to the historical CRLF label files.

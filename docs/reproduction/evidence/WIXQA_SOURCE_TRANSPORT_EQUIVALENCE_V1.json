@@ -1,0 +1,52 @@
+{
+  "canonical_equivalence": true,
+  "dataset_revision": "d662dc42479c14e202eccd832f8c4b66a035c4cc",
+  "files": [
+    {
+      "canonical_rows_equal": true,
+      "historical_byte_count": 53743863,
+      "historical_sha256": "46b852c60b85fb1828e7c6118bb56ba796eba99120a6b69c6b984c06e1c5e1fe",
+      "official_byte_count": 53743863,
+      "official_sha256": "46b852c60b85fb1828e7c6118bb56ba796eba99120a6b69c6b984c06e1c5e1fe",
+      "path": "wix_kb_corpus/wix_kb_corpus.jsonl",
+      "row_count": 6221,
+      "transport_difference": "NONE"
+    },
+    {
+      "canonical_rows_equal": true,
+      "canonical_stream_sha256": "bac30df319d1787b40732a51c7ea8699f5f44c7fd416cb6fb0a9c69d288e0b7a",
+      "historical_byte_count": 6222585,
+      "historical_sha256": "1621f1eac19bd7efd42a5bafcae6cb053eb611877a6435bc10faf1d9c81b6f98",
+      "official_byte_count": 6216364,
+      "official_sha256": "1d7e79f328db46537934081b3d9814b02dd0098d67a072cac5dadac636432054",
+      "path": "wixqa_synthetic/test.jsonl",
+      "row_count": 6221,
+      "transport_difference": "HISTORICAL_CRLF_OFFICIAL_LF"
+    },
+    {
+      "canonical_rows_equal": true,
+      "canonical_stream_sha256": "bcf95175416ad3cb2986277e5e8e3934a7cf735b7ee7106cbc5d25706885eb77",
+      "historical_byte_count": 88388,
+      "historical_sha256": "0655cbee91cd2a8e5bfcf29f2f0f647e3ebb5e55f9a3772eeb9f0caf7bad94a2",
+      "official_byte_count": 88188,
+      "official_sha256": "9a2b9f42c081467b3de5bd92511e770bca3cc7977f169526fd78dd3c985ac4a8",
+      "path": "wixqa_simulated/test.jsonl",
+      "row_count": 200,
+      "transport_difference": "HISTORICAL_CRLF_OFFICIAL_LF"
+    },
+    {
+      "canonical_rows_equal": true,
+      "canonical_stream_sha256": "cfcce683ed120d2437572b16a929dbc711b1b1c4e8944f7c2325dfa12447c3ad",
+      "historical_byte_count": 255710,
+      "historical_sha256": "48c4417f33f449ff36b10f38ff561670e2ad3188eaf96f6853a21f383096c022",
+      "official_byte_count": 255510,
+      "official_sha256": "a1bb6888a8394f980bc88f0d09b873fcd283ff4c9782600bc203f8103c2f1bad",
+      "path": "wixqa_expertwritten/test.jsonl",
+      "row_count": 200,
+      "transport_difference": "HISTORICAL_CRLF_OFFICIAL_LF"
+    }
+  ],
+  "historical_manifest_sha256": "e40972d70a8c80685b3730733efd90ac82a01fd52a949a0d27e122809bc290dd",
+  "official_raw_manifest_sha256": "d325412340c110d3f76b832080c702978643d517e296c97bba1abc088ec65b1f",
+  "schema_version": "wixqa_source_transport_equivalence_v1"
+}

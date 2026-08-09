@@ -1,0 +1,69 @@
+{
+  "agent_contract": {
+    "b3_base_retriever": "hybrid_rrf",
+    "current_default_path": "search_then_conditional_open",
+    "find_policy": "NOT_IN_DEFAULT_CONTROLLER",
+    "promotion_rule": "quality_gain_required_and_latency_below_3x_single_shot"
+  },
+  "arms": [
+    "bm25",
+    "dense",
+    "hybrid_rrf"
+  ],
+  "candidate_k_chunks": 200,
+  "chunking": {
+    "control": "WIX_FLAT",
+    "overlap_characters": 150,
+    "size_characters": 1800,
+    "title_repeated_per_chunk": true
+  },
+  "cohorts": {
+    "expertwritten": {
+      "case_count": 200,
+      "consumption_before_run": "FIXED_CONSUMED_REGRESSION_REPLAY",
+      "question_ids_sha256": "ec11e3e4733bd6701441b127952fa98b0973f9961a0aacabfae570da45976110",
+      "role": "FIXED_EXTERNAL"
+    },
+    "simulated": {
+      "case_count": 200,
+      "consumption_before_run": "VALIDATION_CONSUMED_REGRESSION_REPLAY",
+      "question_ids_sha256": "871550a19297d3c267f03f2d819f0fd1cef566a8e3c11fdb92ea18792d71b465",
+      "role": "VALIDATION"
+    },
+    "synthetic": {
+      "case_count": 6221,
+      "consumption_before_run": "DEVELOPMENT_CONSUMED_REGRESSION_REPLAY",
+      "question_ids_sha256": "83beb0298665bcb1b5151dfd6dd23e1ddae6cf5e16d4e21ccafac82df8bb04ee",
+      "role": "DEVELOPMENT"
+    }
+  },
+  "dataset_manifest_sha256": "d325412340c110d3f76b832080c702978643d517e296c97bba1abc088ec65b1f",
+  "dataset_revision": "d662dc42479c14e202eccd832f8c4b66a035c4cc",
+  "embedding": {
+    "dimension": 1024,
+    "model": "bge-m3",
+    "ollama_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab"
+  },
+  "evaluation_order": [
+    "synthetic_regression_replay",
+    "simulated_regression_replay",
+    "expertwritten_regression_replay"
+  ],
+  "metrics": [
+    "article_hit_at_1",
+    "article_recall_at_1",
+    "article_recall_at_3",
+    "article_recall_at_5",
+    "mrr_at_5",
+    "ndcg_at_5",
+    "multi_article_completeness_at_5",
+    "latency_ms_mean",
+    "latency_ms_p50",
+    "latency_ms_p95"
+  ],
+  "protocol_id": "wixqa-clean-retrieval-v2",
+  "public_label_boundary": "fixed_external_consumed_regression_replay_not_blind",
+  "rrf_k": 60,
+  "schema_version": "wixqa_retrieval_protocol_v1",
+  "source_revision_policy": "official raw LF manifest and exact clean Git HEAD"
+}

@@ -11,6 +11,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.external_datasets.wixqa import DEFAULT_WIXQA_MANIFEST
+
 
 DEFAULT_PROTOCOL = Path(
     "docs/enterprise_eval/evidence/WIXQA_RETRIEVAL_PROTOCOL_V1.json"
@@ -26,6 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--run-prefix", required=True)
     parser.add_argument("--protocol", type=Path, default=DEFAULT_PROTOCOL)
+    parser.add_argument("--manifest", type=Path, default=DEFAULT_WIXQA_MANIFEST)
     parser.add_argument(
         "--source-root", type=Path, default=Path(".private/external/wixqa/source")
     )
@@ -61,6 +64,8 @@ def command_plan(args: argparse.Namespace) -> list[list[str]]:
                 "scripts.download_wixqa",
                 "--source-root",
                 str(args.source_root),
+                "--manifest",
+                str(args.manifest),
             ]
         )
         if not args.reuse_verified_index:
@@ -71,6 +76,8 @@ def command_plan(args: argparse.Namespace) -> list[list[str]]:
                     "scripts.build_wixqa_index",
                     "--source-root",
                     str(args.source_root),
+                    "--manifest",
+                    str(args.manifest),
                     "--output-root",
                     str(args.index_root),
                     "--embedding-cache",
@@ -88,6 +95,8 @@ def command_plan(args: argparse.Namespace) -> list[list[str]]:
                 cohort,
                 "--source-root",
                 str(args.source_root),
+                "--manifest",
+                str(args.manifest),
                 "--index-root",
                 str(args.index_root),
                 "--output-root",
@@ -132,6 +141,10 @@ def main(argv: list[str] | None = None) -> int:
     metadata["clean_reproduction"] = {
         "required": bool(args.require_clean_roots),
         "historical_private_artifacts_used_as_input": False,
+        "dataset_manifest_path": str(args.manifest.resolve()),
+        "dataset_manifest_sha256": hashlib.sha256(
+            args.manifest.read_bytes()
+        ).hexdigest(),
         "source_root": str(args.source_root.resolve()),
         "index_root": str(args.index_root.resolve()),
         "embedding_cache": str(args.embedding_cache.resolve()),

@@ -86,6 +86,20 @@ def test_publisher_rejects_missing_protocol_arm() -> None:
         )
 
 
+def test_publisher_rejects_dataset_manifest_drift() -> None:
+    runs = {
+        cohort: _summary(cohort)
+        for cohort in ("synthetic", "simulated", "expertwritten")
+    }
+    runs["expertwritten"]["dataset_manifest_sha256"] = "e" * 64
+    with pytest.raises(ValueError, match="dataset manifest"):
+        build_public_evidence(
+            protocol=_protocol(),
+            runs=runs,
+            private_summary_hashes={cohort: "d" * 64 for cohort in runs},
+        )
+
+
 def test_reproduction_plan_freezes_all_three_cohorts_and_fixed_replay_label() -> None:
     args = build_parser().parse_args(
         [
@@ -107,6 +121,7 @@ def test_reproduction_plan_freezes_all_three_cohorts_and_fixed_replay_label() ->
     assert Path(build[build.index("--embedding-cache") + 1]) == Path(
         ".private/repro-v1/cache"
     )
+    assert "--manifest" in build
 
 
 def test_resume_safe_metrics_points_to_complete_v2_evidence() -> None:
@@ -169,3 +184,31 @@ def test_clean_reproduction_comparison_requires_exact_quality_and_clean_roots() 
     )
     assert result["status"] == "REPRODUCTION_GAP"
     assert result["quality_difference_count"] == 1
+
+
+def test_transport_corrected_protocol_keeps_zero_quality_tolerance() -> None:
+    contract = json.loads(
+        (
+            ROOT
+            / "docs"
+            / "reproduction"
+            / "evidence"
+            / "WIXQA_CLEAN_REPRODUCTION_PROTOCOL_V2.json"
+        ).read_text(encoding="utf-8")
+    )
+    equivalence = json.loads(
+        (
+            ROOT
+            / "docs"
+            / "reproduction"
+            / "evidence"
+            / "WIXQA_SOURCE_TRANSPORT_EQUIVALENCE_V1.json"
+        ).read_text(encoding="utf-8")
+    )
+
+    assert contract["quality_absolute_tolerance"] == 0.0
+    assert contract["source_transport_boundary"][
+        "official_raw_manifest_sha256"
+    ] == "d325412340c110d3f76b832080c702978643d517e296c97bba1abc088ec65b1f"
+    assert equivalence["canonical_equivalence"] is True
+    assert all(item["canonical_rows_equal"] for item in equivalence["files"])

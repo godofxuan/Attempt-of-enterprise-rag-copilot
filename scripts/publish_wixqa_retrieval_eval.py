@@ -72,6 +72,8 @@ def build_public_evidence(
             raise ValueError(f"{cohort} case count does not match the protocol")
         if run.get("question_ids_sha256") != expected["question_ids_sha256"]:
             raise ValueError(f"{cohort} question IDs do not match the protocol")
+        if run.get("dataset_manifest_sha256") != protocol["dataset_manifest_sha256"]:
+            raise ValueError(f"{cohort} dataset manifest does not match the protocol")
         summaries = run.get("summaries")
         if not isinstance(summaries, list):
             raise ValueError(f"{cohort} summaries are missing")
