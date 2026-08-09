@@ -4,11 +4,13 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import shutil
 import sqlite3
 import time
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Literal
+from typing import Iterator, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -20,6 +22,7 @@ from app.external_datasets.wixqa import canonical_json_bytes
 
 
 _TOKEN_PATTERN = re.compile(r"[A-Za-z0-9]+")
+_RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _QUERY_STOPWORDS = frozenset(
     {
         "a",
@@ -194,6 +197,34 @@ def build_enterprise_rag_bench_fts(
     commit_interval: int = 5000,
     interrupt_after_documents: int | None = None,
 ) -> EnterpriseRAGBenchFTSManifest:
+    if not _RUN_ID_PATTERN.fullmatch(run_id):
+        raise ValueError("invalid FTS run_id")
+    root = Path(output_root).resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    with _single_writer_build_lock(root, run_id=run_id):
+        return _build_enterprise_rag_bench_fts(
+            documents_path=documents_path,
+            output_root=root,
+            run_id=run_id,
+            corpus_sha256=corpus_sha256,
+            dataset_manifest_sha256=dataset_manifest_sha256,
+            expected_document_count=expected_document_count,
+            commit_interval=commit_interval,
+            interrupt_after_documents=interrupt_after_documents,
+        )
+
+
+def _build_enterprise_rag_bench_fts(
+    *,
+    documents_path: Path,
+    output_root: Path,
+    run_id: str,
+    corpus_sha256: str,
+    dataset_manifest_sha256: str,
+    expected_document_count: int,
+    commit_interval: int,
+    interrupt_after_documents: int | None,
+) -> EnterpriseRAGBenchFTSManifest:
     if expected_document_count < 1:
         raise ValueError("expected document count must be positive")
     if commit_interval < 1 or commit_interval > 50_000:
@@ -316,6 +347,42 @@ def build_enterprise_rag_bench_fts(
     os.replace(stage, target)
     _activate(root, manifest)
     return manifest
+
+
+@contextmanager
+def _single_writer_build_lock(root: Path, *, run_id: str) -> Iterator[None]:
+    lock_dir = root / ".single-writer-build.lock"
+    token = secrets.token_hex(16)
+    try:
+        lock_dir.mkdir()
+    except FileExistsError as exc:
+        raise RuntimeError(
+            "EnterpriseRAG FTS is a single-writer offline builder; "
+            "another build lock is already present"
+        ) from exc
+    owner_path = lock_dir / "owner.json"
+    try:
+        owner_path.write_bytes(
+            canonical_json_bytes(
+                {
+                    "pid": os.getpid(),
+                    "run_id": run_id,
+                    "token": token,
+                }
+            )
+        )
+    except Exception:
+        shutil.rmtree(lock_dir)
+        raise
+    try:
+        yield
+    finally:
+        try:
+            owner = json.loads(owner_path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            owner = None
+        if isinstance(owner, dict) and owner.get("token") == token:
+            shutil.rmtree(lock_dir)
 
 
 def verify_enterprise_rag_bench_fts(path: Path) -> EnterpriseRAGBenchFTSManifest:

@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event, Lock
 
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
+
+import app.external_datasets.enterprise_rag_bench_fts as fts_module
 
 from app.external_datasets.enterprise_rag_bench import EnterpriseRAGBenchQuestion
 from app.external_datasets.enterprise_rag_bench_eval import (
@@ -53,6 +57,19 @@ def test_query_compiler_removes_operators_and_common_question_words() -> None:
     compiled = compile_fts_query('Who approves "cleanup" OR cost-ops?')
     assert compiled == '"approves" OR "cleanup" OR "cost" OR "ops"'
     assert "Who" not in compiled
+
+
+def test_build_rejects_run_id_path_traversal_before_writing(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="invalid FTS run_id"):
+        build_enterprise_rag_bench_fts(
+            documents_path=tmp_path / "missing.parquet",
+            output_root=tmp_path / "index",
+            run_id="../escape",
+            corpus_sha256="a" * 64,
+            dataset_manifest_sha256="b" * 64,
+            expected_document_count=1,
+        )
+    assert not (tmp_path / "index").exists()
 
 
 def test_build_resumes_after_committed_interruption_and_preserves_reused_ids(
@@ -116,6 +133,120 @@ def test_resume_rejects_a_different_corpus_contract(tmp_path: Path) -> None:
             expected_document_count=3,
             commit_interval=1,
         )
+
+
+def test_interrupted_build_does_not_replace_active_index(tmp_path: Path) -> None:
+    documents = tmp_path / "documents.parquet"
+    output = tmp_path / "index"
+    _write_documents(documents)
+    base = {
+        "documents_path": documents,
+        "output_root": output,
+        "corpus_sha256": "a" * 64,
+        "dataset_manifest_sha256": "b" * 64,
+        "expected_document_count": 3,
+        "commit_interval": 1,
+    }
+    build_enterprise_rag_bench_fts(**base, run_id="active-v1")
+    active_before = (output / "active.json").read_bytes()
+
+    with pytest.raises(InterruptedError):
+        build_enterprise_rag_bench_fts(
+            **base,
+            run_id="candidate-v2",
+            interrupt_after_documents=1,
+        )
+
+    assert (output / "active.json").read_bytes() == active_before
+    with load_enterprise_rag_bench_fts(output) as loaded:
+        assert loaded.manifest.run_id == "active-v1"
+    assert not (output / "versions" / "candidate-v2").exists()
+
+
+def test_failed_verification_does_not_replace_active_index(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    documents = tmp_path / "documents.parquet"
+    output = tmp_path / "index"
+    _write_documents(documents)
+    base = {
+        "documents_path": documents,
+        "output_root": output,
+        "corpus_sha256": "a" * 64,
+        "dataset_manifest_sha256": "b" * 64,
+        "expected_document_count": 3,
+        "commit_interval": 1,
+    }
+    build_enterprise_rag_bench_fts(**base, run_id="active-v1")
+    active_before = (output / "active.json").read_bytes()
+    original_verify = fts_module.verify_enterprise_rag_bench_fts
+
+    def fail_candidate(path: Path):
+        if Path(path).name == ".candidate-v2.building":
+            raise ValueError("injected verification failure")
+        return original_verify(path)
+
+    monkeypatch.setattr(
+        fts_module,
+        "verify_enterprise_rag_bench_fts",
+        fail_candidate,
+    )
+    with pytest.raises(ValueError, match="injected verification failure"):
+        build_enterprise_rag_bench_fts(**base, run_id="candidate-v2")
+
+    assert (output / "active.json").read_bytes() == active_before
+    assert not (output / "versions" / "candidate-v2").exists()
+    with load_enterprise_rag_bench_fts(output) as loaded:
+        assert loaded.manifest.run_id == "active-v1"
+
+
+def test_second_concurrent_builder_fails_fast(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    documents = tmp_path / "documents.parquet"
+    output = tmp_path / "index"
+    _write_documents(documents)
+    entered = Event()
+    release = Event()
+    calls_lock = Lock()
+    calls = 0
+    original_iter = fts_module.iter_enterprise_rag_bench_documents
+
+    def blocking_iter(*args, **kwargs):
+        nonlocal calls
+        with calls_lock:
+            calls += 1
+            ordinal = calls
+        if ordinal == 1:
+            entered.set()
+            assert release.wait(timeout=10)
+        yield from original_iter(*args, **kwargs)
+
+    monkeypatch.setattr(
+        fts_module,
+        "iter_enterprise_rag_bench_documents",
+        blocking_iter,
+    )
+    arguments = {
+        "documents_path": documents,
+        "output_root": output,
+        "run_id": "fixture-v1",
+        "corpus_sha256": "a" * 64,
+        "dataset_manifest_sha256": "b" * 64,
+        "expected_document_count": 3,
+        "commit_interval": 1,
+    }
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first = executor.submit(build_enterprise_rag_bench_fts, **arguments)
+        assert entered.wait(timeout=10)
+        try:
+            with pytest.raises(RuntimeError, match="single-writer"):
+                build_enterprise_rag_bench_fts(**arguments)
+        finally:
+            release.set()
+        assert first.result(timeout=10).run_id == "fixture-v1"
 
 
 def test_retrieval_metrics_use_unique_gold_and_report_completeness() -> None:
