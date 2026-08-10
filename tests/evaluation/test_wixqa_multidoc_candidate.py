@@ -7,6 +7,7 @@ from app.agent.tools_v2 import V2ToolRegistry
 from app.evaluation.wixqa_multidoc_candidate import (
     SelectiveExtractiveResponseBuilder,
     decompose_query,
+    derive_failure_analysis,
     evaluate_combined_gate,
     fuse_query_rankings,
     score_candidate_case,
@@ -184,6 +185,38 @@ def test_gate_rejects_naive_precision_collapse() -> None:
     )
     assert gate.decision == "DEVELOPMENT_CANDIDATE_REJECTED"
     assert gate.checks["citation_precision_drop_no_more_than_10pp"] is False
+
+
+def test_failure_analysis_separates_acquisition_and_selection_loss() -> None:
+    baseline = [
+        _case(arm="current", case_id="a", cited=["gold-a"]),
+        _case(arm="current", case_id="b", cited=["gold-a"]),
+    ]
+    candidate = [
+        _case(arm="combined", case_id="a", cited=["gold-a", "noise"]),
+        _case(arm="combined", case_id="b", cited=["gold-a", "gold-b"]),
+    ]
+    candidate[1] = candidate[1].model_copy(
+        update={
+            "retrieved_document_ids": ["gold-a", "noise"],
+            "admitted_document_ids": ["gold-a", "noise"],
+            "retrieval_recall": 0.5,
+            "retrieval_complete": 0.0,
+        }
+    )
+    gold = {
+        item.question_id_sha256: ["gold-a", "gold-b"] for item in baseline
+    }
+
+    analysis = derive_failure_analysis(
+        baseline,
+        candidate,
+        gold_documents_by_question_id_sha256=gold,
+    )
+    assert analysis.acquisition_incomplete_case_count == 1
+    assert analysis.all_gold_admitted_case_count == 1
+    assert analysis.selection_incomplete_after_complete_admission_count == 1
+    assert analysis.cited_noise_document_count == 1
 
 
 def test_candidate_module_does_not_change_default_response_selection() -> None:

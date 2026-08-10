@@ -98,3 +98,17 @@ gold-matching value in only 7/192 cases; 190/192 cases reached the candidate
 limit. The candidate was rejected on development. Validation and fixed test
 were not executed. This result must not be presented as an accuracy
 improvement.
+
+## Bounded WixQA multi-document candidate failed
+
+On the already-consumed 20-case WixQA ExpertWritten multi-document subset, a
+pre-registered four-arm experiment tested deterministic clause-query fusion and
+admitted-only selective evidence. Combined versus current changed citation
+recall from 21.67% to 24.17%, but complete citations remained 0/20, precision
+fell from 45.00% to 39.17%, and p95 latency rose from 600.09 ms to 1115.59 ms.
+There were zero paired complete-case fixes.
+
+Seventeen cases still lacked all required documents in Top-5. In the remaining
+three, all gold documents were admitted but response selection still cited an
+incomplete set. The candidate is rejected, fixed validation was not run, and
+none of these development deltas may be presented as a resume quality gain.

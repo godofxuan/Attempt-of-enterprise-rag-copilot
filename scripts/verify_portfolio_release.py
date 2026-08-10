@@ -53,6 +53,7 @@ GATES = (
             "pytest",
             "tests/test_final_closeout_evidence.py",
             "tests/test_final_evidence_closure.py",
+            "tests/evaluation/test_wixqa_multidoc_candidate_evidence.py",
             "-q",
             "-p",
             "no:cacheprovider",

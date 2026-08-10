@@ -250,6 +250,24 @@ class MultiDocCandidateGate(_StrictModel):
     decision: CandidateDecision
 
 
+class MultiDocCandidateFailureAnalysis(_StrictModel):
+    case_count: int = Field(ge=1)
+    decomposed_case_count: int = Field(ge=0)
+    top5_order_changed_case_count: int = Field(ge=0)
+    retrieval_recall_improved_case_count: int = Field(ge=0)
+    retrieval_recall_regressed_case_count: int = Field(ge=0)
+    acquisition_incomplete_case_count: int = Field(ge=0)
+    all_gold_admitted_case_count: int = Field(ge=0)
+    admission_loss_after_complete_retrieval_count: int = Field(ge=0)
+    selection_incomplete_after_complete_admission_count: int = Field(ge=0)
+    citation_recall_improved_case_count: int = Field(ge=0)
+    citation_recall_regressed_case_count: int = Field(ge=0)
+    multi_source_citation_case_count: int = Field(ge=0)
+    cited_gold_document_count: int = Field(ge=0)
+    cited_noise_document_count: int = Field(ge=0)
+    guard_quarantine_case_count: int = Field(ge=0)
+
+
 def score_candidate_case(
     *,
     question_id_sha256: str,
@@ -445,6 +463,90 @@ def evaluate_combined_gate(
     )
 
 
+def derive_failure_analysis(
+    baseline_cases: Sequence[MultiDocCandidateCase],
+    candidate_cases: Sequence[MultiDocCandidateCase],
+    *,
+    gold_documents_by_question_id_sha256: dict[str, Sequence[str]],
+) -> MultiDocCandidateFailureAnalysis:
+    baseline_by_id = {item.question_id_sha256: item for item in baseline_cases}
+    candidate_by_id = {item.question_id_sha256: item for item in candidate_cases}
+    case_ids = set(baseline_by_id)
+    if case_ids != set(candidate_by_id) or case_ids != set(
+        gold_documents_by_question_id_sha256
+    ):
+        raise ValueError("failure analysis requires identical paired and gold IDs")
+
+    acquisition_incomplete = 0
+    all_gold_admitted = 0
+    admission_loss = 0
+    selection_loss = 0
+    cited_gold = 0
+    cited_noise = 0
+    for case_id in case_ids:
+        item = candidate_by_id[case_id]
+        gold = set(gold_documents_by_question_id_sha256[case_id])
+        retrieved = set(item.retrieved_document_ids)
+        admitted = set(item.admitted_document_ids)
+        cited = set(item.cited_document_ids)
+        if len(gold) < 2:
+            raise ValueError("failure analysis gold must be multi-document")
+        if not gold.issubset(retrieved):
+            acquisition_incomplete += 1
+        if gold.issubset(admitted):
+            all_gold_admitted += 1
+            if not gold.issubset(cited):
+                selection_loss += 1
+        elif gold.issubset(retrieved):
+            admission_loss += 1
+        cited_gold += len(gold.intersection(cited))
+        cited_noise += len(cited - gold)
+
+    return MultiDocCandidateFailureAnalysis(
+        case_count=len(case_ids),
+        decomposed_case_count=sum(
+            item.query_variant_count > 1 for item in candidate_cases
+        ),
+        top5_order_changed_case_count=sum(
+            baseline_by_id[case_id].retrieved_document_ids
+            != candidate_by_id[case_id].retrieved_document_ids
+            for case_id in case_ids
+        ),
+        retrieval_recall_improved_case_count=sum(
+            candidate_by_id[case_id].retrieval_recall
+            > baseline_by_id[case_id].retrieval_recall
+            for case_id in case_ids
+        ),
+        retrieval_recall_regressed_case_count=sum(
+            candidate_by_id[case_id].retrieval_recall
+            < baseline_by_id[case_id].retrieval_recall
+            for case_id in case_ids
+        ),
+        acquisition_incomplete_case_count=acquisition_incomplete,
+        all_gold_admitted_case_count=all_gold_admitted,
+        admission_loss_after_complete_retrieval_count=admission_loss,
+        selection_incomplete_after_complete_admission_count=selection_loss,
+        citation_recall_improved_case_count=sum(
+            candidate_by_id[case_id].citation_recall
+            > baseline_by_id[case_id].citation_recall
+            for case_id in case_ids
+        ),
+        citation_recall_regressed_case_count=sum(
+            candidate_by_id[case_id].citation_recall
+            < baseline_by_id[case_id].citation_recall
+            for case_id in case_ids
+        ),
+        multi_source_citation_case_count=sum(
+            item.selected_source_count > 1 for item in candidate_cases
+        ),
+        cited_gold_document_count=cited_gold,
+        cited_noise_document_count=cited_noise,
+        guard_quarantine_case_count=sum(
+            item.guard_quarantined_count > 0 for item in candidate_cases
+        ),
+    )
+
+
 def _document_ids_for_aspects(
     state: ControllerState,
     aspects: Sequence[str],
@@ -483,10 +585,12 @@ def _nearest_rank(values: Sequence[float], fraction: float) -> float:
 __all__ = [
     "CandidateArm",
     "MultiDocCandidateCase",
+    "MultiDocCandidateFailureAnalysis",
     "MultiDocCandidateGate",
     "MultiDocCandidateSummary",
     "SelectiveExtractiveResponseBuilder",
     "decompose_query",
+    "derive_failure_analysis",
     "evaluate_combined_gate",
     "fuse_query_rankings",
     "score_candidate_case",

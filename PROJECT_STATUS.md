@@ -1,5 +1,31 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-08-11 Bounded multi-document candidate decision
+
+```text
+scope                              RETROSPECTIVE DEVELOPMENT / 20 CONSUMED CASES
+design                             2x2 acquisition x evidence-selection ablation
+implementation SHA                 d29639c8b3f037560385d5c7ad1b847dae4fc4ab
+current -> combined completeness   0.00% -> 0.00%
+current -> combined recall         21.67% -> 24.17%
+current -> combined precision      45.00% -> 39.17%
+current -> combined p95            600.09 -> 1115.59 ms
+paired complete-case fixes         0
+decision                           DEVELOPMENT_CANDIDATE_REJECTED
+production default                 UNCHANGED
+```
+
+The frozen bounded clause-decomposition and admitted-only selective-evidence
+candidate failed its pre-registered quality gate. Eight questions decomposed
+and seven changed Top-5 order, but no case gained retrieval recall. Seventeen
+of twenty remained acquisition-incomplete; all gold was admitted in the other
+three, yet selection still failed to cite the complete set. The candidate is
+not eligible for fixed validation, serving integration, or resume uplift.
+
+Authoritative records: [results](docs/multidoc_candidate/02_RESULTS_AND_DECISION.md),
+[failure analysis](docs/multidoc_candidate/03_FAILURE_ANALYSIS_AND_ROADMAP.md),
+and [learning guide](docs/multidoc_candidate/04_LEARNING_AND_INTERVIEW_GUIDE.md).
+
 ## 2026-08-10 Portfolio verification hardening
 
 ```text
