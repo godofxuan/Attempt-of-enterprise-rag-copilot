@@ -5,7 +5,6 @@ import hashlib
 import json
 import subprocess
 import time
-from collections import Counter
 from pathlib import Path
 from typing import Sequence
 
@@ -14,11 +13,11 @@ from app.domain.agent import AgentBudget
 from app.domain.queries import UserContext
 from app.domain.retrieved_security import GuardedSearchResult
 from app.evaluation.wixqa_multidoc_attribution import (
-    FirstLossStage,
     FrozenMultiDocCase,
     MultiDocAttributionCase,
     RecordingWixQANavigator,
     STAGE_SEQUENCE,
+    aggregate_attribution_cases,
     all_gold_recalled,
     gold_coverage,
     run_recorded_agent,
@@ -279,7 +278,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
 
-    aggregate = _aggregate(cases=cases)
+    aggregate = aggregate_attribution_cases(cases)
     protocol = {
         "schema_version": "wixqa_multidoc_attribution_protocol_v1",
         "run_id": args.run_id,
@@ -385,6 +384,14 @@ def _build_case(
         for item in capture.decisions
         if item.action.search_request is not None
     ]
+    terminal_decisions = [
+        item for item in capture.decisions if item.stop_reason is not None
+    ]
+    if len(terminal_decisions) != 1:
+        raise RuntimeError("diagnostic run must have one terminal decision")
+    terminal_decision = terminal_decisions[0]
+    if terminal_decision.terminal_mode is None:
+        raise RuntimeError("terminal decision is missing its response mode")
     risk_categories = _unique(
         category
         for execution in capture.executions
@@ -434,7 +441,8 @@ def _build_case(
         controller_search_call_count=final_state.budget_state.search_calls,
         controller_find_call_count=final_state.budget_state.find_calls,
         controller_open_call_count=final_state.budget_state.open_calls,
-        controller_stop_reason=response.stop_reason or "unknown",
+        controller_terminal_tool=terminal_decision.action.tool,
+        controller_stop_reason=terminal_decision.stop_reason,
         ledger_supported_aspects=ledger.supported_aspects,
         ledger_document_ids=ledger_docs,
         ledger_coverage=ledger.coverage,
@@ -447,6 +455,20 @@ def _build_case(
         pre_grounding_citation_document_ids=selected,
         post_grounding_citation_document_ids=final_docs,
         final_source_document_ids=final_docs,
+        final_response_mode=response.mode,
+        final_response_stop_reason=response.stop_reason or "unknown",
+        unsupported_citation_count=sum(
+            not citation.supported for citation in response.citations
+        ),
+        grounding_gate_reason_codes=_unique(
+            citation.unsupported_reason
+            for citation in response.citations
+            if citation.unsupported_reason is not None
+        ),
+        grounding_gate_downgraded_response=(
+            terminal_decision.terminal_mode != response.mode
+            or terminal_decision.stop_reason != response.stop_reason
+        ),
         source_observed_citation_complete=(
             source_observed_citation_complete
         ),
@@ -469,112 +491,6 @@ def _build_case(
             "Source run used deterministic ExtractiveResponseBuilder, not an LLM generator."
         ],
     )
-
-
-def _aggregate(
-    *,
-    cases: Sequence[MultiDocAttributionCase],
-) -> dict[str, object]:
-    distribution = Counter(item.first_loss_stage.value for item in cases)
-    unknown_count = distribution[FirstLossStage.UNKNOWN.value]
-    all_gold = {}
-    for k, field in (
-        (5, "retrieval_top5_document_ids"),
-        (10, "retrieval_top10_document_ids"),
-        (20, "retrieval_top20_document_ids"),
-    ):
-        coverages = [
-            gold_coverage(item.gold_document_ids, getattr(item, field))
-            for item in cases
-        ]
-        all_gold[str(k)] = {
-            "all_gold_complete_count": sum(value == 1.0 for value in coverages),
-            "partial_count": sum(0.0 < value < 1.0 for value in coverages),
-            "zero_count": sum(value == 0.0 for value in coverages),
-            "mean_gold_document_recall": sum(coverages) / len(coverages),
-        }
-    gate_removal_count = sum(
-        bool(
-            set(item.pre_grounding_citation_document_ids)
-            - set(item.post_grounding_citation_document_ids)
-        )
-        for item in cases
-    )
-    status = (
-        "ATTRIBUTION_COMPLETE_NO_OPTIMIZATION"
-        if len(cases) == 20 and unknown_count <= 2
-        else "ATTRIBUTION_BLOCKED"
-    )
-    return {
-        "schema_version": "wixqa_multidoc_attribution_aggregate_v1",
-        "status": status,
-        "case_count": len(cases),
-        "source_observed_citation_complete_count": sum(
-            item.source_observed_citation_complete for item in cases
-        ),
-        "current_replay_citation_complete_count": sum(
-            item.coverage_by_stage["final"] == 1.0 for item in cases
-        ),
-        "retrieval_all_gold": all_gold,
-        "first_loss_distribution": dict(sorted(distribution.items())),
-        "unknown_count": unknown_count,
-        "intent_distribution": dict(
-            sorted(Counter(item.intent for item in cases).items())
-        ),
-        "required_aspects_distribution": dict(
-            sorted(
-                Counter("|".join(item.required_aspects) for item in cases).items()
-            )
-        ),
-        "single_answer_aspect_count": sum(
-            item.required_aspects == ["answer"] for item in cases
-        ),
-        "ledger_false_completeness_count": sum(
-            item.ledger_false_completeness for item in cases
-        ),
-        "guard_filtered_case_count": sum(
-            item.first_loss_stage == FirstLossStage.GUARD_FILTERED
-            for item in cases
-        ),
-        "grounding_gate_removal_case_count": gate_removal_count,
-        "gold_retrieval_oracle": {
-            "diagnostic_only": True,
-            "all_gold_post_guard_count": sum(
-                all_gold_recalled(
-                    item.gold_document_ids,
-                    item.gold_retrieval_oracle_post_guard_document_ids,
-                )
-                for item in cases
-            ),
-            "all_gold_final_citation_count": sum(
-                all_gold_recalled(
-                    item.gold_document_ids,
-                    item.gold_retrieval_oracle_final_source_document_ids,
-                )
-                for item in cases
-            ),
-        },
-        "gold_prompt_oracle": {
-            "status": "NOT_APPLICABLE_SOURCE_RUN_EXTRACTIVE",
-            "reason": (
-                "The source 60-case run used ExtractiveResponseBuilder and made "
-                "zero generation-model calls."
-            ),
-        },
-        "grounding_gate_diagnostic": {
-            "diagnostic_only": True,
-            "pre_to_post_document_set_change_count": gate_removal_count,
-        },
-        "representation_gap_status": (
-            "SUPPORTED_REPRESENTATION_GAP"
-            if sum(item.ledger_false_completeness for item in cases) >= 10
-            else "NOT_PRIMARY_CAUSE"
-        ),
-        "claim_boundary": (
-            "Retrospective diagnosis on a consumed cohort. No serving behavior "
-            "change, no answer-quality improvement, and no resume-quality oracle claim."
-        ),
-    }
 
 
 def _raw_controller_top5(navigator, capture) -> list[str]:

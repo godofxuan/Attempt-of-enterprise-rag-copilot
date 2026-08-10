@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections import Counter
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Literal, Mapping, Sequence
@@ -107,6 +108,7 @@ class MultiDocAttributionCase(BaseModel):
     controller_search_call_count: int = Field(ge=0)
     controller_find_call_count: int = Field(ge=0)
     controller_open_call_count: int = Field(ge=0)
+    controller_terminal_tool: Literal["answer", "refuse", "stop"]
     controller_stop_reason: str = Field(min_length=1)
     ledger_supported_aspects: list[str]
     ledger_document_ids: list[str]
@@ -126,6 +128,11 @@ class MultiDocAttributionCase(BaseModel):
     pre_grounding_citation_document_ids: list[str]
     post_grounding_citation_document_ids: list[str]
     final_source_document_ids: list[str]
+    final_response_mode: str = Field(min_length=1)
+    final_response_stop_reason: str = Field(min_length=1)
+    unsupported_citation_count: int = Field(ge=0)
+    grounding_gate_reason_codes: list[str]
+    grounding_gate_downgraded_response: bool
     source_observed_citation_complete: bool
     gold_retrieval_oracle_post_guard_document_ids: list[str]
     gold_retrieval_oracle_final_source_document_ids: list[str]
@@ -258,6 +265,119 @@ def citation_complete(
     return all_gold_recalled(gold_document_ids, cited_document_ids)
 
 
+def aggregate_attribution_cases(
+    cases: Sequence[MultiDocAttributionCase],
+) -> dict[str, object]:
+    distribution = Counter(item.first_loss_stage.value for item in cases)
+    unknown_count = distribution[FirstLossStage.UNKNOWN.value]
+    all_gold = {}
+    for k, field_name in (
+        (5, "retrieval_top5_document_ids"),
+        (10, "retrieval_top10_document_ids"),
+        (20, "retrieval_top20_document_ids"),
+    ):
+        coverages = [
+            gold_coverage(item.gold_document_ids, getattr(item, field_name))
+            for item in cases
+        ]
+        all_gold[str(k)] = {
+            "all_gold_complete_count": sum(value == 1.0 for value in coverages),
+            "partial_count": sum(0.0 < value < 1.0 for value in coverages),
+            "zero_count": sum(value == 0.0 for value in coverages),
+            "mean_gold_document_recall": sum(coverages) / len(coverages),
+        }
+    gate_removal_count = sum(
+        bool(
+            set(item.pre_grounding_citation_document_ids)
+            - set(item.post_grounding_citation_document_ids)
+        )
+        for item in cases
+    )
+    gate_downgrade_count = sum(
+        item.grounding_gate_downgraded_response for item in cases
+    )
+    status = (
+        "ATTRIBUTION_COMPLETE_NO_OPTIMIZATION"
+        if len(cases) == 20 and unknown_count <= 2
+        else "ATTRIBUTION_BLOCKED"
+    )
+    return {
+        "schema_version": "wixqa_multidoc_attribution_aggregate_v1",
+        "status": status,
+        "case_count": len(cases),
+        "source_observed_citation_complete_count": sum(
+            item.source_observed_citation_complete for item in cases
+        ),
+        "current_replay_citation_complete_count": sum(
+            item.coverage_by_stage["final"] == 1.0 for item in cases
+        ),
+        "retrieval_all_gold": all_gold,
+        "first_loss_distribution": dict(sorted(distribution.items())),
+        "unknown_count": unknown_count,
+        "intent_distribution": dict(
+            sorted(Counter(item.intent for item in cases).items())
+        ),
+        "required_aspects_distribution": dict(
+            sorted(
+                Counter("|".join(item.required_aspects) for item in cases).items()
+            )
+        ),
+        "single_answer_aspect_count": sum(
+            item.required_aspects == ["answer"] for item in cases
+        ),
+        "ledger_false_completeness_count": sum(
+            item.ledger_false_completeness for item in cases
+        ),
+        "guard_filtered_case_count": sum(
+            item.first_loss_stage == FirstLossStage.GUARD_FILTERED
+            for item in cases
+        ),
+        "grounding_gate_removal_case_count": gate_removal_count,
+        "grounding_gate_response_downgrade_count": gate_downgrade_count,
+        "unsupported_citation_case_count": sum(
+            item.unsupported_citation_count > 0 for item in cases
+        ),
+        "gold_retrieval_oracle": {
+            "diagnostic_only": True,
+            "all_gold_post_guard_count": sum(
+                all_gold_recalled(
+                    item.gold_document_ids,
+                    item.gold_retrieval_oracle_post_guard_document_ids,
+                )
+                for item in cases
+            ),
+            "all_gold_final_citation_count": sum(
+                all_gold_recalled(
+                    item.gold_document_ids,
+                    item.gold_retrieval_oracle_final_source_document_ids,
+                )
+                for item in cases
+            ),
+        },
+        "gold_prompt_oracle": {
+            "status": "NOT_APPLICABLE_SOURCE_RUN_EXTRACTIVE",
+            "reason": (
+                "The source 60-case run used ExtractiveResponseBuilder and made "
+                "zero generation-model calls."
+            ),
+        },
+        "grounding_gate_diagnostic": {
+            "diagnostic_only": True,
+            "pre_to_post_document_set_change_count": gate_removal_count,
+            "response_downgrade_count": gate_downgrade_count,
+        },
+        "representation_gap_status": (
+            "SUPPORTED_REPRESENTATION_GAP"
+            if sum(item.ledger_false_completeness for item in cases) >= 10
+            else "NOT_PRIMARY_CAUSE"
+        ),
+        "claim_boundary": (
+            "Retrospective diagnosis on a consumed cohort. No serving behavior "
+            "change, no answer-quality improvement, and no resume-quality oracle claim."
+        ),
+    }
+
+
 @dataclass
 class DiagnosticCapture:
     analysis: QueryAnalysis | None = None
@@ -382,6 +502,7 @@ __all__ = [
     "MultiDocAttributionCase",
     "RecordingWixQANavigator",
     "STAGE_SEQUENCE",
+    "aggregate_attribution_cases",
     "all_gold_recalled",
     "citation_complete",
     "classify_first_loss",
