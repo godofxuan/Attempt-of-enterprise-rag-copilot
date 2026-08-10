@@ -9,6 +9,9 @@
 | `evidence/active_pointer_crash_matrix_v1.json` | 4 process-exit stages x 3 | PASSED, power loss NOT_RUN |
 | `evidence/answer_citation_60_protocol_v1.json` | deterministic 40 single / 20 multi subset | FROZEN |
 | `evidence/answer_citation_60_automated_v1.json` | retrospective retrieval/citation metrics | PARTIAL_AUTOMATED_ONLY |
+| `../multidoc_attribution/evidence/case_matrix_v1.json` | 20-case stage sets and first-loss evidence | VERIFIED, consumed cohort |
+| `../multidoc_attribution/evidence/aggregate_v1.json` | recomputable failure distribution and oracle summary | ATTRIBUTION_COMPLETE_NO_OPTIMIZATION |
+| `../multidoc_attribution/02_RESULTS.md` | attribution results, boundaries and case matrix | diagnosis only |
 | `evidence/guard_60_30_holdout_status_v1.json` | requested new security holdout gate | NOT_RUN |
 | `evidence/rejected_experiments_v1.json` | machine-readable NO-GO registry | VERIFIED |
 | `evidence/claim_audit_v1.json` | claim-to-evidence status | VERIFIED |

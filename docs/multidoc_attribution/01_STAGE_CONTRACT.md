@@ -37,6 +37,12 @@ available but not selected into top 5".
 | `post_grounding` | Source IDs after deterministic citation verification | `GROUNDING_GATE_REMOVAL` |
 | `final` | Source IDs in the returned response | `EVALUATOR_MISMATCH` |
 
+The case schema also records Controller terminal mode/reason separately from
+the final response mode/reason. A verifier may downgrade a response because a
+claim is unsupported without removing the source object; that response-mode
+change is reported independently and does not become a false document-loss
+attribution.
+
 WixQA's navigator exposes all benchmark articles to one public tenant, so in
 this fixture the raw controller set is also the post-ACL set. The equality is
 recorded and tested; ACL is not bypassed or changed.
@@ -64,4 +70,3 @@ extractive response construction rather than `generation_v2` or an LLM.
 - The representation-gap flag must match Ledger and gold coverage values.
 - Diagnostic wrappers must produce the same public response and security trace
   as an unwrapped run.
-

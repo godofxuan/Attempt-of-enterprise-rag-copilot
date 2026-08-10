@@ -63,12 +63,17 @@ or `NOT_RUN`. Exact reasons and metrics are machine-readable in
 
 ## H. Current bottleneck
 
-The primary quality bottleneck is evidence acquisition and assembly, especially
-multi-document coverage. The Agent performed one search on the WixQA run,
-produced no multi-document-complete citation case, and added latency without
-retrieval gain. The next quality experiment must target this behavior on a new
-development/validation protocol; adding orchestration frameworks is not
-justified.
+The 0/20 multi-document result has now been localized rather than attributed
+generically to orchestration. On the consumed 20-case cohort, first loss was
+`RETRIEVAL_TOP20_MISS` for 7 cases, `RETRIEVAL_TOP5_MISS` for 10, and
+`RESPONSE_BUILDER_CITATION_OMISSION` for 3. Ledger coverage was 1.0 while gold
+document coverage was incomplete in 17/20. A diagnostic Gold Retrieval Oracle
+passed all gold documents through Guard in 20/20 but still produced 0/20 final
+complete citations because the extractive path selected one document per sole
+required aspect. Grounding removed no source document. See
+`docs/multidoc_attribution/02_RESULTS.md`. The next experiment must separately
+test acquisition and multi-evidence representation on development data, then
+use a new blind cohort; adding orchestration frameworks is not justified.
 
 ## I. Three safest resume metrics
 

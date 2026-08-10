@@ -42,12 +42,19 @@ After committing the instrumentation, run:
 
 ```powershell
 & '.\.venv\Scripts\python.exe' -m scripts.diagnose_wixqa_multidoc_failure `
-  --run-id wixqa-multidoc-attribution-v1
+  --run-id wixqa-multidoc-attribution-v3
 ```
 
 The run records the committed Git SHA, source/protocol/index hashes, model
 identity, command, runtime, case count, case-matrix hash, and private-details
 hash. It exits non-zero unless all 20 cases replay and `UNKNOWN <= 2`.
+
+Verify the checked-in public projection without private data or Ollama:
+
+```powershell
+& '.\.venv\Scripts\python.exe' -m scripts.verify_wixqa_multidoc_attribution `
+  --expected-code-revision 122bef3672dac07bc76e6686ce0f4e67b14b16b9
+```
 
 ## Diagnostic oracles
 
@@ -74,4 +81,3 @@ returned answer.
    budget, and retrieved-content security trace.
 5. Gold Retrieval, Gold Prompt applicability, and grounding-gate diagnostics
    all have explicit outcomes.
-

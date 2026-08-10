@@ -102,8 +102,12 @@ Both are too low for a positive quality claim.
 ## 15. Multi-document citation completeness
 
 A case is complete only when every required support document is cited. The 20
-multi-document cases scored `0/20`. This identifies the next real bottleneck:
-the controller searches once and does not assemble all required evidence.
+multi-document cases scored `0/20`. Later stage attribution localized first
+loss to Top-20 retrieval for 7 cases, Top-5 selection for 10, and extractive
+response selection for 3. The Controller did search once, but it returned
+`answer/completed` in all 20 according to a one-aspect Ledger contract. This is
+therefore a mixed retrieval and representation failure, not a generic claim
+that orchestration alone failed. See `docs/multidoc_attribution/03_LEARNING_GUIDE.md`.
 
 ## 16. Why answer correctness is `NOT_RUN`
 
