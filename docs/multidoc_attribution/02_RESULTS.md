@@ -294,3 +294,20 @@ The bottleneck is mixed but ordered: retrieval acquisition/selection is the
 primary first-loss location; response representation is a proven downstream
 blocker once retrieval is made complete. No candidate is implemented here.
 
+## 16. Final validation
+
+On evidence commit `5614051c830de33398c28abe200ae9fd9c0fa81a`:
+
+- Full suite: `3214 passed, 30 skipped, 3 warnings` in `242.11 s`.
+- Focused attribution/evidence suite: `12 passed, 3 warnings`.
+- `pip check`: no broken requirements.
+- `compileall`: passed.
+- Attribution verifier: `VERIFIED`, 20 cases, 0 unknown; aggregate SHA-256
+  `d26c8bf4426eeebf8a2a63e9e65e53ecabddf5edb758a042c44332730466b27c`.
+- Portfolio verifier: `VERIFIED`, 5/5 gates, clean branch and exact SHA.
+
+One verifier invocation intentionally demonstrated fail-closed identity
+behavior after an incorrectly transcribed expected full SHA: all five content
+gates passed but `FAILED_TARGET_IDENTITY` blocked release authority. Re-running
+with the exact `git rev-parse HEAD` value passed. This was an operator input
+error, not a test or implementation failure.
