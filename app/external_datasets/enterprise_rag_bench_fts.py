@@ -7,6 +7,7 @@ import re
 import secrets
 import shutil
 import sqlite3
+import stat
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -351,38 +352,75 @@ def _build_enterprise_rag_bench_fts(
 
 @contextmanager
 def _single_writer_build_lock(root: Path, *, run_id: str) -> Iterator[None]:
-    lock_dir = root / ".single-writer-build.lock"
+    lock_path = root / ".single-writer-build.lock"
     token = secrets.token_hex(16)
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0)
     try:
-        lock_dir.mkdir()
-    except FileExistsError as exc:
+        descriptor = os.open(lock_path, flags, 0o600)
+        opened = os.fstat(descriptor)
+        current = lock_path.lstat()
+        if (
+            not stat.S_ISREG(opened.st_mode)
+            or not stat.S_ISREG(current.st_mode)
+            or current.st_nlink != 1
+            or (opened.st_dev, opened.st_ino)
+            != (current.st_dev, current.st_ino)
+        ):
+            raise RuntimeError("EnterpriseRAG FTS build lock is unsafe")
+        _lock_fts_descriptor(descriptor)
+    except OSError as exc:
+        if "descriptor" in locals():
+            os.close(descriptor)
         raise RuntimeError(
             "EnterpriseRAG FTS is a single-writer offline builder; "
-            "another build lock is already present"
+            "another build lock is already held"
         ) from exc
-    owner_path = lock_dir / "owner.json"
-    try:
-        owner_path.write_bytes(
-            canonical_json_bytes(
-                {
-                    "pid": os.getpid(),
-                    "run_id": run_id,
-                    "token": token,
-                }
-            )
-        )
     except Exception:
-        shutil.rmtree(lock_dir)
+        if "descriptor" in locals():
+            os.close(descriptor)
         raise
     try:
+        owner = canonical_json_bytes(
+            {
+                "pid": os.getpid(),
+                "run_id": run_id,
+                "token": token,
+            }
+        )
+        os.ftruncate(descriptor, 0)
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        os.write(descriptor, owner)
+        os.fsync(descriptor)
         yield
     finally:
         try:
-            owner = json.loads(owner_path.read_text(encoding="utf-8"))
-        except (FileNotFoundError, OSError, json.JSONDecodeError):
-            owner = None
-        if isinstance(owner, dict) and owner.get("token") == token:
-            shutil.rmtree(lock_dir)
+            _unlock_fts_descriptor(descriptor)
+        finally:
+            os.close(descriptor)
+
+
+def _lock_fts_descriptor(descriptor: int) -> None:
+    os.lseek(descriptor, 0, os.SEEK_SET)
+    if os.name == "nt":
+        import msvcrt
+
+        msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+        return
+    import fcntl
+
+    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _unlock_fts_descriptor(descriptor: int) -> None:
+    os.lseek(descriptor, 0, os.SEEK_SET)
+    if os.name == "nt":
+        import msvcrt
+
+        msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+        return
+    import fcntl
+
+    fcntl.flock(descriptor, fcntl.LOCK_UN)
 
 
 def verify_enterprise_rag_bench_fts(path: Path) -> EnterpriseRAGBenchFTSManifest:

@@ -1088,6 +1088,7 @@ class PersistentComputationCache:
                 timeout_seconds=self.lock_timeout_seconds,
             )
             acquired = True
+            _initialize_open_lock_file(descriptor)
             self._validate_root_structure()
             with self._held_root():
                 _validate_open_lock_identity(descriptor, lock_path)
@@ -1250,14 +1251,19 @@ def _open_safe_lock_file(path: Path) -> int:
                 "cache_lock_unsafe",
                 "computation cache lock file is unsafe",
             )
-        if metadata.st_size == 0:
-            os.write(descriptor, b"\0")
-            os.fsync(descriptor)
         return descriptor
     except Exception:
         if "descriptor" in locals():
             os.close(descriptor)
         raise
+
+
+def _initialize_open_lock_file(descriptor: int) -> None:
+    if os.fstat(descriptor).st_size != 0:
+        return
+    os.lseek(descriptor, 0, os.SEEK_SET)
+    os.write(descriptor, b"\0")
+    os.fsync(descriptor)
 
 
 def _validate_open_lock_identity(descriptor: int, path: Path) -> None:

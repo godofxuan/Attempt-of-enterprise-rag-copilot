@@ -1,0 +1,65 @@
+{
+  "experiments": [
+    {
+      "baseline": "FinanceBench dev Dense",
+      "candidate": "BM25 + Dense + equal-weight RRF",
+      "dataset": "FinanceBench development",
+      "enabled": false,
+      "experiment_id": "equal_rrf",
+      "hypothesis": "Lexical and dense fusion improves page ranking.",
+      "metrics": {"baseline_ndcg_at_5": 0.3525, "candidate_ndcg_at_5": 0.1839, "baseline_p95_ms": 533.30, "candidate_p95_ms": 1006.26},
+      "rejection_reason": "Large quality regression and higher latency.",
+      "result": "REJECTED",
+      "status": "DISABLED"
+    },
+    {
+      "baseline": "WixQA 60-case control retrieval",
+      "candidate": "Current bounded Agent route",
+      "dataset": "WixQA ExpertWritten retrospective 40/20 subset",
+      "enabled": false,
+      "experiment_id": "agent_quality_route",
+      "hypothesis": "Agent tool orchestration improves retrieval and citation completeness.",
+      "metrics": {"baseline_recall_at_5": 0.6111111111111112, "candidate_recall_at_5": 0.6111111111111112, "candidate_citation_recall": 0.3555555555555555, "candidate_multi_document_citation_complete": 0.0, "baseline_p95_ms": 347.40029997192323, "candidate_p95_ms": 556.1783000594005},
+      "rejection_reason": "No retrieval gain, zero multi-document citation completeness, and higher latency; semantic answer correctness was not measured.",
+      "result": "REJECTED",
+      "status": "DISABLED"
+    },
+    {
+      "baseline": "FinanceBench dev Dense",
+      "candidate": "RRF + ms-marco-MiniLM-L6-v2 top-10",
+      "dataset": "FinanceBench development",
+      "enabled": false,
+      "experiment_id": "cross_encoder_reranker",
+      "hypothesis": "A generic cross-encoder improves top-5 page quality.",
+      "metrics": {"baseline_hit_at_5_count": 22, "candidate_hit_at_5_count": 23, "baseline_ndcg_at_5": 0.3525, "candidate_ndcg_at_5": 0.3472, "baseline_p95_ms": 533.30, "candidate_p95_ms": 2466.12},
+      "rejection_reason": "One extra hit did not offset nDCG regression and 4.63x p95 cost.",
+      "result": "REJECTED",
+      "status": "OPTIONAL_RESEARCH_ONLY"
+    },
+    {
+      "baseline": "UDA Finance R3 stored answer path",
+      "candidate": "Typed numeric candidate planner",
+      "dataset": "192-case company-disjoint UDA development cohort",
+      "enabled": false,
+      "experiment_id": "typed_planning",
+      "hypothesis": "Typed candidate plans improve numeric answer correctness.",
+      "metrics": {"baseline_numeric_accuracy": 0.0781, "candidate_numeric_accuracy": 0.0156, "baseline_grounded_accuracy": 0.0729, "candidate_grounded_accuracy": 0.0104, "candidate_unsupported_answer_rate": 0.5885},
+      "rejection_reason": "Severe correctness regression despite lower latency and fewer schema failures.",
+      "result": "REJECTED",
+      "status": "DISABLED"
+    },
+    {
+      "baseline": "EnterpriseRAG-Bench FTS5 full-corpus baseline",
+      "candidate": "Enterprise full-corpus Dense",
+      "dataset": "EnterpriseRAG-Bench 511,962 rows / 470 document-grounded questions",
+      "enabled": false,
+      "experiment_id": "enterprise_dense",
+      "hypothesis": "Dense retrieval improves full-corpus enterprise recall.",
+      "metrics": {"baseline_recall_at_5": 0.6037, "candidate_recall_at_5": null},
+      "rejection_reason": "NOT_RUN because the full embedding/index cost was not justified by a frozen bottleneck experiment.",
+      "result": "NO_GO",
+      "status": "NOT_RUN"
+    }
+  ],
+  "schema_version": "rejected_experiment_registry_v1"
+}

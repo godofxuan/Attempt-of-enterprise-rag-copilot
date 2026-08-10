@@ -505,6 +505,38 @@ def test_concurrent_same_key_writers_converge_to_one_canonical_entry(
     ]
 
 
+def test_lock_byte_is_initialized_only_after_exclusive_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = (tmp_path / "ordered-lock-cache").absolute()
+    cache = PersistentComputationCache(root)
+    original_lock_descriptor = cache_module._lock_descriptor
+    observed_sizes: list[int] = []
+
+    def checked_lock_descriptor(
+        descriptor: int,
+        *,
+        timeout_seconds: float,
+    ) -> None:
+        observed_sizes.append(os.fstat(descriptor).st_size)
+        original_lock_descriptor(
+            descriptor,
+            timeout_seconds=timeout_seconds,
+        )
+
+    monkeypatch.setattr(
+        cache_module,
+        "_lock_descriptor",
+        checked_lock_descriptor,
+    )
+
+    with cache._locked():
+        assert (root / ".cache.lock").stat().st_size == 1
+
+    assert observed_sizes == [0]
+
+
 def test_cache_revalidates_copied_request_models_before_filesystem_access(
     tmp_path: Path,
 ) -> None:

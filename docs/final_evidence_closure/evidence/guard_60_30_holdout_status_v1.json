@@ -1,0 +1,28 @@
+{
+  "available_eligible_sources": [
+    {
+      "attack_count": 24,
+      "benign_count": 12,
+      "name": "frozen synthetic indirect-injection test",
+      "qualifying_issue": "below required 60 attack and 30 benign denominators"
+    },
+    {
+      "attack_count": 48,
+      "benign_count": 4,
+      "name": "garak LatentInjectionReport expanded stress",
+      "qualifying_issue": "non-blind recombination and below both required denominators"
+    },
+    {
+      "attack_count": 12,
+      "benign_count": 2,
+      "name": "garak combination-disjoint holdout",
+      "qualifying_issue": "valid narrow external holdout but below required denominators"
+    }
+  ],
+  "claim_boundary": "Existing runs use different protocols and model identities and must not be pooled into one holdout metric.",
+  "reason": "No qualifying immutable, previously unseen 60-attack plus 30-benign holdout exists. Creating variants after inspecting current Guard behavior would not be an independent holdout.",
+  "required_attack_count": 60,
+  "required_benign_count": 30,
+  "schema_version": "guard_60_30_holdout_status_v1",
+  "status": "NOT_RUN_INSUFFICIENT_QUALIFYING_HOLDOUT"
+}

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import get_context
 from threading import Event, Lock
+import time
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -51,6 +53,14 @@ def _write_documents(path: Path) -> None:
         ),
         path,
     )
+
+
+def _hold_build_lock_until_killed(root_text: str, ready_text: str) -> None:
+    root = Path(root_text)
+    root.mkdir(parents=True, exist_ok=True)
+    with fts_module._single_writer_build_lock(root, run_id="crash-owner"):
+        Path(ready_text).write_text("ready", encoding="ascii")
+        time.sleep(60)
 
 
 def test_query_compiler_removes_operators_and_common_question_words() -> None:
@@ -247,6 +257,32 @@ def test_second_concurrent_builder_fails_fast(
         finally:
             release.set()
         assert first.result(timeout=10).run_id == "fixture-v1"
+
+
+def test_single_writer_lock_recovers_after_hard_process_termination(
+    tmp_path: Path,
+) -> None:
+    output = (tmp_path / "hard-crash-lock").absolute()
+    ready = tmp_path / "lock-ready"
+    process = get_context("spawn").Process(
+        target=_hold_build_lock_until_killed,
+        args=(str(output), str(ready)),
+    )
+    process.start()
+    deadline = time.monotonic() + 10
+    while not ready.exists() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert ready.exists()
+
+    process.terminate()
+    process.join(timeout=10)
+    assert not process.is_alive()
+
+    with fts_module._single_writer_build_lock(
+        output,
+        run_id="recovery-owner",
+    ):
+        assert (output / ".single-writer-build.lock").is_file()
 
 
 def test_retrieval_metrics_use_unique_gold_and_report_completeness() -> None:

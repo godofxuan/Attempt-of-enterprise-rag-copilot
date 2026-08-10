@@ -12,7 +12,8 @@ from typing import Callable, Sequence
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_VERSION = "portfolio_release_verification_v1"
+SCHEMA_VERSION = "portfolio_release_verification_v2"
+DEFAULT_EXPECTED_BRANCH = "codex/rag-eval-system"
 CommandRunner = Callable[[tuple[str, ...], Path], CompletedProcess[str]]
 
 
@@ -51,6 +52,7 @@ GATES = (
             "-m",
             "pytest",
             "tests/test_final_closeout_evidence.py",
+            "tests/test_final_evidence_closure.py",
             "-q",
             "-p",
             "no:cacheprovider",
@@ -131,6 +133,8 @@ def verify_portfolio_release(
     root: Path = ROOT,
     runner: CommandRunner = _run_command,
     allow_dirty: bool = False,
+    expected_branch: str = DEFAULT_EXPECTED_BRANCH,
+    expected_sha: str | None = None,
 ) -> dict[str, object]:
     root = root.resolve()
     head_sha, head_code, head_error = _git_value(
@@ -182,8 +186,20 @@ def verify_portfolio_release(
             }
         )
 
+    identity_errors: list[str] = []
+    if branch != expected_branch:
+        identity_errors.append(
+            f"expected branch {expected_branch!r}, observed {branch!r}"
+        )
+    if expected_sha is not None and head_sha != expected_sha:
+        identity_errors.append(
+            f"expected SHA {expected_sha!r}, observed {head_sha!r}"
+        )
+
     if git_errors:
         repository_gate = "FAILED_GIT_STATE"
+    elif identity_errors:
+        repository_gate = "FAILED_TARGET_IDENTITY"
     elif dirty and not allow_dirty:
         repository_gate = "FAILED_DIRTY_WORKTREE"
     elif dirty:
@@ -211,11 +227,14 @@ def verify_portfolio_release(
         ),
         "gates": gate_results,
         "git_errors": git_errors,
+        "identity_errors": identity_errors,
         "release_authority": False,
         "repository": {
             "branch": branch,
             "dirty": dirty,
             "head_sha": head_sha,
+            "expected_branch": expected_branch,
+            "expected_sha": expected_sha,
         },
         "repository_gate": repository_gate,
         "schema_version": SCHEMA_VERSION,
@@ -242,12 +261,25 @@ def build_parser() -> argparse.ArgumentParser:
             "labeled DEVELOPMENT_VERIFIED and has no release authority."
         ),
     )
+    parser.add_argument(
+        "--expected-branch",
+        default=DEFAULT_EXPECTED_BRANCH,
+        help="Require this exact non-detached branch name.",
+    )
+    parser.add_argument(
+        "--expected-sha",
+        help="Optionally require this exact 40-character commit SHA.",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    report = verify_portfolio_release(allow_dirty=args.allow_dirty)
+    report = verify_portfolio_release(
+        allow_dirty=args.allow_dirty,
+        expected_branch=args.expected_branch,
+        expected_sha=args.expected_sha,
+    )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0 if report["status"] != "FAILED" else 1
 
@@ -258,6 +290,7 @@ if __name__ == "__main__":
 
 __all__ = [
     "CommandRunner",
+    "DEFAULT_EXPECTED_BRANCH",
     "GATES",
     "Gate",
     "build_parser",

@@ -136,9 +136,11 @@ def _atomic_write_pointer(
     pointer: ActiveIndexPointer,
     *,
     before_replace: Callable[[], None] | None = None,
+    fault_hook: Callable[[str], None] | None = None,
 ) -> None:
     root = _resolved_root(root)
     root.mkdir(parents=True, exist_ok=True)
+    _cleanup_active_pointer_temps(root)
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=".active.json.",
         suffix=".tmp",
@@ -146,13 +148,22 @@ def _atomic_write_pointer(
     )
     temporary_path = Path(temporary_name)
     try:
+        if fault_hook is not None:
+            fault_hook("before_write")
         with os.fdopen(descriptor, "wb") as handle:
             handle.write(_serialize_pointer(pointer))
             handle.flush()
             os.fsync(handle.fileno())
+        if fault_hook is not None:
+            fault_hook("after_temp_write")
         if before_replace is not None:
             before_replace()
+        if fault_hook is not None:
+            fault_hook("before_replace")
         os.replace(temporary_path, root / "active.json")
+        _sync_directory(root)
+        if fault_hook is not None:
+            fault_hook("after_replace")
     finally:
         if temporary_path.exists():
             temporary_path.unlink()
@@ -165,6 +176,7 @@ def activate_version(
     activated_at: datetime | None = None,
     before_replace: Callable[[], None] | None = None,
     _lock_held: bool = False,
+    _fault_hook: Callable[[str], None] | None = None,
 ) -> ActiveIndexPointer:
     if not _lock_held:
         with publication_lock(root):
@@ -174,6 +186,7 @@ def activate_version(
                 activated_at=activated_at,
                 before_replace=before_replace,
                 _lock_held=True,
+                _fault_hook=_fault_hook,
             )
     loaded = load_index_version(root, run_id)
     pointer = ActiveIndexPointer(
@@ -183,7 +196,12 @@ def activate_version(
         manifest_sha256=loaded.manifest_sha256,
         activated_at=activated_at or datetime.now(timezone.utc),
     )
-    _atomic_write_pointer(root, pointer, before_replace=before_replace)
+    _atomic_write_pointer(
+        root,
+        pointer,
+        before_replace=before_replace,
+        fault_hook=_fault_hook,
+    )
     return pointer
 
 
@@ -210,11 +228,12 @@ def publication_lock(root: Path, *, timeout_seconds: float = 10.0):
             != (current.st_dev, current.st_ino)
         ):
             raise PermissionError("index publication lock path is unsafe")
-        if metadata.st_size == 0:
-            os.write(descriptor, b"\0")
-            os.fsync(descriptor)
         _lock_descriptor(descriptor, timeout_seconds=timeout_seconds)
         try:
+            if os.fstat(descriptor).st_size == 0:
+                os.lseek(descriptor, 0, os.SEEK_SET)
+                os.write(descriptor, b"\0")
+                os.fsync(descriptor)
             yield
         finally:
             _unlock_descriptor(descriptor)
@@ -252,6 +271,29 @@ def _unlock_descriptor(descriptor: int) -> None:
     import fcntl
 
     fcntl.flock(descriptor, fcntl.LOCK_UN)
+
+
+def _cleanup_active_pointer_temps(root: Path) -> None:
+    for candidate in root.glob(".active.json.*.tmp"):
+        metadata = candidate.lstat()
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or candidate.is_symlink()
+            or metadata.st_nlink != 1
+        ):
+            raise PermissionError("active pointer temporary path is unsafe")
+        candidate.unlink()
+
+
+def _sync_directory(path: Path) -> None:
+    if os.name == "nt":
+        return
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    descriptor = os.open(path, flags)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def _validate_owned_target(root: Path, run_id: str) -> None:

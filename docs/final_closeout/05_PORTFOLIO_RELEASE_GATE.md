@@ -60,13 +60,14 @@ mistaken for the clean result `VERIFIED`.
 
 ## Machine-readable output
 
-The stable schema is `portfolio_release_verification_v1`. Each result contains:
+The stable schema is `portfolio_release_verification_v2`. Each result contains:
 
 - normalized command arguments, with the local Python absolute path replaced
   by `python`;
 - gate ID, description, duration, status, and exit code;
 - bounded stdout/stderr tails only when a gate fails;
-- Git SHA, branch, dirty state, repository gate, and overall status;
+- Git SHA, branch, expected branch, optional expected SHA, dirty state,
+  identity errors, repository gate, and overall status;
 - an explicit claim boundary and `release_authority: false`.
 - aggregate total, passed, and failed gate counts for simple CI consumers.
 

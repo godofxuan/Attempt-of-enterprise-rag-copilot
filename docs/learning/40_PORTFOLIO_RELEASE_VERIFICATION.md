@@ -30,7 +30,7 @@ CLI main
   -> normalize machine-specific command paths
   -> retain bounded diagnostics for failed gates
   -> derive repository_gate and overall status
-  -> print portfolio_release_verification_v1 JSON
+  -> print portfolio_release_verification_v2 JSON
   -> exit 0 only for VERIFIED or DEVELOPMENT_VERIFIED
 ```
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from multiprocessing import get_context
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -77,6 +78,18 @@ def build_version(
 
 def read_pointer(root: Path) -> dict[str, object]:
     return json.loads((root / "active.json").read_text(encoding="utf-8"))
+
+
+def _activate_and_hard_exit(root_text: str, stage: str) -> None:
+    def kill_at(observed: str) -> None:
+        if observed == stage:
+            os._exit(91)
+
+    activate_version(
+        Path(root_text),
+        "run-two",
+        _fault_hook=kill_at,
+    )
 
 
 def test_build_and_activate_writes_verifiable_pointer(
@@ -221,6 +234,35 @@ def test_active_pointer_is_atomically_replaced_from_complete_json(
 
     assert observations == [("run-one", "run-two")]
     assert read_pointer(root)["run_id"] == "run-two"
+    assert list(root.glob(".active.json.*.tmp")) == []
+
+
+@pytest.mark.parametrize(
+    "kill_stage",
+    ["before_write", "after_temp_write", "before_replace", "after_replace"],
+)
+def test_active_pointer_survives_hard_process_exit_at_publication_stage(
+    tmp_path: Path,
+    corpus_dir: Path,
+    kill_stage: str,
+) -> None:
+    root = (tmp_path / f"indexes-{kill_stage}").absolute()
+    build_version(root, corpus_dir, "run-one", activate=True)
+    build_version(root, corpus_dir, "run-two")
+
+    process = get_context("spawn").Process(
+        target=_activate_and_hard_exit,
+        args=(str(root), kill_stage),
+    )
+    process.start()
+    process.join(timeout=20)
+    assert process.exitcode == 91
+
+    expected = "run-two" if kill_stage == "after_replace" else "run-one"
+    assert load_index_version(root).manifest.run_id == expected
+
+    activate_version(root, "run-two")
+    assert load_index_version(root).manifest.run_id == "run-two"
     assert list(root.glob(".active.json.*.tmp")) == []
 
 

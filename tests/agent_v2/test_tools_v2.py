@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 import pytest
 from pydantic import ValidationError
 
@@ -122,6 +124,38 @@ def test_deadline_returns_timeout_without_executing_tool() -> None:
     assert execution.result.code == "timeout"
     assert execution.budget_state == state
     assert navigator.calls == []
+
+
+def test_deadline_is_cooperative_not_a_hard_wall_clock_interrupt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    navigator = RecordingNavigator(
+        search_results=[search_result([search_hit()])]
+    )
+    original_search = navigator.search_ranked
+
+    def sleeping_search(request):
+        time.sleep(0.05)
+        return original_search(request)
+
+    monkeypatch.setattr(navigator, "search_ranked", sleeping_search)
+    registry = V2ToolRegistry(navigator)
+    action = search_action().model_copy(
+        update={
+            "search_request": search_action().search_request.model_copy(
+                update={"timeout_ms": 10}
+            )
+        }
+    )
+    started = time.monotonic()
+
+    execution = registry.run(action, BudgetState())
+    elapsed = time.monotonic() - started
+
+    assert isinstance(execution.result, ToolError)
+    assert execution.result.code == "timeout"
+    assert elapsed >= 0.04
+    assert len(navigator.calls) == 1
 
 
 def test_context_cap_discards_oversized_result_but_counts_executed_call() -> None:

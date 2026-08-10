@@ -1,0 +1,12 @@
+{
+  "claims": [
+    {"claim": "FTS builder recovers after hard process termination", "evidence": "fts_hard_crash_matrix_v1.json", "status": "VERIFIED_LIMITED", "qualification": "30/30 process-termination trials; not power loss"},
+    {"claim": "Active pointer remains an old or new verified snapshot around process exit", "evidence": "active_pointer_crash_matrix_v1.json", "status": "VERIFIED_LIMITED", "qualification": "12/12 process-exit trials; Windows power-loss durability NOT_RUN"},
+    {"claim": "Current Agent improves WixQA answer quality", "evidence": "answer_citation_60_automated_v1.json", "status": "REJECTED", "qualification": "No Recall@5 gain; answer correctness NOT_RUN"},
+    {"claim": "Current Agent has 43.33% citation precision on the frozen 60-case retrospective subset", "evidence": "answer_citation_60_automated_v1.json", "status": "VERIFIED_LIMITED", "qualification": "Retrospective prior-run subset, not current-SHA answer quality"},
+    {"claim": "Guard passes a new independent 60-attack/30-benign holdout", "evidence": "guard_60_30_holdout_status_v1.json", "status": "NOT_RUN", "qualification": "No qualifying immutable holdout exists"},
+    {"claim": "Agent deadline is a hard wall-clock cancellation", "evidence": "tests/agent_v2/test_tools_v2.py", "status": "FORBIDDEN", "qualification": "Deadline is cooperative and checked before/after blocking calls"},
+    {"claim": "Portfolio verifier enforces branch and optional exact SHA", "evidence": "tests/test_portfolio_release_verifier.py", "status": "VERIFIED", "qualification": "Offline local Git identity only; no release authority"}
+  ],
+  "schema_version": "final_claim_audit_v1"
+}

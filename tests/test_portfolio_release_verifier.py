@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from subprocess import CompletedProcess
 
+import pytest
+
 from scripts.verify_portfolio_release import (
     GATES,
     CommandRunner,
@@ -15,16 +17,18 @@ def _runner(
     *,
     dirty: bool = False,
     failing_gate: str | None = None,
+    branch: str = "codex/rag-eval-system",
+    head_sha: str = "a" * 40,
 ) -> CommandRunner:
     def run(argv: tuple[str, ...], cwd: Path) -> CompletedProcess[str]:
         assert cwd.is_absolute()
         if argv[:3] == ("git", "rev-parse", "HEAD"):
-            return CompletedProcess(argv, 0, stdout="a" * 40 + "\n", stderr="")
+            return CompletedProcess(argv, 0, stdout=head_sha + "\n", stderr="")
         if argv[:3] == ("git", "branch", "--show-current"):
             return CompletedProcess(
                 argv,
                 0,
-                stdout="codex/rag-eval-system\n",
+                stdout=branch + ("\n" if branch else ""),
                 stderr="",
             )
         if argv[:3] == ("git", "status", "--short"):
@@ -51,13 +55,15 @@ def test_verified_report_has_stable_gate_contract() -> None:
         allow_dirty=False,
     )
 
-    assert report["schema_version"] == "portfolio_release_verification_v1"
+    assert report["schema_version"] == "portfolio_release_verification_v2"
     assert report["status"] == "VERIFIED"
     assert report["release_authority"] is False
     assert report["repository"] == {
         "branch": "codex/rag-eval-system",
         "dirty": False,
         "head_sha": "a" * 40,
+        "expected_branch": "codex/rag-eval-system",
+        "expected_sha": None,
     }
     assert [gate["gate_id"] for gate in report["gates"]] == [
         "dependency_consistency",
@@ -114,6 +120,30 @@ def test_dirty_repository_fails_unless_explicitly_allowed() -> None:
     assert development["release_authority"] is False
 
 
+@pytest.mark.parametrize(
+    ("branch", "head_sha", "expected_sha"),
+    [
+        ("", "a" * 40, None),
+        ("main", "a" * 40, None),
+        ("codex/rag-eval-system", "b" * 40, "a" * 40),
+    ],
+)
+def test_unexpected_target_identity_fails_closed(
+    branch: str,
+    head_sha: str,
+    expected_sha: str | None,
+) -> None:
+    report = verify_portfolio_release(
+        root=Path.cwd(),
+        runner=_runner(branch=branch, head_sha=head_sha),
+        expected_sha=expected_sha,
+    )
+
+    assert report["status"] == "FAILED"
+    assert report["repository_gate"] == "FAILED_TARGET_IDENTITY"
+    assert report["identity_errors"]
+
+
 def test_report_is_json_serializable_without_absolute_commands() -> None:
     report = verify_portfolio_release(
         root=Path.cwd(),
@@ -122,7 +152,7 @@ def test_report_is_json_serializable_without_absolute_commands() -> None:
     )
 
     encoded = json.dumps(report, sort_keys=True)
-    assert "portfolio_release_verification_v1" in encoded
+    assert "portfolio_release_verification_v2" in encoded
     for gate in report["gates"]:
         assert gate["command"][0] == "python"
         assert not Path(gate["command"][0]).is_absolute()
