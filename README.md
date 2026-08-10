@@ -31,9 +31,25 @@ the separately bound WixQA, EnterpriseRAG-Bench, and garak evidence above. This
 is an inspectable AI Agent/RAG engineering project, not a production identity or
 compliance system.
 
-Current release posture: `PORTFOLIO_READY_STOP_DEVELOPMENT` pending the final
-exact-SHA CI gate. The evidence is suitable for portfolio, resume, and interview
-use with the stated boundaries; production deployment and SLOs are not claimed.
+Current release posture: `PORTFOLIO_READY_STOP_DEVELOPMENT`. The final evidence
+closure passed local and exact-SHA CI gates. Every later push must pass the
+cross-platform portfolio verification gate shown by the branch badge. The
+evidence is suitable for portfolio, resume, and interview use with the stated
+boundaries; production deployment and SLOs are not claimed.
+
+## One-command Verification
+
+After installing `requirements.txt`, a public clone can verify the portfolio
+evidence and offline Agent contracts without Ollama or private benchmark data:
+
+```powershell
+python -m scripts.verify_portfolio_release
+```
+
+The command fails closed on a dirty worktree, dependency conflict, compile
+failure, evidence/prose mismatch, Agent/ACL/Guard regression, or public-repo
+audit finding. It emits machine-readable JSON and explicitly has no production
+release authority. See the [gate design and failure semantics](docs/final_closeout/05_PORTFOLIO_RELEASE_GATE.md).
 
 ## Architecture
 
@@ -366,15 +382,20 @@ the [E18 engineering result](docs/external_datasets/finqa_admitted_context_gate_
 - Citation grounding remains intentionally conservative and deterministic. It
   can reject valid paraphrases and cannot establish full semantic entailment,
   contradiction coverage, or hallucination immunity.
-- GitHub Actions passed for feature-branch commit `9607e55`; this does not prove branch protection, deployment, production data, or an SLO.
+- The current feature-branch status is represented by the CI badge and
+  exact-run links in the evidence records. CI success does not prove branch
+  protection, production deployment, production data, or an SLO.
 
 See [Known Limitations](docs/known_limitations.md) for consequences and admission criteria.
 
 ## Documentation
 
-- [Complete Project Evolution History (start here)](docs/history/00_PROJECT_EVOLUTION.md)
-- [Complete Git Commit Index (218 commits through E18 remote repair)](docs/history/01_COMMIT_INDEX.md)
+- [Historical Project Evolution through the documented delivery phases](docs/history/00_PROJECT_EVOLUTION.md)
+- [Historical Git Commit Index through E18 remote repair](docs/history/01_COMMIT_INDEX.md)
 - [Current Project Status](PROJECT_STATUS.md)
+- [One-command Portfolio Release Gate](docs/final_closeout/05_PORTFOLIO_RELEASE_GATE.md)
+- [Portfolio Gate Learning Chapter](docs/learning/40_PORTFOLIO_RELEASE_VERIFICATION.md)
+- [External GPT Audit Prompt](docs/handoffs/EXTERNAL_GPT_FINAL_AUDIT_PROMPT.md)
 - [Architecture](docs/architecture.md)
 - [Demo Runbook](docs/demo_runbook.md)
 - [API Contract](docs/api.md)

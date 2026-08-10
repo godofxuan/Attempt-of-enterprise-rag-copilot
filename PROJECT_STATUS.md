@@ -1,5 +1,36 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-08-10 Portfolio verification hardening
+
+```text
+scope                              EVIDENCE DELIVERY / NO NEW MODEL OR AGENT
+entry point                        python -m scripts.verify_portfolio_release
+clean-worktree policy              FAIL CLOSED
+offline subgates                   dependency / compile / evidence / Agent-ACL-Guard / public audit
+output                             portfolio_release_verification_v1 JSON
+production release authority       FALSE
+README stale CI state              FIXED AND REGRESSION TESTED
+CI enforcement                     UBUNTU + WINDOWS
+focused contract tests             8 passed
+full local regression              3188 passed / 29 skipped / 3 known warnings
+public repository audit            1544 candidates / 0 findings
+dirty development rehearsal        5/5 subgates / DEVELOPMENT_VERIFIED
+```
+
+The final closeout exposed one delivery defect rather than a model defect:
+README still said the exact-SHA gate was pending after it had passed. The new
+regression assertion prevents that stale phrase from returning. A single
+cross-platform verifier now owns the public-clone acceptance path; CI calls the
+same command that an interviewer or reviewer runs locally. A dirty repository
+fails by default because uncommitted code cannot be tied to a Git SHA. The
+explicit `--allow-dirty` mode is development-only and reports
+`DEVELOPMENT_VERIFIED`, never `VERIFIED`.
+
+This gate does not change or rerun WixQA, EnterpriseRAG-Bench, FinQA, or garak
+metrics. It verifies that the existing evidence, prose, deterministic behavior,
+and disclosure audit still agree. See
+[implementation record](docs/final_closeout/05_PORTFOLIO_RELEASE_GATE.md).
+
 ## 2026-08-10 Final evidence closure
 
 ```text

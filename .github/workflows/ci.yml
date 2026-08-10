@@ -70,8 +70,8 @@ jobs:
             echo "::error title=pytest crash context::$message"
           fi
 
-      - name: Audit public repository candidates
-        run: python -m scripts.audit_public_repo
+      - name: Verify portfolio evidence release gate
+        run: python -m scripts.verify_portfolio_release
 
   container:
     name: linux-container-contract

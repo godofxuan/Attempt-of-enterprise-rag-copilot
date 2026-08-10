@@ -7,9 +7,14 @@ ignored repository-local paths. Prepare the small synthetic demo rather than
 the 511k external corpus.
 
 ```powershell
+.\.venv\Scripts\python.exe -m scripts.verify_portfolio_release
 .\.venv\Scripts\python.exe -m scripts.manage_demo_identity init --force
 .\.venv\Scripts\python.exe -m pytest tests\agent_v2 tests\retrieval\test_pipeline_acl.py tests\security\test_retrieved_content_guard.py -q
 ```
+
+The first command is the authoritative offline portfolio gate. The focused
+pytest command is repeated only so an interviewer can see the specific Agent,
+ACL, and Guard scope without reading the aggregate JSON.
 
 Start the API and UI in separate terminals:
 
@@ -57,6 +62,8 @@ The interview must still work if Ollama or the API is unavailable:
 - open `docs/final_closeout/02_REUSED_SOURCE_ID_SENSITIVITY.md` to demonstrate
   honest metric-boundary analysis;
 - run only the deterministic evidence tests and public audit;
+- prefer `python -m scripts.verify_portfolio_release` so every offline gate is
+  reported under one stable schema;
 - never improvise a new model run or claim screenshots as live output.
 
 ## Claims to avoid

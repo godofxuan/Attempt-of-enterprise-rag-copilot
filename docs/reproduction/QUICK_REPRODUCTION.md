@@ -15,6 +15,20 @@ Copy-Item .env.example .env
 
 ## 2. Deterministic clone gate, no local model required
 
+Run the maintained aggregate entry point first:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.verify_portfolio_release
+```
+
+It checks the clean Git identity, dependencies, Python compilation, final
+evidence-to-prose consistency, the offline Agent/ACL/Guard contracts, and the
+public repository audit. The JSON status must be `VERIFIED`. It does not run a
+model, download a benchmark, establish answer accuracy, or claim production
+readiness.
+
+The equivalent expanded commands are retained below for debugging and teaching:
+
 ```powershell
 .\.venv\Scripts\python.exe -m compileall -q app scripts streamlit_app tests
 .\.venv\Scripts\python.exe -m scripts.generate_enterprise_corpus --profile expanded --output-dir .private\reproduction\expanded
