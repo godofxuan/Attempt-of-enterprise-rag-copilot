@@ -189,7 +189,6 @@ def main(argv: list[str] | None = None) -> int:
     index_manifest_sha256 = _sha256_file(index_manifest_path)
     cases: list[MultiDocAttributionCase] = []
     private_rows: list[dict[str, object]] = []
-    retrieval_oracle_rows: list[dict[str, object]] = []
 
     for ordinal, frozen in enumerate(frozen_cases, start=1):
         question = questions_by_id[frozen.question_id]
@@ -208,27 +207,6 @@ def main(argv: list[str] | None = None) -> int:
             budget=budget,
             top_k=5,
         )
-        case = _build_case(
-            frozen=frozen,
-            baseline_ranking=baseline_ranking,
-            response=response,
-            capture=capture,
-            navigator=navigator,
-        )
-        cases.append(case)
-        private_rows.append(
-            {
-                "case_id": case.case_id,
-                "question": question.question,
-                "controller_search_queries": [
-                    decision.action.search_request.query
-                    for decision in capture.decisions
-                    if decision.action.search_request is not None
-                ],
-                "attribution": case.model_dump(mode="json"),
-            }
-        )
-
         gold = list(frozen.gold_support_article_ids)
 
         def oracle_rank(query: str, *, gold_ids=gold) -> list[str]:
@@ -250,20 +228,30 @@ def main(argv: list[str] | None = None) -> int:
         )
         oracle_post_guard = _post_guard_document_ids(oracle_capture)
         oracle_final = [source.doc_id for source in oracle_response.sources]
-        retrieval_oracle_rows.append(
+        source_row = source_details[frozen.question_id]
+        case = _build_case(
+            frozen=frozen,
+            baseline_ranking=baseline_ranking,
+            response=response,
+            capture=capture,
+            navigator=navigator,
+            source_observed_citation_complete=(
+                float(source_row["citation_complete"]) == 1.0
+            ),
+            oracle_post_guard_document_ids=oracle_post_guard,
+            oracle_final_source_document_ids=oracle_final,
+        )
+        cases.append(case)
+        private_rows.append(
             {
                 "case_id": case.case_id,
-                "all_gold_post_guard": all_gold_recalled(
-                    gold, oracle_post_guard
-                ),
-                "all_gold_final": all_gold_recalled(gold, oracle_final),
-                "post_guard_gold_coverage": gold_coverage(
-                    gold, oracle_post_guard
-                ),
-                "final_gold_coverage": gold_coverage(gold, oracle_final),
-                "response_selected_document_ids": (
-                    oracle_capture.response_selected_document_ids
-                ),
+                "question": question.question,
+                "controller_search_queries": [
+                    decision.action.search_request.query
+                    for decision in capture.decisions
+                    if decision.action.search_request is not None
+                ],
+                "attribution": case.model_dump(mode="json"),
             }
         )
         print(f"diagnosed {ordinal}/20", flush=True)
@@ -291,11 +279,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
 
-    aggregate = _aggregate(
-        cases=cases,
-        source_rows=selected_source_rows,
-        oracle_rows=retrieval_oracle_rows,
-    )
+    aggregate = _aggregate(cases=cases)
     protocol = {
         "schema_version": "wixqa_multidoc_attribution_protocol_v1",
         "run_id": args.run_id,
@@ -345,14 +329,6 @@ def main(argv: list[str] | None = None) -> int:
     )
     aggregate_bytes = canonical_json_bytes(aggregate)
     (public_root / "aggregate_v1.json").write_bytes(aggregate_bytes)
-    (private_root / "oracle_rows.json").write_bytes(
-        canonical_json_bytes(
-            {
-                "schema_version": "wixqa_multidoc_oracle_private_v1",
-                "rows": retrieval_oracle_rows,
-            }
-        )
-    )
     print(json.dumps(aggregate, indent=2, sort_keys=True))
     return 0 if aggregate["status"] == "ATTRIBUTION_COMPLETE_NO_OPTIMIZATION" else 1
 
@@ -364,6 +340,9 @@ def _build_case(
     response,
     capture,
     navigator: RecordingWixQANavigator,
+    source_observed_citation_complete: bool,
+    oracle_post_guard_document_ids: Sequence[str],
+    oracle_final_source_document_ids: Sequence[str],
 ) -> MultiDocAttributionCase:
     if capture.analysis is None or capture.final_state is None:
         raise RuntimeError("diagnostic capture is incomplete")
@@ -468,6 +447,15 @@ def _build_case(
         pre_grounding_citation_document_ids=selected,
         post_grounding_citation_document_ids=final_docs,
         final_source_document_ids=final_docs,
+        source_observed_citation_complete=(
+            source_observed_citation_complete
+        ),
+        gold_retrieval_oracle_post_guard_document_ids=list(
+            oracle_post_guard_document_ids
+        ),
+        gold_retrieval_oracle_final_source_document_ids=list(
+            oracle_final_source_document_ids
+        ),
         guard_quarantined_count=quarantined,
         guard_risk_categories=risk_categories,
         coverage_by_stage=coverages,
@@ -486,8 +474,6 @@ def _build_case(
 def _aggregate(
     *,
     cases: Sequence[MultiDocAttributionCase],
-    source_rows: Sequence[dict[str, object]],
-    oracle_rows: Sequence[dict[str, object]],
 ) -> dict[str, object]:
     distribution = Counter(item.first_loss_stage.value for item in cases)
     unknown_count = distribution[FirstLossStage.UNKNOWN.value]
@@ -508,8 +494,10 @@ def _aggregate(
             "mean_gold_document_recall": sum(coverages) / len(coverages),
         }
     gate_removal_count = sum(
-        item.pre_grounding_citation_document_ids
-        != item.post_grounding_citation_document_ids
+        bool(
+            set(item.pre_grounding_citation_document_ids)
+            - set(item.post_grounding_citation_document_ids)
+        )
         for item in cases
     )
     status = (
@@ -522,7 +510,7 @@ def _aggregate(
         "status": status,
         "case_count": len(cases),
         "source_observed_citation_complete_count": sum(
-            float(item["citation_complete"]) == 1.0 for item in source_rows
+            item.source_observed_citation_complete for item in cases
         ),
         "current_replay_citation_complete_count": sum(
             item.coverage_by_stage["final"] == 1.0 for item in cases
@@ -552,10 +540,18 @@ def _aggregate(
         "gold_retrieval_oracle": {
             "diagnostic_only": True,
             "all_gold_post_guard_count": sum(
-                bool(item["all_gold_post_guard"]) for item in oracle_rows
+                all_gold_recalled(
+                    item.gold_document_ids,
+                    item.gold_retrieval_oracle_post_guard_document_ids,
+                )
+                for item in cases
             ),
             "all_gold_final_citation_count": sum(
-                bool(item["all_gold_final"]) for item in oracle_rows
+                all_gold_recalled(
+                    item.gold_document_ids,
+                    item.gold_retrieval_oracle_final_source_document_ids,
+                )
+                for item in cases
             ),
         },
         "gold_prompt_oracle": {

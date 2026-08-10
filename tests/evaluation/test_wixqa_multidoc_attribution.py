@@ -206,6 +206,9 @@ def test_schema_rejects_incorrect_first_loss_or_coverage() -> None:
             pre_grounding_citation_document_ids=gold,
             post_grounding_citation_document_ids=gold,
             final_source_document_ids=gold,
+            source_observed_citation_complete=False,
+            gold_retrieval_oracle_post_guard_document_ids=gold,
+            gold_retrieval_oracle_final_source_document_ids=[gold[0]],
             guard_quarantined_count=0,
             guard_risk_categories=[],
             coverage_by_stage={
@@ -257,6 +260,9 @@ def test_schema_rejects_incorrect_first_loss_or_coverage() -> None:
                 "pre_grounding_citation_document_ids": gold,
                 "post_grounding_citation_document_ids": gold,
                 "final_source_document_ids": gold,
+                "source_observed_citation_complete": False,
+                "gold_retrieval_oracle_post_guard_document_ids": gold,
+                "gold_retrieval_oracle_final_source_document_ids": [gold[0]],
                 "guard_quarantined_count": 0,
                 "guard_risk_categories": [],
                 "coverage_by_stage": {

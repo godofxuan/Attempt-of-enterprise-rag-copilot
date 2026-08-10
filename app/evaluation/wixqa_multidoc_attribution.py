@@ -126,6 +126,9 @@ class MultiDocAttributionCase(BaseModel):
     pre_grounding_citation_document_ids: list[str]
     post_grounding_citation_document_ids: list[str]
     final_source_document_ids: list[str]
+    source_observed_citation_complete: bool
+    gold_retrieval_oracle_post_guard_document_ids: list[str]
+    gold_retrieval_oracle_final_source_document_ids: list[str]
     guard_quarantined_count: int = Field(ge=0)
     guard_risk_categories: list[str]
     coverage_by_stage: dict[str, float]
