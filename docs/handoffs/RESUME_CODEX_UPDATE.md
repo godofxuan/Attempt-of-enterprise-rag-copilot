@@ -1,5 +1,10 @@
 # Resume Codex Update
 
+> Historical detail retained from the 2026-08-10 closeout. The current resume
+> generation entry point is [`RESUME_CODEX_HANDOFF.md`](RESUME_CODEX_HANDOFF.md)
+> and its [`resume_package/`](resume_package/) directory. Current canonical
+> state: `PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW`.
+
 ## Release identity
 
 - Repository: `godofxuan/Attempt-of-enterprise-rag-copilot`
@@ -8,7 +13,8 @@
 - Release payload CI: `success`, Run
   [`31325310671`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/31325310671),
   Ubuntu/Windows/Linux-container all passed
-- Project status: `PORTFOLIO_READY_STOP_DEVELOPMENT`
+- Historical stage status: `PORTFOLIO_READY_STOP_DEVELOPMENT`; superseded as the
+  current enum by `PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW`
 - Clean reproduction: `VERIFIED`, 63/63 frozen quality values exact at tolerance 0
 - Production status: `NOT_CLAIMED`
 
