@@ -1,5 +1,28 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-08-11 Canonical portfolio archive state
+
+```text
+canonical state                    PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW
+portfolio / interview usable       YES
+engineering evidence credible      YES, WITH FROZEN SCOPE BOUNDARIES
+current Agent candidate            REJECTED
+blind answer correctness           NOT ESTABLISHED
+retrieved-content security         VERIFIED ON ONE NARROW EXTERNAL SUBSET
+production readiness               NOT CLAIMED
+feature development                STOPPED
+archive local suite                3232 PASSED / 30 SKIPPED / 3 KNOWN WARNINGS
+archive public audit               1603 CANDIDATES / 0 FINDINGS
+```
+
+This is the repository's only current portfolio enum. Earlier
+`PORTFOLIO_READY_*` strings in dated closeout reports are historical stage
+decisions, not competing current states. Resume, teaching, and recruiter tasks
+must start from [Project Evidence Map](docs/handoffs/PROJECT_EVIDENCE_MAP.md).
+The verified resume package is under `docs/handoffs/resume_package/`.
+The complete closure decision is in
+[Portfolio Archive Report](docs/handoffs/PORTFOLIO_ARCHIVE_REPORT.md).
+
 ## 2026-08-11 Bounded multi-document candidate decision
 
 ```text
@@ -60,7 +83,7 @@ and disclosure audit still agree. See
 ## 2026-08-10 Final evidence closure
 
 ```text
-portfolio decision                 PORTFOLIO_READY_STOP_DEVELOPMENT
+2026-08-10 stage decision           PORTFOLIO_READY_STOP_DEVELOPMENT (HISTORICAL)
 WixQA clean replay                 VERIFIED / 63 quality comparisons / tolerance 0.0
 fresh WixQA index                  6,221 articles / 11,975 chunks / BGE-M3 1024d
 historical private inputs          NOT USED

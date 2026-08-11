@@ -6,7 +6,7 @@ An enterprise knowledge RAG/Agent Copilot with hybrid retrieval, bounded tools,
 identity-aware ACL, host-side evidence/citation checks, retrieved-content prompt
 injection defense, versioned knowledge lifecycle, and external evaluation.
 
-## Measured Results
+## Recruiter / Interviewer Quick View
 
 | Capability | Verified result | Evidence boundary |
 |---|---|---|
@@ -14,12 +14,35 @@ injection defense, versioned knowledge lifecycle, and external evaluation.
 | Enterprise-scale indexing | Built and atomically activated a `1.37 GiB` SQLite FTS5 index over `511,962` records from 9 source types in `231.35 s`, about `1.83 GiB` peak RSS | [Aggregate evidence](docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json); reused-ID sensitivity changes Macro Recall@5 only `60.3741% -> 60.2677%` ([audit](docs/final_closeout/02_REUSED_SOURCE_ID_SENSITIVITY.md)); full lexical baseline, not end-to-end accuracy |
 | Retrieved-content security | On a pinned garak `LatentInjectionReport` subset, Guard reduced attack success `4/12 -> 0/12` and context exposure `12/12 -> 0/12`; mean scan `1.42 ms` | [Aggregate evidence](docs/resume_metrics/evidence/garak_latent_report_holdout_v1.json); one small probe subset, not universal safety or full garak |
 
-The project is different from a "PDF plus vector database" demo because models
-cannot grant tools, widen identity scope, or directly publish unsupported
-claims. The Python host owns authorization, budgets, evidence admission,
-citations, lifecycle activation, and safe terminal states. Failed experiments
-remain visible in [negative results](docs/enterprise_eval/NEGATIVE_RESULTS.md)
-and the [rapid closeout](docs/rapid_upgrade/FINAL_REPORT.md).
+Three capabilities define the project:
+
+1. **Retrieval, indexing, and evaluation:** fixed protocols compare retrieval
+   quality and latency, while a resumable FTS5 path makes a 511,962-record
+   lexical baseline executable on one host.
+2. **Evidence-controlled answers:** the Python host owns authenticated identity,
+   ACL, tool budgets, retrieved-content admission, the Evidence Ledger,
+   citations, lifecycle activation, and safe terminal states. Models cannot
+   widen authority or directly publish unsupported claims.
+3. **Failure attribution and release discipline:** equal RRF and the bounded
+   multi-document candidate remain public negative results. The latter produced
+   zero complete-case fixes, reduced citation precision by 5.83pp, and increased
+   p95 latency 1.859x, so it was not integrated.
+
+Current boundary: portfolio/interview usable and engineering-evidence credible;
+blind answer correctness is not established, the security result is narrow,
+production readiness is not claimed, and feature development is stopped. Start
+with the [project evidence map](docs/handoffs/PROJECT_EVIDENCE_MAP.md),
+[recruiter summary](docs/handoffs/RECRUITER_SUMMARY.md), or
+[teaching handoff](docs/handoffs/TEACHING_CODEX_HANDOFF.md). The
+[archive report](docs/handoffs/PORTFOLIO_ARCHIVE_REPORT.md) records the final
+decision and verification boundary.
+
+## Engineering Evidence
+
+The rest of this README preserves architecture, benchmark, code, reproduction,
+and limitation detail for technical review. Failed experiments remain visible
+in [negative results](docs/enterprise_eval/NEGATIVE_RESULTS.md) and the
+[multi-document candidate decision](docs/multidoc_candidate/02_RESULTS_AND_DECISION.md).
 
 ## Business Problem
 
@@ -31,7 +54,8 @@ the separately bound WixQA, EnterpriseRAG-Bench, and garak evidence above. This
 is an inspectable AI Agent/RAG engineering project, not a production identity or
 compliance system.
 
-Current release posture: `PORTFOLIO_READY_STOP_DEVELOPMENT`. The final evidence
+Current release posture:
+`PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW`. The final evidence
 closure passed local and exact-SHA CI gates. Every later push must pass the
 cross-platform portfolio verification gate shown by the branch badge. The
 evidence is suitable for portfolio, resume, and interview use with the stated
