@@ -6,7 +6,7 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.domain.agent import AgentAction, BudgetState, ToolError
+from app.domain.agent import AgentAction, BudgetState, ToolError, ToolErrorCode
 from app.domain.queries import FindResult, OpenResult, SearchResult
 from app.domain.retrieved_security import (
     DETECTOR_VERSION,
@@ -323,7 +323,7 @@ def _error_execution(
     action: AgentAction,
     budget_state: BudgetState,
     *,
-    code: Literal["invalid_args", "timeout", "budget", "system"],
+    code: ToolErrorCode,
     message: str,
     retryable: bool = False,
     security_counters: SecurityCounters | None = None,
@@ -346,8 +346,27 @@ def _error_execution(
     )
 
 
+def build_tool_error_execution(
+    action: AgentAction,
+    budget_state: BudgetState,
+    *,
+    code: ToolErrorCode,
+    message: str,
+    retryable: bool = False,
+) -> GuardedV2ToolExecution:
+    """Build a zero-evidence failure for a rejected contract call."""
+    return _error_execution(
+        action,
+        budget_state,
+        code=code,
+        message=message,
+        retryable=retryable,
+    )
+
+
 __all__ = [
     "Navigator",
     "V2ToolExecution",
     "V2ToolRegistry",
+    "build_tool_error_execution",
 ]

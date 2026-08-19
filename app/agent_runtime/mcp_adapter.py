@@ -98,6 +98,7 @@ class EnterpriseKnowledgeMCP:
                     include_parent=include_parent,
                 )
                 request = ToolRequest(
+                    context_request_id=context.request_id,
                     tool="search",
                     sequence=sequence,
                     purpose=purpose,
@@ -132,6 +133,7 @@ class EnterpriseKnowledgeMCP:
                     max_results=max_results,
                 )
                 request = ToolRequest(
+                    context_request_id=context.request_id,
                     tool="find",
                     sequence=sequence,
                     purpose="find evidence inside a visible document",
@@ -165,6 +167,7 @@ class EnterpriseKnowledgeMCP:
                     max_chars=max_chars,
                 )
                 request = ToolRequest(
+                    context_request_id=context.request_id,
                     tool="open",
                     sequence=sequence,
                     purpose="open visible enterprise evidence",

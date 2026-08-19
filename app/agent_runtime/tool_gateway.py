@@ -14,6 +14,7 @@ from app.agent_runtime.tool_contract import (
     ToolResult,
 )
 from app.domain.agent import AgentAction, BudgetState, ToolError as DomainToolError
+from app.domain.retrieved_security import GuardedV2ToolExecution
 
 
 ClockMs = Callable[[], float]
@@ -65,23 +66,31 @@ class ToolGateway:
             self._sessions.pop(session_id, None)
 
     def execute(self, request: ToolRequest, context: ToolContext) -> ToolResult:
+        result, _ = self.execute_with_domain(request, context)
+        return result
+
+    def execute_with_domain(
+        self,
+        request: ToolRequest,
+        context: ToolContext,
+    ) -> tuple[ToolResult, GuardedV2ToolExecution | None]:
         if not isinstance(request, ToolRequest) or not isinstance(context, ToolContext):
             raise TypeError("gateway requires typed request and context")
         with self._lock:
             session = self._sessions.get(context.session_id)
             if session is None:
-                return self._failure(request, context, BudgetState(), "stale_context", "The tool session is not active.")
+                return self._failure(request, context, BudgetState(), "stale_context", "The tool session is not active."), None
             mismatch = self._context_mismatch(session, context)
             if mismatch is not None:
-                return self._failure(request, context, session.budget_state, mismatch[0], mismatch[1])
+                return self._failure(request, context, session.budget_state, mismatch[0], mismatch[1]), None
             if float(self._clock_ms()) >= context.expires_at_ms:
-                return self._failure(request, context, session.budget_state, "stale_context", "The tool session has expired.")
+                return self._failure(request, context, session.budget_state, "stale_context", "The tool session has expired."), None
             if request.tool not in context.allowed_tools:
-                return self._failure(request, context, session.budget_state, "unauthorized", "The requested tool is not authorized for this session.")
+                return self._failure(request, context, session.budget_state, "unauthorized", "The requested tool is not authorized for this session."), None
             if request.arguments.user != context.identity:
-                return self._failure(request, context, session.budget_state, "identity_mismatch", "Tool arguments do not match the authenticated identity.")
-            if request.arguments.request_id != context.request_id:
-                return self._failure(request, context, session.budget_state, "identity_mismatch", "Tool request correlation does not match the trusted context.")
+                return self._failure(request, context, session.budget_state, "identity_mismatch", "Tool arguments do not match the authenticated identity."), None
+            if request.context_request_id != context.request_id:
+                return self._failure(request, context, session.budget_state, "identity_mismatch", "Tool request correlation does not match the trusted context."), None
 
             action = _to_agent_action(request)
             execution = self._registry.run(action, session.budget_state)
@@ -95,7 +104,7 @@ class ToolGateway:
                     execution.result.safe_message,
                     retryable=execution.result.retryable,
                     security_counters=execution.security_counters,
-                )
+                ), execution
             return ToolResult(
                 session_id=context.session_id,
                 trace_id=context.trace_id,
@@ -106,7 +115,7 @@ class ToolGateway:
                 payload=execution.result,
                 budget_state=execution.budget_state,
                 security_counters=execution.security_counters,
-            )
+            ), execution
 
     @staticmethod
     def _context_mismatch(
@@ -158,4 +167,3 @@ def _to_agent_action(request: ToolRequest) -> AgentAction:
 
 
 __all__ = ["ToolGateway"]
-

@@ -35,6 +35,7 @@ def context(**updates) -> ToolContext:
 
 def search_request(*, user: UserContext = USER, sequence: int = 1) -> ToolRequest:
     return ToolRequest(
+        context_request_id="request-one",
         tool="search",
         sequence=sequence,
         purpose="collect evidence",
@@ -184,6 +185,7 @@ def test_timeout_is_bounded_by_session_expiry() -> None:
 def test_malformed_or_mismatched_arguments_are_rejected() -> None:
     with pytest.raises(ValidationError):
         ToolRequest(
+            context_request_id="request-one",
             tool="search",
             sequence=1,
             purpose="bad shape",
@@ -198,10 +200,10 @@ def test_malformed_or_mismatched_arguments_are_rejected() -> None:
     with pytest.raises(ValidationError):
         ToolRequest.model_validate(
             {
+                "context_request_id": "request-one",
                 "tool": "shell",
                 "sequence": 1,
                 "purpose": "escape",
                 "arguments": {},
             }
         )
-

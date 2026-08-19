@@ -84,6 +84,7 @@ ToolArguments = SearchRequest | FindRequest | OpenRequest
 
 
 class ToolRequest(_StrictFrozenModel):
+    context_request_id: str = Field(min_length=1, max_length=200)
     tool: ToolName
     sequence: int = Field(ge=1)
     purpose: str = Field(min_length=1, max_length=500)
@@ -159,4 +160,3 @@ __all__ = [
     "ToolRequest",
     "ToolResult",
 ]
-
