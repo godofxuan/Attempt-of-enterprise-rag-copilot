@@ -8,12 +8,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from subprocess import CompletedProcess
 from time import perf_counter
-from typing import Callable, Sequence
+from typing import Callable, Literal, Sequence
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_VERSION = "portfolio_release_verification_v2"
+SCHEMA_VERSION = "portfolio_release_verification_v3"
 DEFAULT_EXPECTED_BRANCH = "main"
+IdentityEvent = Literal["push", "pull_request"]
 CommandRunner = Callable[[tuple[str, ...], Path], CompletedProcess[str]]
 
 
@@ -135,8 +136,10 @@ def verify_portfolio_release(
     root: Path = ROOT,
     runner: CommandRunner = _run_command,
     allow_dirty: bool = False,
+    identity_event: IdentityEvent = "push",
     expected_branch: str = DEFAULT_EXPECTED_BRANCH,
     expected_sha: str | None = None,
+    event_branch: str | None = None,
 ) -> dict[str, object]:
     root = root.resolve()
     head_sha, head_code, head_error = _git_value(
@@ -189,9 +192,33 @@ def verify_portfolio_release(
         )
 
     identity_errors: list[str] = []
-    if branch != expected_branch:
+    if identity_event == "push":
+        if branch != expected_branch:
+            identity_errors.append(
+                f"expected branch {expected_branch!r}, observed {branch!r}"
+            )
+    elif identity_event == "pull_request":
+        if expected_sha is None:
+            identity_errors.append(
+                "pull-request identity requires an expected head SHA"
+            )
+        if not expected_branch or not event_branch:
+            identity_errors.append(
+                "pull-request identity requires non-empty expected and event branches"
+            )
+        elif event_branch != expected_branch:
+            identity_errors.append(
+                f"expected PR head branch {expected_branch!r}, "
+                f"observed event branch {event_branch!r}"
+            )
+        if branch and branch != expected_branch:
+            identity_errors.append(
+                f"checked-out branch {branch!r} does not match PR head "
+                f"{expected_branch!r}"
+            )
+    else:
         identity_errors.append(
-            f"expected branch {expected_branch!r}, observed {branch!r}"
+            f"unsupported identity event {identity_event!r}"
         )
     if expected_sha is not None and head_sha != expected_sha:
         identity_errors.append(
@@ -237,6 +264,8 @@ def verify_portfolio_release(
             "head_sha": head_sha,
             "expected_branch": expected_branch,
             "expected_sha": expected_sha,
+            "event_branch": event_branch,
+            "identity_event": identity_event,
         },
         "repository_gate": repository_gate,
         "schema_version": SCHEMA_VERSION,
@@ -264,6 +293,12 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--identity-event",
+        choices=("push", "pull_request"),
+        default="push",
+        help="Select the fail-closed push or pull-request identity contract.",
+    )
+    parser.add_argument(
         "--expected-branch",
         default=DEFAULT_EXPECTED_BRANCH,
         help="Require this exact non-detached branch name.",
@@ -272,6 +307,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--expected-sha",
         help="Optionally require this exact 40-character commit SHA.",
     )
+    parser.add_argument(
+        "--event-branch",
+        help=(
+            "Observed pull-request head ref from workflow event metadata; "
+            "required for pull_request identity."
+        ),
+    )
     return parser
 
 
@@ -279,8 +321,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     report = verify_portfolio_release(
         allow_dirty=args.allow_dirty,
+        identity_event=args.identity_event,
         expected_branch=args.expected_branch,
         expected_sha=args.expected_sha,
+        event_branch=args.event_branch,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0 if report["status"] != "FAILED" else 1
@@ -295,6 +339,7 @@ __all__ = [
     "DEFAULT_EXPECTED_BRANCH",
     "GATES",
     "Gate",
+    "IdentityEvent",
     "build_parser",
     "main",
     "verify_portfolio_release",

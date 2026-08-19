@@ -76,13 +76,18 @@ def test_ci_is_read_only_deterministic_and_does_not_call_live_services() -> None
         'PYTHONFAULTHANDLER: "1"',
         "python -u -X faulthandler -m pytest -vv",
         "Publish deterministic test failure context",
+        "--identity-event push",
         '--expected-branch "${{ github.ref_name }}"',
         '--expected-sha "${{ github.sha }}"',
+        "--identity-event pull_request",
+        '--expected-branch "${{ github.event.pull_request.head.ref }}"',
+        '--expected-sha "${{ github.event.pull_request.head.sha }}"',
+        '--event-branch "${{ github.head_ref }}"',
         "python -m scripts.audit_public_repo",
     ]:
         assert required in workflow
 
-    assert workflow.count("fetch-depth: 0") == 2
+    assert workflow.count("fetch-depth: 0") == 3
 
     for forbidden in [
         "ollama",

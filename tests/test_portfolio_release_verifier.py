@@ -55,7 +55,7 @@ def test_verified_report_has_stable_gate_contract() -> None:
         allow_dirty=False,
     )
 
-    assert report["schema_version"] == "portfolio_release_verification_v2"
+    assert report["schema_version"] == "portfolio_release_verification_v3"
     assert report["status"] == "VERIFIED"
     assert report["release_authority"] is False
     assert report["repository"] == {
@@ -64,6 +64,8 @@ def test_verified_report_has_stable_gate_contract() -> None:
         "head_sha": "a" * 40,
         "expected_branch": "main",
         "expected_sha": None,
+        "event_branch": None,
+        "identity_event": "push",
     }
     assert [gate["gate_id"] for gate in report["gates"]] == [
         "dependency_consistency",
@@ -144,6 +146,79 @@ def test_unexpected_target_identity_fails_closed(
     assert report["identity_errors"]
 
 
+def test_push_identity_accepts_matching_branch_and_sha() -> None:
+    report = verify_portfolio_release(
+        root=Path.cwd(),
+        runner=_runner(branch="codex/agent-runtime-vnext", head_sha="b" * 40),
+        identity_event="push",
+        expected_branch="codex/agent-runtime-vnext",
+        expected_sha="b" * 40,
+    )
+
+    assert report["status"] == "VERIFIED"
+
+
+@pytest.mark.parametrize(
+    ("branch", "head_sha"),
+    [
+        ("wrong-branch", "b" * 40),
+        ("codex/agent-runtime-vnext", "c" * 40),
+    ],
+)
+def test_push_identity_rejects_wrong_branch_or_sha(
+    branch: str,
+    head_sha: str,
+) -> None:
+    report = verify_portfolio_release(
+        root=Path.cwd(),
+        runner=_runner(branch=branch, head_sha=head_sha),
+        identity_event="push",
+        expected_branch="codex/agent-runtime-vnext",
+        expected_sha="b" * 40,
+    )
+
+    assert report["status"] == "FAILED"
+    assert report["repository_gate"] == "FAILED_TARGET_IDENTITY"
+
+
+def test_pull_request_identity_accepts_detached_head_bound_to_event() -> None:
+    report = verify_portfolio_release(
+        root=Path.cwd(),
+        runner=_runner(branch="", head_sha="b" * 40),
+        identity_event="pull_request",
+        expected_branch="feature/pr-head",
+        expected_sha="b" * 40,
+        event_branch="feature/pr-head",
+    )
+
+    assert report["status"] == "VERIFIED"
+    assert report["repository"]["branch"] == ""
+
+
+@pytest.mark.parametrize(
+    ("head_sha", "event_branch"),
+    [
+        ("c" * 40, "feature/pr-head"),
+        ("b" * 40, "feature/wrong-head"),
+    ],
+)
+def test_pull_request_identity_rejects_wrong_sha_or_event_branch(
+    head_sha: str,
+    event_branch: str,
+) -> None:
+    report = verify_portfolio_release(
+        root=Path.cwd(),
+        runner=_runner(branch="", head_sha=head_sha),
+        identity_event="pull_request",
+        expected_branch="feature/pr-head",
+        expected_sha="b" * 40,
+        event_branch=event_branch,
+    )
+
+    assert report["status"] == "FAILED"
+    assert report["repository_gate"] == "FAILED_TARGET_IDENTITY"
+
+
 def test_report_is_json_serializable_without_absolute_commands() -> None:
     report = verify_portfolio_release(
         root=Path.cwd(),
@@ -152,7 +227,7 @@ def test_report_is_json_serializable_without_absolute_commands() -> None:
     )
 
     encoded = json.dumps(report, sort_keys=True)
-    assert "portfolio_release_verification_v2" in encoded
+    assert "portfolio_release_verification_v3" in encoded
     for gate in report["gates"]:
         assert gate["command"][0] == "python"
         assert not Path(gate["command"][0]).is_absolute()
