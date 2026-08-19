@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
+from pathlib import Path
 
 from app.agent.tools_v2 import V2ToolRegistry
 from app.agent_runtime.evalops_artifact import (
@@ -11,6 +13,9 @@ from app.agent_runtime.evalops_artifact import (
 from app.agent_runtime.orchestrator import AgentRunRequest, BoundedControllerAdapter
 from app.agent_runtime.trajectory import SQLiteTrajectoryStore
 from tests.v2_test_support import RecordingNavigator, search_hit, search_result, user_context
+
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def artifact(tmp_path) -> AgentRunArtifactV1:
@@ -85,3 +90,27 @@ def test_artifact_does_not_contain_raw_retrieval_fields_or_secrets(tmp_path) -> 
     assert "session_handle" not in serialized
     assert "api_key" not in serialized
 
+
+def test_tracked_public_sample_and_schema_are_valid() -> None:
+    artifact_path = (
+        ROOT
+        / "docs"
+        / "agent_runtime"
+        / "evidence"
+        / "agent_run_artifact_sample_v1.json"
+    )
+    schema_path = (
+        ROOT
+        / "docs"
+        / "agent_runtime"
+        / "schemas"
+        / "agent_run_artifact_v1.schema.json"
+    )
+    result = AgentRunArtifactV1.model_validate_json(
+        artifact_path.read_text(encoding="utf-8")
+    )
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+
+    assert verify_agent_run_artifact(result) is True
+    assert result.git_sha == "9ff917bdf99b971a59754b731176e85d61f570e6"
+    assert schema["properties"]["schema_name"]["const"] == "enterprise.agent-run"

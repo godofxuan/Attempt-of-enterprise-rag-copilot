@@ -1,0 +1,483 @@
+{
+  "schema_name": "enterprise.agent-run",
+  "schema_version": "1.0",
+  "run_id": "sample-session",
+  "case_id": "public-sample-answer",
+  "git_sha": "9ff917bdf99b971a59754b731176e85d61f570e6",
+  "created_at": "2026-08-19T13:19:47.543448Z",
+  "session_id": "sample-session",
+  "trace_id": "sample-trace",
+  "input": {
+    "question": "What is the remote policy?"
+  },
+  "output": {
+    "mode": "answered",
+    "answer": "Remote policy allows three days per month.",
+    "sources": [
+      {
+        "doc_id": "policy-doc-1",
+        "chunk_id": "policy-chunk-1",
+        "source_path": "documents/policy.md"
+      }
+    ],
+    "warnings": []
+  },
+  "trajectory": [
+    {
+      "schema_version": "1.0",
+      "event_id": "259167e886cb410faa45bf89ec9252dd",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 1,
+      "event_type": "session.started",
+      "timestamp": "2026-08-19T13:19:47.176426Z",
+      "payload": {
+        "request_id": "sample-request",
+        "orchestrator": "bounded",
+        "tenant_id": "sample-tenant",
+        "user_id": "sample-employee"
+      },
+      "step_id": null,
+      "tool_name": null,
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": null,
+      "previous_hash": null,
+      "event_hash": "eed00287e481d816f00dca673be3ddf7b0deebe3f89daa2359c0e82e87ab467f"
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "7ebe6c8f512641298ddd35c1d01ce840",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 2,
+      "event_type": "user.message",
+      "timestamp": "2026-08-19T13:19:47.178426Z",
+      "payload": {
+        "question": "What is the remote policy?"
+      },
+      "step_id": null,
+      "tool_name": null,
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": null,
+      "previous_hash": "eed00287e481d816f00dca673be3ddf7b0deebe3f89daa2359c0e82e87ab467f",
+      "event_hash": "7bb556c47126b4366799feb160ead20b4a4a338da6d254dcc60c888ebc7e18d8"
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "938cd369a6404bf9b7e0c3148bcce96c",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 3,
+      "event_type": "step.started",
+      "timestamp": "2026-08-19T13:19:47.179426Z",
+      "payload": {
+        "purpose": "collect visible evidence for required aspect: answer",
+        "aspect": "answer"
+      },
+      "step_id": "step-1",
+      "tool_name": "search",
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": null,
+      "previous_hash": "7bb556c47126b4366799feb160ead20b4a4a338da6d254dcc60c888ebc7e18d8",
+      "event_hash": "476935dd108323c78d7b141e262cafe5df6ec66e7a70ebcd0b14eb3cf1834979"
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "46bbd4bb7cf249799ca279983ce09b06",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 4,
+      "event_type": "tool.requested",
+      "timestamp": "2026-08-19T13:19:47.181426Z",
+      "payload": {
+        "tool_call_id": "agent-step-1",
+        "query": "What is the remote policy?",
+        "purpose": "collect visible evidence for required aspect: answer",
+        "top_k": 5,
+        "mode": "hybrid"
+      },
+      "step_id": "step-1",
+      "tool_name": "search",
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": null,
+      "previous_hash": "476935dd108323c78d7b141e262cafe5df6ec66e7a70ebcd0b14eb3cf1834979",
+      "event_hash": "6d88ebfb83b81f10344ef4dc07a629aa8eee940a23e19e7d81b5da260a8fc7d6"
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "c31a4153f2f54960a0faa9e90667b2e2",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 5,
+      "event_type": "tool.completed",
+      "timestamp": "2026-08-19T13:19:47.182426Z",
+      "payload": {
+        "status": "ok",
+        "visible_count": 1,
+        "items": [
+          {
+            "doc_id": "policy-doc-1",
+            "chunk_id": "policy-chunk-1",
+            "version_id": "policy@2026",
+            "source_path": "documents/policy.md"
+          }
+        ],
+        "security": {
+          "candidate_count": 1,
+          "scanned_count": 2,
+          "admitted_count": 2,
+          "quarantined_count": 0,
+          "scanned_chars": 80,
+          "decoded_candidate_count": 1,
+          "top_up_attempts": 0,
+          "post_guard_evidence_count": 1,
+          "guard_error_count": 0,
+          "risk_categories": [],
+          "rule_ids": [],
+          "detector_version": "rcg-v1.2.0"
+        }
+      },
+      "step_id": "step-1",
+      "tool_name": "search",
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": null,
+      "previous_hash": "6d88ebfb83b81f10344ef4dc07a629aa8eee940a23e19e7d81b5da260a8fc7d6",
+      "event_hash": "21c354857164a94668700715edc4a914fda177cd13ae547ab2b1383aabbf616d"
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "bc0f2e3bc7fd4c0785f09dcdc433ab68",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 6,
+      "event_type": "retrieval.completed",
+      "timestamp": "2026-08-19T13:19:47.183428Z",
+      "payload": {
+        "status": "ok",
+        "visible_count": 1,
+        "items": [
+          {
+            "doc_id": "policy-doc-1",
+            "chunk_id": "policy-chunk-1",
+            "version_id": "policy@2026",
+            "source_path": "documents/policy.md"
+          }
+        ],
+        "security": {
+          "candidate_count": 1,
+          "scanned_count": 2,
+          "admitted_count": 2,
+          "quarantined_count": 0,
+          "scanned_chars": 80,
+          "decoded_candidate_count": 1,
+          "top_up_attempts": 0,
+          "post_guard_evidence_count": 1,
+          "guard_error_count": 0,
+          "risk_categories": [],
+          "rule_ids": [],
+          "detector_version": "rcg-v1.2.0"
+        }
+      },
+      "step_id": "step-1",
+      "tool_name": "search",
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": null,
+      "previous_hash": "21c354857164a94668700715edc4a914fda177cd13ae547ab2b1383aabbf616d",
+      "event_hash": "3ecf83b6d37e957727d55c0c16d213951f13b9d0396687cdcc2215e554e86f04"
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "3911b7ceb3454987b26249a0ae02db5a",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 7,
+      "event_type": "evidence.admitted",
+      "timestamp": "2026-08-19T13:19:47.184426Z",
+      "payload": {
+        "status": "ok",
+        "visible_count": 1,
+        "items": [
+          {
+            "doc_id": "policy-doc-1",
+            "chunk_id": "policy-chunk-1",
+            "version_id": "policy@2026",
+            "source_path": "documents/policy.md"
+          }
+        ],
+        "security": {
+          "candidate_count": 1,
+          "scanned_count": 2,
+          "admitted_count": 2,
+          "quarantined_count": 0,
+          "scanned_chars": 80,
+          "decoded_candidate_count": 1,
+          "top_up_attempts": 0,
+          "post_guard_evidence_count": 1,
+          "guard_error_count": 0,
+          "risk_categories": [],
+          "rule_ids": [],
+          "detector_version": "rcg-v1.2.0"
+        }
+      },
+      "step_id": "step-1",
+      "tool_name": "search",
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": null,
+      "previous_hash": "3ecf83b6d37e957727d55c0c16d213951f13b9d0396687cdcc2215e554e86f04",
+      "event_hash": "2042a3b155c4dc9d6f15a24faf4fd8b27838b8f34aad454547090a3b30f438cb"
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "89afcbefa3c14637918be2edc2364f10",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 8,
+      "event_type": "budget.updated",
+      "timestamp": "2026-08-19T13:19:47.186426Z",
+      "payload": {
+        "budget": {
+          "max_search_calls": 3,
+          "max_find_calls": 2,
+          "max_open_calls": 4,
+          "max_steps": 12,
+          "max_context_chars": 12000,
+          "deadline_ms": 15000
+        },
+        "search_calls": 1,
+        "find_calls": 0,
+        "open_calls": 0,
+        "steps": 1,
+        "context_chars": 121,
+        "deadline_at_ms": 29033890.0
+      },
+      "step_id": "step-1",
+      "tool_name": "search",
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": null,
+      "previous_hash": "2042a3b155c4dc9d6f15a24faf4fd8b27838b8f34aad454547090a3b30f438cb",
+      "event_hash": "e5e52a069b04b7da28b6661dfdfca07e62b65943e16d51fd853e7523ee1018eb"
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "338c7c6c65024100aad4308622d2304c",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 9,
+      "event_type": "claim.proposed",
+      "timestamp": "2026-08-19T13:19:47.538449Z",
+      "payload": {
+        "claim_id": "claim-1",
+        "cited_chunk_ids": [
+          "policy-chunk-1"
+        ]
+      },
+      "step_id": null,
+      "tool_name": null,
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": null,
+      "previous_hash": "e5e52a069b04b7da28b6661dfdfca07e62b65943e16d51fd853e7523ee1018eb",
+      "event_hash": "1be350ed3eacf113510dfa86d2a007cbebd0a791f4887eb8add1d89547b54d61"
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "cd19c4b9d28041a2819353a8d86440d4",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 10,
+      "event_type": "claim.accepted",
+      "timestamp": "2026-08-19T13:19:47.540448Z",
+      "payload": {
+        "claim_id": "claim-1",
+        "cited_chunk_ids": [
+          "policy-chunk-1"
+        ]
+      },
+      "step_id": null,
+      "tool_name": null,
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": null,
+      "previous_hash": "1be350ed3eacf113510dfa86d2a007cbebd0a791f4887eb8add1d89547b54d61",
+      "event_hash": "4a2b813a77487681ee1890e762cf3a27e6511453717ecf51385f2cf45282f918"
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "41122238a0a445589ce39bf505d3de13",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 11,
+      "event_type": "citation.checked",
+      "timestamp": "2026-08-19T13:19:47.541448Z",
+      "payload": {
+        "claim_id": "claim-1",
+        "cited_chunk_ids": [
+          "policy-chunk-1"
+        ],
+        "citation_present": true,
+        "references_visible_evidence": true,
+        "lexical_support": 1.0,
+        "supported": true,
+        "unsupported_reason": null
+      },
+      "step_id": null,
+      "tool_name": null,
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": null,
+      "previous_hash": "4a2b813a77487681ee1890e762cf3a27e6511453717ecf51385f2cf45282f918",
+      "event_hash": "5b50af1f0ece85f989b38b6bd8cd270ec881383045f03a10fecc1c5ca5b7cd08"
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "0f6c3b27137d4ca4a6c1def0856a3a0d",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 12,
+      "event_type": "terminal.reached",
+      "timestamp": "2026-08-19T13:19:47.542448Z",
+      "payload": {
+        "mode": "answered",
+        "answer": "Remote policy allows three days per month.",
+        "sources": [
+          {
+            "doc_id": "policy-doc-1",
+            "chunk_id": "policy-chunk-1",
+            "source_path": "documents/policy.md"
+          }
+        ],
+        "warnings": []
+      },
+      "step_id": null,
+      "tool_name": null,
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": "completed",
+      "previous_hash": "5b50af1f0ece85f989b38b6bd8cd270ec881383045f03a10fecc1c5ca5b7cd08",
+      "event_hash": "55c5d1370dfa98ec0e5452e2cba0b8870d1cc7246e88353e9289a9846451a8ea"
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "4f711ec5996c4caa99e260c8061b43eb",
+      "session_id": "sample-session",
+      "trace_id": "sample-trace",
+      "sequence": 13,
+      "event_type": "session.completed",
+      "timestamp": "2026-08-19T13:19:47.543448Z",
+      "payload": {
+        "orchestrator": "bounded",
+        "mode": "answered"
+      },
+      "step_id": null,
+      "tool_name": null,
+      "latency_ms": null,
+      "token_usage": null,
+      "cost_usd": null,
+      "error_code": null,
+      "terminal_reason": "completed",
+      "previous_hash": "55c5d1370dfa98ec0e5452e2cba0b8870d1cc7246e88353e9289a9846451a8ea",
+      "event_hash": "29d48c0ac9d5902e085fd6195d947432329a84a339fa80278e867b4c9b81582e"
+    }
+  ],
+  "retrieval": {
+    "tool_steps": [
+      {
+        "step_id": "step-1",
+        "tool_name": "search",
+        "request": {
+          "tool_call_id": "agent-step-1",
+          "query": "What is the remote policy?",
+          "purpose": "collect visible evidence for required aspect: answer",
+          "top_k": 5,
+          "mode": "hybrid"
+        },
+        "result": {
+          "status": "ok",
+          "visible_count": 1,
+          "items": [
+            {
+              "doc_id": "policy-doc-1",
+              "chunk_id": "policy-chunk-1",
+              "version_id": "policy@2026",
+              "source_path": "documents/policy.md"
+            }
+          ],
+          "security": {
+            "candidate_count": 1,
+            "scanned_count": 2,
+            "admitted_count": 2,
+            "quarantined_count": 0,
+            "scanned_chars": 80,
+            "decoded_candidate_count": 1,
+            "top_up_attempts": 0,
+            "post_guard_evidence_count": 1,
+            "guard_error_count": 0,
+            "risk_categories": [],
+            "rule_ids": [],
+            "detector_version": "rcg-v1.2.0"
+          }
+        },
+        "status": "ok",
+        "error_code": null
+      }
+    ]
+  },
+  "evidence": {
+    "admitted": [
+      {
+        "doc_id": "policy-doc-1",
+        "chunk_id": "policy-chunk-1",
+        "version_id": "policy@2026",
+        "source_path": "documents/policy.md"
+      }
+    ],
+    "admitted_count": 1
+  },
+  "usage": {
+    "trajectory_event_count": 13,
+    "tool_call_count": 1,
+    "model_call_count": 0,
+    "token_usage": 0,
+    "cost_usd": 0.0,
+    "recorded_latency_ms": 0.0
+  },
+  "terminal": {
+    "mode": "answered",
+    "reason": "completed",
+    "completed": true
+  },
+  "source_trajectory_root_hash": "29d48c0ac9d5902e085fd6195d947432329a84a339fa80278e867b4c9b81582e",
+  "artifact_sha256": "f9d32f1bff44a27bbde1bf92b47800d396c9700a8120c135abf9b842b8108233"
+}
