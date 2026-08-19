@@ -27,10 +27,16 @@ from app.agent.runner_v2 import (
 from app.agent.tools_v2 import V2ToolRegistry, build_tool_error_execution
 from app.agent_runtime.tool_contract import ToolContext, ToolRequest
 from app.agent_runtime.tool_gateway import ToolGateway
+from app.agent_runtime.trajectory import SQLiteTrajectoryStore, TrajectoryRecorder
 from app.domain.agent import AgentBudget, ToolErrorCode
 from app.domain.evidence import AnswerResponse
 from app.domain.queries import QueryAnalysis, UserContext
-from app.domain.retrieved_security import GuardedV2ToolExecution
+from app.domain.retrieved_security import (
+    GuardedFindResult,
+    GuardedOpenAdmittedResult,
+    GuardedSearchResult,
+    GuardedV2ToolExecution,
+)
 
 
 ClockMs = Callable[[], float]
@@ -73,10 +79,12 @@ class _ContractToolSession:
         context: ToolContext,
         *,
         clock_ms: ClockMs,
+        recorder: TrajectoryRecorder | None = None,
     ) -> None:
         self._context = context
         self._gateway = ToolGateway(registry, clock_ms=clock_ms)
         self._gateway.start_session(context)
+        self._recorder = recorder
 
     def run(self, action, budget_state) -> GuardedV2ToolExecution:
         arguments = {
@@ -99,10 +107,26 @@ class _ContractToolSession:
             aspect=action.aspect,
             arguments=arguments,
         )
+        step_id = f"step-{action.sequence}"
+        self._recorder.record(
+            "step.started",
+            step_id=step_id,
+            tool_name=action.tool,
+            payload={"purpose": action.purpose, "aspect": action.aspect},
+        ) if self._recorder is not None else None
+        if self._recorder is not None:
+            self._recorder.record(
+                "tool.requested",
+                step_id=step_id,
+                tool_name=action.tool,
+                payload=_tool_request_summary(request),
+            )
         result, execution = self._gateway.execute_with_domain(
             request,
             self._context,
         )
+        if self._recorder is not None:
+            self._record_tool_outcome(result, execution, step_id)
         if execution is not None:
             return execution
         return build_tool_error_execution(
@@ -111,6 +135,57 @@ class _ContractToolSession:
             code=_domain_error_code(result.error.code),
             message=result.error.safe_message,
             retryable=result.error.retryable,
+        )
+
+    def _record_tool_outcome(self, result, execution, step_id: str) -> None:
+        if result.status == "error":
+            self._recorder.record(
+                "tool.failed",
+                step_id=step_id,
+                tool_name=result.tool,
+                error_code=result.error.code,
+                payload={
+                    "retryable": result.error.retryable,
+                    "safe_message": result.error.safe_message,
+                },
+            )
+        else:
+            summary = _tool_result_summary(execution)
+            self._recorder.record(
+                "tool.completed",
+                step_id=step_id,
+                tool_name=result.tool,
+                payload=summary,
+            )
+            self._recorder.record(
+                "retrieval.completed",
+                step_id=step_id,
+                tool_name=result.tool,
+                payload=summary,
+            )
+            if execution.visible_count:
+                self._recorder.record(
+                    "evidence.admitted",
+                    step_id=step_id,
+                    tool_name=result.tool,
+                    payload=summary,
+                )
+            if execution.security_counters.quarantined_count:
+                self._recorder.record(
+                    "evidence.rejected",
+                    step_id=step_id,
+                    tool_name=result.tool,
+                    payload={
+                        "count": execution.security_counters.quarantined_count,
+                        "risk_categories": execution.security_counters.risk_categories,
+                        "rule_ids": execution.security_counters.rule_ids,
+                    },
+                )
+        self._recorder.record(
+            "budget.updated",
+            step_id=step_id,
+            tool_name=result.tool,
+            payload=result.budget_state.model_dump(mode="json"),
         )
 
     def close(self) -> None:
@@ -146,6 +221,7 @@ class BoundedControllerAdapter:
         response_builder: ResponseBuilder | None = None,
         budget: AgentBudget | None = None,
         clock_ms: ClockMs | None = None,
+        trajectory_store: SQLiteTrajectoryStore | None = None,
     ) -> None:
         self.registry = registry
         self.clock_ms = clock_ms or (lambda: time.monotonic() * 1000.0)
@@ -153,14 +229,17 @@ class BoundedControllerAdapter:
         self.controller = controller or V2AgentController(clock_ms=self.clock_ms)
         self.response_builder = response_builder or ExtractiveResponseBuilder()
         self.budget = budget or AgentBudget()
+        self.trajectory_store = trajectory_store
 
     def run(self, request: AgentRunRequest) -> AgentRunResult:
         started = self.clock_ms()
+        recorder = _begin_trajectory(self.trajectory_store, request, self.name)
         tools = _new_tool_session(
             self.registry,
             request,
             self.budget,
             clock_ms=self.clock_ms,
+            recorder=recorder,
         )
         try:
             runner = V2AgentRunner(
@@ -172,6 +251,7 @@ class BoundedControllerAdapter:
                 clock_ms=self.clock_ms,
             )
             response = runner.run(request.question, request.user, request.top_k)
+            _complete_trajectory(recorder, response, self.name)
         finally:
             tools.close()
         return AgentRunResult(
@@ -208,6 +288,7 @@ class LangGraphOrchestratorAdapter:
         response_builder: ResponseBuilder | None = None,
         budget: AgentBudget | None = None,
         clock_ms: ClockMs | None = None,
+        trajectory_store: SQLiteTrajectoryStore | None = None,
     ) -> None:
         self.registry = registry
         self.clock_ms = clock_ms or (lambda: time.monotonic() * 1000.0)
@@ -215,14 +296,17 @@ class LangGraphOrchestratorAdapter:
         self.controller = controller or V2AgentController(clock_ms=self.clock_ms)
         self.response_builder = response_builder or ExtractiveResponseBuilder()
         self.budget = budget or AgentBudget()
+        self.trajectory_store = trajectory_store
 
     def run(self, request: AgentRunRequest) -> AgentRunResult:
         started = self.clock_ms()
+        recorder = _begin_trajectory(self.trajectory_store, request, self.name)
         tools = _new_tool_session(
             self.registry,
             request,
             self.budget,
             clock_ms=self.clock_ms,
+            recorder=recorder,
         )
         graph = self._compile(tools)
         try:
@@ -235,6 +319,7 @@ class LangGraphOrchestratorAdapter:
                 },
                 config={"recursion_limit": self.budget.max_steps * 3 + 10},
             )
+            _complete_trajectory(recorder, state["response"], self.name)
         finally:
             tools.close()
         return AgentRunResult(
@@ -362,6 +447,7 @@ def _new_tool_session(
     budget: AgentBudget,
     *,
     clock_ms: ClockMs,
+    recorder: TrajectoryRecorder | None = None,
 ) -> _ContractToolSession:
     issued = float(clock_ms())
     context = ToolContext(
@@ -374,7 +460,140 @@ def _new_tool_session(
         issued_at_ms=issued,
         expires_at_ms=issued + budget.deadline_ms,
     )
-    return _ContractToolSession(registry, context, clock_ms=clock_ms)
+    return _ContractToolSession(
+        registry,
+        context,
+        clock_ms=clock_ms,
+        recorder=recorder,
+    )
+
+
+def _begin_trajectory(
+    store: SQLiteTrajectoryStore | None,
+    request: AgentRunRequest,
+    orchestrator: OrchestratorName,
+) -> TrajectoryRecorder | None:
+    if store is None:
+        return None
+    recorder = TrajectoryRecorder(
+        store,
+        session_id=request.session_id,
+        trace_id=request.trace_id,
+    )
+    recorder.record(
+        "session.started",
+        payload={
+            "request_id": request.request_id,
+            "orchestrator": orchestrator,
+            "tenant_id": request.user.tenant_id,
+            "user_id": request.user.user_id,
+        },
+    )
+    recorder.record("user.message", payload={"question": request.question})
+    return recorder
+
+
+def _complete_trajectory(
+    recorder: TrajectoryRecorder | None,
+    response: AnswerResponse,
+    orchestrator: OrchestratorName,
+) -> None:
+    if recorder is None:
+        return
+    for claim in response.claims:
+        payload = {
+            "claim_id": claim.claim_id,
+            "cited_chunk_ids": claim.cited_chunk_ids,
+        }
+        recorder.record("claim.proposed", payload=payload)
+        recorder.record("claim.accepted", payload=payload)
+    for citation in response.citations:
+        recorder.record(
+            "citation.checked",
+            payload=citation.model_dump(mode="json"),
+        )
+    recorder.record(
+        "terminal.reached",
+        terminal_reason=response.stop_reason,
+        payload={
+            "mode": response.mode,
+            "answer": response.answer,
+            "sources": [
+                {
+                    "doc_id": source.doc_id,
+                    "chunk_id": source.chunk_id,
+                    "source_path": source.source_path,
+                }
+                for source in response.sources
+            ],
+            "warnings": response.warnings,
+        },
+    )
+    recorder.record(
+        "session.completed",
+        terminal_reason=response.stop_reason,
+        payload={"orchestrator": orchestrator, "mode": response.mode},
+    )
+
+
+def _tool_request_summary(request: ToolRequest) -> dict:
+    arguments = request.arguments
+    if request.tool == "search":
+        return {
+            "tool_call_id": arguments.request_id,
+            "query": arguments.query,
+            "purpose": arguments.purpose,
+            "top_k": arguments.top_k,
+            "mode": arguments.mode,
+        }
+    if request.tool == "find":
+        return {
+            "tool_call_id": arguments.request_id,
+            "doc_id": arguments.doc_id,
+            "pattern": arguments.pattern,
+            "max_results": arguments.max_results,
+        }
+    return {
+        "tool_call_id": arguments.request_id,
+        "target_type": arguments.target_type,
+        "target_id": arguments.target_id,
+        "max_chars": arguments.max_chars,
+    }
+
+
+def _tool_result_summary(execution: GuardedV2ToolExecution) -> dict:
+    result = execution.result
+    items: list[dict] = []
+    if isinstance(result, GuardedSearchResult):
+        items = [
+            {
+                "doc_id": item.hit.doc_id,
+                "chunk_id": item.hit.chunk_id,
+                "version_id": item.hit.version_id,
+                "source_path": item.hit.source_path,
+            }
+            for item in result.hits
+        ]
+    elif isinstance(result, GuardedFindResult):
+        items = [
+            {"doc_id": item.match.doc_id, "chunk_id": item.match.chunk_id}
+            for item in result.matches
+        ]
+    elif isinstance(result, GuardedOpenAdmittedResult):
+        item = result.item.result
+        items = [
+            {
+                "doc_id": item.doc_id,
+                "target_id": item.target_id,
+                "source_path": item.source_path,
+            }
+        ]
+    return {
+        "status": execution.status,
+        "visible_count": execution.visible_count,
+        "items": items,
+        "security": execution.security_counters.model_dump(mode="json"),
+    }
 
 
 def _runtime_trace(
@@ -462,4 +681,3 @@ __all__ = [
     "BoundedControllerAdapter",
     "LangGraphOrchestratorAdapter",
 ]
-
