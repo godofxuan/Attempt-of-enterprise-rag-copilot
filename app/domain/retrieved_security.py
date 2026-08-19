@@ -92,6 +92,11 @@ class GuardDecision(BaseModel):
     decoded_view_count: int = Field(ge=0, le=MAX_DECODED_VIEWS)
     guard_error: bool = False
 
+    @field_validator("risk_categories", "rule_ids", mode="before")
+    @classmethod
+    def normalize_tuple_fields(cls, values):
+        return tuple(values) if isinstance(values, list) else values
+
     @field_validator("risk_categories")
     @classmethod
     def validate_categories(cls, values: tuple[str, ...]) -> tuple[str, ...]:
@@ -212,6 +217,11 @@ class AdmittedSearchHitSnapshot(_GuardedModel):
     dense_rank: int | None = Field(default=None, ge=1)
     bm25_rank: int | None = Field(default=None, ge=1)
 
+    @field_validator("section_path", "acl_groups", "fact_ids", mode="before")
+    @classmethod
+    def normalize_tuple_fields(cls, values):
+        return tuple(values) if isinstance(values, list) else values
+
     @field_validator("acl_groups", "fact_ids")
     @classmethod
     def validate_unique_values(cls, values: tuple[str, ...]) -> tuple[str, ...]:
@@ -239,6 +249,11 @@ class AdmittedFindMatchSnapshot(_GuardedModel):
     section_path: tuple[str, ...] = Field(min_length=1)
     preview: str = Field(min_length=1, max_length=1000)
 
+    @field_validator("section_path", mode="before")
+    @classmethod
+    def normalize_section_path(cls, values):
+        return tuple(values) if isinstance(values, list) else values
+
     @classmethod
     def from_raw(cls, match: FindMatch) -> AdmittedFindMatchSnapshot:
         return cls(
@@ -258,6 +273,11 @@ class AdmittedOpenResultSnapshot(_GuardedModel):
     truncated: bool
     source_path: str = Field(min_length=1)
     section_path: tuple[str, ...] = Field(default_factory=tuple)
+
+    @field_validator("section_path", mode="before")
+    @classmethod
+    def normalize_section_path(cls, values):
+        return tuple(values) if isinstance(values, list) else values
 
     @classmethod
     def from_raw(cls, result: OpenResult) -> AdmittedOpenResultSnapshot:
@@ -288,12 +308,14 @@ class AdmittedEvidenceChunk(_GuardedModel):
     @classmethod
     def snapshot_hit(
         cls,
-        value: SearchHit | AdmittedSearchHitSnapshot,
+        value: SearchHit | AdmittedSearchHitSnapshot | dict,
     ) -> AdmittedSearchHitSnapshot:
         if isinstance(value, AdmittedSearchHitSnapshot):
             return value
         if isinstance(value, SearchHit):
             return AdmittedSearchHitSnapshot.from_raw(value)
+        if isinstance(value, dict):
+            return AdmittedSearchHitSnapshot.model_validate(value)
         raise TypeError("admitted evidence requires a typed SearchHit")
 
     @model_validator(mode="after")
@@ -325,12 +347,14 @@ class AdmittedFindMatch(_GuardedModel):
     @classmethod
     def snapshot_match(
         cls,
-        value: FindMatch | AdmittedFindMatchSnapshot,
+        value: FindMatch | AdmittedFindMatchSnapshot | dict,
     ) -> AdmittedFindMatchSnapshot:
         if isinstance(value, AdmittedFindMatchSnapshot):
             return value
         if isinstance(value, FindMatch):
             return AdmittedFindMatchSnapshot.from_raw(value)
+        if isinstance(value, dict):
+            return AdmittedFindMatchSnapshot.model_validate(value)
         raise TypeError("admitted find evidence requires a typed FindMatch")
 
     @model_validator(mode="after")
@@ -349,12 +373,14 @@ class AdmittedOpenResult(_GuardedModel):
     @classmethod
     def snapshot_result(
         cls,
-        value: OpenResult | AdmittedOpenResultSnapshot,
+        value: OpenResult | AdmittedOpenResultSnapshot | dict,
     ) -> AdmittedOpenResultSnapshot:
         if isinstance(value, AdmittedOpenResultSnapshot):
             return value
         if isinstance(value, OpenResult):
             return AdmittedOpenResultSnapshot.from_raw(value)
+        if isinstance(value, dict):
+            return AdmittedOpenResultSnapshot.model_validate(value)
         raise TypeError("admitted open evidence requires a typed OpenResult")
 
     @model_validator(mode="after")

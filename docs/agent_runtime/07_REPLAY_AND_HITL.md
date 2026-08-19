@@ -28,7 +28,18 @@ misleading implementation.
 
 ## Human review
 
-Stage G adds a bounded review flow only for a real reachable partial-evidence
-terminal. Its exact persistence and restart limitation are documented after the
-implementation; it must not be confused with general durable execution.
+The LangGraph adapter can enable `hitl_on_partial`. When the bounded controller
+reaches a real `partial_evidence` terminal, the graph calls LangGraph
+`interrupt()` before publication. The caller receives no answer, only a review
+request containing an evidence summary and one-time opaque review token.
 
+A reviewer may choose `accept_partial` or `reject`. Resume requires the same
+tenant and the `knowledge_reviewer` role. The token is stored by SHA-256 digest,
+is never written to trajectory, and is consumed once. Both request and decision
+produce `human_review.*` events. Rejecting returns a source-free terminal.
+
+The graph checkpoint and pending-token map are intentionally in memory. A
+process restart invalidates the review, so this is a real in-process
+pause/resume workflow but not crash-durable HITL. Persisting executable state
+would require encrypted private checkpoints, expiry, index-version pinning, and
+an operational cleanup policy; those are not implied by trajectory replay.

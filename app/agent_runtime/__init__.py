@@ -6,6 +6,8 @@ from app.agent_runtime.orchestrator import (
     AgentRunRequest,
     AgentRunResult,
     BoundedControllerAdapter,
+    HumanReviewDecision,
+    HumanReviewRequest,
     LangGraphOrchestratorAdapter,
 )
 from app.agent_runtime.tool_contract import (
@@ -32,6 +34,8 @@ __all__ = [
     "AgentRunResult",
     "AgentTrajectoryReplay",
     "BoundedControllerAdapter",
+    "HumanReviewDecision",
+    "HumanReviewRequest",
     "EnterpriseKnowledgeMCP",
     "LangGraphOrchestratorAdapter",
     "MCPContextBroker",

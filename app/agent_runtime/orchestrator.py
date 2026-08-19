@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import time
+import hashlib
+import secrets
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Literal, Protocol, TypedDict
 
 from langgraph.graph import END, START, StateGraph
-from pydantic import BaseModel, ConfigDict, Field
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.types import Command, interrupt
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.agent.controller_v2 import (
     ControllerDecision,
@@ -28,7 +33,7 @@ from app.agent.tools_v2 import V2ToolRegistry, build_tool_error_execution
 from app.agent_runtime.tool_contract import ToolContext, ToolRequest
 from app.agent_runtime.tool_gateway import ToolGateway
 from app.agent_runtime.trajectory import SQLiteTrajectoryStore, TrajectoryRecorder
-from app.domain.agent import AgentBudget, ToolErrorCode
+from app.domain.agent import AgentAction, AgentBudget, BudgetState, ToolErrorCode
 from app.domain.evidence import AnswerResponse
 from app.domain.queries import QueryAnalysis, UserContext
 from app.domain.retrieved_security import (
@@ -61,9 +66,40 @@ class AgentRunResult(_StrictModel):
     request_id: str
     trace_id: str
     session_id: str
-    response: AnswerResponse
+    status: Literal["completed", "needs_human_review"] = "completed"
+    response: AnswerResponse | None = None
+    human_review: HumanReviewRequest | None = None
     node_trace: list[str] = Field(default_factory=list)
     latency_ms: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_status_shape(self) -> AgentRunResult:
+        if self.status == "completed" and (
+            self.response is None or self.human_review is not None
+        ):
+            raise ValueError("completed run requires response only")
+        if self.status == "needs_human_review" and (
+            self.response is not None or self.human_review is None
+        ):
+            raise ValueError("paused run requires human review only")
+        return self
+
+
+class HumanReviewRequest(_StrictModel):
+    review_id: str = Field(min_length=1, max_length=128)
+    review_token: str = Field(min_length=32, max_length=256, repr=False)
+    session_id: str = Field(min_length=1, max_length=128)
+    reason: Literal["partial_evidence"] = "partial_evidence"
+    allowed_decisions: tuple[Literal["accept_partial", "reject"], ...] = (
+        "accept_partial",
+        "reject",
+    )
+    evidence_summary: dict[str, object] = Field(default_factory=dict)
+
+
+class HumanReviewDecision(_StrictModel):
+    decision: Literal["accept_partial", "reject"]
+    note: str = Field(default="", max_length=1000)
 
 
 class AgentOrchestrator(Protocol):
@@ -274,6 +310,16 @@ class _GraphState(TypedDict, total=False):
     step_traces: list[dict]
     node_trace: list[str]
     loop_count: int
+    human_decision: str
+
+
+@dataclass
+class _PendingHumanReview:
+    graph: object
+    config: dict
+    request: AgentRunRequest
+    review: HumanReviewRequest
+    recorder: TrajectoryRecorder | None
 
 
 class LangGraphOrchestratorAdapter:
@@ -289,6 +335,7 @@ class LangGraphOrchestratorAdapter:
         budget: AgentBudget | None = None,
         clock_ms: ClockMs | None = None,
         trajectory_store: SQLiteTrajectoryStore | None = None,
+        hitl_on_partial: bool = False,
     ) -> None:
         self.registry = registry
         self.clock_ms = clock_ms or (lambda: time.monotonic() * 1000.0)
@@ -297,6 +344,8 @@ class LangGraphOrchestratorAdapter:
         self.response_builder = response_builder or ExtractiveResponseBuilder()
         self.budget = budget or AgentBudget()
         self.trajectory_store = trajectory_store
+        self.hitl_on_partial = hitl_on_partial
+        self._pending_reviews: dict[str, _PendingHumanReview] = {}
 
     def run(self, request: AgentRunRequest) -> AgentRunResult:
         started = self.clock_ms()
@@ -308,20 +357,55 @@ class LangGraphOrchestratorAdapter:
             clock_ms=self.clock_ms,
             recorder=recorder,
         )
-        graph = self._compile(tools)
+        checkpointer = InMemorySaver() if self.hitl_on_partial else None
+        graph = self._compile(tools, checkpointer=checkpointer)
+        config = {
+            "recursion_limit": self.budget.max_steps * 3 + 10,
+            "configurable": {"thread_id": request.session_id},
+        }
         try:
             state = graph.invoke(
                 {
-                    "request": request,
+                    "request": request.model_dump(mode="json"),
                     "step_traces": [],
                     "node_trace": [],
                     "loop_count": 0,
                 },
-                config={"recursion_limit": self.budget.max_steps * 3 + 10},
+                config=config,
             )
-            _complete_trajectory(recorder, state["response"], self.name)
         finally:
             tools.close()
+        if "__interrupt__" in state:
+            review = self._create_review_request(request, state)
+            digest = _review_token_digest(review.review_token)
+            self._pending_reviews[digest] = _PendingHumanReview(
+                graph=graph,
+                config=config,
+                request=request,
+                review=review,
+                recorder=recorder,
+            )
+            if recorder is not None:
+                recorder.record(
+                    "human_review.requested",
+                    payload={
+                        "review_id": review.review_id,
+                        "reason": review.reason,
+                        "allowed_decisions": review.allowed_decisions,
+                        "evidence_summary": review.evidence_summary,
+                    },
+                )
+            return AgentRunResult(
+                orchestrator=self.name,
+                request_id=request.request_id,
+                trace_id=request.trace_id,
+                session_id=request.session_id,
+                status="needs_human_review",
+                human_review=review,
+                node_trace=[*state["node_trace"], "human_review"],
+                latency_ms=max(0.0, self.clock_ms() - started),
+            )
+        _complete_trajectory(recorder, state["response"], self.name)
         return AgentRunResult(
             orchestrator=self.name,
             request_id=request.request_id,
@@ -332,22 +416,93 @@ class LangGraphOrchestratorAdapter:
             latency_ms=max(0.0, self.clock_ms() - started),
         )
 
-    def _compile(self, tools: _ContractToolSession):
+    def resume(
+        self,
+        review_token: str,
+        decision: HumanReviewDecision,
+        reviewer: UserContext,
+    ) -> AgentRunResult:
+        digest = _review_token_digest(review_token)
+        pending = self._pending_reviews.get(digest)
+        if pending is None:
+            raise ValueError("human review token is invalid, stale, or already used")
+        if reviewer.tenant_id != pending.request.user.tenant_id:
+            raise PermissionError("human reviewer belongs to a different tenant")
+        if "knowledge_reviewer" not in reviewer.roles:
+            raise PermissionError("human reviewer role is required")
+        self._pending_reviews.pop(digest)
+        if pending.recorder is not None:
+            pending.recorder.record(
+                "human_review.completed",
+                payload={
+                    "review_id": pending.review.review_id,
+                    "decision": decision.decision,
+                    "reviewer_user_id": reviewer.user_id,
+                    "note": decision.note,
+                },
+            )
+        started = self.clock_ms()
+        state = pending.graph.invoke(
+            Command(resume=decision.decision),
+            config=pending.config,
+        )
+        response = state["response"]
+        _complete_trajectory(pending.recorder, response, self.name)
+        return AgentRunResult(
+            orchestrator=self.name,
+            request_id=pending.request.request_id,
+            trace_id=pending.request.trace_id,
+            session_id=pending.request.session_id,
+            response=response,
+            node_trace=state["node_trace"],
+            latency_ms=max(0.0, self.clock_ms() - started),
+        )
+
+    def _create_review_request(
+        self,
+        request: AgentRunRequest,
+        state: _GraphState,
+    ) -> HumanReviewRequest:
+        controller_state = _as_controller_state(state["controller_state"])
+        ledger = controller_state.ledger
+        return HumanReviewRequest(
+            review_id=f"review-{secrets.token_hex(12)}",
+            review_token=secrets.token_urlsafe(32),
+            session_id=request.session_id,
+            evidence_summary={
+                "required": len(ledger.required_aspects) if ledger else 0,
+                "supported": len(ledger.supported_aspects) if ledger else 0,
+                "missing": list(ledger.missing_aspects) if ledger else [],
+                "conflicting": list(ledger.conflicting_aspects) if ledger else [],
+            },
+        )
+
+    def _compile(self, tools: _ContractToolSession, *, checkpointer=None):
         builder = StateGraph(_GraphState)
         builder.add_node("analyze", self._analyze_node)
         builder.add_node("decide", self._decide_node)
         builder.add_node("execute", lambda state: self._execute_node(state, tools))
         builder.add_node("publish", self._publish_node)
+        if self.hitl_on_partial:
+            builder.add_node("human_review", self._human_review_node)
+            builder.add_node("reject", self._reject_node)
         builder.add_edge(START, "analyze")
         builder.add_conditional_edges(
             "analyze",
             _route_after_analyze,
             {"decide": "decide", "done": END},
         )
+        decision_routes = {
+            "execute": "execute",
+            "publish": "publish",
+            "done": END,
+        }
+        if self.hitl_on_partial:
+            decision_routes["human_review"] = "human_review"
         builder.add_conditional_edges(
             "decide",
-            _route_after_decide,
-            {"execute": "execute", "publish": "publish", "done": END},
+            self._route_after_decide,
+            decision_routes,
         )
         builder.add_conditional_edges(
             "execute",
@@ -355,10 +510,17 @@ class LangGraphOrchestratorAdapter:
             {"decide": "decide", "done": END},
         )
         builder.add_edge("publish", END)
-        return builder.compile()
+        if self.hitl_on_partial:
+            builder.add_conditional_edges(
+                "human_review",
+                _route_after_human_review,
+                {"publish": "publish", "reject": "reject"},
+            )
+            builder.add_edge("reject", END)
+        return builder.compile(checkpointer=checkpointer)
 
     def _analyze_node(self, state: _GraphState) -> dict:
-        request = state["request"]
+        request = _as_request(state["request"])
         nodes = [*state["node_trace"], "analyze"]
         try:
             analysis = self.analyzer.analyze(request.question, request.user)
@@ -369,8 +531,8 @@ class LangGraphOrchestratorAdapter:
                 budget=self.budget,
             )
             return {
-                "analysis": analysis,
-                "controller_state": controller_state,
+                "analysis": analysis.model_dump(mode="python"),
+                "controller_state": controller_state.model_dump(mode="python"),
                 "node_trace": nodes,
             }
         except Exception:
@@ -388,8 +550,9 @@ class LangGraphOrchestratorAdapter:
                 "node_trace": [*nodes, "runaway_guard"],
             }
         try:
-            decision = self.controller.next_decision(state["controller_state"])
-            return {"decision": decision, "node_trace": nodes}
+            controller_state = _as_controller_state(state["controller_state"])
+            decision = self.controller.next_decision(controller_state)
+            return {"decision": decision.model_dump(mode="python"), "node_trace": nodes}
         except Exception:
             return {"response": _system_response(state), "node_trace": nodes}
 
@@ -401,12 +564,14 @@ class LangGraphOrchestratorAdapter:
         nodes = [*state["node_trace"], "execute"]
         started = self.clock_ms()
         try:
+            decision = _as_decision(state["decision"])
+            current_state = _as_controller_state(state["controller_state"])
             execution = tools.run(
-                state["decision"].action,
-                state["controller_state"].budget_state,
+                decision.action,
+                current_state.budget_state,
             )
             controller_state = self.controller.observe(
-                state["controller_state"],
+                current_state,
                 execution,
             )
             step = _tool_step_trace(
@@ -414,7 +579,7 @@ class LangGraphOrchestratorAdapter:
                 latency_ms=max(0.0, self.clock_ms() - started),
             )
             return {
-                "controller_state": controller_state,
+                "controller_state": controller_state.model_dump(mode="python"),
                 "step_traces": [*state["step_traces"], step],
                 "node_trace": nodes,
                 "loop_count": state["loop_count"] + 1,
@@ -424,13 +589,15 @@ class LangGraphOrchestratorAdapter:
 
     def _publish_node(self, state: _GraphState) -> dict:
         nodes = [*state["node_trace"], "publish"]
-        decision = state["decision"]
-        controller_state = state["controller_state"]
+        decision = _as_decision(state["decision"])
+        controller_state = _as_controller_state(state["controller_state"])
+        analysis = _as_analysis(state["analysis"])
+        request = _as_request(state["request"])
         steps = [*state["step_traces"], _terminal_step_trace(decision, controller_state)]
-        trace = _runtime_trace(state["analysis"], controller_state, decision, steps)
+        trace = _runtime_trace(analysis, controller_state, decision, steps)
         try:
             response = self.response_builder.build(
-                question=state["request"].question,
+                question=request.question,
                 state=controller_state,
                 mode=decision.terminal_mode,
                 stop_reason=decision.stop_reason,
@@ -439,6 +606,55 @@ class LangGraphOrchestratorAdapter:
         except Exception:
             response = _source_free_response("system", "system_error", trace)
         return {"response": response, "step_traces": steps, "node_trace": nodes}
+
+    def _human_review_node(self, state: _GraphState) -> dict:
+        decision = interrupt(
+            {
+                "reason": "partial_evidence",
+                "allowed_decisions": ["accept_partial", "reject"],
+            }
+        )
+        if decision not in {"accept_partial", "reject"}:
+            decision = "reject"
+        return {
+            "human_decision": decision,
+            "node_trace": [*state["node_trace"], "human_review"],
+        }
+
+    def _reject_node(self, state: _GraphState) -> dict:
+        analysis = _as_analysis(state["analysis"])
+        controller_state = _as_controller_state(state["controller_state"])
+        decision = _as_decision(state["decision"])
+        trace = _runtime_trace(
+            analysis,
+            controller_state,
+            decision,
+            [
+                *state["step_traces"],
+                _terminal_step_trace(decision, controller_state),
+            ],
+        )
+        response = AnswerResponse(
+            mode="not_found",
+            answer="No answer was published because human review rejected partial evidence.",
+            stop_reason="not_found",
+            trace=trace,
+        )
+        return {
+            "response": response,
+            "node_trace": [*state["node_trace"], "reject"],
+        }
+
+    def _route_after_decide(
+        self,
+        state: _GraphState,
+    ) -> Literal["execute", "publish", "human_review", "done"]:
+        if "response" in state:
+            return "done"
+        decision = _as_decision(state["decision"])
+        if self.hitl_on_partial and decision.terminal_mode == "partial":
+            return "human_review"
+        return "publish" if decision.terminal_mode is not None else "execute"
 
 
 def _new_tool_session(
@@ -623,6 +839,8 @@ def _system_response(state: _GraphState) -> AnswerResponse:
     if analysis is None or controller_state is None:
         trace = _empty_system_trace()
     else:
+        analysis = _as_analysis(analysis)
+        controller_state = _as_controller_state(controller_state)
         trace = _build_trace(
             intent=analysis.intent,
             analysis_source=analysis.source,
@@ -662,16 +880,40 @@ def _route_after_analyze(state: _GraphState) -> Literal["decide", "done"]:
     return "done" if "response" in state else "decide"
 
 
-def _route_after_decide(
-    state: _GraphState,
-) -> Literal["execute", "publish", "done"]:
-    if "response" in state:
-        return "done"
-    return "publish" if state["decision"].terminal_mode is not None else "execute"
-
-
 def _route_after_execute(state: _GraphState) -> Literal["decide", "done"]:
     return "done" if "response" in state else "decide"
+
+
+def _route_after_human_review(state: _GraphState) -> Literal["publish", "reject"]:
+    return "publish" if state["human_decision"] == "accept_partial" else "reject"
+
+
+def _review_token_digest(token: str) -> str:
+    if not isinstance(token, str) or len(token) < 32 or len(token) > 256:
+        return hashlib.sha256(b"invalid-review-token").hexdigest()
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _as_request(value) -> AgentRunRequest:
+    return value if isinstance(value, AgentRunRequest) else AgentRunRequest.model_validate(value)
+
+
+def _as_analysis(value) -> QueryAnalysis:
+    return value if isinstance(value, QueryAnalysis) else QueryAnalysis.model_validate(value)
+
+
+def _as_controller_state(value) -> ControllerState:
+    if isinstance(value, ControllerState) and isinstance(value.budget_state, BudgetState):
+        return value
+    raw = value.model_dump(mode="python") if isinstance(value, ControllerState) else value
+    return ControllerState.model_validate(raw)
+
+
+def _as_decision(value) -> ControllerDecision:
+    if isinstance(value, ControllerDecision) and isinstance(value.action, AgentAction):
+        return value
+    raw = value.model_dump(mode="python") if isinstance(value, ControllerDecision) else value
+    return ControllerDecision.model_validate(raw)
 
 
 __all__ = [
@@ -679,5 +921,7 @@ __all__ = [
     "AgentRunRequest",
     "AgentRunResult",
     "BoundedControllerAdapter",
+    "HumanReviewDecision",
+    "HumanReviewRequest",
     "LangGraphOrchestratorAdapter",
 ]
