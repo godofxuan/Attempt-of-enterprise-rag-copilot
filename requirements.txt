@@ -15,3 +15,4 @@ jieba==0.42.1
 pytest==9.0.3
 pypdf==6.14.2
 python-docx==1.2.0
+mcp==2.0.0
