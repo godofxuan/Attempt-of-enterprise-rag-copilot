@@ -76,6 +76,8 @@ def test_ci_is_read_only_deterministic_and_does_not_call_live_services() -> None
         'PYTHONFAULTHANDLER: "1"',
         "python -u -X faulthandler -m pytest -vv",
         "Publish deterministic test failure context",
+        '--expected-branch "${{ github.ref_name }}"',
+        '--expected-sha "${{ github.sha }}"',
         "python -m scripts.audit_public_repo",
     ]:
         assert required in workflow

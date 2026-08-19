@@ -71,7 +71,10 @@ jobs:
           fi
 
       - name: Verify portfolio evidence release gate
-        run: python -m scripts.verify_portfolio_release
+        run: >-
+          python -m scripts.verify_portfolio_release
+          --expected-branch "${{ github.ref_name }}"
+          --expected-sha "${{ github.sha }}"
 
   container:
     name: linux-container-contract
