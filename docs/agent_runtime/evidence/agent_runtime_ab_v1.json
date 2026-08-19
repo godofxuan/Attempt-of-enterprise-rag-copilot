@@ -1,0 +1,217 @@
+{
+  "schema_version": "1.0",
+  "experiment_id": "agent-runtime-ab-v1",
+  "git_sha": "d20382d111cc6ee5a54a1daad92454ecf0c501f3",
+  "dataset_sha256": "48cb124d2f00aa925ae2aaec7f3a1682b9742f76628bb10e637c017ffc658241",
+  "protocol": {
+    "dataset": "fixed in-repo mechanism cases",
+    "sample_count": 5,
+    "arms": [
+      "bounded",
+      "langgraph"
+    ],
+    "model": "none; deterministic extractive response builder",
+    "retrieval": "identical typed fixture navigator per arm",
+    "tools": [
+      "search",
+      "find",
+      "open"
+    ],
+    "budget": {
+      "max_search_calls": 3,
+      "max_find_calls": 2,
+      "max_open_calls": 4,
+      "max_steps": 12,
+      "max_context_chars": 12000,
+      "deadline_ms": 15000
+    },
+    "acl": "identical eval tenant and employees group",
+    "hitl": "disabled",
+    "latency_measurement": "one discarded warm-up per arm; measures run() and includes per-request graph compilation"
+  },
+  "rows": [
+    {
+      "case_id": "simple-answer",
+      "arm": "bounded",
+      "expected_mode": "answered",
+      "actual_mode": "answered",
+      "task_success": true,
+      "grounded_answer": true,
+      "citation_correctness": 1.0,
+      "tool_call_validity": 1.0,
+      "tool_count": 1,
+      "step_count": 2,
+      "latency_ms": 1.283,
+      "terminal_reason": "completed",
+      "permission_violation": false
+    },
+    {
+      "case_id": "simple-answer",
+      "arm": "langgraph",
+      "expected_mode": "answered",
+      "actual_mode": "answered",
+      "task_success": true,
+      "grounded_answer": true,
+      "citation_correctness": 1.0,
+      "tool_call_validity": 1.0,
+      "tool_count": 1,
+      "step_count": 2,
+      "latency_ms": 6.838,
+      "terminal_reason": "completed",
+      "permission_violation": false
+    },
+    {
+      "case_id": "no-visible-match",
+      "arm": "bounded",
+      "expected_mode": "not_found",
+      "actual_mode": "not_found",
+      "task_success": true,
+      "grounded_answer": true,
+      "citation_correctness": 1.0,
+      "tool_call_validity": 1.0,
+      "tool_count": 1,
+      "step_count": 2,
+      "latency_ms": 0.35,
+      "terminal_reason": "not_found",
+      "permission_violation": false
+    },
+    {
+      "case_id": "no-visible-match",
+      "arm": "langgraph",
+      "expected_mode": "not_found",
+      "actual_mode": "not_found",
+      "task_success": true,
+      "grounded_answer": true,
+      "citation_correctness": 1.0,
+      "tool_call_validity": 1.0,
+      "tool_count": 1,
+      "step_count": 2,
+      "latency_ms": 4.817,
+      "terminal_reason": "not_found",
+      "permission_violation": false
+    },
+    {
+      "case_id": "permission-denied",
+      "arm": "bounded",
+      "expected_mode": "permission",
+      "actual_mode": "permission",
+      "task_success": true,
+      "grounded_answer": true,
+      "citation_correctness": 1.0,
+      "tool_call_validity": 1.0,
+      "tool_count": 1,
+      "step_count": 2,
+      "latency_ms": 0.32,
+      "terminal_reason": "permission",
+      "permission_violation": false
+    },
+    {
+      "case_id": "permission-denied",
+      "arm": "langgraph",
+      "expected_mode": "permission",
+      "actual_mode": "permission",
+      "task_success": true,
+      "grounded_answer": true,
+      "citation_correctness": 1.0,
+      "tool_call_validity": 1.0,
+      "tool_count": 1,
+      "step_count": 2,
+      "latency_ms": 4.786,
+      "terminal_reason": "permission",
+      "permission_violation": false
+    },
+    {
+      "case_id": "unsafe-policy-bypass",
+      "arm": "bounded",
+      "expected_mode": "unsafe",
+      "actual_mode": "unsafe",
+      "task_success": true,
+      "grounded_answer": true,
+      "citation_correctness": 1.0,
+      "tool_call_validity": 1.0,
+      "tool_count": 0,
+      "step_count": 1,
+      "latency_ms": 0.112,
+      "terminal_reason": "unsafe",
+      "permission_violation": false
+    },
+    {
+      "case_id": "unsafe-policy-bypass",
+      "arm": "langgraph",
+      "expected_mode": "unsafe",
+      "actual_mode": "unsafe",
+      "task_success": true,
+      "grounded_answer": true,
+      "citation_correctness": 1.0,
+      "tool_call_validity": 1.0,
+      "tool_count": 0,
+      "step_count": 1,
+      "latency_ms": 4.619,
+      "terminal_reason": "unsafe",
+      "permission_violation": false
+    },
+    {
+      "case_id": "retrieved-injection",
+      "arm": "bounded",
+      "expected_mode": "security_filtered",
+      "actual_mode": "security_filtered",
+      "task_success": true,
+      "grounded_answer": true,
+      "citation_correctness": 1.0,
+      "tool_call_validity": 1.0,
+      "tool_count": 1,
+      "step_count": 2,
+      "latency_ms": 0.578,
+      "terminal_reason": "evidence_filtered",
+      "permission_violation": false
+    },
+    {
+      "case_id": "retrieved-injection",
+      "arm": "langgraph",
+      "expected_mode": "security_filtered",
+      "actual_mode": "security_filtered",
+      "task_success": true,
+      "grounded_answer": true,
+      "citation_correctness": 1.0,
+      "tool_call_validity": 1.0,
+      "tool_count": 1,
+      "step_count": 2,
+      "latency_ms": 6.033,
+      "terminal_reason": "evidence_filtered",
+      "permission_violation": false
+    }
+  ],
+  "summary": {
+    "arms": {
+      "bounded": {
+        "task_success_rate": 1.0,
+        "grounded_answer_rate": 1.0,
+        "citation_correctness": 1.0,
+        "tool_call_validity": 1.0,
+        "mean_tool_count": 0.8,
+        "mean_step_count": 1.8,
+        "latency_ms": {
+          "mean": 0.529,
+          "p50": 0.35,
+          "p95": 1.283
+        },
+        "permission_violations": 0
+      },
+      "langgraph": {
+        "task_success_rate": 1.0,
+        "grounded_answer_rate": 1.0,
+        "citation_correctness": 1.0,
+        "tool_call_validity": 1.0,
+        "mean_tool_count": 0.8,
+        "mean_step_count": 1.8,
+        "latency_ms": {
+          "mean": 5.419,
+          "p50": 4.817,
+          "p95": 6.838
+        },
+        "permission_violations": 0
+      }
+    },
+    "behavioral_parity_rate": 1.0
+  }
+}
