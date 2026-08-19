@@ -181,6 +181,22 @@ def run_agent_runtime_ab(
         groups=["employees"],
     )
     budget = AgentBudget()
+    for warmup_arm in ("bounded", "langgraph"):
+        warmup_navigator = _ScenarioNavigator("answered")
+        warmup_cls = (
+            BoundedControllerAdapter
+            if warmup_arm == "bounded"
+            else LangGraphOrchestratorAdapter
+        )
+        warmup_cls(V2ToolRegistry(warmup_navigator), budget=budget).run(
+            AgentRunRequest(
+                question="What is the remote policy?",
+                user=user,
+                request_id=f"warmup-{warmup_arm}",
+                trace_id=f"warmup-trace-{warmup_arm}",
+                session_id=f"warmup-session-{warmup_arm}",
+            )
+        )
     for case in cases:
         for arm in ("bounded", "langgraph"):
             navigator = _ScenarioNavigator(case.scenario)
@@ -253,6 +269,10 @@ def run_agent_runtime_ab(
             "budget": budget.model_dump(mode="json"),
             "acl": "identical eval tenant and employees group",
             "hitl": "disabled",
+            "latency_measurement": (
+                "one discarded warm-up per arm; measures run() and includes "
+                "per-request graph compilation"
+            ),
         },
         rows=rows,
         summary=_summarize(rows, cases),
@@ -334,4 +354,3 @@ __all__ = [
     "DEFAULT_CASES",
     "run_agent_runtime_ab",
 ]
-

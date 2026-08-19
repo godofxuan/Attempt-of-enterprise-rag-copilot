@@ -12,6 +12,11 @@ Metrics include task success, grounded response, citation correctness, tool-call
 validity, tool and step counts, latency, terminal reason, permission violations,
 and paired behavioral parity.
 
+Each arm receives one discarded warm-up before timing. Reported latency covers
+the complete `run()` call and therefore includes the current per-request graph
+compilation cost. With only five measured cases, p95 is diagnostic mechanism
+evidence, not an SLO or capacity result.
+
 This protocol verifies that introducing an alternative orchestrator does not
 change security and terminal behavior. Five synthetic mechanism cases are too
 small and too controlled to support an external answer-quality claim. Existing
@@ -27,4 +32,3 @@ python -m scripts.eval_agent_runtime_ab
 The generated artifact records the implementation SHA and dataset hash. Results
 are added only after the evaluator code is committed so the SHA identifies the
 actual executable implementation.
-
