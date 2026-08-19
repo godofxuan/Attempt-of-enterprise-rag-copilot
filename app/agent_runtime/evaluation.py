@@ -95,7 +95,7 @@ DEFAULT_CASES = (
 )
 
 
-class _ScenarioNavigator:
+class AgentRuntimeScenarioNavigator:
     def __init__(self, scenario: Scenario) -> None:
         self.scenario = scenario
         self.calls: list[str] = []
@@ -182,7 +182,7 @@ def run_agent_runtime_ab(
     )
     budget = AgentBudget()
     for warmup_arm in ("bounded", "langgraph"):
-        warmup_navigator = _ScenarioNavigator("answered")
+        warmup_navigator = AgentRuntimeScenarioNavigator("answered")
         warmup_cls = (
             BoundedControllerAdapter
             if warmup_arm == "bounded"
@@ -199,7 +199,7 @@ def run_agent_runtime_ab(
         )
     for case in cases:
         for arm in ("bounded", "langgraph"):
-            navigator = _ScenarioNavigator(case.scenario)
+            navigator = AgentRuntimeScenarioNavigator(case.scenario)
             registry = V2ToolRegistry(navigator)
             adapter_cls = (
                 BoundedControllerAdapter
@@ -351,6 +351,7 @@ __all__ = [
     "AgentRuntimeABArtifact",
     "AgentRuntimeABCase",
     "AgentRuntimeABRow",
+    "AgentRuntimeScenarioNavigator",
     "DEFAULT_CASES",
     "run_agent_runtime_ab",
 ]

@@ -29,6 +29,7 @@ from app.agent_runtime.evaluation import (
     AgentRuntimeABArtifact,
     AgentRuntimeABCase,
     AgentRuntimeABRow,
+    AgentRuntimeScenarioNavigator,
     run_agent_runtime_ab,
 )
 from app.agent_runtime.evalops_artifact import (
@@ -46,6 +47,7 @@ __all__ = [
     "AgentRuntimeABArtifact",
     "AgentRuntimeABCase",
     "AgentRuntimeABRow",
+    "AgentRuntimeScenarioNavigator",
     "AgentRunArtifactV1",
     "AgentTrajectoryReplay",
     "BoundedControllerAdapter",
