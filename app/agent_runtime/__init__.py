@@ -31,6 +31,11 @@ from app.agent_runtime.evaluation import (
     AgentRuntimeABRow,
     run_agent_runtime_ab,
 )
+from app.agent_runtime.evalops_artifact import (
+    AgentRunArtifactV1,
+    build_agent_run_artifact,
+    verify_agent_run_artifact,
+)
 
 __all__ = [
     "AgentOrchestrator",
@@ -41,6 +46,7 @@ __all__ = [
     "AgentRuntimeABArtifact",
     "AgentRuntimeABCase",
     "AgentRuntimeABRow",
+    "AgentRunArtifactV1",
     "AgentTrajectoryReplay",
     "BoundedControllerAdapter",
     "HumanReviewDecision",
@@ -56,6 +62,8 @@ __all__ = [
     "ToolRequest",
     "ToolResult",
     "TrajectoryRecorder",
+    "build_agent_run_artifact",
     "replay_trajectory",
     "run_agent_runtime_ab",
+    "verify_agent_run_artifact",
 ]
