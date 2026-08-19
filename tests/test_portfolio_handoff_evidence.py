@@ -89,16 +89,17 @@ def test_resume_metric_ledger_derives_from_frozen_public_evidence() -> None:
         assert expected in ledger
 
 
-def test_canonical_portfolio_state_has_one_current_entry_point() -> None:
-    current = "PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW"
+def test_vnext_closeout_supersedes_but_preserves_archived_handoffs() -> None:
+    archived = "PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW"
     historical = "PORTFOLIO_READY_STOP_DEVELOPMENT"
     readme = _text(ROOT / "README.md")
     status = _text(ROOT / "PROJECT_STATUS.md")
     summary = _text(PACKAGE / "PROJECT_SUMMARY.md")
     resume_handoff = _text(HANDOFFS / "RESUME_CODEX_HANDOFF.md")
 
-    for text in (readme, status, summary, resume_handoff):
-        assert current in text
+    assert "RAG_VNEXT_CLOSED" in readme
+    for text in (status, summary, resume_handoff):
+        assert archived in text
     assert historical not in readme
     assert historical not in summary
     assert "only current portfolio enum" in status

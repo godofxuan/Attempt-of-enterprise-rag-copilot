@@ -4,17 +4,36 @@
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB)](https://www.python.org/)
 [![Portfolio status](https://img.shields.io/badge/status-portfolio--ready-2F7D4A)](PROJECT_STATUS.md)
 
-An evidence-controlled enterprise knowledge copilot with a replaceable Agent
-Runtime: a proven bounded controller and a real LangGraph alternative share the
-same guarded `search/find/open` tools, ACL, evidence admission, citation gate,
-append-only trajectory, deterministic replay, and EvalOps artifact contract.
+## What it does
 
-This repository is an engineering portfolio, not a framework showcase. Its
-main contribution is a host-controlled RAG path in which models may propose
-queries and claims, while Python code owns identity, permissions, tools,
-budgets, evidence admission, final citations, and safe stopping. MCP is a
-protocol adapter rather than a permission bypass; LangGraph is an optional
-orchestrator rather than an unmeasured rewrite.
+This is a controlled enterprise knowledge Agent / Agentic RAG Runtime. Teams
+ingest policies, Wiki pages, tickets, email, and meeting notes; an authenticated
+user asks a question; the Agent retrieves only evidence visible to that user
+and returns a cited answer, a bounded partial answer, or a safe refusal. Each
+run can also emit a verifiable trajectory for replay and evaluation.
+
+## Why it is different
+
+- Authority stays in server-owned Python code: identity, ACL, budgets,
+  retrieved-content admission, evidence, citations, and terminal policy.
+- The proven bounded controller remains the default; a real LangGraph
+  `StateGraph` is available behind the same `AgentOrchestrator` contract.
+- Official MCP SDK tools still pass through the shared `ToolGateway`; MCP does
+  not bypass permissions or the retrieved-content Guard.
+- Append-only hash-chained trajectories support deterministic replay and a
+  versioned `enterprise.agent-run/1.0` EvalOps artifact.
+
+## Verified results
+
+| Result | Verified observation | Boundary |
+|---|---:|---|
+| WixQA retrieval | On 200 fixed ExpertWritten questions, BGE-M3 Dense improved Recall@5 `42.75% -> 66.42%` and nDCG@5 `32.15% -> 52.16%` | Public-label retrieval, not answer accuracy. [Evidence](docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json) |
+| EnterpriseRAG-Bench indexing | Built and atomically activated a `1.37 GiB` SQLite FTS5 index over `511,962` public records in `231.35 s`, at about `1.83 GiB` peak RSS | Single-host lexical baseline, not production capacity. [Evidence](docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json) |
+| Clean retrieval replay | Rebuilt 11,975 embeddings and reproduced `63/63` frozen quality comparisons at tolerance `0.0` | Local replay of consumed public labels. [Evidence](docs/reproduction/evidence/wixqa_clean_reproduction_public_v1.json) |
+
+This repository is an engineering portfolio, not a framework showcase. MCP is
+an in-process protocol adapter rather than a network deployment; LangGraph is
+an alternative orchestrator rather than a claimed quality improvement.
 
 ## What Is Finished
 
@@ -30,18 +49,6 @@ orchestrator rather than an unmeasured rewrite.
 | Retrieved-content security | Mandatory injection Guard on search/find/open content, quarantine, clean-candidate recovery, and Guard OFF/ON evaluation |
 | Knowledge lifecycle | Restricted file validation, Markdown/text/PDF/DOCX/EML parsing, revision catalog, tombstones, incremental invalidation, immutable snapshots, atomic activation, and rollback |
 | Industrial evidence | Frozen protocols, exact artifact hashes, negative-result gates, crash injection, cross-platform CI, clean-root reproduction, and public evidence packages |
-
-## Verified Results
-
-These are the strongest completed results. Every number is deliberately scoped;
-retrieval metrics are not presented as answer accuracy.
-
-| Result | Measured evidence | Boundary |
-|---|---:|---|
-| External support-KB retrieval | On 200 WixQA ExpertWritten questions, BGE-M3 Dense improved Recall@5 `42.75% -> 66.42%` and nDCG@5 `32.15% -> 52.16%`; p95 `151.8 -> 157.4 ms` | Fixed public-label retrieval benchmark; not blind answer accuracy. [Evidence](docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json) |
-| Full-corpus indexing | Built and atomically activated a `1.37 GiB` SQLite FTS5 index over `511,962` records from 9 source types in `231.35 s`, at about `1.83 GiB` peak RSS | One-host lexical baseline; not production capacity. [Evidence](docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json) |
-| Indirect-injection defense | On a pinned garak `LatentInjectionReport` subset, Guard reduced observed attack success `4/12 -> 0/12` and context exposure `12/12 -> 0/12`; mean scan `1.42 ms` | One 12-attack subset; not universal safety. [Evidence](docs/resume_metrics/evidence/garak_latent_report_holdout_v1.json) |
-| Clean retrieval replay | Rebuilt 11,975 embeddings and reproduced `63/63` frozen quality comparisons at tolerance `0.0` | Local replay of consumed public labels; not independent third-party reproduction. [Evidence](docs/reproduction/evidence/wixqa_clean_reproduction_public_v1.json) |
 
 Engineering judgment is part of the result: equal-weight RRF was not promoted,
 and a bounded multi-document candidate was rejected after producing **zero
@@ -181,7 +188,8 @@ multi-document questions, and safe refusal without exposing private enterprise
 data. External WixQA, EnterpriseRAG-Bench, and garak evidence is reported
 separately with dataset, denominator, execution revision, and limitation.
 
-Current state: `PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW`.
+Current state: `RAG_VNEXT_CLOSED` on the vNext branch; merge remains a user
+decision.
 
 ## Documentation
 

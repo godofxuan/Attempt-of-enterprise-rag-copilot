@@ -34,6 +34,7 @@ identity, ACL, admission, or final publication authority.
 |---|---|---|
 | unauthorized tool | allow-list in active `ToolGateway` session | `tests/agent_runtime/test_tool_contract.py` |
 | forged identity / cross tenant | exact context fingerprint and tenant match | `test_forged_identity_and_cross_tenant_fail_before_backend` |
+| ACL scope expansion | require `acl_scope ⊆ identity.groups` | equal/narrow/expanded/unrelated scope tests |
 | stale or revoked context | expiry and active-session lookup | `test_expired_and_closed_sessions_are_stale` |
 | malformed request | strict Pydantic contracts, literal tool names | tool contract and MCP malformed tests |
 | MCP identity injection | opaque server-issued handle; identity absent from tool arguments | `tests/agent_runtime/test_mcp_adapter.py` |
@@ -45,7 +46,7 @@ identity, ACL, admission, or final publication authority.
 | cyclic/runaway graph | max steps, call budgets, LangGraph recursion limit | `test_graph_stops_at_budget_without_runaway_calls` |
 | trajectory mutation | SQLite append-only triggers plus SHA-256 event chain | trajectory and replay tamper tests |
 | trajectory secret leakage | recursive redaction and omission of raw matched/context text | trajectory and artifact leakage tests |
-| forged HITL resume | hashed one-time token, role and tenant checks | `tests/agent_runtime/test_human_review.py` |
+| forged/duplicate HITL resume | hashed token, role/tenant checks, locked PENDING/RESUMING/COMPLETED state | `tests/agent_runtime/test_human_review.py` |
 | artifact mutation | event-chain verification plus artifact-level SHA-256 | `tests/agent_runtime/test_evalops_artifact.py` |
 
 ## 4. Important implementation details
@@ -80,8 +81,11 @@ are size bounded.
 
 Only `partial_evidence` triggers the current review path. A reviewer must be in
 the same tenant and have the `knowledge_reviewer` role. Tokens are random,
-stored as hashes, and consumed once. Accept publishes the already bounded partial
-response; reject publishes a source-free safe terminal response.
+stored as hashes, and execute one decision once. Graph failure restores the
+pending state for safe retry; a completed identical decision is idempotent; a
+concurrent or changed decision cannot execute the graph again. Accept publishes
+the already bounded partial response; reject publishes a source-free safe
+terminal response.
 
 ## 5. Residual risk and non-claims
 
@@ -104,4 +108,3 @@ response; reject publishes a source-free safe terminal response.
 The new paths preserve the intended deterministic security ownership and have
 direct negative-path tests. They are suitable as a portfolio-grade, local
 reference implementation. They are not a production security certification.
-

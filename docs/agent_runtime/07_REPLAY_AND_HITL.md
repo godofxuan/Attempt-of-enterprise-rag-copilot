@@ -34,9 +34,14 @@ reaches a real `partial_evidence` terminal, the graph calls LangGraph
 request containing an evidence summary and one-time opaque review token.
 
 A reviewer may choose `accept_partial` or `reject`. Resume requires the same
-tenant and the `knowledge_reviewer` role. The token is stored by SHA-256 digest,
-is never written to trajectory, and is consumed once. Both request and decision
-produce `human_review.*` events. Rejecting returns a source-free terminal.
+tenant and the `knowledge_reviewer` role. The token is stored by SHA-256 digest
+and is never written to trajectory. An in-process state machine moves the entry
+through `PENDING -> RESUMING -> COMPLETED`: an invocation failure restores
+PENDING, a concurrent resume is rejected while RESUMING, and a completed retry
+with the identical decision returns the cached result without running the graph
+again. A changed decision fails as an already-used token. Both request and the
+single completed decision produce `human_review.*` events. Rejecting returns a
+source-free terminal.
 
 The graph checkpoint and pending-token map are intentionally in memory. A
 process restart invalidates the review, so this is a real in-process

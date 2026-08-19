@@ -34,6 +34,11 @@ budget by sending a new counter. The request's embedded `UserContext` must equal
 the identity in the active server context, and request/session correlation must
 match exactly.
 
+`acl_scope` is a server-selected narrowing of the authenticated identity's
+groups: `acl_scope ⊆ identity.groups`. Equal scope and narrower scope are valid;
+an expanded or unrelated group fails contract validation before any backend
+call. The scope is not a place for a caller to add entitlements.
+
 ## Failure behavior
 
 Malformed input fails Pydantic validation. Unauthorized tools, forged identity,
@@ -50,6 +55,6 @@ is discarded. This is an explicit limitation, not a hard execution sandbox.
 `tests/agent_runtime/test_tool_contract.py` covers authorized execution,
 allowlist denial, malformed requests, forged and cross-tenant identity, context
 replacement, stale/closed sessions, stateful budget exhaustion, backend access
-denial, and timeout. Existing guarded-tool tests continue to own admission and
+denial, timeout, equal/narrow ACL scopes, and rejected expanded/unrelated
+scopes. Existing guarded-tool tests continue to own admission and
 oversized-result behavior.
-

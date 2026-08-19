@@ -885,8 +885,10 @@ def test_audit_rejects_runtime_paths_invalid_snapshot_png_and_any_bad_doc_link(
 def test_readme_is_a_current_evidence_first_entrypoint() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     headings = [
+        "## What it does",
+        "## Why it is different",
+        "## Verified results",
         "## What Is Finished",
-        "## Verified Results",
         "## Architecture",
         "## Demo",
         "## Quick Start",
@@ -898,9 +900,9 @@ def test_readme_is_a_current_evidence_first_entrypoint() -> None:
     positions = [readme.index(heading) for heading in headings]
     assert positions == sorted(positions)
     assert "docs/diagrams/agentic_rag_flow_cn.png" in readme
-    for result in ("66.42%", "511,962", "4/12 -> 0/12", "63/63"):
+    for result in ("66.42%", "511,962", "63/63"):
         assert result in readme
-    assert "retrieval metrics are not presented as answer accuracy" in readme
+    assert "Public-label retrieval, not answer accuracy" in readme
     assert "the current Agent route improves external retrieval quality" in readme
     for screenshot in ["ask.png", "trace.png", "evaluation.png"]:
         assert f"docs/assets/{screenshot}" in readme
