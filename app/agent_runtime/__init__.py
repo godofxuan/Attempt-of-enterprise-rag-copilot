@@ -25,6 +25,12 @@ from app.agent_runtime.trajectory import (
     TrajectoryRecorder,
 )
 from app.agent_runtime.replay import AgentTrajectoryReplay, replay_trajectory
+from app.agent_runtime.evaluation import (
+    AgentRuntimeABArtifact,
+    AgentRuntimeABCase,
+    AgentRuntimeABRow,
+    run_agent_runtime_ab,
+)
 
 __all__ = [
     "AgentOrchestrator",
@@ -32,6 +38,9 @@ __all__ = [
     "AgentEventDraft",
     "AgentRunRequest",
     "AgentRunResult",
+    "AgentRuntimeABArtifact",
+    "AgentRuntimeABCase",
+    "AgentRuntimeABRow",
     "AgentTrajectoryReplay",
     "BoundedControllerAdapter",
     "HumanReviewDecision",
@@ -48,4 +57,5 @@ __all__ = [
     "ToolResult",
     "TrajectoryRecorder",
     "replay_trajectory",
+    "run_agent_runtime_ab",
 ]
