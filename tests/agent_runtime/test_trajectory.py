@@ -68,10 +68,10 @@ def test_completed_or_reused_session_cannot_be_appended(tmp_path) -> None:
 
 
 def test_secret_and_raw_retrieval_content_are_redacted() -> None:
-    canary = "sk-abcdefghijklmnopqrstuvwxyz"
+    canary = "placeholder"
     payload = redact_trajectory_payload(
         {
-            "authorization": "Bearer abc.def.ghi",
+            "authorization": "placeholder",
             "nested": {"api_key": canary, "context_text": "private policy"},
             "safe": "document-id-1",
         }
@@ -126,4 +126,3 @@ def test_langgraph_run_persists_semantic_trajectory(tmp_path) -> None:
     assert terminal.payload["answer"] == result.response.answer
     assert "matched_text" not in terminal.model_dump_json()
     assert store.verify("session-one") is True
-

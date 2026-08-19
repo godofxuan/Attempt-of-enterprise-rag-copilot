@@ -26,6 +26,8 @@ EXPECTED_REQUIREMENTS = {
     "python-docx==1.2.0",
     "PyJWT==2.13.0",
     "cryptography==49.0.0",
+    "mcp==2.0.0",
+    "langgraph==1.2.11",
 }
 
 

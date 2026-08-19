@@ -4,20 +4,27 @@
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB)](https://www.python.org/)
 [![Portfolio status](https://img.shields.io/badge/status-portfolio--ready-2F7D4A)](PROJECT_STATUS.md)
 
-An evidence-controlled enterprise knowledge copilot built around **bounded
-Agent decisions, identity-aware retrieval, verifiable citations, secure
-knowledge ingestion, and reproducible evaluation**.
+An evidence-controlled enterprise knowledge copilot with a replaceable Agent
+Runtime: a proven bounded controller and a real LangGraph alternative share the
+same guarded `search/find/open` tools, ACL, evidence admission, citation gate,
+append-only trajectory, deterministic replay, and EvalOps artifact contract.
 
 This repository is an engineering portfolio, not a framework showcase. Its
 main contribution is a host-controlled RAG path in which models may propose
 queries and claims, while Python code owns identity, permissions, tools,
-budgets, evidence admission, final citations, and safe stopping.
+budgets, evidence admission, final citations, and safe stopping. MCP is a
+protocol adapter rather than a permission bypass; LangGraph is an optional
+orchestrator rather than an unmeasured rewrite.
 
 ## What Is Finished
 
 | Area | Implemented outcome |
 |---|---|
 | Bounded Agentic RAG | Rule-first query analysis, required-aspect decomposition, typed `search/find/open`, Evidence Ledger, explicit budgets, observable traces, and answer/partial/refuse/stop terminal states |
+| Replaceable Agent Runtime | Common `AgentOrchestrator` contract with the existing bounded adapter and a real LangGraph `StateGraph`, both using the same guarded tool and publication path |
+| MCP tool access | Official MCP SDK adapter for `search/find/open`; opaque server-issued context handles preserve identity, ACL, budget, expiry, and Guard enforcement |
+| Replay and HITL | Append-only SHA-256-chained semantic trajectory, deterministic no-network replay, and a tenant/role-bound one-time human review resume path |
+| EvalOps integration | Versioned `enterprise.agent-run/1.0` JSON schema, serializer, verifier, public sample artifact, and reproducible CLI tooling |
 | Enterprise retrieval | BM25, BGE-M3 Dense, RRF ablation, metadata and temporal authority, parent context, ACL filtering before evidence reaches the model |
 | Grounded answers | Structured claims, visible-source citations, deterministic numeric/date/negation checks, and removal of unsupported claims |
 | Retrieved-content security | Mandatory injection Guard on search/find/open content, quarantine, clean-candidate recovery, and Guard OFF/ON evaluation |
@@ -49,13 +56,15 @@ The runtime loop is:
 
 ```text
 verified identity
-  -> rule-first query analysis and required evidence aspects
-  -> bounded controller chooses search / find / open
-  -> ACL filtering and retrieved-content admission
+  -> BoundedControllerAdapter or LangGraphOrchestratorAdapter
+  -> shared Tool Contract / ToolGateway
+  -> direct or MCP-adapted search / find / open
+  -> ACL filtering, budget, deadline, and retrieved-content admission
   -> observation updates the Evidence Ledger
-  -> continue, answer, return partial evidence, refuse, or stop
+  -> continue, HITL for bounded partial evidence, answer, refuse, or stop
   -> generate structured claims
   -> host verifies citations and removes unsupported claims
+  -> append semantic trajectory -> replay / EvalOps artifact
 ```
 
 The default V2 controller searches once per required aspect. Completeness
@@ -64,10 +73,21 @@ authorized tool boundary, but the default controller does not currently select
 it. Automatic query rewrite and retrieval retry are also disabled by default.
 This is a bounded enterprise Agent, not an open-ended autonomous Agent.
 
+The paired runtime diagnostic used the same five deterministic mechanism cases,
+tools, ACL, budget, retrieval fixtures, and answer builder. Both adapters passed
+`5/5` with identical terminal behavior and zero permission violations. It did
+**not** show a quality improvement: LangGraph p95 was `6.838 ms` versus bounded
+`1.283 ms` in this tiny local test, so LangGraph remains an alternative for
+explicit state and HITL rather than the default. [Protocol and limits](docs/agent_runtime/08_AB_EVALUATION.md).
+
 Key code paths:
 
 - [Query analysis](app/agent/query_analysis.py)
 - [Agent controller](app/agent/controller_v2.py) and [execution loop](app/agent/runner_v2.py)
+- [Agent Runtime and adapters](app/agent_runtime/orchestrator.py)
+- [Tool contract and authority](app/agent_runtime/tool_contract.py) / [gateway](app/agent_runtime/tool_gateway.py)
+- [MCP adapter](app/agent_runtime/mcp_adapter.py)
+- [Trajectory](app/agent_runtime/trajectory.py), [replay](app/agent_runtime/replay.py), and [EvalOps artifact](app/agent_runtime/evalops_artifact.py)
 - [Typed tools](app/agent/tools_v2.py) and [Evidence Ledger](app/agent/evidence_ledger.py)
 - [ACL-aware retrieval](app/retrieval/pipeline.py)
 - [Retrieved-content Guard](app/security/retrieved_content.py)
@@ -123,6 +143,7 @@ benchmark files:
 
 ```text
 app/agent/                 bounded decision loop, tools, evidence, citations
+app/agent_runtime/         orchestrators, guarded tool contract, MCP, trajectory, replay, HITL, EvalOps
 app/retrieval/             hybrid retrieval, navigation, ranking, ACL filtering
 app/security/              identity and retrieved-content security boundaries
 app/ingestion/             validated parsing and revision preparation
@@ -133,6 +154,7 @@ tests/                     deterministic, security, failure, and evidence gates
 docs/handoffs/             recruiter, interview, teaching, and resume entry points
 docs/enterprise_eval/      external retrieval protocols and results
 docs/resume_metrics/       resume-safe metrics and forbidden claims
+docs/agent_runtime/        vNext decisions, security review, architecture, schema, and evidence
 ```
 
 Start technical review with the [project evidence map](docs/handoffs/PROJECT_EVIDENCE_MAP.md).
@@ -149,7 +171,10 @@ project does **not** claim:
 - blind end-to-end answer accuracy or semantic entailment certification;
 - that the current Agent route improves external retrieval quality;
 - independent third-party reproduction;
-- LangGraph, GraphRAG, MCP, Redis, Kafka, or distributed multi-writer indexing.
+- durable crash-safe HITL, production network MCP/OAuth, multi-Agent execution,
+  GraphRAG, Redis, Kafka, or distributed multi-writer indexing;
+- that LangGraph improved answer quality, or that the five-case diagnostic is a
+  production latency or accuracy benchmark.
 
 The public synthetic corpus exists to exercise ACL, versions, conflicts,
 multi-document questions, and safe refusal without exposing private enterprise
@@ -168,3 +193,7 @@ Current state: `PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW`.
 - [Known limitations](docs/known_limitations.md)
 - [Full project evolution](docs/history/00_PROJECT_EVOLUTION.md)
 - [Portfolio archive report](docs/handoffs/PORTFOLIO_ARCHIVE_REPORT.md)
+- [Agent Runtime final architecture](docs/agent_runtime/10_FINAL_ARCHITECTURE.md)
+- [Agent Runtime security review](docs/agent_runtime/09_SECURITY_REVIEW.md)
+- [Agent Runtime learning tutorial](docs/learning/AGENT_RUNTIME_TUTORIAL.md)
+- [vNext resume-safe evidence](docs/resume/RESUME_SAFE_VNEXT_METRICS.md)
