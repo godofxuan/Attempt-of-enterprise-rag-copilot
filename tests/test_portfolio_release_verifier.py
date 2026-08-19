@@ -17,7 +17,7 @@ def _runner(
     *,
     dirty: bool = False,
     failing_gate: str | None = None,
-    branch: str = "codex/rag-eval-system",
+    branch: str = "main",
     head_sha: str = "a" * 40,
 ) -> CommandRunner:
     def run(argv: tuple[str, ...], cwd: Path) -> CompletedProcess[str]:
@@ -59,10 +59,10 @@ def test_verified_report_has_stable_gate_contract() -> None:
     assert report["status"] == "VERIFIED"
     assert report["release_authority"] is False
     assert report["repository"] == {
-        "branch": "codex/rag-eval-system",
+        "branch": "main",
         "dirty": False,
         "head_sha": "a" * 40,
-        "expected_branch": "codex/rag-eval-system",
+        "expected_branch": "main",
         "expected_sha": None,
     }
     assert [gate["gate_id"] for gate in report["gates"]] == [
@@ -124,8 +124,8 @@ def test_dirty_repository_fails_unless_explicitly_allowed() -> None:
     ("branch", "head_sha", "expected_sha"),
     [
         ("", "a" * 40, None),
-        ("main", "a" * 40, None),
-        ("codex/rag-eval-system", "b" * 40, "a" * 40),
+        ("codex/rag-eval-system", "a" * 40, None),
+        ("main", "b" * 40, "a" * 40),
     ],
 )
 def test_unexpected_target_identity_fails_closed(

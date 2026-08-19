@@ -13,7 +13,7 @@ from typing import Callable, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_VERSION = "portfolio_release_verification_v2"
-DEFAULT_EXPECTED_BRANCH = "codex/rag-eval-system"
+DEFAULT_EXPECTED_BRANCH = "main"
 CommandRunner = Callable[[tuple[str, ...], Path], CompletedProcess[str]]
 
 
