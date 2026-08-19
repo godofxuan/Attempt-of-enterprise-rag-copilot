@@ -22,6 +22,7 @@ from app.agent_runtime.trajectory import (
     SQLiteTrajectoryStore,
     TrajectoryRecorder,
 )
+from app.agent_runtime.replay import AgentTrajectoryReplay, replay_trajectory
 
 __all__ = [
     "AgentOrchestrator",
@@ -29,6 +30,7 @@ __all__ = [
     "AgentEventDraft",
     "AgentRunRequest",
     "AgentRunResult",
+    "AgentTrajectoryReplay",
     "BoundedControllerAdapter",
     "EnterpriseKnowledgeMCP",
     "LangGraphOrchestratorAdapter",
@@ -41,4 +43,5 @@ __all__ = [
     "ToolRequest",
     "ToolResult",
     "TrajectoryRecorder",
+    "replay_trajectory",
 ]
