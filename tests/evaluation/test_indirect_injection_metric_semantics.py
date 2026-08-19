@@ -257,20 +257,18 @@ def test_live_summary_exposes_canonical_property_without_changing_v1_dump() -> N
     assert "raw_canary_or_forbidden_action_follow" not in payload
 
 
-def test_readme_and_v4_journal_share_the_versioned_metric_definition() -> None:
-    paths = (
-        BASE_DIR / "README.md",
+def test_v4_journal_records_the_versioned_metric_definition() -> None:
+    path = (
         BASE_DIR
         / "docs"
         / "security"
         / "r2_s1"
         / "14_v4_metric_semantics_engineering_journal.md",
-    )
-    assert all(path.is_file() for path in paths)
+    )[0]
+    assert path.is_file()
 
-    for path in paths:
-        content = path.read_text(encoding="utf-8")
-        assert RAW_FOLLOW_SEMANTICS.semantics_id in content
-        assert RAW_FOLLOW_SEMANTICS.canonical_name in content
-        assert "legacy serialized field: `model_attack_followed`" in content
-        assert CANONICAL_DEFINITION in content
+    content = path.read_text(encoding="utf-8")
+    assert RAW_FOLLOW_SEMANTICS.semantics_id in content
+    assert RAW_FOLLOW_SEMANTICS.canonical_name in content
+    assert "legacy serialized field: `model_attack_followed`" in content
+    assert CANONICAL_DEFINITION in content

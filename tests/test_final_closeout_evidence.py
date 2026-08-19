@@ -90,13 +90,15 @@ def test_recruiter_documents_point_to_current_evidence() -> None:
         positive_claims = text.split("## Forbidden claims", 1)[0]
         assert "answer accuracy 66.42%" not in positive_claims.lower()
     assert "wixqa_clean_reproduction_public_v1.json" in readme
-    assert "02_REUSED_SOURCE_ID_SENSITIVITY.md" in readme
+    assert (
+        ROOT / "docs" / "final_closeout" / "02_REUSED_SOURCE_ID_SENSITIVITY.md"
+    ).is_file()
     assert "wixqa_retrieval_baseline_public_v2.json" in safe
     assert "wixqa_retrieval_baseline_public_v1.json" not in safe
     assert "pending the final exact-SHA CI gate" not in readme
-    assert "python -m scripts.verify_portfolio_release" in readme
-    assert "40_PORTFOLIO_RELEASE_VERIFICATION.md" in readme
-    assert "EXTERNAL_GPT_FINAL_AUDIT_PROMPT.md" in readme
+    assert "scripts.verify_portfolio_release" in readme
+    assert (ROOT / "docs/learning/40_PORTFOLIO_RELEASE_VERIFICATION.md").is_file()
+    assert (ROOT / "docs/handoffs/EXTERNAL_GPT_FINAL_AUDIT_PROMPT.md").is_file()
 
 
 def test_learning_and_demo_handoffs_are_complete() -> None:

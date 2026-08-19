@@ -186,12 +186,24 @@ def test_resume_package_is_complete_and_fail_closed() -> None:
         "ROLE_POSITIONING.md",
         "SAFE_METRICS.md",
         "BULLET_CANDIDATES.md",
+        "FINAL_RESUME_ENTRY_CN.md",
         "EVIDENCE_MAP.md",
         "FORBIDDEN_CLAIMS.md",
         "INTERVIEW_STORIES.md",
         "JD_KEYWORD_MAP.md",
     }
     assert {path.name for path in PACKAGE.glob("*.md")} == expected
+
+    final_cn = _text(PACKAGE / "FINAL_RESUME_ENTRY_CN.md")
+    for required in (
+        "66.42%",
+        "511,962",
+        "4/12",
+        "Evidence Ledger",
+        "不写“Agent 效果优于固定 RAG”",
+        "不写“100% 安全”",
+    ):
+        assert required in final_cn
 
     bullets = _text(PACKAGE / "BULLET_CANDIDATES.md")
     assert bullets.count("## Version A:") == 1

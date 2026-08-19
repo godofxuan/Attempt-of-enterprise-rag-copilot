@@ -885,25 +885,27 @@ def test_audit_rejects_runtime_paths_invalid_snapshot_png_and_any_bad_doc_link(
 def test_readme_is_a_current_evidence_first_entrypoint() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     headings = [
-        "## Business Problem",
+        "## What Is Finished",
+        "## Verified Results",
         "## Architecture",
         "## Demo",
-        "## Why Agentic RAG",
-        "## Features",
-        "## Evidence",
         "## Quick Start",
-        "## Synthetic Data",
-        "## Limitations",
+        "## Repository Guide",
+        "## Scope and Limitations",
         "## Documentation",
     ]
 
     positions = [readme.index(heading) for heading in headings]
     assert positions == sorted(positions)
-    assert "```mermaid" in readme
+    assert "docs/diagrams/agentic_rag_flow_cn.png" in readme
+    for result in ("66.42%", "511,962", "4/12 -> 0/12", "63/63"):
+        assert result in readme
+    assert "retrieval metrics are not presented as answer accuracy" in readme
+    assert "the current Agent route improves external retrieval quality" in readme
     for screenshot in ["ask.png", "trace.png", "evaluation.png"]:
         assert f"docs/assets/{screenshot}" in readme
     quick_start = readme.split("## Quick Start", 1)[1].split(
-        "## Synthetic Data",
+        "## Repository Guide",
         1,
     )[0]
     commands = re.findall(r"```powershell\n([^\n]+)\n```", quick_start)
@@ -918,12 +920,12 @@ def test_readme_is_a_current_evidence_first_entrypoint() -> None:
             r".\.venv\Scripts\python.exe -m streamlit run streamlit_app/ui.py "
             r"--server.address 127.0.0.1 --server.port 8501"
         ),
+        r".\.venv\Scripts\python.exe -m scripts.verify_portfolio_release",
     ]
     assert "synthetic" in readme.casefold()
-    assert "526 passed" in readme
-    assert "574 passed" in readme
-    for result in ["28/28", "23/24", "31/31"]:
-        assert result in readme
+    for historical_snapshot in ("526 passed", "574 passed", "28/28", "23/24"):
+        assert historical_snapshot not in readme
+    assert "Portfolio archive report" in readme
 
 
 def test_root_status_is_the_only_current_status_entrypoint() -> None:
@@ -1025,7 +1027,6 @@ def test_r2_s4_task8_docs_publish_results_without_release_pass_claims() -> None:
     docs = {
         "results": (ROOT / "docs" / "security" / "r2_s4" / "01_results.md"),
         "status": ROOT / "PROJECT_STATUS.md",
-        "readme": ROOT / "README.md",
         "limitations": ROOT / "docs" / "known_limitations.md",
         "journal": ROOT / "docs" / "security" / "r2_s4" / "02_engineering_journal.md",
         "handoff": ROOT / "docs" / "roadmap" / "CURRENT_EXECUTION_HANDOFF.md",
@@ -1062,11 +1063,7 @@ def test_r2_s4_task8_docs_publish_results_without_release_pass_claims() -> None:
     ]:
         assert required in results
 
-    assert "[R2-S4 Results](docs/security/r2_s4/01_results.md)" in content["readme"]
-    assert "[R2-S4 public evidence](data/v2/public/r2_s4_cross_model/README.md)" in (
-        content["readme"]
-    )
-    for name in ("results", "status", "readme"):
+    for name in ("results", "status"):
         assert "12 decision safety/utility observations matched" in content[name], name
         assert "component deterministic threshold diagnostic=false" in content[name], name
         assert (
@@ -1077,7 +1074,10 @@ def test_r2_s4_task8_docs_publish_results_without_release_pass_claims() -> None:
         assert "12 decision safety/utility observations matched" in content[name], name
         assert "3 operational counts matched" in content[name], name
         assert "2 latency metrics differed" in content[name], name
-    assert "17 safety/utility metrics were equal" not in content["readme"]
+    assert all(
+        "17 safety/utility metrics were equal" not in text
+        for text in content.values()
+    )
     assert "selected 17" not in content["results"]
     forbidden_metric_phrases = (
         "equal selected metrics",
@@ -1179,7 +1179,6 @@ def test_r2_s4_task8_status_backlog_and_limitations_are_current_not_prerun() -> 
     protocol = (
         ROOT / "docs" / "security" / "r2_s4" / "00_cross_model_protocol.md"
     ).read_text(encoding="utf-8")
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "one planned R2-S4 cross-model run has already executed" in status
     assert "no rerun or overwrite of the immutable R2-S4 run IDs is allowed" in status
@@ -1231,8 +1230,6 @@ def test_r2_s4_task8_status_backlog_and_limitations_are_current_not_prerun() -> 
     assert "DO NOT RUN the consumed export command again" in protocol
     assert "Only the verifier commands below remain runnable" in protocol
 
-    assert "cross-model replication is NOT RUN at R2-S3 cutoff" in readme
-    assert "[R2-S4 public evidence](data/v2/public/r2_s4_cross_model/README.md)" in readme
     assert "pre-run exact-HEAD review" in status
 
 
@@ -1314,7 +1311,6 @@ def test_r2_s4_audit_counts_are_labeled_by_gate_phase() -> None:
 def test_r2_s1_current_docs_use_canonical_metric_and_stage_names() -> None:
     status = (ROOT / "PROJECT_STATUS.md").read_text(encoding="utf-8")
     status_header = status.split("## 1.", 1)[0]
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
     protocol = (
         ROOT / "docs" / "security" / "r2_s1" / "04_evaluation_protocol.md"
     ).read_text(encoding="utf-8")
@@ -1329,8 +1325,8 @@ def test_r2_s1_current_docs_use_canonical_metric_and_stage_names() -> None:
     assert "V1-V5" in status_header
     assert "V0-V4" not in status_header
     assert "V1-V4" not in status_header
-    assert "15_v5_counterbalanced_arm_order_engineering_journal.md" in readme
-    for content in (readme, protocol, results, d7_journal):
+    assert "15_v5_counterbalanced_arm_order_engineering_journal.md" in status
+    for content in (protocol, results, d7_journal):
         lowered = content.casefold()
         assert "raw model follow" not in lowered
         assert "raw model attack follow" not in lowered
@@ -2064,7 +2060,6 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
         "e1910a458b3541abc47d515cf46a3b5ab6daa614e971e2f701097ebdce67befc"
     )
     current_paths = (
-        "README.md",
         "PROJECT_STATUS.md",
         "docs/known_limitations.md",
         "docs/industrialization_backlog.md",
@@ -2078,7 +2073,7 @@ def test_r2_s3_current_docs_bind_regenerated_v2_evidence() -> None:
         relative: (ROOT / relative).read_text(encoding="utf-8")
         for relative in current_paths
     }
-    identity_paths = current_paths[4:]
+    identity_paths = current_paths[3:]
 
     _assert_exact_public_exposure_package_tree(
         package,
