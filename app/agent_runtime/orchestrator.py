@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 import hashlib
 import secrets
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal, Protocol, TypedDict
@@ -320,6 +321,9 @@ class _PendingHumanReview:
     request: AgentRunRequest
     review: HumanReviewRequest
     recorder: TrajectoryRecorder | None
+    status: Literal["pending", "resuming", "completed"] = "pending"
+    decision_key: str | None = None
+    result: AgentRunResult | None = None
 
 
 class LangGraphOrchestratorAdapter:
@@ -346,6 +350,7 @@ class LangGraphOrchestratorAdapter:
         self.trajectory_store = trajectory_store
         self.hitl_on_partial = hitl_on_partial
         self._pending_reviews: dict[str, _PendingHumanReview] = {}
+        self._review_lock = threading.RLock()
 
     def run(self, request: AgentRunRequest) -> AgentRunResult:
         started = self.clock_ms()
@@ -378,13 +383,14 @@ class LangGraphOrchestratorAdapter:
         if "__interrupt__" in state:
             review = self._create_review_request(request, state)
             digest = _review_token_digest(review.review_token)
-            self._pending_reviews[digest] = _PendingHumanReview(
-                graph=graph,
-                config=config,
-                request=request,
-                review=review,
-                recorder=recorder,
-            )
+            with self._review_lock:
+                self._pending_reviews[digest] = _PendingHumanReview(
+                    graph=graph,
+                    config=config,
+                    request=request,
+                    review=review,
+                    recorder=recorder,
+                )
             if recorder is not None:
                 recorder.record(
                     "human_review.requested",
@@ -423,14 +429,47 @@ class LangGraphOrchestratorAdapter:
         reviewer: UserContext,
     ) -> AgentRunResult:
         digest = _review_token_digest(review_token)
-        pending = self._pending_reviews.get(digest)
-        if pending is None:
-            raise ValueError("human review token is invalid, stale, or already used")
-        if reviewer.tenant_id != pending.request.user.tenant_id:
-            raise PermissionError("human reviewer belongs to a different tenant")
-        if "knowledge_reviewer" not in reviewer.roles:
-            raise PermissionError("human reviewer role is required")
-        self._pending_reviews.pop(digest)
+        decision_key = decision.model_dump_json()
+        with self._review_lock:
+            pending = self._pending_reviews.get(digest)
+            if pending is None:
+                raise ValueError("human review token is invalid, stale, or already used")
+            if reviewer.tenant_id != pending.request.user.tenant_id:
+                raise PermissionError("human reviewer belongs to a different tenant")
+            if "knowledge_reviewer" not in reviewer.roles:
+                raise PermissionError("human reviewer role is required")
+            if pending.status == "completed":
+                if pending.decision_key == decision_key and pending.result is not None:
+                    return pending.result
+                raise ValueError("human review token is already used")
+            if pending.status == "resuming":
+                raise ValueError("human review token is already being resumed")
+            pending.status = "resuming"
+            pending.decision_key = decision_key
+        started = self.clock_ms()
+        try:
+            state = pending.graph.invoke(
+                Command(resume=decision.decision),
+                config=pending.config,
+            )
+        except Exception:
+            with self._review_lock:
+                pending.status = "pending"
+                pending.decision_key = None
+            raise
+        response = state["response"]
+        result = AgentRunResult(
+            orchestrator=self.name,
+            request_id=pending.request.request_id,
+            trace_id=pending.request.trace_id,
+            session_id=pending.request.session_id,
+            response=response,
+            node_trace=state["node_trace"],
+            latency_ms=max(0.0, self.clock_ms() - started),
+        )
+        with self._review_lock:
+            pending.status = "completed"
+            pending.result = result
         if pending.recorder is not None:
             pending.recorder.record(
                 "human_review.completed",
@@ -441,22 +480,8 @@ class LangGraphOrchestratorAdapter:
                     "note": decision.note,
                 },
             )
-        started = self.clock_ms()
-        state = pending.graph.invoke(
-            Command(resume=decision.decision),
-            config=pending.config,
-        )
-        response = state["response"]
         _complete_trajectory(pending.recorder, response, self.name)
-        return AgentRunResult(
-            orchestrator=self.name,
-            request_id=pending.request.request_id,
-            trace_id=pending.request.trace_id,
-            session_id=pending.request.session_id,
-            response=response,
-            node_trace=state["node_trace"],
-            latency_ms=max(0.0, self.clock_ms() - started),
-        )
+        return result
 
     def _create_review_request(
         self,

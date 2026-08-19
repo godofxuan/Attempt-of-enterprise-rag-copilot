@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 
 import pytest
 
@@ -148,3 +150,79 @@ def test_forged_review_token_is_rejected_without_consuming_real_token(tmp_path) 
     )
     assert completed.status == "completed"
 
+
+def test_graph_resume_failure_can_be_retried_safely(tmp_path, monkeypatch) -> None:
+    adapter, _, _, paused = paused_runtime(tmp_path)
+    token = paused.human_review.review_token
+    pending = adapter._pending_reviews[next(iter(adapter._pending_reviews))]
+    real_invoke = pending.graph.invoke
+    attempts = 0
+
+    def flaky_invoke(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("injected graph resume failure")
+        return real_invoke(*args, **kwargs)
+
+    monkeypatch.setattr(pending.graph, "invoke", flaky_invoke)
+    decision = HumanReviewDecision(decision="reject")
+
+    with pytest.raises(RuntimeError, match="injected"):
+        adapter.resume(token, decision, reviewer())
+    completed = adapter.resume(token, decision, reviewer())
+
+    assert completed.status == "completed"
+    assert attempts == 2
+
+
+def test_completed_resume_is_idempotent_for_same_decision(tmp_path) -> None:
+    adapter, store, _, paused = paused_runtime(tmp_path)
+    token = paused.human_review.review_token
+    decision = HumanReviewDecision(decision="reject", note="unsafe to publish")
+
+    first = adapter.resume(token, decision, reviewer())
+    second = adapter.resume(token, decision, reviewer())
+
+    assert second == first
+    assert [event.event_type for event in store.load("session-one")].count(
+        "human_review.completed"
+    ) == 1
+    with pytest.raises(ValueError, match="already used"):
+        adapter.resume(
+            token,
+            HumanReviewDecision(decision="accept_partial"),
+            reviewer(),
+        )
+
+
+def test_concurrent_resume_executes_graph_only_once(tmp_path, monkeypatch) -> None:
+    adapter, _, _, paused = paused_runtime(tmp_path)
+    token = paused.human_review.review_token
+    pending = adapter._pending_reviews[next(iter(adapter._pending_reviews))]
+    real_invoke = pending.graph.invoke
+    calls = 0
+    entered = Event()
+    release = Event()
+
+    def counted_invoke(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        entered.set()
+        assert release.wait(timeout=5)
+        return real_invoke(*args, **kwargs)
+
+    monkeypatch.setattr(pending.graph, "invoke", counted_invoke)
+    decision = HumanReviewDecision(decision="reject")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(adapter.resume, token, decision, reviewer())
+        assert entered.wait(timeout=5)
+        second = pool.submit(adapter.resume, token, decision, reviewer())
+        with pytest.raises(ValueError, match="already being resumed"):
+            second.result(timeout=5)
+        release.set()
+        completed = first.result(timeout=5)
+
+    assert calls == 1
+    assert completed.status == "completed"
