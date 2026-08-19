@@ -207,3 +207,30 @@ def test_malformed_or_mismatched_arguments_are_rejected() -> None:
                 "arguments": {},
             }
         )
+
+
+def test_acl_scope_may_equal_or_narrow_authenticated_groups() -> None:
+    multi_group_user = USER.model_copy(
+        update={"groups": ["employees", "finance"]}
+    )
+
+    same = context(
+        identity=multi_group_user,
+        acl_scope=("employees", "finance"),
+    )
+    narrower = context(identity=multi_group_user, acl_scope=("employees",))
+
+    assert set(same.acl_scope) == set(multi_group_user.groups)
+    assert narrower.acl_scope == ("employees",)
+
+
+@pytest.mark.parametrize(
+    "acl_scope",
+    [
+        ("employees", "finance_admin"),
+        ("contractors",),
+    ],
+)
+def test_acl_scope_rejects_expansion_or_unrelated_group(acl_scope) -> None:
+    with pytest.raises(ValidationError, match="ACL scope"):
+        context(acl_scope=acl_scope)

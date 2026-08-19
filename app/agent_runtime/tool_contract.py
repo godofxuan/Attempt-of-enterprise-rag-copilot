@@ -57,8 +57,8 @@ class ToolContext(_StrictFrozenModel):
             raise ValueError("tool context expiry must follow issue time")
         if len(self.acl_scope) != len(set(self.acl_scope)):
             raise ValueError("ACL scope must be unique")
-        if not set(self.identity.groups).issubset(self.acl_scope):
-            raise ValueError("ACL scope cannot omit authenticated identity groups")
+        if not set(self.acl_scope).issubset(self.identity.groups):
+            raise ValueError("ACL scope cannot expand authenticated identity groups")
         if len(self.allowed_tools) != len(set(self.allowed_tools)):
             raise ValueError("allowed tools must be unique")
         return self
