@@ -1,44 +1,44 @@
 # Recruiter Summary
 
-Use these as speaking prompts, not scripts to recite word for word. Every number
-below is mapped in `PROJECT_EVIDENCE_MAP.md`.
+Current state: `RAG_VNEXT_CLOSED` on `codex/agent-runtime-vnext`. Use these as
+speaking prompts. Resolve every number through
+`docs/handoffs/RESUME_METRIC_LEDGER.md`.
 
 ## 15 seconds
 
-I built an evidence-controlled enterprise RAG project that separates retrieval,
-authorization, grounding, security, and release evaluation, and I used frozen
-gates to reject Agent features that added latency without fixing quality.
+I built an enterprise RAG system with a replaceable but bounded Agent Runtime.
+Identity, ACL, tools, retrieved-content admission, evidence, and final citations
+remain controlled by the Python host, while frozen evaluations decide what can
+be claimed or shipped.
 
 ## 30 seconds
 
-The project combines hybrid knowledge retrieval with host-owned identity/ACL,
-retrieved-content admission, an Evidence Ledger, and citation filtering. On 200
-WixQA support questions, BGE-M3 Dense improved retrieval Recall@5 from 42.75% to
-66.42%; I also kept the weaker RRF and multi-document Agent candidates disabled
-because paired evaluation showed worse quality/latency trade-offs.
+The bounded controller remains the default and a real LangGraph StateGraph is an
+alternative behind the same ToolGateway. I also added local MCP tool adaptation,
+hash-linked trajectories, deterministic replay, and an EvalOps artifact. The
+strongest external result is retrieval-only: on 200 WixQA questions, Dense
+improved Recall@5 from 42.75% to 66.42%.
 
 ## 90 seconds
 
-Enterprise RAG fails in more places than generation: the wrong document may be
-retrieved, permissions may be applied too late, poisoned text may enter Agent
-state, required evidence may be incomplete, or an unsupported claim may be
-published. I built explicit Python boundaries for those stages and a frozen
-evaluation/evidence workflow around them. The strongest retrieval result is a
-200-question WixQA comparison where Dense improved Recall@5 from 42.75% to
-66.42%. For scale, a resumable FTS5 path built and atomically activated a 1.37
-GiB index over 511,962 records in 231.35 seconds. For security, one pinned garak
-subset changed observed attack success from 4/12 to 0/12, with narrow published
-limitations. The project also records failures: equal RRF underperformed Dense,
-and a bounded multi-document candidate added 1.86x p95 latency with zero complete-
-case fixes, so it was rejected. The repository is portfolio-ready, not production-
-ready, and feature development is intentionally stopped until a genuinely new
-validation cohort or real-user failure pattern exists.
+Enterprise RAG can fail at retrieval, authorization, poisoned content admission,
+evidence completeness, or claim publication. I separated those boundaries in
+Python and made the orchestrator replaceable without moving authority into the
+framework or prompt. The default bounded path and LangGraph alternative use the
+same typed search/find/open tools and security gates; MCP is local/in-process and
+also returns through that gateway. Runs can emit a SHA-256-linked trajectory and
+versioned Agent artifact for deterministic no-network replay. Externally, Dense
+improved WixQA retrieval Recall@5 from 42.75% to 66.42%; a one-host FTS5 build
+handled 511,962 records; and a narrow pinned Guard comparison reduced observed
+ASR from 4/12 to 0/12. I also retained negative results: equal RRF and a
+multi-document candidate were rejected. This is portfolio-ready engineering
+evidence, not a production deployment or a claim that LangGraph improved quality.
 
 ## Current boundary
 
-- Portfolio/interview usable: yes.
-- Engineering evidence credible within frozen scopes: yes.
-- Blind answer correctness established: no.
-- Universal security or production readiness: no.
-- Current multi-document candidate shipped: no, rejected.
-- More frameworks needed now: no measured justification.
+- Portfolio/resume/interview usable: yes, within frozen claim scopes.
+- Replaceable runtime and local MCP adapter implemented: yes.
+- LangGraph quality uplift established: no.
+- Blind end-to-end answer correctness established: no.
+- Production network MCP, durable HITL, SLO/HA, or universal security: no.
+- Merge and deployment authority: user decision.

@@ -94,21 +94,46 @@ def test_vnext_closeout_supersedes_but_preserves_archived_handoffs() -> None:
     historical = "PORTFOLIO_READY_STOP_DEVELOPMENT"
     readme = _text(ROOT / "README.md")
     status = _text(ROOT / "PROJECT_STATUS.md")
+    evidence_map = _text(HANDOFFS / "PROJECT_EVIDENCE_MAP.md")
+    teaching = _text(HANDOFFS / "TEACHING_CODEX_HANDOFF.md")
     summary = _text(PACKAGE / "PROJECT_SUMMARY.md")
     resume_handoff = _text(HANDOFFS / "RESUME_CODEX_HANDOFF.md")
 
-    assert "RAG_VNEXT_CLOSED" in readme
+    for text in (
+        readme,
+        status,
+        evidence_map,
+        teaching,
+        summary,
+        resume_handoff,
+    ):
+        assert "RAG_VNEXT_CLOSED" in text
+
+    for text in (status, evidence_map, teaching, summary, resume_handoff):
+        assert "codex/agent-runtime-vnext" in text
+
     for text in (status, summary, resume_handoff):
         assert archived in text
+        assert "histor" in text.lower()
     assert historical not in readme
     assert historical not in summary
-    assert "only current portfolio enum" in status
-    assert "HISTORICAL" in status
+    assert status.index("RAG_VNEXT_CLOSED") < status.index(archived)
+    assert "Historical stages" in status
 
 
 def test_project_evidence_map_points_to_real_code_tests_and_artifacts() -> None:
     evidence_map = _text(HANDOFFS / "PROJECT_EVIDENCE_MAP.md")
-    for claim_id in ("P1", "P2", "P3", "P4", "P5", "P6", "N1"):
+    for claim_id in (
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7",
+        "P8",
+        "N1",
+    ):
         assert f"Claim {claim_id}:" in evidence_map
     for field in (
         "| Claim |",
@@ -124,7 +149,7 @@ def test_project_evidence_map_points_to_real_code_tests_and_artifacts() -> None:
         "| Forbidden wording |",
         "| Interview explanation |",
     ):
-        assert evidence_map.count(field) == 7
+        assert evidence_map.count(field) == 9
 
     for relative_path in (
         "app/external_datasets/wixqa_retrieval.py",
@@ -134,6 +159,12 @@ def test_project_evidence_map_points_to_real_code_tests_and_artifacts() -> None:
         "app/agent/query_analysis.py",
         "app/agent/controller_v2.py",
         "app/agent/citation_verifier.py",
+        "app/agent_runtime/orchestrator.py",
+        "app/agent_runtime/tool_gateway.py",
+        "app/agent_runtime/mcp_adapter.py",
+        "app/agent_runtime/trajectory.py",
+        "app/agent_runtime/replay.py",
+        "app/agent_runtime/evalops_artifact.py",
         "app/evaluation/wixqa_multidoc_candidate.py",
         "tests/external_datasets/test_wixqa_public_evidence.py",
         "tests/test_final_evidence_closure.py",
@@ -150,7 +181,7 @@ def test_teaching_and_story_handoffs_cover_required_modules() -> None:
     stories = _text(HANDOFFS / "INTERVIEW_STORY_BANK.md")
 
     assert re.findall(r"^## Module (\d+):", teaching, flags=re.MULTILINE) == [
-        str(index) for index in range(1, 9)
+        str(index) for index in range(1, 14)
     ]
     for marker in (
         "**Foundation:**",
@@ -163,10 +194,12 @@ def test_teaching_and_story_handoffs_cover_required_modules() -> None:
         "**Follow-up:**",
         "**Learner answer target:**",
     ):
-        assert teaching.count(marker) == 8
+        assert teaching.count(marker) == 13
+    assert teaching.count("**Code/test exercise:**") == 13
+    assert "docs/learning/AGENT_RUNTIME_TUTORIAL.md" in teaching
 
     assert re.findall(r"^## Story (\d+):", stories, flags=re.MULTILINE) == [
-        str(index) for index in range(1, 9)
+        str(index) for index in range(1, 14)
     ]
     for marker in (
         "**Situation:**",
@@ -178,7 +211,92 @@ def test_teaching_and_story_handoffs_cover_required_modules() -> None:
         "**Trade-off:**",
         "**What I learned:**",
     ):
-        assert stories.count(marker) == 8
+        assert stories.count(marker) == 13
+
+
+def test_current_resume_and_provenance_surfaces_fail_closed() -> None:
+    ledger = _text(HANDOFFS / "RESUME_METRIC_LEDGER.md")
+    safe_metrics = _text(ROOT / "docs/resume/RESUME_SAFE_VNEXT_METRICS.md")
+    final_cn = _text(PACKAGE / "FINAL_RESUME_ENTRY_CN.md")
+    provenance_path = HANDOFFS / "THIRD_PARTY_PROVENANCE.md"
+    provenance = _text(provenance_path)
+
+    for category in (
+        "VERIFIED_POSITIVE",
+        "INTERVIEW_ONLY",
+        "HISTORICAL_NEGATIVE",
+        "FORBIDDEN_CLAIM",
+    ):
+        assert category in ledger
+        assert category in safe_metrics
+
+    assert "single numeric authority" in ledger
+    for metric in (
+        "42.75%",
+        "66.42%",
+        "32.15%",
+        "52.16%",
+        "511,962",
+        "4/12",
+        "0/12",
+    ):
+        assert metric in final_cn
+        assert metric in ledger
+
+    current_resume = final_cn.split("## 禁止表述", maxsplit=1)[0]
+    assert "回答准确率 `66.42%`" not in current_resume
+    assert "实现 LangGraph 提升答案质量" not in current_resume
+    assert "LangGraph improved answer quality" not in current_resume
+    assert "production network MCP" not in current_resume
+    for forbidden in ("SOTA", "production-ready"):
+        assert forbidden not in current_resume
+    assert "实现“100% 安全”" not in current_resume
+
+    assert provenance_path.stat().st_size > 1_000
+    for required in (
+        "API_USAGE",
+        "CONCEPT_ONLY",
+        "UNKNOWN",
+        "https://github.com/langchain-ai/langgraph",
+        "https://github.com/modelcontextprotocol/python-sdk",
+        "https://github.com/anthropics/claude-code",
+    ):
+        assert required in provenance
+    assert "repository root has no declared license" in provenance.lower()
+
+
+def test_canonical_handoff_paths_exist() -> None:
+    current_paths = (
+        "PROJECT_STATUS.md",
+        "docs/handoffs/PROJECT_EVIDENCE_MAP.md",
+        "docs/handoffs/RESUME_METRIC_LEDGER.md",
+        "docs/handoffs/resume_package/FINAL_RESUME_ENTRY_CN.md",
+        "docs/handoffs/TEACHING_CODEX_HANDOFF.md",
+        "docs/handoffs/INTERVIEW_STORY_BANK.md",
+        "docs/learning/RAG_PROJECT_TEACHING_HANDOFF.md",
+        "docs/learning/AGENT_RUNTIME_TUTORIAL.md",
+        "docs/agent_runtime/10_FINAL_ARCHITECTURE.md",
+        "docs/agent_runtime/09_SECURITY_REVIEW.md",
+        "docs/agent_runtime/08_AB_EVALUATION.md",
+        "docs/resume/RESUME_SAFE_VNEXT_METRICS.md",
+        "docs/handoffs/THIRD_PARTY_PROVENANCE.md",
+        "docs/handoffs/VNEXT_CROSS_SURFACE_AUDIT_20260820.md",
+    )
+    for relative_path in current_paths:
+        assert (ROOT / relative_path).is_file(), relative_path
+
+    teaching = _text(HANDOFFS / "TEACHING_CODEX_HANDOFF.md")
+    for relative_path in (
+        "docs/handoffs/PROJECT_EVIDENCE_MAP.md",
+        "docs/learning/RAG_PROJECT_TEACHING_HANDOFF.md",
+        "docs/learning/AGENT_RUNTIME_TUTORIAL.md",
+        "docs/agent_runtime/10_FINAL_ARCHITECTURE.md",
+        "docs/agent_runtime/09_SECURITY_REVIEW.md",
+        "docs/agent_runtime/08_AB_EVALUATION.md",
+        "docs/resume/RESUME_SAFE_VNEXT_METRICS.md",
+        "docs/handoffs/INTERVIEW_STORY_BANK.md",
+    ):
+        assert relative_path in teaching
 
 
 def test_resume_package_is_complete_and_fail_closed() -> None:

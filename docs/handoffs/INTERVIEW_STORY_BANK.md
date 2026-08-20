@@ -3,6 +3,10 @@
 Each story is a factual decision narrative. Adapt emphasis to the question, but
 do not change the dataset, denominator, evidence class, or decision.
 
+Current state: `RAG_VNEXT_CLOSED` on `codex/agent-runtime-vnext`. Stories 1-8
+retain the earlier retrieval/evaluation evidence; stories 9-13 explain the
+later runtime mechanisms without converting them into quality claims.
+
 ## Story 1: Dense versus BM25
 
 - **Situation:** Natural support questions often paraphrase help-center text.
@@ -126,3 +130,92 @@ do not change the dataset, denominator, evidence class, or decision.
 - **Trade-off:** Stopping leaves a known gap, but continuing on exposed labels
   would manufacture confidence rather than improve evidence.
 - **What I learned:** A release gate must be able to say no after implementation.
+
+## Story 9: replaceable runtime without duplicated authority
+
+- **Situation:** The bounded Agent path worked, but framework-specific control
+  flow made future migration and HITL hard to compare.
+- **Problem:** Adding LangGraph could duplicate permission and publication logic.
+- **Hypothesis:** One `AgentOrchestrator` contract could replace only orchestration
+  while both implementations shared host-owned security boundaries.
+- **Experiment:** Ran bounded and real LangGraph `StateGraph` adapters over five
+  deterministic terminal/tool cases through the same `ToolGateway`.
+- **Result:** Both arms passed 5/5 with behavioral parity and no permission
+  violations; LangGraph added local orchestration overhead and no quality uplift.
+- **Decision:** Keep bounded as default and LangGraph as an explicit alternative.
+- **Trade-off:** The adapter layer adds code, but prevents framework lock-in and
+  policy drift.
+- **What I learned:** A framework migration is valuable when it preserves
+  invariants, even when it does not improve model quality.
+
+## Story 10: MCP interoperability behind ToolGateway
+
+- **Situation:** Tools needed a standard interface without giving model-visible
+  arguments direct authority.
+- **Problem:** An MCP handler that queries storage directly could bypass ACL,
+  budget, deadline, or retrieved-content admission.
+- **Hypothesis:** An opaque server-issued context handle could connect MCP calls
+  to the existing gateway without serializing identity or ACL scope.
+- **Experiment:** Adapted typed `search/find/open` through the official MCP Python
+  SDK and tested valid, invalid, expired, and revoked contexts.
+- **Result:** Local/in-process calls used the same gateway and returned structured
+  safe failures; no production network or OAuth path was built.
+- **Decision:** Retain MCP as a protocol adapter, never as an authorization owner.
+- **Trade-off:** Server-held handles need expiry and revocation state, but prevent
+  caller-controlled scope expansion.
+- **What I learned:** Interoperability and security are separate responsibilities.
+
+## Story 11: trajectory versus ordinary logs
+
+- **Situation:** Debug traces showed events but did not provide a stable integrity
+  contract for replay or EvalOps.
+- **Problem:** Reordering or editing a log line could change the story of a run.
+- **Hypothesis:** Canonical semantic events linked by SHA-256 would make mutation
+  detectable and deterministic replay possible without side effects.
+- **Experiment:** Implemented event canonicalization, previous-hash links,
+  append-only SQLite checks, tamper tests, and no-network replay.
+- **Result:** A public 13-event sample verifies structurally and replays its
+  recorded terminal facts; it is one mechanism sample, not WORM certification.
+- **Decision:** Use trajectories as the canonical run record and keep operational
+  logging as a separate concern.
+- **Trade-off:** Hash links expose mutation but do not prevent an administrator
+  replacing the complete local store.
+- **What I learned:** Verifiable history is stronger than text logs but weaker
+  than independently anchored audit storage.
+
+## Story 12: retry-safe HITL without false durability claims
+
+- **Situation:** Partial evidence sometimes requires a human publication decision.
+- **Problem:** A review token could be replayed, used across tenants, or consumed
+  before a transient publication failure was resolved.
+- **Hypothesis:** Explicit pending/in-use/completed handling plus reviewer checks
+  could make same-process resume single-use and retry-safe.
+- **Experiment:** Tested accept/reject, wrong tenant and role, replay, concurrent
+  resume, and a failure injected before completion.
+- **Result:** Authorized decisions publish or reject once, and a handled failure
+  can retry the token; process-restart recovery remains unimplemented.
+- **Decision:** Document HITL as bounded same-process resume, not durable execution.
+- **Trade-off:** In-memory state is simple and deterministic but cannot survive a
+  crash or coordinate multiple workers.
+- **What I learned:** Idempotency, authorization, and durability require separate
+  evidence.
+
+## Story 13: a versioned Agent artifact for EvalOps
+
+- **Situation:** Evaluation consumers should not scrape private runtime objects or
+  unstable logs.
+- **Problem:** Without a schema, integrity and redaction rules drift between the
+  Agent and evaluation layers.
+- **Hypothesis:** A versioned artifact could expose only stable, verifiable run
+  facts and fail closed when hashes or required fields change.
+- **Experiment:** Defined `enterprise.agent-run/1.0`, generated a public sample,
+  added schema/hash verification, and separated trajectory, retrieval, and answer
+  metric semantics.
+- **Result:** The sample is consumable and tamper-detecting; external platform
+  adoption and answer correctness are not established.
+- **Decision:** Treat the artifact as an integration contract, not an evaluation
+  score or audit certification.
+- **Trade-off:** Versioning creates migration work, but prevents log-format
+  coupling and accidental claim inflation.
+- **What I learned:** EvalOps begins with stable evidence contracts, not a larger
+  dashboard or another Agent framework.

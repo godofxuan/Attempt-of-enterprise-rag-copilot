@@ -1,5 +1,13 @@
 # Enterprise RAG 项目教学交接手册
 
+> Current-scope note (2026-08-20): this chapter remains the detailed RAG,
+> benchmark, indexing, and failure-analysis foundation. The canonical project
+> state is now `RAG_VNEXT_CLOSED` on `codex/agent-runtime-vnext`. Read
+> `docs/handoffs/TEACHING_CODEX_HANDOFF.md` and
+> `docs/learning/AGENT_RUNTIME_TUTORIAL.md` next for AgentOrchestrator,
+> ToolGateway/MCP, trajectory/replay, HITL, and EvalOps. Later runtime mechanisms
+> do not change the historical retrieval or rejected-candidate conclusions.
+
 本文解释本轮 enterprise-aligned evaluation 做了什么、为什么这样做、代码
 在哪里、遇到了什么问题，以及结果为什么好或不好。它不是运行状态来源；正式
 数字以 `docs/enterprise_eval/evidence/` 中的 JSON 和对应 Git SHA 为准。

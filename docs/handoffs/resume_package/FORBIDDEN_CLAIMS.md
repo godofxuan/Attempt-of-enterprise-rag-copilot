@@ -17,8 +17,10 @@ Omit or rewrite any draft containing these meanings:
 - Oracle, synthetic-development, mechanism-only, or consumed-development metrics
   presented as final quality.
 - Any `NOT_RUN` capability presented as implemented or passed.
-- LangGraph, GraphRAG, MCP, Redis, Kafka, a reranker, or another model/vector
-  database listed as project capability without corresponding accepted evidence.
+- LangGraph quality uplift, production network MCP/OAuth, durable HITL, or the
+  five-case parity diagnostic presented as answer quality or production latency.
+- GraphRAG, Redis, Kafka, a reranker, another model/vector database, or any other
+  component listed as project capability without corresponding accepted evidence.
 
 Fail closed: if a stronger wording cannot be mapped to
 `../PROJECT_EVIDENCE_MAP.md`, mark it `NO_EVIDENCE` and remove it.

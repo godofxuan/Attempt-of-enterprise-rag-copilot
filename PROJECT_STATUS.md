@@ -1,6 +1,88 @@
 # Enterprise Agentic RAG - Current Status
 
-## 2026-08-11 Canonical portfolio archive state
+## 2026-08-20 Canonical vNext state
+
+```text
+review date                        2026-08-20
+target branch                      codex/agent-runtime-vnext
+sync input PRE_SYNC_HEAD           ef9d0a919d3c002b7d868035c90b9f9624202513
+canonical state                    RAG_VNEXT_CLOSED
+portfolio / resume / interview     USABLE WITH EVIDENCE BOUNDARIES
+production readiness               NOT ESTABLISHED / NOT CLAIMED
+merge to main                      USER DECISION / NOT PERFORMED
+default runtime                    BOUNDED CONTROLLER
+LangGraph                          REAL ALTERNATIVE / NO QUALITY UPLIFT CLAIM
+MCP                                OFFICIAL SDK / LOCAL IN-PROCESS ADAPTER
+trajectory                         APPEND-ONLY SHA-256 CHAIN / TAMPER-EVIDENT
+replay                             DETERMINISTIC / NO MODEL OR TOOL REEXECUTION
+HITL                               SAME-PROCESS RESUME / NOT CRASH-DURABLE
+EvalOps artifact                   enterprise.agent-run/1.0
+```
+
+This is the only canonical current state on the vNext branch. The Python host,
+not a prompt or orchestration framework, owns identity, ACL narrowing, tool
+allow-lists, budget, deadline, retrieved-content Guard, Evidence Ledger,
+citation filtering, and final publication. `BoundedControllerAdapter` remains
+the default. `LangGraphOrchestratorAdapter` is a real `StateGraph` behind the
+same `AgentOrchestrator` and ToolGateway contracts; the five-case diagnostic
+showed parity, not an answer-quality improvement, and is not a production
+latency benchmark.
+
+The official MCP Python SDK is used only as an in-process adapter for
+`search/find/open`. Its opaque server-issued context handle resolves back to
+ToolGateway; no network transport, OAuth deployment, or remote production MCP
+claim is established. Trajectories are ordered, append-only at the application
+boundary, linked by SHA-256, replayable without model/network/tool calls, and
+exportable as `enterprise.agent-run/1.0`. Local SQLite is tamper-evident rather
+than WORM or externally signed. HITL supports tenant/role-bound, one-time,
+retry-safe same-process resume; pending state is not durable across restart.
+
+### Strongest measured evidence
+
+- WixQA ExpertWritten, 200 fixed public-label retrieval questions: BGE-M3 Dense
+  Recall@5 `42.75% -> 66.42%`, nDCG@5 `32.15% -> 52.16%`. These are retrieval
+  metrics, not answer accuracy.
+- EnterpriseRAG-Bench public synthetic corpus: one-host SQLite FTS5 build over
+  `511,962` records / 9 source types, `1.37 GiB`, `231.35 s`, approximately
+  `1.83 GiB` peak RSS. This is not production capacity or real private data.
+- Pinned garak subset: observed ASR `4/12 -> 0/12` and context exposure
+  `12/12 -> 0/12`. This narrow subset does not establish universal safety.
+
+### Claims that remain forbidden
+
+Do not claim production readiness, production traffic/SLO/QPS/HA, answer
+accuracy of `66.42%`, LangGraph quality improvement, production network
+MCP/OAuth, durable crash-safe HITL, WORM audit storage, universal injection
+defense, SOTA, independent third-party reproduction, or a deployed
+multi-document quality improvement.
+
+### Authoritative reading order
+
+1. `docs/handoffs/PROJECT_EVIDENCE_MAP.md`
+2. `docs/handoffs/RESUME_METRIC_LEDGER.md`
+3. `docs/agent_runtime/10_FINAL_ARCHITECTURE.md`
+4. `docs/agent_runtime/09_SECURITY_REVIEW.md`
+5. `docs/learning/AGENT_RUNTIME_TUTORIAL.md`
+6. `docs/handoffs/TEACHING_CODEX_HANDOFF.md`
+7. `docs/handoffs/INTERVIEW_STORY_BANK.md`
+8. `docs/handoffs/FINAL_PORTFOLIO_SYNC_REPORT_20260820.md`
+
+Portfolio-ready means that implementation, tests, evidence, and claim
+boundaries are inspectable. It does not mean production-ready. Merge remains a
+repository-owner decision.
+
+## Historical stages
+
+Every dated section below records the state and decision at that historical
+cutoff. It remains evidence, but it must not override the 2026-08-20 canonical
+vNext state above. In particular, `current Agent candidate REJECTED` referred
+to the bounded multi-document quality candidate evaluated on consumed cases.
+It did not mean that the later Agent Runtime abstraction, LangGraph alternative,
+MCP adapter, trajectory, replay, HITL, or EvalOps artifact did not exist. The
+negative quality result remains valid and the vNext mechanism work does not
+retroactively turn it into a positive quality result.
+
+## 2026-08-11 Portfolio archive state (HISTORICAL)
 
 ```text
 canonical state                    PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW
@@ -15,11 +97,11 @@ archive local suite                3232 PASSED / 30 SKIPPED / 3 KNOWN WARNINGS
 archive public audit               1603 CANDIDATES / 0 FINDINGS
 ```
 
-This is the repository's only current portfolio enum. Earlier
+At that cutoff this was the repository's portfolio enum. Earlier
 `PORTFOLIO_READY_*` strings in dated closeout reports are historical stage
-decisions, not competing current states. Resume, teaching, and recruiter tasks
-must start from [Project Evidence Map](docs/handoffs/PROJECT_EVIDENCE_MAP.md).
-The verified resume package is under `docs/handoffs/resume_package/`.
+decisions, not competing current states. Current resume, teaching, and recruiter
+tasks must start from [Project Evidence Map](docs/handoffs/PROJECT_EVIDENCE_MAP.md).
+The historical resume package remains under `docs/handoffs/resume_package/`.
 The complete closure decision is in
 [Portfolio Archive Report](docs/handoffs/PORTFOLIO_ARCHIVE_REPORT.md).
 

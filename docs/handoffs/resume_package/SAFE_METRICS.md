@@ -1,5 +1,9 @@
 # Safe Metrics
 
+Compatibility mirror for the resume package. The single numeric authority is
+`../RESUME_METRIC_LEDGER.md`; this table may select values but cannot override
+its class, denominator, scope, or wording.
+
 Use only these primary headlines unless a target JD needs a supporting metric.
 
 | ID | Class | Metric | Required qualifier |
@@ -11,5 +15,6 @@ Use only these primary headlines unless a target JD needs a supporting metric.
 | M5 | Supporting | FTS hard exits `30/30`; active pointer `12/12` | process crash only, not power loss or HA |
 | M6 | Negative | multi-doc fixes `0`, completeness delta `0pp`, precision `-5.83pp`, p95 `1.859x` | 20 consumed development cases; candidate rejected |
 
-The complete meanings, exact source paths, and forbidden phrasings are in
-`../RESUME_METRIC_LEDGER.md` and `../PROJECT_EVIDENCE_MAP.md`.
+The complete meanings, exact source paths, current four-category classification,
+and forbidden phrasings are in `../RESUME_METRIC_LEDGER.md` and
+`../PROJECT_EVIDENCE_MAP.md`.

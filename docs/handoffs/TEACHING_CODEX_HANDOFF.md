@@ -5,19 +5,26 @@ Do not summarize the README and call that teaching. Read the evidence map first,
 then use the existing detailed chapters listed below. Do not change project
 facts to make an explanation easier.
 
-Current state: `PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW`.
-Feature development is stopped. Teaching may use consumed cases for historical
-analysis, but must never rename them as blind validation.
+Current branch/state: `codex/agent-runtime-vnext` / `RAG_VNEXT_CLOSED`.
+This is portfolio-ready teaching material, not proof of production readiness.
+Teaching may use consumed cases for historical analysis, but must never rename
+them as blind validation. Runtime mechanisms also must not be presented as
+answer-quality improvements.
 
 ## Required reading order
 
 1. `docs/handoffs/PROJECT_EVIDENCE_MAP.md`
 2. `docs/learning/RAG_PROJECT_TEACHING_HANDOFF.md`
-3. `docs/multidoc_attribution/03_LEARNING_GUIDE.md`
-4. `docs/multidoc_candidate/04_LEARNING_AND_INTERVIEW_GUIDE.md`
-5. `docs/final_evidence_closure/02_LEARNING_GUIDE.md`
-6. `docs/learning/RAG_INTERVIEW_UPDATE.md`
-7. `docs/handoffs/INTERVIEW_STORY_BANK.md`
+3. `docs/learning/AGENT_RUNTIME_TUTORIAL.md`
+4. `docs/agent_runtime/10_FINAL_ARCHITECTURE.md`
+5. `docs/agent_runtime/09_SECURITY_REVIEW.md`
+6. `docs/agent_runtime/08_AB_EVALUATION.md`
+7. `docs/resume/RESUME_SAFE_VNEXT_METRICS.md`
+8. `docs/handoffs/INTERVIEW_STORY_BANK.md`
+9. `docs/multidoc_attribution/03_LEARNING_GUIDE.md` (historical diagnosis)
+10. `docs/multidoc_candidate/04_LEARNING_AND_INTERVIEW_GUIDE.md` (historical rejection)
+11. `docs/final_evidence_closure/02_LEARNING_GUIDE.md`
+12. `docs/learning/RAG_INTERVIEW_UPDATE.md`
 
 ## Teaching contract
 
@@ -62,6 +69,9 @@ For every module, teach in this order:
 - **Learner answer target:** name retrieval recall, required-evidence
   completeness, answer correctness, citation precision/recall, and unsupported
   claim rate without treating them as synonyms.
+- **Code/test exercise:** trace one `answer_question` fixture from retrieval to
+  citation filtering, then add an assertion that distinguishes a retrieved gold
+  source from a supported published claim.
 
 ## Module 2: BM25, Dense, RRF, Recall and nDCG
 
@@ -85,6 +95,8 @@ For every module, teach in this order:
 - **Learner answer target:** tune only on a development split, freeze one
   candidate, then evaluate once on a disjoint held-out cohort with quality and
   latency gates.
+- **Code/test exercise:** use the checked-in WixQA fixture to calculate one
+  Recall@5 and one nDCG@5 value by hand, then match the evaluator output.
 
 ## Module 3: evidence-controlled RAG
 
@@ -110,6 +122,8 @@ For every module, teach in this order:
   output?
 - **Learner answer target:** identify every place an unauthorized source could be
   reintroduced after initial retrieval.
+- **Code/test exercise:** add a regression fixture in which parent expansion
+  finds an unauthorized source and verify it never reaches evidence or citation.
 
 ## Module 4: bounded Agent controller
 
@@ -135,6 +149,8 @@ For every module, teach in this order:
 - **Follow-up:** What evidence would justify enabling one retry?
 - **Learner answer target:** name a pre-registered failure subset, fresh data,
   bounded cost, paired OFF/ON quality, latency, tool-step, and regression gates.
+- **Code/test exercise:** lower a tool budget in a controller fixture and assert
+  the exact terminal reason and recorded step count.
 
 ## Module 5: multi-document failure attribution
 
@@ -160,6 +176,8 @@ For every module, teach in this order:
 - **Follow-up:** Why can those 20 cases no longer be a blind test?
 - **Learner answer target:** explain label/result exposure, adaptive tuning, test
   contamination, and the need for a new independently frozen cohort.
+- **Code/test exercise:** classify three fixture failures by first-loss stage and
+  verify an oracle case is excluded from headline quality aggregation.
 
 ## Module 6: RAG security
 
@@ -185,6 +203,8 @@ For every module, teach in this order:
 - **Learner answer target:** freeze new attack families before guard changes,
   isolate fixtures, hold model/retrieval constant, report ASR, exposure, benign
   utility, latency, and human review.
+- **Code/test exercise:** add one malicious and one similar benign retrieved
+  fragment, then assert Guard admission and the reason code for each.
 
 ## Module 7: reliability and activation
 
@@ -209,6 +229,8 @@ For every module, teach in this order:
 - **Follow-up:** Why is an atomic pointer not a production HA system?
 - **Learner answer target:** mention one host, no replication/quorum, no traffic
   failover, no backup-restore SLO, and no storage fault testing.
+- **Code/test exercise:** interrupt a temporary staging build at a supported
+  failure point and assert readers still resolve the old complete active target.
 
 ## Module 8: evidence engineering
 
@@ -232,10 +254,141 @@ For every module, teach in this order:
 - **Learner answer target:** only when phrased as an evidence-backed engineering
   decision, with the rejected candidate, gate, measured trade-off, and no claim
   that failure itself improved user quality.
+- **Code/test exercise:** change a copied metric in a temporary documentation
+  fixture and confirm the evidence-contract test fails closed.
+
+## Module 9: RAG pipeline versus replaceable Agent Runtime
+
+- **Foundation:** RAG supplies and validates evidence; an Agent Runtime owns the
+  bounded decision loop that chooses tools and terminal states. The
+  `AgentOrchestrator` protocol separates that loop from authority enforcement.
+- **Source trace:** `app/agent_runtime/orchestrator.py` defines the protocol,
+  `BoundedControllerAdapter`, and `LangGraphOrchestratorAdapter`; both receive the
+  same `AgentRunRequest` and return the same `AgentRunResult` contract.
+- **Design reason:** framework migration must not duplicate identity, ACL, Guard,
+  citation, or publication logic.
+- **Alternative:** embed permissions in each framework node. This is locally
+  convenient but allows policy drift and makes parity impossible to audit.
+- **Trade-off:** the interface adds translation code, while keeping the lighter
+  bounded controller as default avoids paying framework overhead without a need.
+- **Real result:** both arms passed five fixed mechanism cases with no permission
+  violations; this proves compatibility on those cases, not answer quality.
+- **Interview question:** Why implement LangGraph but not make it the default?
+- **Reference answer:** it is useful for explicit graph state and HITL, but the
+  tiny parity diagnostic showed no quality gain and higher orchestration latency.
+- **Follow-up:** What evidence would justify changing the default?
+- **Learner answer target:** require a fresh workload, same authority path,
+  quality/cost/latency gates, and a migration rollback condition.
+- **Code/test exercise:** run one fixed case through both adapters and compare
+  terminal state, tool sequence, evidence IDs, and permission violations.
+
+## Module 10: Tool contracts, gateway authority, and MCP
+
+- **Foundation:** a tool schema validates shape; `ToolGateway` validates whether
+  this caller may execute it now. MCP standardizes tool interoperability but does
+  not create authorization.
+- **Source trace:** `app/agent_runtime/tool_contract.py` defines typed requests and
+  results; `tool_gateway.py` enforces context; `mcp_adapter.py` maps official SDK
+  calls back through the gateway using an opaque server-issued handle.
+- **Design reason:** prompts and client-supplied identity are untrusted input.
+  Server-held context binds tenant, ACL scope, allow-list, budget, sequence,
+  deadline, and Guard policy.
+- **Alternative:** expose retrieval directly from an MCP handler or include ACL
+  fields in model arguments. Either lets a caller request broader authority.
+- **Trade-off:** opaque handles require state, expiry, and revocation, but avoid
+  serializing sensitive authority into model-visible arguments.
+- **Real result:** local/in-process MCP tests exercise real `search/find/open`
+  dispatch and failure mapping; no production network transport or OAuth exists.
+- **Interview question:** Why is MCP not a security boundary by itself?
+- **Reference answer:** MCP defines discovery and invocation. The host still owns
+  identity, authorization, budgets, content admission, and result publication.
+- **Follow-up:** What must change before exposing the adapter over a network?
+- **Learner answer target:** name authenticated transport, credential rotation,
+  rate limits, isolation, observability, revocation, and deployment threat tests.
+- **Code/test exercise:** forge or expire a context handle in the MCP test and
+  verify no gateway tool executes and only a structured safe error is returned.
+
+## Module 11: canonical trajectory and deterministic replay
+
+- **Foundation:** canonical serialization gives semantically identical events the
+  same bytes; each event hash binds its content and previous hash. Replay first
+  verifies the chain, then reconstructs recorded facts without rerunning tools.
+- **Source trace:** `app/agent_runtime/trajectory.py` canonicalizes and stores
+  events; `replay.py` validates ordering/hash links and derives the final view.
+- **Design reason:** ordinary logs can be reordered or silently edited and often
+  cannot explain which evidence produced a terminal decision.
+- **Alternative:** rerun the Agent from the original question. External state,
+  model sampling, and side effects make that nondeterministic and unsafe.
+- **Trade-off:** semantic events improve auditability but do not make SQLite WORM
+  storage or protect against an administrator replacing the whole database.
+- **Real result:** the public sample has 13 ordered events and a verified artifact
+  hash; one sample demonstrates the mechanism, not production audit compliance.
+- **Interview question:** What does deterministic replay replay?
+- **Reference answer:** recorded semantic events and derived state, not network
+  calls, model generation, or tool side effects.
+- **Follow-up:** How would you strengthen tamper evidence across machines?
+- **Learner answer target:** external checkpoints/signatures, key management,
+  append-only storage, retention, access control, and independent verification.
+- **Code/test exercise:** mutate one event field in a temporary trajectory and
+  assert verification fails before replay emits a result.
+
+## Module 12: HITL resume and durability boundary
+
+- **Foundation:** HITL pauses publication when partial evidence needs an explicit
+  reviewer decision. A review token identifies pending state; it is not user
+  identity or durable workflow storage.
+- **Source trace:** the LangGraph adapter in `app/agent_runtime/orchestrator.py`
+  creates review requests, validates reviewer tenant/role, marks tokens in use,
+  and consumes them only after a successful terminal transition.
+- **Design reason:** review must not bypass the same publication boundary, and a
+  transient failure must not permanently consume an otherwise valid decision.
+- **Alternative:** let the UI publish partial text directly. That bypasses the
+  orchestrator, evidence trail, reviewer checks, and retry semantics.
+- **Trade-off:** the current in-memory checkpointer and pending registry support
+  same-process retry-safe resume but lose state on restart.
+- **Real result:** tests cover accept, reject, wrong tenant/role, replayed token,
+  concurrent resume, and retry after injected failure; crash recovery is NOT_RUN.
+- **Interview question:** Why is retry-safe not the same as crash-safe?
+- **Reference answer:** retry-safe preserves token/state after a handled failure
+  in the live process; crash-safe requires durable atomic state across restart.
+- **Follow-up:** What persistent state machine would you introduce first?
+- **Learner answer target:** define pending/claimed/completed states, idempotency,
+  atomic compare-and-set, lease expiry, and an append-only decision record.
+- **Code/test exercise:** inject one publication failure, retry the same token,
+  and verify exactly one completion event and no duplicate publication.
+
+## Module 13: Agent Run Artifact and EvalOps boundary
+
+- **Foundation:** `enterprise.agent-run/1.0` packages identity-safe run metadata,
+  tool/evidence summaries, trajectory, terminal result, and hashes into a stable
+  consumer contract. EvalOps can validate and aggregate it without rerunning the
+  Agent or reading private runtime state.
+- **Source trace:** `app/agent_runtime/evalops_artifact.py`, its JSON schema under
+  `docs/agent_runtime/schemas/`, the sample evidence, and
+  `scripts/verify_agent_run_artifact.py`.
+- **Design reason:** test logs are not a versioned data contract; consumers need
+  schema versioning, canonical hashes, explicit redaction, and fail-closed input.
+- **Alternative:** have dashboards scrape application logs. That couples parsing
+  to log wording and weakens integrity and privacy boundaries.
+- **Trade-off:** the schema stabilizes integration but requires migration policy;
+  it does not prove a deployed external EvalOps consumer exists.
+- **Real result:** the sample and five-case A/B diagnostic validate artifact and
+  parity mechanisms only. WixQA Recall@5/nDCG@5 separately measure retrieval;
+  neither is end-to-end answer correctness.
+- **Interview question:** Why can the artifact be verified but the answer still be
+  wrong?
+- **Reference answer:** schema and hashes prove structural integrity and recorded
+  history, not semantic truth; answer correctness needs a separate gold/human
+  protocol.
+- **Follow-up:** Which metrics belong at trajectory, retrieval, and answer layers?
+- **Learner answer target:** separate tool/terminal parity, retrieval Recall/nDCG,
+  evidence completeness, answer correctness, citation precision/recall, and cost.
+- **Code/test exercise:** validate the public sample, then remove a required field
+  or alter a hash and confirm the consumer rejects it before aggregation.
 
 ## Teaching stop rule
 
-After the learner can explain all eight modules and answer the story-bank
-follow-ups, stop adding architecture. Resume experimental development only when
-there is a new legally usable cohort or recurring real-user failure pattern and
-a frozen validation protocol.
+After the learner can explain all thirteen modules and answer the story-bank
+follow-ups, stop adding architecture for its own sake. Resume experimental
+development only when there is a new legally usable cohort or recurring
+real-user failure pattern and a frozen validation protocol.

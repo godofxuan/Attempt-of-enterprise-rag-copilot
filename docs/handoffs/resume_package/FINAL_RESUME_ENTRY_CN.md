@@ -1,50 +1,73 @@
 # Enterprise Agentic RAG Copilot - 中文简历终稿
 
-适用岗位：AI Agent 开发、RAG 应用开发、AI 平台工程、GenAI Evaluation。
+数字唯一权威源：`docs/handoffs/RESUME_METRIC_LEDGER.md`。本页只做岗位选材，
+不得脱离 ledger 的数据集、分母和限制单独改写数字。
 
 ## 推荐项目标题
 
-**Enterprise Agentic RAG Copilot｜企业知识库智能体与评测系统**
+**Enterprise Agentic RAG Copilot｜受控 Agent Runtime 与企业知识检索系统**
 
-Python / FastAPI / Streamlit / Ollama / BGE-M3 / FAISS / BM25 / SQLite FTS5
+## 一句话定位
 
-## 推荐项目描述
+面向企业知识问答的本地 RAG/Agent 工程项目：由宿主程序控制身份、ACL、工具、
+证据准入与引用发布，并以可回放轨迹、冻结评测和失败门禁约束功能上线。
 
-面向企业政策、邮件、文档和知识条目的本地 Agentic RAG 系统。由 Python
-宿主程序控制身份、ACL、检索工具、证据准入、执行预算和引用发布，并通过
-外部数据集、成对安全实验、故障注入和冻结证据门禁验证质量与工程边界。
+## 技术栈
 
-## 推荐简历要点
+Python / FastAPI / Pydantic / BGE-M3 / BM25 / FAISS / SQLite FTS5 /
+LangGraph StateGraph / MCP Python SDK / Pytest / Docker / GitHub Actions
 
-1. 设计并实现受控 Agentic RAG 闭环，将问题拆分为 required aspects，由
-   Controller 在预算内调度类型化 `search/find/open`，使用 Evidence Ledger
-   跟踪证据完整性；身份、ACL、间接提示词注入防护及 Claim 级引用过滤均由
-   Python 宿主执行，避免模型文本扩权或直接发布无证据结论。
-2. 在 WixQA ExpertWritten 的 200 道真实匿名支持检索题上完成
-   BM25/BGE-M3/RRF 同协议消融，BGE-M3 Dense 将 Recall@5 从 `42.75%`
-   提升至 `66.42%`、nDCG@5 从 `32.15%` 提升至 `52.16%`，p95 延迟仅从
-   `151.8 ms` 增至 `157.4 ms`；通过 clean-root 重建 11,975 个向量并以
-   零容差复现 `63/63` 个冻结质量值。
-3. 将超出单机内存预算的词法索引方案改造成可恢复的 SQLite FTS5
-   single-writer 构建链路，在单机处理 `511,962` 条、9 类知识记录，
-   `231.35 s` 生成并原子激活 `1.37 GiB` 索引，峰值内存约 `1.83 GiB`；
-   实现 staging、完整性校验、immutable snapshot、tombstone、增量失效和回滚。
-4. 为检索内容间接提示词注入建立 Guard OFF/ON 成对评测；在固定的 12 条
-   garak 攻击子集上，将观测攻击成功从 `4/12` 降至 `0/12`、上下文暴露从
-   `12/12` 降至 `0/12`，平均扫描耗时 `1.42 ms`，并公开小样本和非通用安全边界。
+## AI Agent / RAG 岗推荐三条
 
-## 一页简历如何取舍
+1. 抽象统一 `AgentOrchestrator`，让默认 bounded controller 与真实 LangGraph
+   `StateGraph` alternative 共用 `ToolGateway`、ACL、Retrieved-content Guard、
+   Evidence Ledger 和 citation gate；框架仅替换编排层，不获得扩权路径，也不写
+   “LangGraph 提升答案质量”。
+2. 将 `search/find/open` 建模为强类型工具合同，并通过官方 MCP SDK 做本地/
+   in-process 适配；使用服务端签发的 opaque context handle 绑定身份、租户、
+   ACL、预算与 deadline，MCP 调用仍回到同一个 `ToolGateway` 执行。
+3. 在 WixQA ExpertWritten 200 道固定 public-label 检索题上，BGE-M3 Dense
+   相比 BM25 将 Recall@5 从 `42.75%` 提升至 `66.42%`、nDCG@5 从
+   `32.15%` 提升至 `52.16%`；这些是检索排序指标，不是回答准确率。
 
-AI Agent/RAG 岗优先使用第 1、2、3 条；岗位强调安全时，用第 4 条替换第 3
-条。不要把四条全部塞进空间紧张的一页简历。
+## Python / AI 平台岗推荐三条
 
-## 禁止改写
+1. 将超出原内存预算的词法检索改造成 SQLite FTS5 single-writer 构建链路，
+   在单机处理 `511,962` 条、9 类记录，`231.35 s` 生成并原子激活
+   `1.37 GiB` 索引，峰值 RSS 约 `1.83 GiB`；实现 staging、校验、不可变
+   snapshot、tombstone、增量失效与回滚。
+2. 设计 append-only SHA-256 hash-chain trajectory、确定性 no-network replay
+   与版本化 `enterprise.agent-run/1.0` 工件，使 Agent 的工具、证据和终态可被
+   EvalOps 消费和复核；不宣称 WORM、生产审计认证或外部平台采用。
+3. 建立证据驱动发布门禁，覆盖依赖、编译、冻结指标、Agent/ACL/Guard 回归和
+   公开仓库泄漏审计；保留 equal-RRF 与多文档候选的负结果，未达到预注册质量
+   条件时拒绝集成，而不是为了技术栈完整度上线。
 
-- 不把 Recall@5 写成“回答准确率”或“RAG 准确率”。
-- 不写“Agent 效果优于固定 RAG”；外部配对实验没有证明这一点。
-- 不写“100% 安全”“生产可用”“达到 SOTA”或“企业真实线上部署”。
-- 不把开发集、合成集、Oracle 或被拒绝候选的数字包装成最终效果。
+## 安全岗替换条目
 
-数字来源与限定条件见
-[PROJECT_EVIDENCE_MAP.md](../PROJECT_EVIDENCE_MAP.md) 和
-[RESUME_METRIC_LEDGER.md](../RESUME_METRIC_LEDGER.md)。
+在固定 12 条 garak retrieved-content injection 子集上进行 Guard OFF/ON 成对
+评测，将观测 ASR 从 `4/12` 降至 `0/12`、上下文暴露从 `12/12` 降至
+`0/12`；仅代表该固定子集，不能写“100% 安全”或推广为通用防注入能力。
+
+## 代码、测试与证据映射
+
+| 简历条目 | 源码 | 测试 | 证据/权威说明 |
+|---|---|---|---|
+| Agent Runtime / Harness | `app/agent_runtime/orchestrator.py`; `tool_gateway.py` | `tests/agent_runtime/test_orchestrators.py`; `test_ab_evaluation.py` | `docs/agent_runtime/evidence/agent_runtime_ab_v1.json`; 仅机制验证 |
+| MCP 工具边界 | `app/agent_runtime/tool_contract.py`; `mcp_adapter.py` | `tests/agent_runtime/test_tool_contract.py`; `test_mcp_adapter.py` | `docs/agent_runtime/04_MCP_ARCHITECTURE.md`; local/in-process |
+| trajectory / replay / EvalOps | `app/agent_runtime/trajectory.py`; `replay.py`; `evalops_artifact.py` | `tests/agent_runtime/test_trajectory.py`; `test_replay.py`; `test_evalops_artifact.py`; `test_human_review.py` | `docs/agent_runtime/evidence/agent_run_artifact_sample_v1.json` |
+| WixQA 检索 | `app/external_datasets/wixqa_retrieval.py` | `tests/external_datasets/test_wixqa_public_evidence.py` | `docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json` |
+| 单机 FTS5 | `app/external_datasets/enterprise_rag_bench_fts.py` | `tests/external_datasets/test_enterprise_rag_bench_fts.py`; `tests/test_final_evidence_closure.py` | `docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json` |
+| Retrieved-content Guard | `app/security/retrieved_content.py` | `tests/security/test_retrieved_content_guard.py`; `tests/evaluation/test_garak_latent_report.py` | `docs/resume_metrics/evidence/garak_latent_report_holdout_v1.json` |
+
+## 禁止表述
+
+- 不把 Recall@5 或 nDCG@5 写成“回答准确率”或“RAG 准确率”。
+- 不写“Agent 效果优于固定 RAG”或“LangGraph 提升质量”。
+- 不写“100% 安全”“SOTA”“production-ready”或“企业真实线上部署”。
+- 不把 in-process MCP 写成生产网络 MCP/OAuth。
+- 不把同进程 HITL 写成 durable crash-safe resume。
+- 不把五例 parity test 写成答案质量或生产性能实验。
+
+完整限定、证据 SHA 和禁止口径见 `docs/handoffs/PROJECT_EVIDENCE_MAP.md` 与
+`docs/handoffs/RESUME_METRIC_LEDGER.md`。

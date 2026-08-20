@@ -1,5 +1,12 @@
 # Enterprise RAG Interview Update
 
+> Current-scope note (2026-08-20): questions below preserve the RAG/evaluation
+> baseline. The current state is `RAG_VNEXT_CLOSED`; for the replaceable runtime,
+> LangGraph/MCP boundaries, trajectory/replay, HITL, and EvalOps artifact, use
+> `docs/learning/AGENT_RUNTIME_TUTORIAL.md` and stories 9-13 in
+> `docs/handoffs/INTERVIEW_STORY_BANK.md`. In particular, the historical answer
+> "为什么不用 LangGraph/MCP" is not the current implementation state.
+
 下面问题按“结论 -> 证据 -> 边界”回答。面试时不要只背数字，要能指出源码、测试和为什么这样设计。
 
 ## 分类索引

@@ -1,78 +1,61 @@
-# Resume-safe vNext metrics
+# Resume-safe vNext claims
 
-This ledger separates externally meaningful results from small mechanism tests.
-Do not move an item to a stronger category without a new frozen protocol and
-artifact.
+This file is a claim-selection guide, not a second metric ledger. The sole
+numeric authority is `docs/handoffs/RESUME_METRIC_LEDGER.md`; whenever a value
+or denominator changes there, this guide and every resume draft must follow it.
 
 ## VERIFIED_POSITIVE
 
-The strongest resume metrics remain the independently scoped project metrics,
-not the new five-case harness test:
+These are the only measured headline families currently suitable for a resume,
+and only with the exact dataset and boundary recorded in the ledger:
 
-| Claim | Dataset / N | Metric | Evidence | Boundary |
-|---|---|---|---|---|
-| Dense retrieval improved a public support-KB benchmark | WixQA ExpertWritten, 200 questions | Recall@5 `42.75% -> 66.42%`; nDCG@5 `32.15% -> 52.16%`; p95 `151.8 -> 157.4 ms` | `docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json` | retrieval, not answer accuracy |
-| Built and atomically activated a large lexical index | EnterpriseRAG-Bench-derived public corpus, 511,962 records / 9 types | 1.37 GiB index in 231.35 s, about 1.83 GiB peak RSS | `docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json` | one-host benchmark, not production capacity |
-| Reduced observed indirect-injection attacks in a pinned subset | garak LatentInjectionReport subset, 12 attacks | ASR `4/12 -> 0/12`; context exposure `12/12 -> 0/12`; mean scan 1.42 ms | `docs/resume_metrics/evidence/garak_latent_report_holdout_v1.json` | one subset, not universal safety |
+1. WixQA ExpertWritten retrieval: Dense versus BM25 Recall@5 and nDCG@5.
+   These are retrieval-ranking metrics, never answer accuracy.
+2. EnterpriseRAG-Bench lexical indexing: one-host record count, source types,
+   build time, artifact size, and peak RSS.
+3. Retrieved-content Guard: one pinned 12-attack garak subset with two benign
+   controls. This is a narrow observed OFF/ON result, not universal safety.
 
-Use the exact SHA and command embedded in each artifact. These results predate
-vNext but remain valid because the baseline path and evidence files were not
-overwritten.
+The vNext runtime is also resume-safe as an **implemented architecture claim**:
+one `AgentOrchestrator` contract, bounded default, real LangGraph alternative,
+shared `ToolGateway`, ACL, Guard, Evidence Ledger, and citation gate. It does
+not carry an external quality-uplift number.
 
 ## INTERVIEW_ONLY
 
-### Agent Runtime parity diagnostic
+- The bounded and LangGraph arms both passed five deterministic mechanism
+  cases. Use this to explain migration compatibility and framework overhead,
+  not Agent accuracy or production performance.
+- The public `enterprise.agent-run/1.0` sample verifies an ordered hash-linked
+  trajectory and deterministic no-network replay. One sample does not establish
+  production audit certification or external EvalOps adoption.
+- Clean-root replay, process-exit recovery, reused-ID sensitivity, and lexical
+  benchmark recall are supporting engineering evidence. Their exact values and
+  limitations live only in the canonical ledger.
+- MCP is an official-SDK local/in-process adapter. Its tools still execute
+  through server-held context, `ToolGateway`, identity, ACL, budget, deadline,
+  and retrieved-content admission.
+- HITL supports retry-safe, single-process pause/resume with tenant and reviewer
+  checks. Pending review state is not durable across process restart.
 
-- implementation SHA: `d20382d111cc6ee5a54a1daad92454ecf0c501f3`
-- evidence commit: `4a6bfb400f042f2a4417f7c74da9a16103604ac4`
-- dataset: 5 deterministic in-repo mechanism cases
-- arms: existing bounded controller vs LangGraph StateGraph
-- command: `.\.venv\Scripts\python.exe -m scripts.eval_agent_runtime_ab`
-- artifact: `docs/agent_runtime/evidence/agent_runtime_ab_v1.json`
-- result: both arms `5/5` task success, `100%` behavioral parity, zero
-  permission violations, mean `0.8` tool calls and `1.8` steps
-- latency: bounded p95 `1.283 ms`; LangGraph p95 `6.838 ms`
+## HISTORICAL_NEGATIVE
 
-This is useful in an interview because it demonstrates controlled migration and
-negative-result judgment. It is too small and synthetic to be a headline resume
-quality metric.
+- Equal RRF underperformed Dense on the frozen WixQA comparison and was rejected.
+- The 20-case multi-document development candidate produced no complete-case
+  fixes, reduced precision, and added latency, so it was not integrated.
+- These records remain valid decision evidence. Later runtime mechanisms do not
+  convert either experiment into a quality improvement.
 
-### EvalOps artifact
+## FORBIDDEN_CLAIM
 
-- generator SHA: `9ff917bdf99b971a59754b731176e85d61f570e6`
-- sample evidence commit: `e6c41c56a0ffed59b895b482e60b7d1911ba0364`
-- schema: `enterprise.agent-run/1.0`
-- sample: one deterministic answered run with 13 ordered events
-- internal artifact hash: `f9d32f1bff44a27bbde1bf92b47800d396c9700a8120c135abf9b842b8108233`
-- file: `docs/agent_runtime/evidence/agent_run_artifact_sample_v1.json`
-- verifier: `.\.venv\Scripts\python.exe -m scripts.verify_agent_run_artifact docs\agent_runtime\evidence\agent_run_artifact_sample_v1.json`
+- Calling Recall@5 or nDCG@5 answer accuracy.
+- Claiming LangGraph improved answer quality or is faster.
+- Treating five mechanism cases as production performance or 100% Agent accuracy.
+- Claiming production network MCP, OAuth, durable execution, or crash-safe HITL.
+- Claiming a WORM ledger, production audit certification, universal injection
+  defense, SOTA, production readiness, or third-party reproduction.
+- Promoting a synthetic, oracle, consumed-development, or changing test-pass
+  count as a headline product-quality result.
 
-Safe wording: "Designed a versioned Agent Run Artifact with append-only
-hash-chained trajectories, deterministic replay, schema validation, and tamper
-detection for EvalOps ingestion."
-
-## NEGATIVE_OR_LIMITED
-
-1. LangGraph did not improve outcome quality on the controlled mechanism set and
-   added about `5.33x` p95 orchestration latency in that tiny local diagnostic.
-2. The first A/B run had arm-order cold-start bias because bounded initialized
-   jieba first. It was rejected; one discarded warm-up per arm was added before
-   publishing the accepted artifact.
-3. HITL is a real interrupt/resume flow, but its checkpointer and pending-review
-   registry are in memory. Restart recovery is not implemented.
-4. MCP uses the official SDK and real tools through the gateway, but only
-   in-process dispatch is tested. Production network transport is not deployed.
-5. SQLite trajectory storage detects mutation through triggers and hashes, but
-   it is not immutable external audit storage.
-
-## DO_NOT_CLAIM
-
-- "LangGraph improved answer accuracy" or "LangGraph is faster".
-- "5/5 proves 100% Agent accuracy" or any production SLO based on five cases.
-- "production MCP server" or "OAuth-secured MCP deployment".
-- "durable execution" or "crash-safe HITL resume".
-- "100% safe", "prompt injection solved", or universal attack prevention.
-- "multi-agent system", "autonomous file/SQL access", or implemented Skills.
-- "independent third-party reproduction" of the vNext runtime.
-- any claim that retrieval Recall@5 is end-to-end answer accuracy.
-
+For exact values, evidence paths, SHAs, and safe/unsafe wording, read
+`docs/handoffs/RESUME_METRIC_LEDGER.md` before drafting.

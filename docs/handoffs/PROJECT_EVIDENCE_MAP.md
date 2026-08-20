@@ -6,14 +6,16 @@ execution SHAs identify the code that produced an artifact; the current
 documentation HEAD must be checked separately with `git rev-parse HEAD` and the
 portfolio verifier.
 
-Current portfolio state:
-`PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW`.
+Current portfolio state on branch `codex/agent-runtime-vnext`:
+`RAG_VNEXT_CLOSED`.
 
-That state means the repository is usable for a portfolio and interview, its
-engineering evidence is credible within the stated scopes, the current
-multi-document Agent candidate was rejected, blind answer correctness is not
-established, the security claim is narrow, production readiness is not claimed,
-and feature development is stopped.
+That state means the vNext implementation, evidence, resume handoff, and
+teaching handoff are closed for this branch and are usable within their stated
+scopes. It does not mean production readiness. The historical multi-document
+quality candidate remains rejected; the later Agent Runtime mechanisms do not
+turn that negative quality result into an uplift. Blind answer correctness is
+not established, the security claim is narrow, and merge remains a user
+decision.
 
 ## Claim P1: external support-KB retrieval
 
@@ -117,6 +119,40 @@ and feature development is stopped.
 | Forbidden wording | "Power-loss safe"; "Windows directory fsync guaranteed"; "production HA". |
 | Interview explanation | Atomic replace prevents readers from observing a partially written pointer after process exit. It does not prove that hardware and filesystem caches survive sudden power loss. |
 
+## Claim P7: replaceable Agent Runtime and guarded tools
+
+| Field | Binding |
+|---|---|
+| Claim | The bounded default and a real LangGraph `StateGraph` alternative implement one `AgentOrchestrator` contract and share ToolGateway, ACL, Guard, evidence, citation, and terminal boundaries. |
+| Metric | Both arms passed `5/5` fixed mechanism cases with behavioral parity and zero permission violations; bounded p95 `1.283 ms`, LangGraph p95 `6.838 ms` in this small local diagnostic. |
+| Scope | Deterministic in-repo mechanism cases; not external answer quality, production latency, or a LangGraph uplift experiment. |
+| Dataset | Five fixed cases covering answered, no-match, permission, unsafe request, and retrieved injection. |
+| Code path | `app/agent_runtime/orchestrator.py`; `app/agent_runtime/tool_contract.py`; `app/agent_runtime/tool_gateway.py`; `app/agent_runtime/mcp_adapter.py` |
+| Test path | `tests/agent_runtime/test_orchestrators.py`; `test_tool_contract.py`; `test_mcp_adapter.py`; `test_ab_evaluation.py` |
+| Evidence JSON | `docs/agent_runtime/evidence/agent_runtime_ab_v1.json` |
+| Reproduction command | `python -m scripts.eval_agent_runtime_ab` regenerates a diagnostic; public evidence contracts are covered by `python -m pytest tests/agent_runtime -q`. |
+| Code SHA | Accepted A/B implementation `d20382d111cc6ee5a54a1daad92454ecf0c501f3`; final ACL/HITL closeout is bound by current verified branch HEAD. |
+| Allowed wording | "Implemented a replaceable Agent Runtime in which bounded and LangGraph orchestrators share the same host-owned permission and publication path; bounded remains default." |
+| Forbidden wording | "LangGraph improved answer quality"; "100% Agent accuracy"; "production latency"; "production MCP/OAuth deployment". |
+| Interview explanation | Orchestration was separated from authority. The experiment showed compatibility and framework overhead, so LangGraph was retained for explicit state/HITL rather than promoted as a quality improvement. |
+
+## Claim P8: verifiable trajectory, replay, HITL, and EvalOps artifact
+
+| Field | Binding |
+|---|---|
+| Claim | Agent runs can produce an ordered SHA-256-linked semantic trajectory, deterministic no-network replay, retry-safe same-process HITL, and a versioned `enterprise.agent-run/1.0` artifact. |
+| Metric | Published sample contains 13 ordered events and verifies with artifact hash `f9d32f1bff44a27bbde1bf92b47800d396c9700a8120c135abf9b842b8108233`. |
+| Scope | Local portfolio mechanism and one public synthetic sample; not WORM audit certification, durable execution, or production recovery. |
+| Dataset | One deterministic synthetic answered run; HITL behavior uses in-repo fixtures. |
+| Code path | `app/agent_runtime/trajectory.py`; `app/agent_runtime/replay.py`; `app/agent_runtime/evalops_artifact.py`; HITL in `app/agent_runtime/orchestrator.py` |
+| Test path | `tests/agent_runtime/test_trajectory.py`; `test_replay.py`; `test_evalops_artifact.py`; `test_human_review.py` |
+| Evidence JSON | `docs/agent_runtime/evidence/agent_run_artifact_sample_v1.json`; schema at `docs/agent_runtime/schemas/agent_run_artifact_v1.schema.json` |
+| Reproduction command | `python -m scripts.verify_agent_run_artifact docs/agent_runtime/evidence/agent_run_artifact_sample_v1.json` |
+| Code SHA | Generator `9ff917bdf99b971a59754b731176e85d61f570e6`; sample commit `e6c41c56a0ffed59b895b482e60b7d1911ba0364`; retry-safe HITL `ab5c48735a69aec43e26abb240275f08004789e7`. |
+| Allowed wording | "Implemented hash-chained Agent trajectories, deterministic replay, bounded HITL resume, and a versioned EvalOps artifact." |
+| Forbidden wording | "WORM audit ledger"; "durable crash-safe resume"; "production audit certification"; "external EvalOps adoption". |
+| Interview explanation | Replay reconstructs recorded facts after verifying the chain and does not rerun side effects. Pending HITL state is in memory, so process restart remains an explicit boundary. |
+
 ## Claim N1: rejected multi-document candidate
 
 | Field | Binding |
@@ -136,8 +172,9 @@ and feature development is stopped.
 
 ## Evidence classes
 
-- **Resume primary:** P1, P3, and narrowly qualified P4.
-- **Interview supporting:** P2, P5, and P6.
+- **Resume primary:** P1, P3, and architecture portions of P7/P8 without their
+  small diagnostic numbers; narrowly qualified P4 for security-focused roles.
+- **Interview supporting:** P2, P5, P6, and the measured details of P7/P8.
 - **Negative experiment:** N1 and the equal-RRF result embedded in P1.
 - **Forbidden as quality:** oracle probes, consumed-cohort tuning, mechanism-only
   tests, local full-suite counts, and any `NOT_RUN` field.

@@ -1,69 +1,64 @@
 # Resume Codex Handoff
 
-Any Codex drafting resume content for this project must read this file and every
-file under `docs/handoffs/resume_package/`. It must not infer stronger claims
-from README prose, test names, or architecture breadth.
+Any resume-drafting task must read this file, the target job description, and
+`docs/handoffs/resume_package/FINAL_RESUME_ENTRY_CN.md`. Architecture wording
+comes from the evidence map; every number comes from the metric ledger.
 
 ## Canonical status
 
-`PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW`
+Current branch: `codex/agent-runtime-vnext`.
 
-The project is suitable for portfolio and interview use within bounded evidence.
-It is not production-proven. Blind answer correctness is not established. The
-current multi-document candidate and equal RRF were rejected. Feature development
-is stopped.
+Current state: `RAG_VNEXT_CLOSED`.
+
+The branch is suitable for portfolio, resume, teaching, and interview use within
+the published scopes. It is not production-ready. Merge, release, and deployment
+remain user decisions. The 2026-08-11
+`PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW` state is historical and was
+superseded by the vNext runtime closeout; its rejected quality experiments remain
+valid negative evidence.
+
+## Authority order
+
+1. `docs/handoffs/RESUME_METRIC_LEDGER.md`: sole numeric authority.
+2. `docs/handoffs/PROJECT_EVIDENCE_MAP.md`: claim-to-code/test/artifact binding.
+3. `docs/resume/RESUME_SAFE_VNEXT_METRICS.md`: claim-selection boundary.
+4. `docs/handoffs/resume_package/FINAL_RESUME_ENTRY_CN.md`: current Chinese draft.
 
 ## Drafting algorithm
 
-1. Read the target job description before selecting bullets.
-2. Choose exactly one positioning from `ROLE_POSITIONING.md`.
-3. Use at most three primary and two backup bullets from
-   `BULLET_CANDIDATES.md`.
-4. Resolve every number through `SAFE_METRICS.md` and `EVIDENCE_MAP.md`.
-5. Keep each bullet to one or two resume lines and use
-   `action -> project problem -> scale -> measured result`.
-6. Prefer evidence to adjectives. Do not use "enterprise-grade", "production-
-   grade", "high accuracy", "high reliability", "leading", or "secure".
-7. Do not list a technology merely because it appears in a job description.
-8. Keep this RAG project focused on retrieval, evidence control, evaluation,
-   security, and indexing. Do not import distributed scheduler/lease/fencing
-   claims from a separate EvalOps project.
-9. If a requested number has no evidence mapping, write `NO_EVIDENCE` and omit it.
-10. Generate a proposed project section only. Do not overwrite the user's real
-    resume without its layout, other experience, and target JD.
+1. Select one role angle; use no more than three project bullets.
+2. Keep runtime architecture, measured retrieval, and platform/reliability as
+   separate bullets instead of listing every technology in one sentence.
+3. Bind every number to the metric ledger and preserve dataset, denominator,
+   split, and metric name.
+4. Bind every mechanism to code, tests, evidence, and a limitation.
+5. Prefer `action -> problem -> scope -> verified result` over adjectives.
+6. Omit any requested number whose evidence mapping is absent.
 
-## Evidence hierarchy
+## Allowed vNext wording
 
-Use the levels precisely:
+- One `AgentOrchestrator` with bounded default and a real LangGraph alternative.
+- Shared `ToolGateway`, identity/ACL, Guard, Evidence Ledger, and citation gate.
+- Official MCP SDK local/in-process adapter using opaque server-issued context.
+- SHA-256-linked trajectory, deterministic replay, bounded same-process HITL,
+  and `enterprise.agent-run/1.0` artifact.
 
-```text
-implemented < tested < measured < reproduced < externally validated < production proven
-```
-
-This repository has examples in the first five categories under bounded scopes;
-it does not claim production proof. A public external benchmark is not
-automatically blind. A local clean replay is not third-party reproduction.
+LangGraph and MCP are now implemented and evidence-backed architecture terms.
+They must still carry the limits above and must not be presented as quality
+uplift, network deployment, OAuth, or production readiness.
 
 ## Mandatory exclusions
 
-- Do not call Recall@5 or nDCG@5 "accuracy".
-- Do not claim Agent quality improved.
-- Do not use oracle, consumed development, or synthetic same-fact scores as blind
+- Recall@5/nDCG@5 as answer accuracy.
+- Agent or LangGraph quality improvement.
+- Five-case parity as product quality or production latency.
+- Durable crash-safe HITL, WORM audit storage, production MCP/OAuth.
+- Universal injection defense, 100% security, SOTA, production SLO/HA.
+- Blind holdout or third-party validation where only fixed public labels or
+  same-owner clean replay exist.
+- Synthetic, oracle, consumed-development, or varying test counts as headline
   quality.
-- Do not claim full garak coverage, universal prompt-injection defense, or a
-  precise benign false-positive rate from two controls.
-- Do not claim production traffic, SLO, HA, real enterprise IdP, distributed
-  indexing, or power-loss durability.
-- Do not add LangGraph, GraphRAG, MCP, Redis, Kafka, or another model/vector
-  database to the project description; they are not evidence-backed needs.
 
-## Package contents
-
-- `PROJECT_SUMMARY.md`: facts and boundaries.
-- `ROLE_POSITIONING.md`: three genuinely different role angles.
-- `SAFE_METRICS.md`: permitted numbers and classes.
-- `BULLET_CANDIDATES.md`: bounded bullet pool.
-- `EVIDENCE_MAP.md`: bullet-to-artifact traceability.
-- `FORBIDDEN_CLAIMS.md`: fail-closed wording list.
-- `INTERVIEW_STORIES.md`: negative and positive story references.
-- `JD_KEYWORD_MAP.md`: dated official-career-site market snapshot.
+Keep this project focused on controlled enterprise RAG, runtime boundaries,
+evaluation, security, and reproducibility. Do not import unrelated platform
+claims from a separate EvalOps project.

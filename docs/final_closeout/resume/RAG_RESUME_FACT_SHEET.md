@@ -1,5 +1,9 @@
 # RAG Resume Fact Sheet
 
+> This vNext fact sheet maps mechanisms to evidence. It is not a competing
+> metric ledger. All numeric resume wording must be resolved through
+> `docs/handoffs/RESUME_METRIC_LEDGER.md`.
+
 ## Claim 1: controlled enterprise knowledge Agent
 
 **Claim:** End-to-end enterprise knowledge Agent from document ingestion to
@@ -154,4 +158,3 @@ frozen quality observations with zero tolerance.
 The five-case latency/parity values, pinned garak 12-attack result, RRF negative
 result, multi-document candidate rejection, and detailed hash/invariant design
 belong in interviews or specialized security versions, not the ordinary resume.
-
