@@ -44,17 +44,25 @@ class ToolContext(_StrictFrozenModel):
     session_id: str = Field(min_length=1, max_length=128)
     trace_id: str = Field(min_length=1, max_length=128)
     request_id: str = Field(min_length=1, max_length=200)
+    run_id: str | None = Field(default=None, min_length=1, max_length=128)
     identity: UserContext
     acl_scope: tuple[str, ...] = Field(min_length=1, max_length=50)
     allowed_tools: tuple[ToolName, ...] = ("search", "find", "open")
     budget: AgentBudget = Field(default_factory=AgentBudget)
     issued_at_ms: float = Field(ge=0)
     expires_at_ms: float = Field(gt=0)
+    authentication_expires_at_ms: float | None = Field(default=None, gt=0)
+    policy_version: Literal["tool-policy.v1"] = "tool-policy.v1"
 
     @model_validator(mode="after")
     def validate_context(self) -> ToolContext:
         if self.expires_at_ms <= self.issued_at_ms:
             raise ValueError("tool context expiry must follow issue time")
+        if (
+            self.authentication_expires_at_ms is not None
+            and self.authentication_expires_at_ms <= self.issued_at_ms
+        ):
+            raise ValueError("authentication expiry must follow issue time")
         if len(self.acl_scope) != len(set(self.acl_scope)):
             raise ValueError("ACL scope must be unique")
         if not set(self.acl_scope).issubset(self.identity.groups):

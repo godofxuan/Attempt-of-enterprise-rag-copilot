@@ -33,6 +33,8 @@ from app.agent.runner_v2 import (
 from app.agent.tools_v2 import V2ToolRegistry, build_tool_error_execution
 from app.agent_runtime.tool_contract import ToolContext, ToolRequest
 from app.agent_runtime.tool_gateway import ToolGateway
+from app.agent_runtime.tool_policy import PolicyHookDispatcher
+from app.agent_runtime.telemetry import AgentTelemetry
 from app.agent_runtime.trajectory import SQLiteTrajectoryStore, TrajectoryRecorder
 from app.domain.agent import AgentAction, AgentBudget, BudgetState, ToolErrorCode
 from app.domain.evidence import AnswerResponse
@@ -46,7 +48,7 @@ from app.domain.retrieved_security import (
 
 
 ClockMs = Callable[[], float]
-OrchestratorName = Literal["bounded", "langgraph"]
+OrchestratorName = Literal["bounded", "langgraph", "durable_langgraph"]
 
 
 class _StrictModel(BaseModel):
@@ -117,9 +119,16 @@ class _ContractToolSession:
         *,
         clock_ms: ClockMs,
         recorder: TrajectoryRecorder | None = None,
+        policy_hooks: PolicyHookDispatcher | None = None,
+        telemetry: AgentTelemetry | None = None,
     ) -> None:
         self._context = context
-        self._gateway = ToolGateway(registry, clock_ms=clock_ms)
+        self._gateway = ToolGateway(
+            registry,
+            clock_ms=clock_ms,
+            policy_hooks=policy_hooks,
+            telemetry=telemetry,
+        )
         self._gateway.start_session(context)
         self._recorder = recorder
 
@@ -259,6 +268,8 @@ class BoundedControllerAdapter:
         budget: AgentBudget | None = None,
         clock_ms: ClockMs | None = None,
         trajectory_store: SQLiteTrajectoryStore | None = None,
+        policy_hooks: PolicyHookDispatcher | None = None,
+        telemetry: AgentTelemetry | None = None,
     ) -> None:
         self.registry = registry
         self.clock_ms = clock_ms or (lambda: time.monotonic() * 1000.0)
@@ -267,6 +278,8 @@ class BoundedControllerAdapter:
         self.response_builder = response_builder or ExtractiveResponseBuilder()
         self.budget = budget or AgentBudget()
         self.trajectory_store = trajectory_store
+        self.policy_hooks = policy_hooks
+        self.telemetry = telemetry
 
     def run(self, request: AgentRunRequest) -> AgentRunResult:
         started = self.clock_ms()
@@ -277,6 +290,8 @@ class BoundedControllerAdapter:
             self.budget,
             clock_ms=self.clock_ms,
             recorder=recorder,
+            policy_hooks=self.policy_hooks,
+            telemetry=self.telemetry,
         )
         try:
             runner = V2AgentRunner(
@@ -340,6 +355,8 @@ class LangGraphOrchestratorAdapter:
         clock_ms: ClockMs | None = None,
         trajectory_store: SQLiteTrajectoryStore | None = None,
         hitl_on_partial: bool = False,
+        policy_hooks: PolicyHookDispatcher | None = None,
+        telemetry: AgentTelemetry | None = None,
     ) -> None:
         self.registry = registry
         self.clock_ms = clock_ms or (lambda: time.monotonic() * 1000.0)
@@ -349,6 +366,8 @@ class LangGraphOrchestratorAdapter:
         self.budget = budget or AgentBudget()
         self.trajectory_store = trajectory_store
         self.hitl_on_partial = hitl_on_partial
+        self.policy_hooks = policy_hooks
+        self.telemetry = telemetry
         self._pending_reviews: dict[str, _PendingHumanReview] = {}
         self._review_lock = threading.RLock()
 
@@ -361,6 +380,8 @@ class LangGraphOrchestratorAdapter:
             self.budget,
             clock_ms=self.clock_ms,
             recorder=recorder,
+            policy_hooks=self.policy_hooks,
+            telemetry=self.telemetry,
         )
         checkpointer = InMemorySaver() if self.hitl_on_partial else None
         graph = self._compile(tools, checkpointer=checkpointer)
@@ -689,12 +710,15 @@ def _new_tool_session(
     *,
     clock_ms: ClockMs,
     recorder: TrajectoryRecorder | None = None,
+    policy_hooks: PolicyHookDispatcher | None = None,
+    telemetry: AgentTelemetry | None = None,
 ) -> _ContractToolSession:
     issued = float(clock_ms())
     context = ToolContext(
         session_id=request.session_id,
         trace_id=request.trace_id,
         request_id=request.request_id,
+        run_id=request.session_id,
         identity=request.user,
         acl_scope=tuple(request.user.groups),
         budget=budget,
@@ -706,6 +730,8 @@ def _new_tool_session(
         context,
         clock_ms=clock_ms,
         recorder=recorder,
+        policy_hooks=policy_hooks,
+        telemetry=telemetry,
     )
 
 

@@ -9,6 +9,25 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent_runtime.replay import replay_trajectory
 from app.agent_runtime.trajectory import AgentEvent, SQLiteTrajectoryStore
+from app.agent_runtime.telemetry import (
+    CONTENT_CAPTURE_POLICY,
+    TRACE_SCHEMA_VERSION,
+    TraceIdentity,
+    sanitize_span_attributes,
+)
+
+
+class AgentArtifactTrace(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
+
+    trace_id: str = Field(pattern=r"^[0-9a-f]{32}$")
+    root_span_id: str = Field(pattern=r"^[0-9a-f]{16}$")
+    trace_schema_version: Literal["enterprise.agent.telemetry/1.0"] = (
+        TRACE_SCHEMA_VERSION
+    )
+    content_capture_policy: Literal["off"] = CONTENT_CAPTURE_POLICY
+    sanitized_model_metadata: dict[str, Any] = Field(default_factory=dict)
+    sanitized_tool_metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class AgentRunArtifactV1(BaseModel):
@@ -22,6 +41,7 @@ class AgentRunArtifactV1(BaseModel):
     created_at: datetime
     session_id: str = Field(min_length=1, max_length=128)
     trace_id: str = Field(min_length=1, max_length=128)
+    trace_context: AgentArtifactTrace | None = None
     input: dict[str, Any]
     output: dict[str, Any]
     trajectory: list[AgentEvent] = Field(min_length=1)
@@ -39,9 +59,19 @@ def build_agent_run_artifact(
     *,
     case_id: str,
     git_sha: str,
+    trace_identity: TraceIdentity | None = None,
+    model_metadata: dict[str, Any] | None = None,
+    tool_metadata: dict[str, Any] | None = None,
 ) -> AgentRunArtifactV1:
     replay = replay_trajectory(store, session_id)
     events = store.load(session_id)
+    if trace_identity is None:
+        trace_identity = TraceIdentity(
+            trace_id=hashlib.sha256(replay.trace_id.encode("utf-8")).hexdigest()[:32],
+            span_id=hashlib.sha256(
+                f"root:{replay.trace_id}".encode("utf-8")
+            ).hexdigest()[:16],
+        )
     values = {
         "schema_name": "enterprise.agent-run",
         "schema_version": "1.0",
@@ -51,6 +81,12 @@ def build_agent_run_artifact(
         "created_at": events[-1].timestamp,
         "session_id": session_id,
         "trace_id": replay.trace_id,
+        "trace_context": AgentArtifactTrace(
+            trace_id=trace_identity.trace_id,
+            root_span_id=trace_identity.span_id,
+            sanitized_model_metadata=sanitize_span_attributes(model_metadata or {}),
+            sanitized_tool_metadata=sanitize_span_attributes(tool_metadata or {}),
+        ),
         "input": replay.input,
         "output": replay.final_output,
         "trajectory": events,
@@ -101,6 +137,8 @@ def verify_agent_run_artifact(artifact: AgentRunArtifactV1) -> bool:
         mode="json",
         exclude={"artifact_sha256"},
     )
+    if artifact_values.get("trace_context") is None:
+        artifact_values.pop("trace_context")
     expected = hashlib.sha256(
         _canonical_json(artifact_values).encode("utf-8")
     ).hexdigest()
@@ -140,8 +178,8 @@ def _canonical_json(value: Any) -> str:
 
 
 __all__ = [
+    "AgentArtifactTrace",
     "AgentRunArtifactV1",
     "build_agent_run_artifact",
     "verify_agent_run_artifact",
 ]
-

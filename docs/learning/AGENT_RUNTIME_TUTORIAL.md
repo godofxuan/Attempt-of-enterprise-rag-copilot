@@ -140,8 +140,9 @@ requested/completed、evidence admitted、final output 和 terminal reason。它
 调用模型、Ollama、检索或网络，所以历史结果不会因为模型版本变化而改变。
 
 “重新执行”会再次调用外部依赖，适合测试当前系统；“replay”读取已经发生的
-事实，适合审计。当前项目只声明 deterministic replay，没有声明任意崩溃点的
-durable resume。
+事实，适合审计。旧的 partial-answer HITL 只声明 deterministic replay 和
+same-process resume。新分支另外实现了一个范围更窄的 durable draft approval；
+它不能被外推成“任意工作流都可崩溃恢复”。
 
 ## 9. HITL 为什么是一个安全流程
 
@@ -156,13 +157,39 @@ evidence 时，LangGraph 产生 interrupt 和 `human_review.requested`。
 - token 只能使用一次。
 
 accept 只能发布已经受控的 partial response；reject 返回不含来源的安全结果。
-`human_review.completed` 写入同一 trajectory。局限是 `InMemorySaver`：进程重启
-后 pending review 丢失，因此不能叫 crash-safe durable HITL。
+`human_review.completed` 写入同一 trajectory。这个旧路径仍使用
+`InMemorySaver`：进程重启后 pending review 丢失。
+
+### 9.1 新增 durable draft approval 解决了什么
+
+`DurableLangGraphOrchestrator` 不是把旧类名字换掉，而是增加一个受限工作流：
+
+```text
+trusted request
+  -> ToolPolicy returns ASK
+  -> persistent approval row + SqliteSaver checkpoint
+  -> interrupt (no side effect yet)
+  -> process can stop
+  -> new process validates tenant/reviewer/role/hash/expiry/current policy
+  -> separate execute node
+  -> SQLite command and DRAFT commit atomically
+```
+
+为什么副作用必须在独立节点？LangGraph 恢复 interrupt 时可能重跑节点。如果在
+interrupt 之前发邮件或写 ACL，恢复可能重复执行。这里的唯一副作用是创建访问
+申请草稿，其幂等 key 绑定 tenant、user、run、tool 和 arguments hash。测试分别
+在 commit 前和 commit 后注入异常，再重建 orchestrator；最终只有一个 draft。
+这叫“对该 draft 操作可安全重试”，不叫 exactly-once。
+
+为什么审批不能越过 ACL？`ASK` 只表示“策略允许人确认这项敏感动作”，不是
+“人可以重写系统权限”。如果 ACL 是 DENY，优先级规则先返回 DENY，根本不会
+创建 approval。
 
 ## 10. EvalOps Artifact
 
 `AgentRunArtifactV1` 把一次运行封装成稳定 schema：input、output、trajectory、
-retrieval steps、evidence metadata、usage、terminal。导出前必须通过 replay，
+retrieval steps、evidence metadata、usage、terminal，以及有限的 W3C trace/root
+span 标识和 `content_capture_policy=off`。导出前必须通过 replay，
 导出后再计算 artifact-level SHA-256。
 
 运行：
@@ -210,6 +237,9 @@ Multi-Agent 会引入更多消息、权限传递、预算分配和失败组合�
 6. `evalops_artifact.py`：理解跨项目 schema。
 7. `mcp_adapter.py`：理解协议层为什么不能绕过业务层。
 8. `evaluation.py` 和 evidence JSON：理解 paired experiment。
+9. `tool_policy.py`：理解为什么权限决策不交给 LLM。
+10. `durable_orchestrator.py` 和 `side_effects.py`：理解 checkpoint 与幂等是两件事。
+11. `telemetry.py` 和 `harness_contract.py`：理解跨系统 trace 与稳定评测入口。
 
 ## 14. 面试自检题
 
@@ -231,10 +261,11 @@ Multi-Agent 会引入更多消息、权限传递、预算分配和失败组合�
 ### Q4：trajectory 和 OpenTelemetry 有何不同？
 
 Trajectory 记录业务语义与决策；OTel 记录服务 span、延迟和错误。二者用
-trace/session ID 关联，不应把完整敏感文档复制到任一系统。
+trace/session ID 关联。当前 OTel 明确丢弃 prompt、answer、evidence、tool output
+和凭据字段，身份只记录哈希；未配置 exporter 时仍生成本地 trace ID。
 
 ### Q5：项目现在最该做什么？
 
-若继续工业化，应优先做持久化 HITL、网络 MCP 身份绑定、trajectory retention
-和更大外部端到端 Agent eval；不应先增加更多 Agent 或框架。
-
+当前已经完成一个 draft-only 持久化审批候选。下一步应先让 PostgreSQL CI 通过，
+再决定是否把 approval/outbox 也迁到 PostgreSQL，并补 retention、真实 IAM 和
+多进程并发证据；不应先增加更多 Agent 或框架。

@@ -1,0 +1,96 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "schema_name": {
+      "const": "enterprise.agent-harness-request",
+      "default": "enterprise.agent-harness-request",
+      "title": "Schema Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "case_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Case Id",
+      "type": "string"
+    },
+    "question": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Question",
+      "type": "string"
+    },
+    "tenant_fixture": {
+      "const": "eval-tenant",
+      "default": "eval-tenant",
+      "title": "Tenant Fixture",
+      "type": "string"
+    },
+    "user_fixture": {
+      "const": "eval-employee",
+      "default": "eval-employee",
+      "title": "User Fixture",
+      "type": "string"
+    },
+    "expected_evidence_policy": {
+      "const": "grounded_or_refuse",
+      "default": "grounded_or_refuse",
+      "title": "Expected Evidence Policy",
+      "type": "string"
+    },
+    "timeout_ms": {
+      "default": 15000,
+      "maximum": 300000,
+      "minimum": 100,
+      "title": "Timeout Ms",
+      "type": "integer"
+    },
+    "traceparent": {
+      "anyOf": [
+        {
+          "pattern": "^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Traceparent"
+    },
+    "mode": {
+      "default": "deterministic_mock",
+      "enum": [
+        "deterministic_mock",
+        "local_real"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "attempt_id": {
+      "anyOf": [
+        {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Attempt Id"
+    }
+  },
+  "required": [
+    "case_id",
+    "question"
+  ],
+  "title": "HarnessRequestV1",
+  "type": "object"
+}

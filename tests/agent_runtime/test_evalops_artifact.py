@@ -55,6 +55,9 @@ def test_artifact_contains_evalops_layers_and_verifies(tmp_path) -> None:
     assert result.retrieval["tool_steps"][0]["tool_name"] == "search"
     assert result.evidence["admitted"][0]["chunk_id"] == "chunk-a"
     assert result.usage["tool_call_count"] == 1
+    assert len(result.trace_context.trace_id) == 32
+    assert len(result.trace_context.root_span_id) == 16
+    assert result.trace_context.content_capture_policy == "off"
     assert result.terminal == {
         "mode": "answered",
         "reason": "completed",

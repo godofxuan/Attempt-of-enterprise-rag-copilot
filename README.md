@@ -22,6 +22,10 @@ run can also emit a verifiable trajectory for replay and evaluation.
   not bypass permissions or the retrieved-content Guard.
 - Append-only hash-chained trajectories support deterministic replay and a
   versioned `enterprise.agent-run/1.0` EvalOps artifact.
+- An optional durable approval runtime adds deterministic `ALLOW/ASK/DENY`
+  policy hooks, file-backed LangGraph checkpoints, idempotent draft creation,
+  and privacy-default W3C/OpenTelemetry correlation. It does not replace the
+  bounded default.
 
 ## Verified results
 
@@ -43,6 +47,7 @@ an alternative orchestrator rather than a claimed quality improvement.
 | Replaceable Agent Runtime | Common `AgentOrchestrator` contract with the existing bounded adapter and a real LangGraph `StateGraph`, both using the same guarded tool and publication path |
 | MCP tool access | Official MCP SDK adapter for `search/find/open`; opaque server-issued context handles preserve identity, ACL, budget, expiry, and Guard enforcement |
 | Replay and HITL | Append-only SHA-256-chained semantic trajectory, deterministic no-network replay, and a tenant/role-bound one-time human review resume path |
+| Durable approval candidate | SQLite LangGraph checkpoint/restart, reviewer/tool-hash revalidation, draft-only idempotent side effect, PostgreSQL checkpointer CI contract, and W3C trace propagation |
 | EvalOps integration | Versioned `enterprise.agent-run/1.0` JSON schema, serializer, verifier, public sample artifact, and reproducible CLI tooling |
 | Enterprise retrieval | BM25, BGE-M3 Dense, RRF ablation, metadata and temporal authority, parent context, ACL filtering before evidence reaches the model |
 | Grounded answers | Structured claims, visible-source citations, deterministic numeric/date/negation checks, and removal of unsupported claims |
@@ -72,6 +77,11 @@ verified identity
   -> generate structured claims
   -> host verifies citations and removes unsupported claims
   -> append semantic trajectory -> replay / EvalOps artifact
+
+optional sensitive action
+  -> ToolPolicy ASK -> durable JSON interrupt
+  -> reviewer/tenant/tool-hash revalidation after restart
+  -> idempotent access-request DRAFT (never an ACL grant)
 ```
 
 The default V2 controller searches once per required aspect. Completeness
@@ -93,6 +103,8 @@ Key code paths:
 - [Agent controller](app/agent/controller_v2.py) and [execution loop](app/agent/runner_v2.py)
 - [Agent Runtime and adapters](app/agent_runtime/orchestrator.py)
 - [Tool contract and authority](app/agent_runtime/tool_contract.py) / [gateway](app/agent_runtime/tool_gateway.py)
+- [Tool policy](app/agent_runtime/tool_policy.py), [durable runtime](app/agent_runtime/durable_orchestrator.py), [idempotent side effects](app/agent_runtime/side_effects.py), and [OTel](app/agent_runtime/telemetry.py)
+- [External harness contract](app/agent_runtime/harness_contract.py) and [CLI](scripts/run_agent_harness.py)
 - [MCP adapter](app/agent_runtime/mcp_adapter.py)
 - [Trajectory](app/agent_runtime/trajectory.py), [replay](app/agent_runtime/replay.py), and [EvalOps artifact](app/agent_runtime/evalops_artifact.py)
 - [Typed tools](app/agent/tools_v2.py) and [Evidence Ledger](app/agent/evidence_ledger.py)
@@ -162,6 +174,13 @@ docs/handoffs/             recruiter, interview, teaching, and resume entry poin
 docs/enterprise_eval/      external retrieval protocols and results
 docs/resume_metrics/       resume-safe metrics and forbidden claims
 docs/agent_runtime/        vNext decisions, security review, architecture, schema, and evidence
+docs/production_runtime/   policy, durable checkpoint, idempotency, OTel, failure evidence, and claim limits
+```
+
+The versioned deterministic harness reads one JSON request from stdin:
+
+```powershell
+'{"case_id":"readme-smoke","question":"What is the remote policy?"}' | .\.venv\Scripts\python.exe -m scripts.run_agent_harness --state-root .private\harness\readme
 ```
 
 Start technical review with the [project evidence map](docs/handoffs/PROJECT_EVIDENCE_MAP.md).
@@ -178,8 +197,9 @@ project does **not** claim:
 - blind end-to-end answer accuracy or semantic entailment certification;
 - that the current Agent route improves external retrieval quality;
 - independent third-party reproduction;
-- durable crash-safe HITL, production network MCP/OAuth, multi-Agent execution,
-  GraphRAG, Redis, Kafka, or distributed multi-writer indexing;
+- durable production HITL for arbitrary actions, production network MCP/OAuth,
+  multi-Agent execution, GraphRAG, Redis, Kafka, or distributed multi-writer
+  indexing; the durable candidate currently covers one local draft-only action;
 - that LangGraph improved answer quality, or that the five-case diagnostic is a
   production latency or accuracy benchmark.
 
@@ -205,3 +225,5 @@ decision.
 - [Agent Runtime security review](docs/agent_runtime/09_SECURITY_REVIEW.md)
 - [Agent Runtime learning tutorial](docs/learning/AGENT_RUNTIME_TUTORIAL.md)
 - [vNext resume-safe evidence](docs/resume/RESUME_SAFE_VNEXT_METRICS.md)
+- [Production runtime candidate architecture](docs/production_runtime/ARCHITECTURE.md)
+- [Production runtime results and limitations](docs/production_runtime/RESULTS.md) / [limitations](docs/production_runtime/KNOWN_LIMITATIONS.md)

@@ -1,8 +1,8 @@
 # Third-party provenance and license review
 
-- Review date: 2026-08-20
-- Reviewed input: `ef9d0a919d3c002b7d868035c90b9f9624202513`
-- Branch: `codex/agent-runtime-vnext`
+- Review date: 2026-08-21
+- Reviewed input: `909a9710932c6c4744c462db0e33ed0d222ecb1a`
+- Branch: `codex/durable-agent-runtime-and-policy-v1`
 
 ## Scope and method
 
@@ -26,10 +26,14 @@ Usage classes:
 | Project component/path | External source | URL | Usage | License observed | Attribution/NOTICE requirement | Currently satisfied | Evidence and action | Unresolved risk |
 |---|---|---|---|---|---|---|---|---|
 | `app/agent_runtime/orchestrator.py`; `requirements.txt` | LangGraph | https://github.com/langchain-ai/langgraph | API_USAGE | MIT | Preserve MIT notice when redistributing substantial copied source; ordinary package distribution carries its package license | Yes for observed API use; no copied source found | Pinned `langgraph==1.2.11`, imports public `StateGraph`; keep dependency/SBOM and this attribution | Transitive package/model licenses require release-time SBOM review |
+| `app/agent_runtime/durable_orchestrator.py`; `requirements.txt` | LangGraph SQLite/PostgreSQL checkpointers and Psycopg | https://github.com/langchain-ai/langgraph; https://github.com/psycopg/psycopg | API_USAGE | MIT for LangGraph packages; LGPL-3.0 for Psycopg | Dynamic/package use is expected to remain separable; preserve package notices and review any redistribution bundle | Yes for package API use; no source copied | Pinned checkpointer adapters and `psycopg[binary,pool]`; uses documented `setup`, `thread_id`, checkpoint, and `Command` APIs | Final container/SBOM license inventory must include transitive binary wheels |
+| `app/agent_runtime/telemetry.py`; `requirements.txt` | OpenTelemetry Python | https://github.com/open-telemetry/opentelemetry-python | API_USAGE | Apache-2.0 | Preserve Apache-2.0 notice for redistributed source/binaries as applicable | Yes for observed package use; no copied source found | Pinned API/SDK `1.44.0`; project-owned privacy and fail-open wrapper | GenAI semantic-convention evolution requires upgrade review |
 | `app/agent_runtime/mcp_adapter.py`; `requirements.txt` | MCP Python SDK | https://github.com/modelcontextprotocol/python-sdk | API_USAGE | MIT | Same MIT preservation rule | Yes for observed API use; no copied SDK source found | Pinned `mcp==2.0.0`, imports `mcp.server.MCPServer`; call it official SDK API adaptation, not an internally authored protocol | Network transports are not used or security-reviewed by this project |
 | `docs/AGENTIC_RAG_EVOLUTION_LOG.md` | OpenAI Agents SDK | https://github.com/openai/openai-agents-python | CONCEPT_ONLY | MIT | No code attribution triggered by concept-only reference | Yes | Docs cite tracing/guardrail concepts; package is not pinned or imported | Exact influence on individual design choices is not mechanically measurable |
 | Development workflow/docs | OpenAI Codex | https://github.com/openai/codex | CONCEPT_ONLY / tool assistance | Apache-2.0 for the public Codex repository | No copied Codex source found; tool output authorship must still be reviewed by the repository owner | Partial | Git/docs show Codex-assisted review and implementation work, but no Codex package/import or copied file header | Exact line-level human/AI contribution split is NOT_VERIFIED from Git alone |
 | Development workflow/docs | Claude Code | https://github.com/anthropics/claude-code | CONCEPT_ONLY / tool reference | All rights reserved; use subject to Anthropic commercial terms | Do not describe Claude Code as open source or copy its code without separate permission | Yes for reviewed repository | Docs explicitly state the core harness was not replicated and use only published behavioral concepts | Exact private-tool output provenance is NOT_VERIFIED; no private prompts are published |
+| `docs/agent_runtime/EXTERNAL_HARNESS_PATTERN_DECISIONS.md` | Claude Code hooks/permissions public documentation | https://code.claude.com/docs/en/hooks | CONCEPT_ONLY | Documentation terms, not relied on for code reuse | No code attribution claim; do not imply Claude Code integration | Yes | Lifecycle naming was adapted into typed project-owned Python callbacks; shell/HTTP/prompt hooks and SDK dependency were rejected | Documentation terms may change; no private implementation was accessed |
+| `docs/security/AGENTDOJO_ADAPTATION_DECISION.md` | AgentDojo | https://github.com/ethz-spylab/agentdojo | CONCEPT_ONLY / REJECTED | MIT | None for concept-only review | Yes | Semantic mismatch was documented; no package, cases, or source added | Reopen only if a faithful tool/task map and fixed-cost protocol exist |
 | Retrieval/runtime design references | RAGFlow | https://github.com/infiniflow/ragflow | CONCEPT_ONLY | Apache-2.0 | None for concept-only reference | Yes | No package/import or copied/adapted source identified | Recheck if source snippets are introduced later |
 | Retrieval design references | Haystack | https://github.com/deepset-ai/haystack | CONCEPT_ONLY | Apache-2.0 | None for concept-only reference | Yes | No package/import or copied/adapted source identified | Recheck if integration code is introduced later |
 | Conditional parser research | Docling | https://github.com/docling-project/docling | CONCEPT_ONLY / NOT_IMPLEMENTED | MIT for code; individual model licenses may differ | None because parser/model was not integrated | Yes | Failure analysis did not meet the parser-ablation trigger; no dependency/import | Model-specific licenses must be checked before any future integration |
@@ -39,9 +43,9 @@ Usage classes:
 
 ## Findings
 
-1. **Confirmed direct integrations:** LangGraph and the MCP Python SDK are normal
-   package/API use under MIT. No copied or adapted upstream source was identified
-   in `app/agent_runtime/`.
+1. **Confirmed direct integrations:** LangGraph/checkpointers, Psycopg,
+   OpenTelemetry, and the MCP Python SDK are package/API use. No copied or
+   adapted upstream source was identified in `app/agent_runtime/`.
 2. **Confirmed concept references:** OpenAI Agents SDK, RAGFlow, Haystack,
    Docling, and MinerU are referenced as design or rejected research options, not
    imported implementations.

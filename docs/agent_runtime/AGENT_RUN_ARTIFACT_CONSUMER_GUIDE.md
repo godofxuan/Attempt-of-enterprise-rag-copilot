@@ -15,6 +15,7 @@ versions and should retain the original bytes alongside parsed records.
 | `run_id` | Producer-side run identity. In the current sample/exporter it equals `session_id`; this is a project simplification, not a universal EvalOps identity model. |
 | `case_id` | Evaluation case or dataset example supplied by the exporter. It is not the interactive session ID. |
 | `session_id`, `trace_id` | Agent session and trace correlation identities. |
+| `trace_context` | Optional v1-compatible OTel extension: finite trace/root-span IDs, project trace schema, `content_capture_policy`, and sanitized model/tool metadata. Newly generated artifacts include it; older valid v1 artifacts may omit it. |
 | `git_sha`, `created_at` | Source revision and artifact creation time. |
 | `input`, `output` | Redacted consumer-facing request and terminal output. |
 | `trajectory` | Ordered semantic events with per-event chain hashes. |

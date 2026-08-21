@@ -1,6 +1,30 @@
 # Enterprise Agentic RAG - Current Status
 
-## 2026-08-20 Canonical vNext state
+## 2026-08-21 Durable runtime candidate overlay
+
+```text
+working branch                     codex/durable-agent-runtime-and-policy-v1
+base                               909a9710932c6c4744c462db0e33ed0d222ecb1a
+default runtime                    BOUNDED CONTROLLER / UNCHANGED
+partial-answer HITL                SAME-PROCESS / EXISTING PATH
+draft approval HITL                FILE-BACKED SQLITE RESTART TESTED
+tool policy                        DENY > ASK > ALLOW / TYPED HOOKS
+side effect                        ACCESS-REQUEST DRAFT ONLY / IDEMPOTENT SQLITE
+OpenTelemetry                      W3C TRACE CONTEXT / CONTENT CAPTURE OFF
+PostgreSQL checkpointer            TEST IMPLEMENTED / LOCAL DSN NOT CONFIGURED
+production readiness               NOT ESTABLISHED / NOT CLAIMED
+```
+
+This overlay is a feature-branch candidate on top of the closed vNext baseline.
+It does not rewrite the frozen retrieval, answer, security, or latency results.
+The durable path is limited to one approved access-request draft operation; the
+existing partial-answer HITL remains same-process. Local Agent Runtime evidence
+is `81 passed, 1 skipped`, where the skip is the real PostgreSQL checkpointer
+test awaiting its configured CI service. The canonical mechanism documents are
+under `docs/production_runtime/`. Exactly-once, production IAM, arbitrary-action
+HITL, high availability, and production readiness remain forbidden claims.
+
+## 2026-08-20 Canonical vNext base state
 
 ```text
 review date                        2026-08-20

@@ -17,6 +17,9 @@
 Python / FastAPI / Pydantic / BGE-M3 / BM25 / FAISS / SQLite FTS5 /
 LangGraph StateGraph / MCP Python SDK / Pytest / Docker / GitHub Actions
 
+可选运行时关键词：LangGraph SQLite/PostgreSQL Checkpointer / OpenTelemetry /
+W3C Trace Context。只有目标分支 CI 通过后再放进已投递版本。
+
 ## AI Agent / RAG 岗推荐三条
 
 1. 抽象统一 `AgentOrchestrator`，让默认 bounded controller 与真实 LangGraph
@@ -29,6 +32,16 @@ LangGraph StateGraph / MCP Python SDK / Pytest / Docker / GitHub Actions
 3. 在 WixQA ExpertWritten 200 道固定 public-label 检索题上，BGE-M3 Dense
    相比 BM25 将 Recall@5 从 `42.75%` 提升至 `66.42%`、nDCG@5 从
    `32.15%` 提升至 `52.16%`；这些是检索排序指标，不是回答准确率。
+
+### Agent Runtime 候选替换条目
+
+可用它替换上面第 2 条，不要让单个版本堆四条：
+
+基于确定性 `ALLOW/ASK/DENY` Tool Policy 和 typed lifecycle hooks，将敏感
+访问申请限制为人工批准后的 draft-only 操作；使用 LangGraph file-backed
+checkpoint 支持服务对象重启恢复，以 tenant/reviewer/role/expiry/argument hash
+重新授权，并通过幂等 SQLite command 防止故障重试重复建单；它不是 arbitrary
+workflow durable execution，也不是 exactly-once。
 
 ## Python / AI 平台岗推荐三条
 
@@ -54,6 +67,7 @@ LangGraph StateGraph / MCP Python SDK / Pytest / Docker / GitHub Actions
 | 简历条目 | 源码 | 测试 | 证据/权威说明 |
 |---|---|---|---|
 | Agent Runtime / Harness | `app/agent_runtime/orchestrator.py`; `tool_gateway.py` | `tests/agent_runtime/test_orchestrators.py`; `test_ab_evaluation.py` | `docs/agent_runtime/evidence/agent_runtime_ab_v1.json`; 仅机制验证 |
+| Durable policy/runtime candidate | `app/agent_runtime/tool_policy.py`; `durable_orchestrator.py`; `side_effects.py`; `telemetry.py`; `harness_contract.py` | `test_tool_policy.py`; `test_durable_orchestrator.py`; `test_side_effects.py`; `test_telemetry.py`; `test_harness_contract.py` | `docs/production_runtime/RESULTS.md`; SQLite local evidence, PostgreSQL CI 待确认 |
 | MCP 工具边界 | `app/agent_runtime/tool_contract.py`; `mcp_adapter.py` | `tests/agent_runtime/test_tool_contract.py`; `test_mcp_adapter.py` | `docs/agent_runtime/04_MCP_ARCHITECTURE.md`; local/in-process |
 | trajectory / replay / EvalOps | `app/agent_runtime/trajectory.py`; `replay.py`; `evalops_artifact.py` | `tests/agent_runtime/test_trajectory.py`; `test_replay.py`; `test_evalops_artifact.py`; `test_human_review.py` | `docs/agent_runtime/evidence/agent_run_artifact_sample_v1.json` |
 | WixQA 检索 | `app/external_datasets/wixqa_retrieval.py` | `tests/external_datasets/test_wixqa_public_evidence.py` | `docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json` |
@@ -66,7 +80,8 @@ LangGraph StateGraph / MCP Python SDK / Pytest / Docker / GitHub Actions
 - 不写“Agent 效果优于固定 RAG”或“LangGraph 提升质量”。
 - 不写“100% 安全”“SOTA”“production-ready”或“企业真实线上部署”。
 - 不把 in-process MCP 写成生产网络 MCP/OAuth。
-- 不把同进程 HITL 写成 durable crash-safe resume。
+- 不把旧 partial-answer 同进程 HITL 写成 durable；不把新的 draft-only restart
+  测试外推为完整 production HITL、distributed exactly-once 或任意副作用恢复。
 - 不把五例 parity test 写成答案质量或生产性能实验。
 
 完整限定、证据 SHA 和禁止口径见 `docs/handoffs/PROJECT_EVIDENCE_MAP.md` 与

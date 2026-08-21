@@ -28,6 +28,10 @@ EXPECTED_REQUIREMENTS = {
     "cryptography==49.0.0",
     "mcp==2.0.0",
     "langgraph==1.2.11",
+    "langgraph-checkpoint-sqlite==3.1.1",
+    "langgraph-checkpoint-postgres==3.1.2",
+    "opentelemetry-sdk==1.44.0",
+    "psycopg[binary,pool]==3.3.4",
 }
 
 

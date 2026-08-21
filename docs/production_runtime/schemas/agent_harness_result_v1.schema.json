@@ -1,0 +1,97 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "schema_name": {
+      "const": "enterprise.agent-harness-result",
+      "default": "enterprise.agent-harness-result",
+      "title": "Schema Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "attempt_id": {
+      "title": "Attempt Id",
+      "type": "string"
+    },
+    "answer": {
+      "title": "Answer",
+      "type": "string"
+    },
+    "terminal_state": {
+      "title": "Terminal State",
+      "type": "string"
+    },
+    "citations": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Citations",
+      "type": "array"
+    },
+    "tool_events": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Tool Events",
+      "type": "array"
+    },
+    "policy_decisions": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Policy Decisions",
+      "type": "array"
+    },
+    "trajectory_artifact": {
+      "additionalProperties": true,
+      "title": "Trajectory Artifact",
+      "type": "object"
+    },
+    "trace_id": {
+      "pattern": "^[0-9a-f]{32}$",
+      "title": "Trace Id",
+      "type": "string"
+    },
+    "root_span_id": {
+      "pattern": "^[0-9a-f]{16}$",
+      "title": "Root Span Id",
+      "type": "string"
+    },
+    "propagated_traceparent": {
+      "pattern": "^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$",
+      "title": "Propagated Traceparent",
+      "type": "string"
+    },
+    "error_classification": {
+      "title": "Error Classification",
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_id",
+    "attempt_id",
+    "answer",
+    "terminal_state",
+    "citations",
+    "tool_events",
+    "policy_decisions",
+    "trajectory_artifact",
+    "trace_id",
+    "root_span_id",
+    "propagated_traceparent",
+    "error_classification"
+  ],
+  "title": "HarnessOutputV1",
+  "type": "object"
+}

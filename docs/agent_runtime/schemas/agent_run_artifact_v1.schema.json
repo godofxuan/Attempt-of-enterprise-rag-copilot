@@ -1,5 +1,48 @@
 {
   "$defs": {
+    "AgentArtifactTrace": {
+      "additionalProperties": false,
+      "properties": {
+        "trace_id": {
+          "pattern": "^[0-9a-f]{32}$",
+          "title": "Trace Id",
+          "type": "string"
+        },
+        "root_span_id": {
+          "pattern": "^[0-9a-f]{16}$",
+          "title": "Root Span Id",
+          "type": "string"
+        },
+        "trace_schema_version": {
+          "const": "enterprise.agent.telemetry/1.0",
+          "default": "enterprise.agent.telemetry/1.0",
+          "title": "Trace Schema Version",
+          "type": "string"
+        },
+        "content_capture_policy": {
+          "const": "off",
+          "default": "off",
+          "title": "Content Capture Policy",
+          "type": "string"
+        },
+        "sanitized_model_metadata": {
+          "additionalProperties": true,
+          "title": "Sanitized Model Metadata",
+          "type": "object"
+        },
+        "sanitized_tool_metadata": {
+          "additionalProperties": true,
+          "title": "Sanitized Tool Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "trace_id",
+        "root_span_id"
+      ],
+      "title": "AgentArtifactTrace",
+      "type": "object"
+    },
     "AgentEvent": {
       "additionalProperties": false,
       "properties": {
@@ -242,6 +285,17 @@
       "minLength": 1,
       "title": "Trace Id",
       "type": "string"
+    },
+    "trace_context": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AgentArtifactTrace"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "input": {
       "additionalProperties": true,

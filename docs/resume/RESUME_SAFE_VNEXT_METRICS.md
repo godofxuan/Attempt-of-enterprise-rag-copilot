@@ -21,6 +21,13 @@ one `AgentOrchestrator` contract, bounded default, real LangGraph alternative,
 shared `ToolGateway`, ACL, Guard, Evidence Ledger, and citation gate. It does
 not carry an external quality-uplift number.
 
+The durable-runtime feature branch adds an **implemented mechanism claim**:
+deterministic `ALLOW/ASK/DENY` gateway policy, typed lifecycle hooks,
+file-backed LangGraph checkpoint/restart for one access-request draft workflow,
+an idempotent SQLite draft transaction, and privacy-default W3C/OTel
+correlation. It is not a measured quality claim and is not yet a production
+readiness claim.
+
 ## INTERVIEW_ONLY
 
 - The bounded and LangGraph arms both passed five deterministic mechanism
@@ -35,8 +42,12 @@ not carry an external quality-uplift number.
 - MCP is an official-SDK local/in-process adapter. Its tools still execute
   through server-held context, `ToolGateway`, identity, ACL, budget, deadline,
   and retrieved-content admission.
-- HITL supports retry-safe, single-process pause/resume with tenant and reviewer
-  checks. Pending review state is not durable across process restart.
+- Partial-answer HITL remains retry-safe and same-process. Separately, the new
+  access-request draft workflow is covered by SQLite restart/fault-injection
+  tests and revalidates tenant, ACL, reviewer, role, expiry, and argument hash.
+  This narrow workflow must not be described as general durable execution.
+- The PostgreSQL checkpointer test is present but locally skipped without
+  `TEST_POSTGRES_DSN`; it may be cited only after the dedicated CI job passes.
 
 ## HISTORICAL_NEGATIVE
 
@@ -51,7 +62,8 @@ not carry an external quality-uplift number.
 - Calling Recall@5 or nDCG@5 answer accuracy.
 - Claiming LangGraph improved answer quality or is faster.
 - Treating five mechanism cases as production performance or 100% Agent accuracy.
-- Claiming production network MCP, OAuth, durable execution, or crash-safe HITL.
+- Claiming production network MCP/OAuth, arbitrary-action durable execution,
+  general crash-safe HITL, exactly-once effects, or distributed approval state.
 - Claiming a WORM ledger, production audit certification, universal injection
   defense, SOTA, production readiness, or third-party reproduction.
 - Promoting a synthetic, oracle, consumed-development, or changing test-pass

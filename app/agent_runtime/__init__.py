@@ -33,13 +33,44 @@ from app.agent_runtime.evaluation import (
     run_agent_runtime_ab,
 )
 from app.agent_runtime.evalops_artifact import (
+    AgentArtifactTrace,
     AgentRunArtifactV1,
     build_agent_run_artifact,
     verify_agent_run_artifact,
 )
+from app.agent_runtime.durable_orchestrator import (
+    DurableApprovalRequest,
+    DurableLangGraphOrchestrator,
+    DurableToolRunRequest,
+    DurableToolRunResult,
+)
+from app.agent_runtime.harness_contract import (
+    AgentHarnessRunner,
+    HarnessOutputV1,
+    HarnessRequestV1,
+)
+from app.agent_runtime.side_effects import (
+    AccessRequestDraft,
+    AccessRequestDraftArguments,
+    SQLiteSideEffectStore,
+)
+from app.agent_runtime.telemetry import AgentTelemetry, TraceIdentity
+from app.agent_runtime.tool_policy import (
+    PolicyDecision,
+    PolicyHookDispatcher,
+    SQLitePolicyAuditStore,
+    ToolPolicy,
+    ToolPolicyInput,
+    ToolRisk,
+)
 
 __all__ = [
     "AgentOrchestrator",
+    "AccessRequestDraft",
+    "AccessRequestDraftArguments",
+    "AgentArtifactTrace",
+    "AgentHarnessRunner",
+    "AgentTelemetry",
     "AgentEvent",
     "AgentEventDraft",
     "AgentRunRequest",
@@ -51,12 +82,26 @@ __all__ = [
     "AgentRunArtifactV1",
     "AgentTrajectoryReplay",
     "BoundedControllerAdapter",
+    "DurableApprovalRequest",
+    "DurableLangGraphOrchestrator",
+    "DurableToolRunRequest",
+    "DurableToolRunResult",
     "HumanReviewDecision",
     "HumanReviewRequest",
     "EnterpriseKnowledgeMCP",
     "LangGraphOrchestratorAdapter",
     "MCPContextBroker",
     "SQLiteTrajectoryStore",
+    "SQLitePolicyAuditStore",
+    "SQLiteSideEffectStore",
+    "PolicyDecision",
+    "PolicyHookDispatcher",
+    "ToolPolicy",
+    "ToolPolicyInput",
+    "ToolRisk",
+    "TraceIdentity",
+    "HarnessOutputV1",
+    "HarnessRequestV1",
     "ToolContext",
     "ToolDefinition",
     "ToolError",
