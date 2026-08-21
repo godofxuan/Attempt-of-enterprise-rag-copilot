@@ -160,9 +160,11 @@ accept 只能发布已经受控的 partial response；reject 返回不含来源�
 `human_review.completed` 写入同一 trajectory。这个旧路径仍使用
 `InMemorySaver`：进程重启后 pending review 丢失。
 
-### 9.1 新增 durable draft approval 解决了什么
+### 9.1 durable draft approval 解决了什么
 
-`DurableLangGraphOrchestrator` 不是把旧类名字换掉，而是增加一个受限工作流：
+准确类名是 `DurableAccessRequestWorkflow`。旧的
+`DurableLangGraphOrchestrator` 只保留为 deprecated import alias，而且没有普通
+Agent 的 `run()`。这是为了防止名字让人误以为“整个 Agent 都能断点续跑”。
 
 ```text
 trusted request
@@ -171,15 +173,39 @@ trusted request
   -> interrupt (no side effect yet)
   -> process can stop
   -> new process validates tenant/reviewer/role/hash/expiry/current policy
-  -> separate execute node
-  -> SQLite command and DRAFT commit atomically
+  -> SQLite CAS obtains RESUMING ownership and a lease/version fence
+  -> graph prepares the approved operation
+  -> one SQLite transaction commits command + DRAFT + completion outbox + approval
+  -> trajectory events are projected idempotently from the outbox
 ```
 
 为什么副作用必须在独立节点？LangGraph 恢复 interrupt 时可能重跑节点。如果在
 interrupt 之前发邮件或写 ACL，恢复可能重复执行。这里的唯一副作用是创建访问
-申请草稿，其幂等 key 绑定 tenant、user、run、tool 和 arguments hash。测试分别
-在 commit 前和 commit 后注入异常，再重建 orchestrator；最终只有一个 draft。
-这叫“对该 draft 操作可安全重试”，不叫 exactly-once。
+申请草稿，其幂等 key 绑定 tenant、user、run、tool 和 arguments hash。
+
+### 9.2 CAS、lease、fencing 分别是什么
+
+- CAS（compare-and-set）：SQL 只在“状态和版本仍是我刚读到的值”时更新，并且
+  必须检查 `rowcount == 1`。两个请求都读到 PENDING，也只能有一个更新成功。
+- lease：拿到 RESUMING 的 owner 只有一段有效时间。进程彻底崩溃后，不会永远
+  占住审批；租约过期，另一个请求可以恢复。
+- fencing：恢复者会把 version 从 1 增到 2。旧进程即使突然醒来，它手中的 owner
+  token/version 已经过期，最终 UPDATE 匹配 0 行并报冲突，不能覆盖新结果。
+
+只靠 Python `Lock` 不够，因为两个服务进程各有一把锁，彼此看不见。本实现把
+竞争放在共享 SQLite 数据库事务中测试，两个 workflow 对象使用独立连接并由
+`ThreadPoolExecutor` 真正重叠执行。
+
+### 9.3 原子边界到底包含什么
+
+同一个 SQLite `BEGIN IMMEDIATE` 事务包含三类事实：副作用命令与 DRAFT、不可变
+completion outbox、approval terminal result。故障注入覆盖 effect 前、effect 后、
+completion 后、approval UPDATE 后和 commit 后。commit 前异常全部回滚；commit
+后响应丢失时，重试读取同一个结果。
+
+LangGraph checkpoint 和 trajectory 在另外的数据库中，所以不能说全局事务或
+exactly-once。trajectory 采用稳定 idempotency key 从 outbox 投影，语义是
+“至少可能重试，但最终不重复记录”。这是诚实而可落地的边界。
 
 为什么审批不能越过 ACL？`ASK` 只表示“策略允许人确认这项敏感动作”，不是
 “人可以重写系统权限”。如果 ACL 是 DENY，优先级规则先返回 DENY，根本不会

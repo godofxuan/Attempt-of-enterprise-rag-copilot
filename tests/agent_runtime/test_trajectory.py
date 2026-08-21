@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -14,8 +14,7 @@ from app.agent_runtime.trajectory import (
 )
 from tests.v2_test_support import RecordingNavigator, search_hit, search_result, user_context
 
-
-NOW = datetime(2026, 8, 19, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 19, 12, 0, tzinfo=UTC)
 
 
 def draft(event_type: str, **updates) -> AgentEventDraft:
@@ -46,12 +45,14 @@ def test_database_triggers_reject_update_and_delete(tmp_path) -> None:
     store = SQLiteTrajectoryStore(path, now=lambda: NOW)
     store.append(draft("session.started"))
 
-    with sqlite3.connect(path) as connection, pytest.raises(
-        sqlite3.IntegrityError, match="append-only"
+    with (
+        sqlite3.connect(path) as connection,
+        pytest.raises(sqlite3.IntegrityError, match="append-only"),
     ):
         connection.execute("UPDATE agent_events SET trace_id = 'forged'")
-    with sqlite3.connect(path) as connection, pytest.raises(
-        sqlite3.IntegrityError, match="append-only"
+    with (
+        sqlite3.connect(path) as connection,
+        pytest.raises(sqlite3.IntegrityError, match="append-only"),
     ):
         connection.execute("DELETE FROM agent_events")
 
@@ -65,6 +66,25 @@ def test_completed_or_reused_session_cannot_be_appended(tmp_path) -> None:
         store.append(draft("user.message"))
     with pytest.raises(ValueError, match="already exists|immutable"):
         store.append(draft("session.started"))
+
+
+def test_idempotent_projection_returns_existing_event_after_session_completion(
+    tmp_path,
+) -> None:
+    store = SQLiteTrajectoryStore(tmp_path / "trajectory.sqlite3", now=lambda: NOW)
+    store.append(draft("session.started"))
+    first = store.append(
+        draft("session.completed", payload={"status": "completed"}),
+        idempotency_key="approval-one:session.completed",
+    )
+
+    repeated = store.append(
+        draft("session.completed", payload={"status": "completed"}),
+        idempotency_key="approval-one:session.completed",
+    )
+
+    assert repeated == first
+    assert len(store.load("session-one")) == 2
 
 
 def test_secret_and_raw_retrieval_content_are_redacted() -> None:

@@ -36,19 +36,65 @@ jobs:
         with:
           python-version: "3.11.9"
           cache: pip
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Pin pip resolver
         run: python -m pip install pip==26.0.1
 
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
 
       - name: Check dependency consistency
         run: python -m pip check
 
       - name: Compile Python sources
         run: python -m compileall -q app scripts streamlit_app tests
+
+      - name: Lint integrity-fix runtime surfaces
+        run: >-
+          python -m ruff check
+          app/agent_runtime/durable_store.py
+          app/agent_runtime/durable_orchestrator.py
+          app/agent_runtime/side_effects.py
+          app/agent_runtime/telemetry.py
+          app/agent_runtime/tool_policy.py
+          app/agent_runtime/trajectory.py
+          app/agent_runtime/evalops_artifact.py
+          app/agent_runtime/harness_contract.py
+          app/agent_runtime/__init__.py
+          app/agent_runtime/orchestrator.py
+          tests/agent_runtime/test_durable_orchestrator.py
+          tests/agent_runtime/test_telemetry.py
+          tests/agent_runtime/test_tool_policy.py
+
+      - name: Check integrity-fix formatting
+        run: >-
+          python -m ruff format --check
+          app/agent_runtime/durable_store.py
+          app/agent_runtime/durable_orchestrator.py
+          app/agent_runtime/side_effects.py
+          app/agent_runtime/telemetry.py
+          app/agent_runtime/tool_policy.py
+          app/agent_runtime/trajectory.py
+          app/agent_runtime/evalops_artifact.py
+          tests/agent_runtime/test_durable_orchestrator.py
+          tests/agent_runtime/test_telemetry.py
+          tests/agent_runtime/test_tool_policy.py
+
+      - name: Type-check integrity-fix runtime surfaces
+        run: >-
+          python -m mypy --follow-imports=skip
+          app/agent_runtime/durable_store.py
+          app/agent_runtime/durable_orchestrator.py
+          app/agent_runtime/side_effects.py
+          app/agent_runtime/telemetry.py
+          app/agent_runtime/tool_policy.py
+          app/agent_runtime/trajectory.py
+          app/agent_runtime/evalops_artifact.py
 
       - name: Verify frozen evaluation hash
         run: python -c "from pathlib import Path; from scripts.eval_enterprise_v2 import verify_frozen_test_hash; expected, actual = verify_frozen_test_hash(Path('data/v2/eval')); assert expected == actual; print(actual)"
@@ -303,12 +349,12 @@ jobs:
       - name: Install pinned dependencies
         run: |
           python -m pip install pip==26.0.1
-          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
 
       - name: Run real PostgreSQL checkpointer integration
         env:
           TEST_POSTGRES_DSN: postgresql://postgres:postgres@127.0.0.1:5432/agent_runtime_test
         run: >-
           python -m pytest
-          tests/agent_runtime/test_durable_orchestrator.py::test_postgres_checkpointer_setup_and_interrupt_roundtrip
-          -q
+          tests/agent_runtime/test_durable_orchestrator.py
+          -m integration -q

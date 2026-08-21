@@ -1,5 +1,33 @@
 # Production Runtime Validation Results
 
+## 2026-08-22 P1 integrity overlay
+
+Branch: `codex/durable-runtime-integrity-fix-v1`. Start HEAD:
+`2e1c93cc8713bb2804a665221af38457b79afa44`.
+
+Local results recorded before the implementation commit:
+
+| Command | Result |
+|---|---|
+| `python -m pip check` | passed |
+| `python -m compileall -q app scripts streamlit_app tests` | passed |
+| scoped Ruff check and format check | passed |
+| scoped mypy with `--follow-imports=skip` | passed for seven integrity modules; not a whole-repository claim |
+| `python -m pytest tests/agent_runtime -q` | `103 passed, 2 skipped`; both skips require `TEST_POSTGRES_DSN` |
+| bounded controller and harness regression | `144 passed` |
+| first full repository run | `3341 passed, 31 skipped, 3 failed`; all three failures were stale documentation/CI contract expectations |
+| targeted rerun after contract fixes | `3 passed` |
+| final full repository rerun | `3344 passed, 31 skipped`, 3 existing SWIG warnings |
+| first public audit | `1695 candidates / 2 findings`; deterministic token fixture naming and a pre-commit manifest link, fixed before closeout |
+| final pre-commit public audit | `1695 candidates / 0 findings` |
+
+The three full-run failures were retained and diagnosed: P10 initially reused a
+historical table-count contract incorrectly, the canonical vNext branch phrase
+was missing from the overlay text, and CI no longer contained its explicit
+runtime dependency-install command. No product test failed. A final full rerun,
+clean-worktree verifier, exact implementation SHA, and remote CI are recorded
+in the P1 report/manifest only after they complete.
+
 Evidence date: 2026-08-21. Baseline SHA: `909a9710932c6c4744c462db0e33ed0d222ecb1a`.
 Final implementation SHA: `e848d8e6090267b28d351758fe8d3cb557dcd586`.
 

@@ -1,5 +1,27 @@
 # Final Public Review Packet
 
+## Current P1 integrity review overlay
+
+Review branch: `codex/durable-runtime-integrity-fix-v1`.
+
+Implementation ancestor:
+`e848d8e6090267b28d351758fe8d3cb557dcd586`.
+
+This overlay fixes concurrency and completion-integrity defects in the one
+access-request DRAFT approval workflow. Review
+[`P1_INTEGRITY_FIX_REPORT.md`](P1_INTEGRITY_FIX_REPORT.md) and the commit-bound
+`P1_INTEGRITY_EVIDENCE_MANIFEST.json`
+before reading the older durable baseline packet below. The implementation
+uses database CAS/lease/version fencing and atomically commits the local draft
+effect command, immutable completion outbox, and approval final state. It does
+not make the whole Agent runtime durable and does not claim distributed
+exactly-once execution.
+
+The prior `e848d8e` / Actions `32470591376` record below remains historical base
+evidence. It is not proof that the current integrity-fix branch passes CI. The
+new branch's exact implementation commit and Actions run are bound in the P1
+manifest only after those checks finish.
+
 This is the single entry point for a human reviewer or a web-enabled GPT. It is
 an index of public evidence, not a new experiment and not a production-readiness
 certificate.

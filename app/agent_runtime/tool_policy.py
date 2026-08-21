@@ -4,17 +4,16 @@ import hashlib
 import json
 import sqlite3
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from threading import RLock
-from typing import Any, Literal, Protocol
+from typing import Any, Final, Literal, Protocol
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
-POLICY_VERSION = "tool-policy.v1"
+POLICY_VERSION: Final[Literal["tool-policy.v1"]] = "tool-policy.v1"
 
 
 class ToolRisk(StrEnum):
@@ -130,9 +129,7 @@ class ToolPolicy:
             )
         if value.tool_risk == ToolRisk.ADMIN_FORBIDDEN:
             reason = (
-                "admin_tool_forbidden"
-                if value.tool_name in self._RISKS
-                else "unregistered_tool"
+                "admin_tool_forbidden" if value.tool_name in self._RISKS else "unregistered_tool"
             )
             return PolicyResult(decision=PolicyDecision.DENY, reason_code=reason)
         if value.evaluated_at_ms >= value.authentication_expires_at_ms:
@@ -180,6 +177,23 @@ class SQLitePolicyAuditStore:
                 BEFORE DELETE ON tool_policy_audit BEGIN
                     SELECT RAISE(ABORT, 'policy audit is append-only');
                 END;
+                CREATE TABLE IF NOT EXISTS tool_hook_failures (
+                    failure_id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    lifecycle TEXT NOT NULL,
+                    session_hash TEXT NOT NULL,
+                    run_hash TEXT NOT NULL,
+                    hook_type TEXT NOT NULL,
+                    error_type TEXT NOT NULL
+                );
+                CREATE TRIGGER IF NOT EXISTS tool_hook_failures_no_update
+                BEFORE UPDATE ON tool_hook_failures BEGIN
+                    SELECT RAISE(ABORT, 'hook failure audit is append-only');
+                END;
+                CREATE TRIGGER IF NOT EXISTS tool_hook_failures_no_delete
+                BEFORE DELETE ON tool_hook_failures BEGIN
+                    SELECT RAISE(ABORT, 'hook failure audit is append-only');
+                END;
                 """
             )
 
@@ -203,7 +217,7 @@ class SQLitePolicyAuditStore:
                 """,
                 (
                     uuid4().hex,
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                     lifecycle,
                     _hash_identifier(policy_input.tenant_id),
                     _hash_identifier(policy_input.user_id),
@@ -222,6 +236,36 @@ class SQLitePolicyAuditStore:
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT * FROM tool_policy_audit ORDER BY created_at, audit_id"
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def append_hook_failure(
+        self,
+        *,
+        lifecycle: str,
+        session_id: str,
+        run_id: str,
+        hook_type: str,
+        error_type: str,
+    ) -> None:
+        with self._lock, self._connect() as connection:
+            connection.execute(
+                "INSERT INTO tool_hook_failures VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    uuid4().hex,
+                    datetime.now(UTC).isoformat(),
+                    lifecycle[:100],
+                    _hash_identifier(session_id),
+                    _hash_identifier(run_id),
+                    hook_type[:200],
+                    error_type[:200],
+                ),
+            )
+
+    def hook_failure_rows(self) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM tool_hook_failures ORDER BY created_at, failure_id"
             ).fetchall()
         return [dict(row) for row in rows]
 
@@ -244,6 +288,7 @@ class PolicyHookDispatcher:
             for hook in self.hooks:
                 hook.pre_tool_use(value, result)
         except Exception as exc:
+            self._record_hook_failure("pre_tool_use", value, hook, exc)
             result = PolicyResult(decision=PolicyDecision.DENY, reason_code="pre_hook_failed")
             self._audit("pre_tool_use", value, result, {"hook_error_type": type(exc).__name__})
             return result
@@ -258,12 +303,15 @@ class PolicyHookDispatcher:
         *,
         schema: type[BaseModel] | None = None,
     ) -> PolicyResult:
+        failed_component: Any = self
         try:
             validated = schema.model_validate(output) if schema is not None else output
             metadata = limited_outcome_metadata(validated)
             for hook in self.hooks:
+                failed_component = hook
                 hook.post_tool_use(value, result, metadata)
         except Exception as exc:
+            self._record_hook_failure("post_tool_use", value, failed_component, exc)
             denied = PolicyResult(decision=PolicyDecision.DENY, reason_code="post_hook_failed")
             self._audit("post_tool_use", value, denied, {"hook_error_type": type(exc).__name__})
             return denied
@@ -271,15 +319,58 @@ class PolicyHookDispatcher:
         return result
 
     def tool_error(self, value: ToolPolicyInput, result: PolicyResult, error_code: str) -> None:
-        try:
-            for hook in self.hooks:
+        for hook in self.hooks:
+            try:
                 hook.tool_error(value, result, error_code)
-        finally:
+            except Exception as exc:
+                self._record_hook_failure("tool_error", value, hook, exc)
+        try:
             self._audit("tool_error", value, result, {"error_code": error_code})
+        except Exception as exc:
+            self._record_hook_failure("tool_error_audit", value, self.audit_store, exc)
 
     def run_stop(self, *, session_id: str, run_id: str, reason: str) -> None:
         for hook in self.hooks:
-            hook.run_stop(session_id, run_id, reason)
+            try:
+                hook.run_stop(session_id, run_id, reason)
+            except Exception as exc:
+                self._record_hook_failure_ids("run_stop", session_id, run_id, hook, exc)
+
+    def _record_hook_failure(
+        self,
+        lifecycle: str,
+        value: ToolPolicyInput,
+        hook: Any,
+        error: Exception,
+    ) -> None:
+        self._record_hook_failure_ids(
+            lifecycle,
+            value.session_id,
+            value.run_id,
+            hook,
+            error,
+        )
+
+    def _record_hook_failure_ids(
+        self,
+        lifecycle: str,
+        session_id: str,
+        run_id: str,
+        hook: Any,
+        error: Exception,
+    ) -> None:
+        if self.audit_store is None:
+            return
+        try:
+            self.audit_store.append_hook_failure(
+                lifecycle=lifecycle,
+                session_id=session_id,
+                run_id=run_id,
+                hook_type=type(hook).__name__,
+                error_type=type(error).__name__,
+            )
+        except Exception:
+            return
 
     def _audit(
         self,
@@ -326,9 +417,7 @@ def limited_outcome_metadata(output: Any) -> dict[str, Any]:
     payload = raw.get("payload")
     if isinstance(payload, Mapping):
         for key in ("outcome", "stop_reason"):
-            if key in payload and isinstance(
-                payload[key], (str, int, float, bool, type(None))
-            ):
+            if key in payload and isinstance(payload[key], (str, int, float, bool, type(None))):
                 metadata[f"payload_{key}"] = payload[key]
     metadata["output_sha256"] = hashlib.sha256(canonical_json(raw).encode("utf-8")).hexdigest()
     return metadata

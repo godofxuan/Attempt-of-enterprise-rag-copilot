@@ -26,10 +26,11 @@ run can also emit a verifiable trajectory for replay and evaluation.
   not bypass permissions or the retrieved-content Guard.
 - Append-only hash-chained trajectories support deterministic replay and a
   versioned `enterprise.agent-run/1.0` EvalOps artifact.
-- An optional durable approval runtime adds deterministic `ALLOW/ASK/DENY`
-  policy hooks, file-backed LangGraph checkpoints, idempotent draft creation,
-  and privacy-default W3C/OpenTelemetry correlation. It does not replace the
-  bounded default.
+- An optional `DurableAccessRequestWorkflow` adds deterministic
+  `DENY > ASK > ALLOW` policy hooks, database CAS/lease/fencing, file-backed
+  LangGraph checkpoints, an atomic draft/completion/approval transaction, and
+  typed privacy-default OpenTelemetry metadata. It covers only one
+  access-request DRAFT workflow and does not replace the bounded default.
 
 ## Verified results
 
@@ -51,7 +52,7 @@ an alternative orchestrator rather than a claimed quality improvement.
 | Replaceable Agent Runtime | Common `AgentOrchestrator` contract with the existing bounded adapter and a real LangGraph `StateGraph`, both using the same guarded tool and publication path |
 | MCP tool access | Official MCP SDK adapter for `search/find/open`; opaque server-issued context handles preserve identity, ACL, budget, expiry, and Guard enforcement |
 | Replay and HITL | Append-only SHA-256-chained semantic trajectory, deterministic no-network replay, and a tenant/role-bound one-time human review resume path |
-| Durable approval candidate | SQLite LangGraph checkpoint/restart, reviewer/tool-hash revalidation, draft-only idempotent side effect, PostgreSQL checkpointer CI contract, and W3C trace propagation |
+| Durable approval candidate | SQLite CAS/lease/fencing, restart recovery, reviewer/tool-hash revalidation, one atomic draft/completion/approval transaction, PostgreSQL checkpointer CI contract, and W3C trace propagation |
 | EvalOps integration | Versioned `enterprise.agent-run/1.0` JSON schema, serializer, verifier, public sample artifact, and reproducible CLI tooling |
 | Enterprise retrieval | BM25, BGE-M3 Dense, RRF ablation, metadata and temporal authority, parent context, ACL filtering before evidence reaches the model |
 | Grounded answers | Structured claims, visible-source citations, deterministic numeric/date/negation checks, and removal of unsupported claims |
@@ -83,7 +84,7 @@ verified identity
   -> append semantic trajectory -> replay / EvalOps artifact
 
 optional sensitive action
-  -> ToolPolicy ASK -> durable JSON interrupt
+  -> ToolPolicy ASK -> DurableAccessRequestWorkflow JSON interrupt
   -> reviewer/tenant/tool-hash revalidation after restart
   -> idempotent access-request DRAFT (never an ACL grant)
 ```

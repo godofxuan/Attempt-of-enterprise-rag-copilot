@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import time
 import hashlib
 import secrets
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal, Protocol, TypedDict
 
-from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -31,10 +31,10 @@ from app.agent.runner_v2 import (
     _tool_step_trace,
 )
 from app.agent.tools_v2 import V2ToolRegistry, build_tool_error_execution
+from app.agent_runtime.telemetry import AgentTelemetry
 from app.agent_runtime.tool_contract import ToolContext, ToolRequest
 from app.agent_runtime.tool_gateway import ToolGateway
 from app.agent_runtime.tool_policy import PolicyHookDispatcher
-from app.agent_runtime.telemetry import AgentTelemetry
 from app.agent_runtime.trajectory import SQLiteTrajectoryStore, TrajectoryRecorder
 from app.domain.agent import AgentAction, AgentBudget, BudgetState, ToolErrorCode
 from app.domain.evidence import AnswerResponse
@@ -46,9 +46,8 @@ from app.domain.retrieved_security import (
     GuardedV2ToolExecution,
 )
 
-
 ClockMs = Callable[[], float]
-OrchestratorName = Literal["bounded", "langgraph", "durable_langgraph"]
+OrchestratorName = Literal["bounded", "langgraph"]
 
 
 class _StrictModel(BaseModel):

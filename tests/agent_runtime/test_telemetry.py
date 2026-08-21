@@ -68,9 +68,62 @@ def test_span_attributes_never_capture_content_or_credentials() -> None:
     assert "PRIVATE" not in serialized
     assert "TEST-SECRET" not in serialized
     assert "tenant-one" not in serialized
-    assert "tenant.sha256" in serialized
-    assert "mock-model" in serialized
-    assert "deterministic_mock" in serialized
+    assert "tenant.sha256" not in serialized
+    assert "mock-model" not in serialized
+    assert "model.name.sha256" in serialized
+    assert "deterministic_mock" not in serialized
+
+
+def test_typed_allowlist_drops_neutral_nested_list_and_exception_secrets() -> None:
+    exporter = InMemorySpanExporter()
+    telemetry = AgentTelemetry(build_tracer_provider(exporter))
+    secrets = (
+        "NEUTRAL-MESSAGE-SECRET",
+        "QUERY-SECRET",
+        "DOCUMENT-SECRET",
+        "NESTED-SECRET",
+        "LIST-SECRET",
+        "EXCEPTION-SECRET",
+        "TOOL-METADATA-SECRET",
+    )
+
+    with telemetry.span(
+        "privacy-allowlist",
+        operation="tool",
+        attributes={
+            "tool.name": "search",
+            "tool.arguments.sha256": "a" * 64,
+            "message": secrets[0],
+            "query": secrets[1],
+            "document": secrets[2],
+            "nested": {"message": secrets[3]},
+            "items": [secrets[4]],
+            "exception.message": secrets[5],
+            "tool.metadata": secrets[6],
+        },
+    ):
+        pass
+
+    serialized = str(exporter.get_finished_spans()[0].attributes)
+    assert all(secret not in serialized for secret in secrets)
+    assert "tool.name" in serialized
+    assert "tool.arguments.sha256" in serialized
+
+
+def test_attribute_allowed_for_one_span_type_is_denied_for_another() -> None:
+    exporter = InMemorySpanExporter()
+    telemetry = AgentTelemetry(build_tracer_provider(exporter))
+
+    with telemetry.span(
+        "wrong-surface",
+        operation="citation",
+        attributes={"tool.name": "search", "citation.count": 2},
+    ):
+        pass
+
+    attributes = exporter.get_finished_spans()[0].attributes
+    assert "tool.name" not in attributes
+    assert attributes["citation.count"] == 2
 
 
 def test_exporter_failure_is_fail_open_and_no_exporter_still_returns_ids() -> None:

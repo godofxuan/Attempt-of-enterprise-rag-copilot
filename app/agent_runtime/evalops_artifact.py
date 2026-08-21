@@ -8,13 +8,13 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent_runtime.replay import replay_trajectory
-from app.agent_runtime.trajectory import AgentEvent, SQLiteTrajectoryStore
 from app.agent_runtime.telemetry import (
     CONTENT_CAPTURE_POLICY,
     TRACE_SCHEMA_VERSION,
     TraceIdentity,
     sanitize_span_attributes,
 )
+from app.agent_runtime.trajectory import AgentEvent, SQLiteTrajectoryStore
 
 
 class AgentArtifactTrace(BaseModel):
@@ -22,9 +22,7 @@ class AgentArtifactTrace(BaseModel):
 
     trace_id: str = Field(pattern=r"^[0-9a-f]{32}$")
     root_span_id: str = Field(pattern=r"^[0-9a-f]{16}$")
-    trace_schema_version: Literal["enterprise.agent.telemetry/1.0"] = (
-        TRACE_SCHEMA_VERSION
-    )
+    trace_schema_version: Literal["enterprise.agent.telemetry/1.0"] = TRACE_SCHEMA_VERSION
     content_capture_policy: Literal["off"] = CONTENT_CAPTURE_POLICY
     sanitized_model_metadata: dict[str, Any] = Field(default_factory=dict)
     sanitized_tool_metadata: dict[str, Any] = Field(default_factory=dict)
@@ -68,9 +66,7 @@ def build_agent_run_artifact(
     if trace_identity is None:
         trace_identity = TraceIdentity(
             trace_id=hashlib.sha256(replay.trace_id.encode("utf-8")).hexdigest()[:32],
-            span_id=hashlib.sha256(
-                f"root:{replay.trace_id}".encode("utf-8")
-            ).hexdigest()[:16],
+            span_id=hashlib.sha256(f"root:{replay.trace_id}".encode()).hexdigest()[:16],
         )
     values = {
         "schema_name": "enterprise.agent-run",
@@ -84,15 +80,17 @@ def build_agent_run_artifact(
         "trace_context": AgentArtifactTrace(
             trace_id=trace_identity.trace_id,
             root_span_id=trace_identity.span_id,
-            sanitized_model_metadata=sanitize_span_attributes(model_metadata or {}),
-            sanitized_tool_metadata=sanitize_span_attributes(tool_metadata or {}),
+            sanitized_model_metadata=sanitize_span_attributes(
+                model_metadata or {}, operation="model"
+            ),
+            sanitized_tool_metadata=sanitize_span_attributes(
+                tool_metadata or {}, operation="evalops"
+            ),
         ),
         "input": replay.input,
         "output": replay.final_output,
         "trajectory": events,
-        "retrieval": {
-            "tool_steps": [step.model_dump(mode="json") for step in replay.tool_steps]
-        },
+        "retrieval": {"tool_steps": [step.model_dump(mode="json") for step in replay.tool_steps]},
         "evidence": {
             "admitted": replay.evidence,
             "admitted_count": len(replay.evidence),
@@ -105,9 +103,7 @@ def build_agent_run_artifact(
         },
         "source_trajectory_root_hash": events[-1].event_hash,
     }
-    artifact_hash = hashlib.sha256(
-        _canonical_json(_jsonable(values)).encode("utf-8")
-    ).hexdigest()
+    artifact_hash = hashlib.sha256(_canonical_json(_jsonable(values)).encode("utf-8")).hexdigest()
     return AgentRunArtifactV1(**values, artifact_sha256=artifact_hash)
 
 
@@ -127,9 +123,7 @@ def verify_agent_run_artifact(artifact: AgentRunArtifactV1) -> bool:
         if event.sequence != sequence or event.previous_hash != previous_hash:
             return False
         event_values = event.model_dump(mode="json", exclude={"event_hash"})
-        event_hash = hashlib.sha256(
-            _canonical_json(event_values).encode("utf-8")
-        ).hexdigest()
+        event_hash = hashlib.sha256(_canonical_json(event_values).encode("utf-8")).hexdigest()
         if event_hash != event.event_hash:
             return False
         previous_hash = event.event_hash
@@ -139,9 +133,7 @@ def verify_agent_run_artifact(artifact: AgentRunArtifactV1) -> bool:
     )
     if artifact_values.get("trace_context") is None:
         artifact_values.pop("trace_context")
-    expected = hashlib.sha256(
-        _canonical_json(artifact_values).encode("utf-8")
-    ).hexdigest()
+    expected = hashlib.sha256(_canonical_json(artifact_values).encode("utf-8")).hexdigest()
     return expected == artifact.artifact_sha256
 
 

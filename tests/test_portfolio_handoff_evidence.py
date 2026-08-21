@@ -132,24 +132,27 @@ def test_project_evidence_map_points_to_real_code_tests_and_artifacts() -> None:
         "P6",
         "P7",
         "P8",
+        "P9",
+        "P10",
         "N1",
     ):
         assert f"Claim {claim_id}:" in evidence_map
-    for field in (
-        "| Claim |",
-        "| Metric |",
-        "| Scope |",
-        "| Dataset |",
-        "| Code path |",
-        "| Test path |",
-        "| Evidence JSON |",
-        "| Reproduction command |",
-        "| Code SHA |",
-        "| Allowed wording |",
-        "| Forbidden wording |",
-        "| Interview explanation |",
-    ):
-        assert evidence_map.count(field) == 9
+    expected_field_counts = {
+        "| Claim |": 11,
+        "| Metric |": 11,
+        "| Scope |": 11,
+        "| Dataset |": 10,
+        "| Code path |": 11,
+        "| Test path |": 11,
+        "| Evidence JSON |": 10,
+        "| Reproduction command |": 11,
+        "| Code SHA |": 11,
+        "| Allowed wording |": 11,
+        "| Forbidden wording |": 11,
+        "| Interview explanation |": 11,
+    }
+    for field, expected_count in expected_field_counts.items():
+        assert evidence_map.count(field) == expected_count
 
     for relative_path in (
         "app/external_datasets/wixqa_retrieval.py",

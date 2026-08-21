@@ -1,4 +1,4 @@
-# Durable LangGraph Interrupt and Resume
+# Durable Access-Request Interrupt and Resume
 
 Implementation: `app/agent_runtime/durable_orchestrator.py`.
 
@@ -21,21 +21,44 @@ restart lost both checkpoint and pending review state.
    `needs_approval` before any side effect.
 6. Resume revalidates token, tenant, exact reviewer, reviewer role, argument hash,
    expiry, authentication/deadline, ACL, and current policy.
-7. `reject` terminates without a side effect. `approve` advances to a separate
-   side-effect node.
-8. Completion is persisted in the approval store; repeated authorized resume
-   returns the same result.
+7. The approval store atomically changes `PENDING` or recoverable state to
+   `RESUMING` with a random owner-token hash, lease expiry, attempt, and version.
+   A second live caller gets `ALREADY_RESUMING`; an expired owner can be fenced
+   out by a new version.
+8. `reject` terminates without a side effect. `approve` prepares the operation
+   in LangGraph, but the database store executes the local draft write.
+9. One SQLite transaction commits the effect command/draft, immutable
+   completion outbox envelope, and terminal approval result. Every terminal
+   update checks owner token, version, state, lease, and `rowcount == 1`.
+10. Completion trajectory events are projected from the outbox with stable
+    idempotency keys. Repeated authorized resume returns the persisted result.
+
+## Explicit state machine
+
+```text
+PENDING ---------------------------> RESUMING
+   |                                  |  owner token hash
+   +-> EXPIRED                        |  lease expiry
+                                      |  attempt/version
+FAILED_RECOVERABLE -----------------> |
+expired RESUMING -------------------> |  (RECOVERED, new fence)
+                                      +-> COMPLETED
+                                      +-> REJECTED
+                                      +-> FAILED_RECOVERABLE
+```
+
+`COMPLETED`, `REJECTED`, and `EXPIRED` are stable terminal outcomes. An active
+`RESUMING` owner is never stolen. A stale owner cannot finalize after another
+caller increments the version, even if the stale process later continues.
 
 ## Crash behavior
 
-LangGraph may checkpoint the approval node and retry the side-effect node. After
-an injected execute-node failure, `get_state().next` identifies that the graph is
-already past the interrupt. Recovery clears only the injected fault field and
-continues the pending node; it does not issue a second approval decision.
-
-Tests destroy the first orchestrator and SQLite connection, construct a new one
-on the same files, resume, and verify one committed draft. They also cover a
-crash before commit and a crash after commit/before response.
+Five failure injection points surround effect creation, completion insertion,
+approval update, transaction commit, and response return. Every pre-commit
+failure rolls back all three facts. A post-commit response loss leaves all three
+facts committed; retry returns the same result and idempotently projects one
+set of completion trajectory events. A graph/checkpoint failure before the
+effect is marked `FAILED_RECOVERABLE` so another attempt can retry immediately.
 
 ## Checkpointers
 
@@ -45,5 +68,6 @@ crash before commit and a crash after commit/before response.
 - In-memory saver remains only in the older non-durable adapter's mechanism
   tests.
 
-This is not exactly-once execution. It is replay-tolerant execution for the one
-implemented transactional draft operation.
+This is replay-tolerant, database-fenced execution for one local transactional
+draft operation. The checkpoint and trajectory databases are outside the final
+transaction, so this is not a distributed atomicity or exactly-once claim.

@@ -39,29 +39,7 @@ class SQLiteSideEffectStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = RLock()
         with self._connect() as connection:
-            connection.executescript(
-                """
-                PRAGMA journal_mode = WAL;
-                PRAGMA synchronous = FULL;
-                CREATE TABLE IF NOT EXISTS side_effect_commands (
-                    idempotency_key TEXT PRIMARY KEY,
-                    tenant_hash TEXT NOT NULL,
-                    user_hash TEXT NOT NULL,
-                    run_hash TEXT NOT NULL,
-                    tool_name TEXT NOT NULL,
-                    arguments_sha256 TEXT NOT NULL,
-                    status TEXT NOT NULL CHECK (status IN ('COMMITTED')),
-                    result_json TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS access_request_drafts (
-                    draft_id TEXT PRIMARY KEY,
-                    idempotency_key TEXT NOT NULL UNIQUE,
-                    draft_json TEXT NOT NULL,
-                    FOREIGN KEY (idempotency_key)
-                        REFERENCES side_effect_commands(idempotency_key)
-                );
-                """
-            )
+            initialize_side_effect_schema(connection)
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=10.0)
@@ -90,36 +68,10 @@ class SQLiteSideEffectStore:
 
             if crash_point == "before_commit":
                 raise RuntimeError("injected crash before side-effect commit")
-            digest = _sha256(key)
-            draft = AccessRequestDraft(
-                draft_id=f"draft-{digest[:24]}",
-                tenant_id_hash=_sha256(policy_input.tenant_id),
-                requester_id_hash=_sha256(policy_input.user_id),
-                session_id_hash=_sha256(policy_input.session_id),
-                resource_id_hash=_sha256(arguments.resource_id),
-                requested_group=arguments.requested_group,
-            )
-            result_json = draft.model_dump_json()
-            connection.execute(
-                """
-                INSERT INTO side_effect_commands (
-                    idempotency_key, tenant_hash, user_hash, run_hash,
-                    tool_name, arguments_sha256, status, result_json
-                ) VALUES (?, ?, ?, ?, ?, ?, 'COMMITTED', ?)
-                """,
-                (
-                    key,
-                    _sha256(policy_input.tenant_id),
-                    _sha256(policy_input.user_id),
-                    _sha256(policy_input.run_id),
-                    policy_input.tool_name,
-                    policy_input.normalized_arguments_sha256,
-                    result_json,
-                ),
-            )
-            connection.execute(
-                "INSERT INTO access_request_drafts VALUES (?, ?, ?)",
-                (draft.draft_id, key, result_json),
+            draft = create_access_request_draft_in_transaction(
+                connection,
+                policy_input,
+                arguments,
             )
             connection.commit()
         if crash_point == "after_commit":
@@ -147,8 +99,87 @@ def _sha256(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def initialize_side_effect_schema(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """
+        PRAGMA journal_mode = WAL;
+        PRAGMA synchronous = FULL;
+        CREATE TABLE IF NOT EXISTS side_effect_commands (
+            idempotency_key TEXT PRIMARY KEY,
+            tenant_hash TEXT NOT NULL,
+            user_hash TEXT NOT NULL,
+            run_hash TEXT NOT NULL,
+            tool_name TEXT NOT NULL,
+            arguments_sha256 TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('COMMITTED')),
+            result_json TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS access_request_drafts (
+            draft_id TEXT PRIMARY KEY,
+            idempotency_key TEXT NOT NULL UNIQUE,
+            draft_json TEXT NOT NULL,
+            FOREIGN KEY (idempotency_key)
+                REFERENCES side_effect_commands(idempotency_key)
+        );
+        """
+    )
+
+
+def create_access_request_draft_in_transaction(
+    connection: sqlite3.Connection,
+    policy_input: ToolPolicyInput,
+    arguments: AccessRequestDraftArguments,
+) -> AccessRequestDraft:
+    """Create or load the draft using the caller's open transaction."""
+
+    if policy_input.tool_name != "create_access_request_draft":
+        raise ValueError("side-effect store only supports access request drafts")
+    key = side_effect_key(policy_input)
+    existing = connection.execute(
+        "SELECT result_json FROM side_effect_commands WHERE idempotency_key = ?",
+        (key,),
+    ).fetchone()
+    if existing is not None:
+        return AccessRequestDraft.model_validate_json(existing["result_json"])
+
+    digest = _sha256(key)
+    draft = AccessRequestDraft(
+        draft_id=f"draft-{digest[:24]}",
+        tenant_id_hash=_sha256(policy_input.tenant_id),
+        requester_id_hash=_sha256(policy_input.user_id),
+        session_id_hash=_sha256(policy_input.session_id),
+        resource_id_hash=_sha256(arguments.resource_id),
+        requested_group=arguments.requested_group,
+    )
+    result_json = draft.model_dump_json()
+    connection.execute(
+        """
+        INSERT INTO side_effect_commands (
+            idempotency_key, tenant_hash, user_hash, run_hash,
+            tool_name, arguments_sha256, status, result_json
+        ) VALUES (?, ?, ?, ?, ?, ?, 'COMMITTED', ?)
+        """,
+        (
+            key,
+            _sha256(policy_input.tenant_id),
+            _sha256(policy_input.user_id),
+            _sha256(policy_input.run_id),
+            policy_input.tool_name,
+            policy_input.normalized_arguments_sha256,
+            result_json,
+        ),
+    )
+    connection.execute(
+        "INSERT INTO access_request_drafts VALUES (?, ?, ?)",
+        (draft.draft_id, key, result_json),
+    )
+    return draft
+
+
 __all__ = [
     "AccessRequestDraft",
     "AccessRequestDraftArguments",
     "SQLiteSideEffectStore",
+    "create_access_request_draft_in_transaction",
+    "initialize_side_effect_schema",
 ]

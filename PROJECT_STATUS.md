@@ -1,5 +1,39 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-08-22 Durable approval integrity overlay
+
+```text
+working branch                     codex/durable-runtime-integrity-fix-v1
+implementation ancestor            e848d8e6090267b28d351758fe8d3cb557dcd586
+start head                          2e1c93cc8713bb2804a665221af38457b79afa44
+default runtime                     BOUNDED CONTROLLER / UNCHANGED
+durable scope                       ACCESS-REQUEST DRAFT APPROVAL ONLY
+resume ownership                    SQLITE CAS + LEASE + VERSION FENCING
+atomic boundary                     EFFECT COMMAND + COMPLETION OUTBOX + APPROVAL
+trajectory delivery                 IDEMPOTENT OUTBOX PROJECTION / SEPARATE DB
+telemetry                           OPERATION-TYPED ALLOWLIST / CONTENT OFF
+local agent-runtime gate            103 PASSED / 2 POSTGRESQL SKIPPED
+remote PostgreSQL / CI              PENDING FOR THIS NEW BRANCH HEAD
+production readiness               NOT ESTABLISHED / NOT CLAIMED
+```
+
+The narrow approval workflow is now named `DurableAccessRequestWorkflow`.
+`DurableLangGraphOrchestrator` remains only as a deprecated import alias and no
+longer exposes a generic `run()` method. A SQLite `BEGIN IMMEDIATE` transaction
+atomically commits the stable draft command, one immutable completion outbox
+record, and the approval's final state. The LangGraph checkpoint, trajectory
+projection, telemetry exporter, and any future external destination remain
+outside that transaction; the implementation therefore provides retry-safe,
+fenced completion for this local draft operation, not distributed
+exactly-once execution or a generally durable Agent runtime.
+
+Local verification currently includes real two-connection/thread races, stale
+owner fencing, lease recovery, five injected commit-boundary failures, typed
+telemetry privacy tests, and hook failure isolation. The two PostgreSQL tests
+are explicitly skipped locally because `TEST_POSTGRES_DSN` is absent; only the
+new branch's GitHub Actions run may close that evidence. See
+`docs/review/P1_INTEGRITY_FIX_REPORT.md`.
+
 ## 2026-08-21 Durable runtime candidate overlay
 
 ```text

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import hashlib
-import re
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from typing import Any, Iterator, Literal
+from typing import Any, Final, Literal
 
 from opentelemetry import context as otel_context
 from opentelemetry import trace
@@ -16,10 +15,100 @@ from opentelemetry.trace import Link, SpanContext, TraceFlags, TraceState
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel, ConfigDict, Field
 
-
-TRACE_SCHEMA_VERSION = "enterprise.agent.telemetry/1.0"
+TRACE_SCHEMA_VERSION: Final[Literal["enterprise.agent.telemetry/1.0"]] = (
+    "enterprise.agent.telemetry/1.0"
+)
 OTEL_SEMCONV_VERSION = "1.44.0"
-CONTENT_CAPTURE_POLICY = "off"
+CONTENT_CAPTURE_POLICY: Final[Literal["off"]] = "off"
+
+SpanOperation = Literal[
+    "api",
+    "agent",
+    "model",
+    "tool",
+    "policy",
+    "interrupt",
+    "resume",
+    "side_effect",
+    "completion",
+    "citation",
+    "evalops",
+]
+
+_ATTRIBUTE_RULES: dict[SpanOperation, dict[str, str]] = {
+    "api": {"case": "hash", "tenant": "hash", "http.status_code": "number"},
+    "agent": {
+        "case": "hash",
+        "tenant": "hash",
+        "user": "hash",
+        "run": "hash",
+        "runtime.mode": "runtime_mode",
+    },
+    "model": {"model.name": "hash"},
+    "tool": {
+        "tool.name": "tool_name",
+        "tool.arguments.sha256": "sha256",
+        "tenant": "hash",
+        "user": "hash",
+        "run": "hash",
+        "tool.status": "status",
+    },
+    "policy": {
+        "tool.name": "tool_name",
+        "tenant": "hash",
+        "user": "hash",
+        "run": "hash",
+        "policy.decision": "decision",
+        "policy.reason_code": "hash",
+    },
+    "interrupt": {
+        "tool.name": "tool_name",
+        "run": "hash",
+        "approval.status": "status",
+    },
+    "resume": {
+        "tenant": "hash",
+        "run": "hash",
+        "approval.outcome": "status",
+        "approval.version": "number",
+    },
+    "side_effect": {
+        "tool.name": "tool_name",
+        "side_effect.status": "status",
+        "approval.version": "number",
+    },
+    "completion": {
+        "completion.status": "status",
+        "completion.event_count": "number",
+        "approval.version": "number",
+    },
+    "citation": {"citation.count": "number"},
+    "evalops": {
+        "artifact.schema": "artifact_schema",
+        "runtime.mode": "runtime_mode",
+    },
+}
+
+_SAFE_TOOL_NAMES = {
+    "search",
+    "find",
+    "open",
+    "create_access_request_draft",
+    "export_evidence_bundle",
+}
+_SAFE_STATUSES = {
+    "PENDING",
+    "RESUMING",
+    "COMPLETED",
+    "REJECTED",
+    "EXPIRED",
+    "FAILED_RECOVERABLE",
+    "COMMITTED",
+    "RECORDED",
+    "DELIVERED",
+    "ALREADY_RESUMING",
+    "ALREADY_COMPLETED",
+}
 
 
 class TraceIdentity(BaseModel):
@@ -27,9 +116,7 @@ class TraceIdentity(BaseModel):
 
     trace_id: str = Field(pattern=r"^[0-9a-f]{32}$")
     span_id: str = Field(pattern=r"^[0-9a-f]{16}$")
-    trace_schema_version: Literal["enterprise.agent.telemetry/1.0"] = (
-        TRACE_SCHEMA_VERSION
-    )
+    trace_schema_version: Literal["enterprise.agent.telemetry/1.0"] = TRACE_SCHEMA_VERSION
     content_capture_policy: Literal["off"] = CONTENT_CAPTURE_POLICY
 
 
@@ -94,17 +181,7 @@ class AgentTelemetry:
         self,
         name: str,
         *,
-        operation: Literal[
-            "api",
-            "agent",
-            "model",
-            "tool",
-            "policy",
-            "interrupt",
-            "resume",
-            "citation",
-            "evalops",
-        ],
+        operation: SpanOperation,
         attributes: Mapping[str, Any] | None = None,
         traceparent: str | None = None,
         continuation: TraceIdentity | None = None,
@@ -122,7 +199,7 @@ class AgentTelemetry:
                     "enterprise.agent.trace_schema": TRACE_SCHEMA_VERSION,
                     "enterprise.agent.content_capture": CONTENT_CAPTURE_POLICY,
                     "enterprise.agent.otel_semconv_version": OTEL_SEMCONV_VERSION,
-                    **sanitize_span_attributes(attributes or {}),
+                    **sanitize_span_attributes(attributes or {}, operation=operation),
                 },
             ) as current:
                 context = current.get_span_context()
@@ -143,49 +220,69 @@ class AgentTelemetry:
         return self.propagator.extract({"traceparent": traceparent})
 
     @staticmethod
-    def add_event(name: str, attributes: Mapping[str, Any] | None = None) -> None:
+    def add_event(
+        name: str,
+        *,
+        operation: SpanOperation,
+        attributes: Mapping[str, Any] | None = None,
+    ) -> None:
         current = trace.get_current_span()
         if current.is_recording():
-            current.add_event(name, sanitize_span_attributes(attributes or {}))
+            current.add_event(
+                name,
+                sanitize_span_attributes(attributes or {}, operation=operation),
+            )
 
 
-def sanitize_span_attributes(values: Mapping[str, Any]) -> dict[str, Any]:
+def sanitize_span_attributes(
+    values: Mapping[str, Any],
+    *,
+    operation: SpanOperation,
+) -> dict[str, Any]:
+    """Project only typed, operation-specific metadata into a span.
+
+    Unknown keys and structured values are dropped. This allowlist is the
+    privacy boundary; key-name denylisting is deliberately not used.
+    """
+
     sanitized: dict[str, Any] = {}
-    forbidden = (
-        "prompt",
-        "answer",
-        "evidence",
-        "content",
-        "output",
-        "authorization",
-        "token",
-        "cookie",
-        "password",
-        "secret",
-        "api_key",
-    )
-    identity_parts = {"tenant", "user", "session", "run", "request"}
+    rules = _ATTRIBUTE_RULES[operation]
     for raw_key, raw_value in values.items():
         key = str(raw_key)[:128]
-        lowered = key.lower()
-        if any(part in lowered for part in forbidden):
+        rule = rules.get(key)
+        if rule is None or raw_value is None:
             continue
-        if raw_value is None:
-            continue
-        key_parts = set(re.split(r"[._-]+", lowered))
-        if key_parts & identity_parts:
-            sanitized[f"{key}.sha256"] = hashlib.sha256(
-                str(raw_value).encode("utf-8")
-            ).hexdigest()
-            continue
-        if isinstance(raw_value, (bool, int, float)):
+        if rule == "hash" and isinstance(raw_value, str):
+            sanitized[f"{key}.sha256"] = _sha256(raw_value)
+        elif rule == "sha256" and isinstance(raw_value, str) and _is_sha256(raw_value):
             sanitized[key] = raw_value
-        elif isinstance(raw_value, str):
-            sanitized[key] = raw_value[:256]
-        elif isinstance(raw_value, (list, tuple)):
-            safe_values = [str(item)[:128] for item in raw_value[:20]]
-            sanitized[key] = safe_values
+        elif (
+            rule == "number"
+            and isinstance(raw_value, (int, float))
+            and not isinstance(raw_value, bool)
+        ):
+            sanitized[key] = raw_value
+        elif rule == "tool_name" and raw_value in _SAFE_TOOL_NAMES:
+            sanitized[key] = raw_value
+        elif rule == "runtime_mode" and raw_value in {"deterministic_mock", "local_ollama"}:
+            sanitized[key] = raw_value
+        elif rule == "decision" and raw_value in {"ALLOW", "ASK", "DENY"}:
+            sanitized[key] = raw_value
+        elif rule == "status" and raw_value in _SAFE_STATUSES:
+            sanitized[key] = raw_value
+        elif rule == "artifact_schema" and raw_value == "enterprise.agent-run/1.0":
+            sanitized[key] = raw_value
+        else:
+            continue
     return sanitized
+
+
+def _sha256(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _is_sha256(value: str) -> bool:
+    return len(value) == 64 and all(character in "0123456789abcdef" for character in value)
 
 
 def _gen_ai_operation(operation: str) -> str:
@@ -212,6 +309,7 @@ __all__ = [
     "CONTENT_CAPTURE_POLICY",
     "FailOpenSpanProcessor",
     "OTEL_SEMCONV_VERSION",
+    "SpanOperation",
     "TRACE_SCHEMA_VERSION",
     "TraceIdentity",
     "build_tracer_provider",

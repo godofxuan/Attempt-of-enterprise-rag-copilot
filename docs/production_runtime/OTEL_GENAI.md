@@ -22,10 +22,14 @@ semantic conventions can evolve independently of this artifact schema.
 
 ## Privacy default
 
-Content capture is `off`. Attribute keys containing prompt, answer, evidence,
-content, output, authorization, token, cookie, password, secret, or API key are
-dropped. Tenant/user/session/run/request values are hashed. No prompt, answer,
-evidence, or tool output body is sent to OTel by this implementation.
+Content capture is `off`. Each operation has an exact typed attribute allowlist.
+Unknown keys, nested objects, lists, and free text are dropped by default;
+accepted string values are either finite enums or hashes. Tenant/user/run/case
+and model names are hashed. A key such as `message`, `query`, `document`, or
+`response_text` is rejected even when its name appears neutral, and a field
+allowed for one operation is rejected on another operation. No prompt, answer,
+evidence, exception message, or tool output body is sent to OTel by this
+implementation.
 
 High-cardinality trace and identity values are span attributes only; this work
 does not expose them as Prometheus labels.

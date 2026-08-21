@@ -1,11 +1,13 @@
 # Known Limitations
 
-1. SQLite checkpointer, approvals, effects, and trajectory are separate files;
-   they do not share a distributed transaction.
+1. The approval, local draft effect command, and completion outbox share one
+   SQLite transaction. LangGraph checkpoints and trajectory projection remain
+   separate stores and do not share a distributed transaction.
 2. The implemented side effect is a local access-request draft only. No ticket,
    email, IAM, or ACL integration exists.
-3. PostgreSQL covers LangGraph checkpoints in CI; approval and effect stores are
-   not yet PostgreSQL-backed.
+3. PostgreSQL covers LangGraph checkpoints in CI; approval/effect/completion
+   ownership is still SQLite-backed and therefore a shared-filesystem,
+   single-database deployment assumption.
 4. There is no approval inbox, notification delivery, revocation UI, retention
    worker, or operational runbook.
 5. Approval tokens are bearer secrets returned to the caller. Only their hashes
@@ -17,10 +19,17 @@
 8. Local real-model harness mode depends on the existing local index and Ollama
    configuration; it is deliberately absent from deterministic CI.
 9. The standard `LangGraphOrchestratorAdapter` still has same-process HITL. Only
-   the new draft approval workflow uses durable checkpoints.
+   `DurableAccessRequestWorkflow` uses durable checkpoints. The deprecated
+   `DurableLangGraphOrchestrator` name is an import alias, not a generic Agent
+   orchestrator.
 10. No multi-host load, lock contention, database failover, network partition,
     or chaos test was run.
 11. No AgentDojo benchmark was integrated because doing so would require a
     mismatched tool/business environment and external model experiment.
 12. This work changes runtime reliability/security mechanisms, not frozen RAG
     retrieval or answer-quality metrics.
+13. Lease correctness assumes a sufficiently consistent database-facing clock;
+    no distributed clock-skew qualification has been run.
+14. Completion outbox delivery is an idempotent local projection, not an
+    externally managed dispatcher with retries, alerts, retention, or dead
+    lettering.

@@ -154,3 +154,114 @@ def test_policy_audit_hashes_identity_and_redacts_secret_metadata(tmp_path) -> N
     assert "employee-one" not in serialized
     assert "TEST-SECRET" not in serialized
     assert "[REDACTED]" in serialized
+
+
+def test_tool_error_hook_failure_preserves_original_business_exception(
+    tmp_path, monkeypatch
+) -> None:
+    class OriginalBusinessError(RuntimeError):
+        pass
+
+    class BrokenErrorHook:
+        def pre_tool_use(self, policy_input, result):
+            return None
+
+        def post_tool_use(self, policy_input, result, outcome_metadata):
+            return None
+
+        def tool_error(self, policy_input, result, error_code):
+            raise ValueError("SECONDARY-HOOK-SECRET")
+
+        def run_stop(self, session_id, run_id, reason):
+            return None
+
+    audit = SQLitePolicyAuditStore(tmp_path / "policy.sqlite3")
+    dispatcher = PolicyHookDispatcher(hooks=(BrokenErrorHook(),), audit_store=audit)
+    user = UserContext(
+        user_id="employee-one",
+        tenant_id="tenant-one",
+        region="cn",
+        groups=["employees"],
+    )
+    context = ToolContext(
+        session_id="session-error-hook",
+        trace_id="trace-error-hook",
+        request_id="request-one",
+        run_id="run-error-hook",
+        identity=user,
+        acl_scope=("employees",),
+        issued_at_ms=10.0,
+        expires_at_ms=1000.0,
+    )
+    gateway = ToolGateway(
+        V2ToolRegistry(RecordingNavigator(), clock_ms=lambda: 100.0),
+        clock_ms=lambda: 100.0,
+        policy_hooks=dispatcher,
+    )
+    gateway.start_session(context)
+
+    def fail_original(*args, **kwargs):
+        raise OriginalBusinessError("ORIGINAL-CAUSE")
+
+    monkeypatch.setattr(gateway._registry, "run", fail_original)
+
+    with pytest.raises(OriginalBusinessError, match="ORIGINAL-CAUSE"):
+        gateway.execute(search_request(), context)
+
+    serialized = json.dumps(audit.hook_failure_rows())
+    assert "tool_error" in serialized
+    assert "ValueError" in serialized
+    assert "SECONDARY-HOOK-SECRET" not in serialized
+
+
+def test_run_stop_hook_failure_is_recorded_without_breaking_close(tmp_path) -> None:
+    class BrokenStopHook:
+        def pre_tool_use(self, policy_input, result):
+            return None
+
+        def post_tool_use(self, policy_input, result, outcome_metadata):
+            return None
+
+        def tool_error(self, policy_input, result, error_code):
+            return None
+
+        def run_stop(self, session_id, run_id, reason):
+            raise RuntimeError("RUN-STOP-SECRET")
+
+    audit = SQLitePolicyAuditStore(tmp_path / "policy.sqlite3")
+    dispatcher = PolicyHookDispatcher(hooks=(BrokenStopHook(),), audit_store=audit)
+    user = UserContext(
+        user_id="employee-one",
+        tenant_id="tenant-one",
+        region="cn",
+        groups=["employees"],
+    )
+    context = ToolContext(
+        session_id="session-stop-hook",
+        trace_id="trace-stop-hook",
+        request_id="request-one",
+        run_id="run-stop-hook",
+        identity=user,
+        acl_scope=("employees",),
+        issued_at_ms=10.0,
+        expires_at_ms=1000.0,
+    )
+    gateway = ToolGateway(
+        V2ToolRegistry(
+            RecordingNavigator(search_results=[search_result([search_hit()])]),
+            clock_ms=lambda: 100.0,
+        ),
+        clock_ms=lambda: 100.0,
+        policy_hooks=dispatcher,
+    )
+    gateway.start_session(context)
+
+    completed = gateway.execute(search_request(), context)
+    gateway.close_session(context.session_id)
+    gateway.start_session(context)
+
+    assert completed.status == "ok"
+    serialized = json.dumps(audit.hook_failure_rows())
+    assert "run_stop" in serialized
+    assert "RuntimeError" in serialized
+    assert "RUN-STOP-SECRET" not in serialized

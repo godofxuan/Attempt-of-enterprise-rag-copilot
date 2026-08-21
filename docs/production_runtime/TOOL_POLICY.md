@@ -33,8 +33,14 @@ in policy audit rows.
 - `post_tool_use`: validates `ToolResult`, relies on the existing retrieved-content
   Guarded payload contract, emits only outcome type/status/hash metadata, and
   fails closed on an exception.
-- `tool_error`: records a limited error code, never stack content or credentials.
-- `run_stop`: observes trusted session closure.
+- `tool_error`: records a limited error code. A hook exception is isolated so
+  the original business exception remains the raised cause.
+- `run_stop`: observes trusted session closure. A hook exception cannot reopen
+  or roll back an already completed tool call.
+
+Hook failures use a separate append-only table containing hashed session/run
+IDs plus hook and exception type. Exception messages, stack content, arguments,
+and credentials are not persisted.
 
 Hooks are trusted in-process objects. There is no command string, shell, HTTP,
 prompt, dynamic import, or model hook surface.

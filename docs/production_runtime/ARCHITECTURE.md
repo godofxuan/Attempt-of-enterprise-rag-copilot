@@ -16,11 +16,16 @@ trusted API / harness fixture
   -> citation/publication gate
 
 ASK side-effect path
-  -> DurableLangGraphOrchestrator
+  -> DurableAccessRequestWorkflow
   -> persistent checkpoint + JSON interrupt
   -> server-side approval record (raw token is never stored)
   -> resume identity/policy/hash revalidation
-  -> idempotent SQLite command + access-request DRAFT transaction
+  -> CAS ownership: PENDING/RECOVERABLE -> RESUMING
+  -> owner lease + attempt/version fencing
+  -> one SQLite transaction:
+       idempotent command + access-request DRAFT
+       + immutable completion outbox + terminal approval
+  -> idempotent trajectory projection
 
 observability plane
   -> append-only SHA-256 trajectory (replay/integrity)
@@ -46,9 +51,8 @@ observability plane
 
 | Store | Purpose | Integrity/consistency |
 |---|---|---|
-| LangGraph SQLite/PostgreSQL checkpointer | Thread-scoped graph snapshots | Framework persistence; requires retention and database operations |
-| Approval SQLite store | Token hash and immutable binding inputs | Raw token excluded; completed result persisted for idempotent resume |
-| Side-effect SQLite store | Command/result and draft | `BEGIN IMMEDIATE`; command and draft commit atomically |
+| Durable workflow SQLite store | Approval ownership, effect command/draft, completion outbox | `BEGIN IMMEDIATE`; CAS/lease/fencing and final three-fact transaction |
+| LangGraph SQLite/PostgreSQL checkpointer | Thread-scoped graph snapshots | Separate from workflow transaction; persistence does not grant authority |
 | Trajectory SQLite store | Semantic event history | Append-only triggers plus SHA-256 hash chain |
 | OTel exporter | Operational spans | Best effort; exporter failure is fail-open for business execution |
 
@@ -56,8 +60,9 @@ observability plane
 
 The default application behavior is unchanged: `BoundedControllerAdapter`.
 `LangGraphOrchestratorAdapter` remains the non-durable parity/HITL adapter.
-`DurableLangGraphOrchestrator` adds a separate persisted approval workflow and
-still satisfies the `AgentOrchestrator.run()` shape for normal answer runs.
+`DurableAccessRequestWorkflow` is a separate persisted approval workflow and
+does not satisfy or expose the normal `AgentOrchestrator.run()` shape. The old
+`DurableLangGraphOrchestrator` symbol is a deprecated compatibility alias only.
 
 ## External harness contract
 

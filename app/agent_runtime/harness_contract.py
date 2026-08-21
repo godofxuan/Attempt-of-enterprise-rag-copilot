@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import hashlib
-from uuid import uuid4
 from pathlib import Path
 from typing import Any, Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -82,7 +82,7 @@ class AgentHarnessRunner:
     def run(self, request: HarnessRequestV1) -> HarnessOutputV1:
         attempt_id = request.attempt_id or uuid4().hex
         case_hash = hashlib.sha256(
-            f"{request.case_id}:{attempt_id}".encode("utf-8")
+            f"{request.case_id}:{attempt_id}".encode()
         ).hexdigest()[:20]
         session_id = f"harness-{case_hash}"
         request_id = f"request-{case_hash}"
@@ -138,7 +138,7 @@ class AgentHarnessRunner:
                     case_id=request.case_id,
                     git_sha=self.git_sha,
                     trace_identity=api_trace,
-                    tool_metadata={"runtime": request.mode},
+                    tool_metadata={"runtime.mode": request.mode},
                 )
 
         events = trajectory.load(session_id)

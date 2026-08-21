@@ -1,5 +1,32 @@
 # Project Evidence Map
 
+## Claim P10: durable approval completion integrity
+
+| Field | Binding |
+|---|---|
+| Claim | The access-request DRAFT approval path uses database CAS, expiring ownership leases, version fencing, and a transactionally coupled effect command/completion outbox/approval final state. |
+| Metric | Local deterministic durable suite: `24 passed, 2 PostgreSQL skipped`; full new-branch CI is pending. |
+| Scope | One local SQLite-backed draft workflow only; LangGraph checkpoint and trajectory projection are outside the transaction. |
+| Dataset | Deterministic approval, concurrency, crash-injection, migration, and privacy fixtures; no model or retrieval dataset. |
+| Code path | `app/agent_runtime/durable_store.py`; `durable_orchestrator.py`; `side_effects.py`; `trajectory.py` |
+| Test path | `tests/agent_runtime/test_durable_orchestrator.py`; `test_trajectory.py` |
+| Evidence JSON | `docs/review/P1_INTEGRITY_EVIDENCE_MANIFEST.json` (created after the implementation commit). |
+| Reproduction command | `python -m pytest tests/agent_runtime/test_durable_orchestrator.py -q`; full command matrix is in `docs/review/P1_INTEGRITY_FIX_REPORT.md`. |
+| Code SHA | Pending implementation commit; the final manifest binds the exact SHA. |
+| Concurrency evidence | Two workflow objects and independent DB/checkpointer connections race through a `ThreadPoolExecutor`; one owner acquires and one gets `ALREADY_RESUMING`. A stale owner is rejected after lease recovery by version/token fencing. |
+| Failure evidence | Five injection points cover rollback before commit and stable recovery after commit-before-response; final state has one draft, one completion envelope, and one terminal approval. |
+| Allowed wording | "Implemented CAS/lease/fencing and idempotent completion for a restart-recoverable access-request draft approval workflow." |
+| Forbidden wording | "General durable Agent runtime"; "distributed exactly-once"; "production HITL"; "multi-host HA". |
+| Interview explanation | Database ownership prevents duplicate resume; a local outbox closes the three-fact transaction, while idempotent projection handles the separate trajectory store honestly. |
+| Review report | `docs/review/P1_INTEGRITY_FIX_REPORT.md` |
+| Evidence manifest | `docs/review/P1_INTEGRITY_EVIDENCE_MANIFEST.json` (bound after implementation commit) |
+
+This P10 overlay is newer than the P9/base durable evidence below. The
+underlying canonical vNext branch remains `codex/agent-runtime-vnext`. P10 does not
+change any frozen retrieval, answer-quality, indexing, or security benchmark
+number. New-branch GitHub Actions evidence must be linked before using a remote
+PostgreSQL claim.
+
 This is the canonical claim-to-evidence index for the public portfolio. Read it
 before reusing a project number in a README, interview answer, or resume. Metric
 execution SHAs identify the code that produced an artifact; the current

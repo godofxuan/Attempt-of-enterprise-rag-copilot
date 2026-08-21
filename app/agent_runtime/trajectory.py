@@ -4,14 +4,13 @@ import hashlib
 import json
 import re
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
 from typing import Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 AgentEventType = Literal[
     "session.started",
@@ -98,7 +97,7 @@ class SQLiteTrajectoryStore:
     def __init__(self, path: Path, *, now=None) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._now = now or (lambda: datetime.now(timezone.utc))
+        self._now = now or (lambda: datetime.now(UTC))
         self._lock = RLock()
         self._initialize()
 
@@ -124,6 +123,7 @@ class SQLiteTrajectoryStore:
                     event_json TEXT NOT NULL,
                     previous_hash TEXT,
                     event_hash TEXT NOT NULL UNIQUE,
+                    idempotency_key TEXT,
                     PRIMARY KEY (session_id, sequence)
                 );
                 CREATE TRIGGER IF NOT EXISTS agent_events_no_update
@@ -139,11 +139,31 @@ class SQLiteTrajectoryStore:
                 """
             )
 
-    def append(self, draft: AgentEventDraft) -> AgentEvent:
+            columns = {
+                row[1] for row in connection.execute("PRAGMA table_info(agent_events)").fetchall()
+            }
+            if "idempotency_key" not in columns:
+                connection.execute("ALTER TABLE agent_events ADD COLUMN idempotency_key TEXT")
+            connection.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS agent_events_idempotency_key
+                ON agent_events(idempotency_key)
+                WHERE idempotency_key IS NOT NULL
+                """
+            )
+
+    def append(
+        self,
+        draft: AgentEventDraft,
+        *,
+        idempotency_key: str | None = None,
+    ) -> AgentEvent:
         if not isinstance(draft, AgentEventDraft):
             raise TypeError("trajectory append requires AgentEventDraft")
         _validate_identifier(draft.session_id, "session ID")
         _validate_identifier(draft.trace_id, "trace ID")
+        if idempotency_key is not None:
+            _validate_identifier(idempotency_key, "idempotency key")
         payload = redact_trajectory_payload(draft.payload)
         serialized_payload = _canonical_json(payload)
         if len(serialized_payload.encode("utf-8")) > _MAX_PAYLOAD_BYTES:
@@ -151,6 +171,22 @@ class SQLiteTrajectoryStore:
 
         with self._lock, self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            if idempotency_key is not None:
+                existing = connection.execute(
+                    "SELECT event_json FROM agent_events WHERE idempotency_key = ?",
+                    (idempotency_key,),
+                ).fetchone()
+                if existing is not None:
+                    event = AgentEvent.model_validate_json(existing["event_json"])
+                    if (
+                        event.session_id != draft.session_id
+                        or event.trace_id != draft.trace_id
+                        or event.event_type != draft.event_type
+                        or event.payload != payload
+                        or event.terminal_reason != draft.terminal_reason
+                    ):
+                        raise ValueError("trajectory idempotency key collision")
+                    return event
             previous = connection.execute(
                 """
                 SELECT sequence, trace_id, event_type, event_hash
@@ -177,7 +213,7 @@ class SQLiteTrajectoryStore:
             timestamp = self._now()
             if timestamp.tzinfo is None:
                 raise ValueError("trajectory timestamp must be timezone-aware")
-            timestamp = timestamp.astimezone(timezone.utc)
+            timestamp = timestamp.astimezone(UTC)
             event_id = uuid4().hex
             values = {
                 "schema_version": "1.0",
@@ -197,16 +233,15 @@ class SQLiteTrajectoryStore:
                 "terminal_reason": draft.terminal_reason,
                 "previous_hash": previous_hash,
             }
-            event_hash = hashlib.sha256(
-                _canonical_json(values).encode("utf-8")
-            ).hexdigest()
+            event_hash = hashlib.sha256(_canonical_json(values).encode("utf-8")).hexdigest()
             event = AgentEvent(**values, event_hash=event_hash)
             connection.execute(
                 """
                 INSERT INTO agent_events (
                     session_id, sequence, event_id, trace_id, event_type,
-                    timestamp, event_json, previous_hash, event_hash
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    timestamp, event_json, previous_hash, event_hash,
+                    idempotency_key
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     event.session_id,
@@ -218,6 +253,7 @@ class SQLiteTrajectoryStore:
                     event.model_dump_json(),
                     event.previous_hash,
                     event.event_hash,
+                    idempotency_key,
                 ),
             )
             connection.commit()
@@ -242,9 +278,7 @@ class SQLiteTrajectoryStore:
             if event.sequence != expected_sequence or event.previous_hash != previous_hash:
                 return False
             values = event.model_dump(mode="json", exclude={"event_hash"})
-            expected_hash = hashlib.sha256(
-                _canonical_json(values).encode("utf-8")
-            ).hexdigest()
+            expected_hash = hashlib.sha256(_canonical_json(values).encode("utf-8")).hexdigest()
             if event.event_hash != expected_hash:
                 return False
             previous_hash = event.event_hash
@@ -288,9 +322,7 @@ def _redact_value(value: Any, *, depth: int) -> Any:
         for raw_key, item in value.items():
             key = str(raw_key)
             lowered = key.lower()
-            if lowered in _RAW_CONTENT_KEYS or any(
-                part in lowered for part in _SECRET_KEY_PARTS
-            ):
+            if lowered in _RAW_CONTENT_KEYS or any(part in lowered for part in _SECRET_KEY_PARTS):
                 result[key] = "[REDACTED]"
             else:
                 result[key] = _redact_value(item, depth=depth + 1)

@@ -5,7 +5,12 @@ Do not summarize the README and call that teaching. Read the evidence map first,
 then use the existing detailed chapters listed below. Do not change project
 facts to make an explanation easier.
 
-Current branch/state: `codex/agent-runtime-vnext` / `RAG_VNEXT_CLOSED`.
+Canonical base branch/state: `codex/agent-runtime-vnext` / `RAG_VNEXT_CLOSED`.
+Current durable integrity overlay:
+`codex/durable-runtime-integrity-fix-v1`. For this overlay, read
+`docs/review/P1_INTEGRITY_FIX_REPORT.md` before tutorial section 9; teach the
+CAS/lease/fencing state machine, local transaction boundary, outbox projection,
+and upgrade migration without turning them into a general durable-runtime claim.
 This is portfolio-ready teaching material, not proof of production readiness.
 Teaching may use consumed cases for historical analysis, but must never rename
 them as blind validation. Runtime mechanisms also must not be presented as

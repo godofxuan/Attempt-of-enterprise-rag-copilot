@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import secrets
 import sqlite3
 import time
+import warnings
+from collections.abc import Callable
 from pathlib import Path
-from threading import RLock
-from typing import Any, Callable, Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
@@ -15,16 +15,20 @@ from langgraph.types import Command, interrupt
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent.tools_v2 import V2ToolRegistry
-from app.agent_runtime.orchestrator import (
-    AgentRunRequest,
-    AgentRunResult,
-    LangGraphOrchestratorAdapter,
+from app.agent_runtime.durable_store import (
+    ApprovalRecord,
+    CompletionEnvelope,
+    DurableStoreConflict,
+    InjectedIntegrityCrash,
+    IntegrityCrashPoint,
+    ResumeOutcome,
+    SQLiteDurableWorkflowStore,
 )
 from app.agent_runtime.side_effects import (
     AccessRequestDraft,
     AccessRequestDraftArguments,
-    SQLiteSideEffectStore,
 )
+from app.agent_runtime.telemetry import AgentTelemetry, TraceIdentity
 from app.agent_runtime.tool_policy import (
     POLICY_VERSION,
     PolicyDecision,
@@ -33,8 +37,7 @@ from app.agent_runtime.tool_policy import (
     ToolPolicyInput,
     normalized_arguments_sha256,
 )
-from app.agent_runtime.trajectory import AgentEventDraft, SQLiteTrajectoryStore
-from app.agent_runtime.telemetry import AgentTelemetry, TraceIdentity
+from app.agent_runtime.trajectory import AgentEventDraft, AgentEventType, SQLiteTrajectoryStore
 from app.domain.queries import UserContext
 
 
@@ -80,7 +83,15 @@ class DurableApprovalRequest(_StrictModel):
 class DurableToolRunResult(_StrictModel):
     schema_name: Literal["enterprise.durable-tool-run"] = "enterprise.durable-tool-run"
     schema_version: Literal["1.0"] = "1.0"
-    status: Literal["needs_approval", "completed", "denied", "rejected"]
+    status: Literal[
+        "needs_approval",
+        "completed",
+        "denied",
+        "rejected",
+        "already_resuming",
+        "expired",
+        "failed_recoverable",
+    ]
     terminal_state: str
     run_id: str
     session_id: str
@@ -90,6 +101,7 @@ class DurableToolRunResult(_StrictModel):
     approval: DurableApprovalRequest | None = None
     draft: AccessRequestDraft | None = None
     trajectory_events: tuple[str, ...] = ()
+    resume_outcome: ResumeOutcome | None = None
 
 
 class _DurableState(TypedDict, total=False):
@@ -103,118 +115,10 @@ class _DurableState(TypedDict, total=False):
     terminal_state: str
 
 
-class _ApprovalRecord(_StrictModel):
-    approval_id: str
-    token_sha256: str
-    thread_id: str
-    request: DurableToolRunRequest
-    tool_call_sha256: str
-    status: Literal["PENDING", "COMPLETED", "REJECTED"]
-    continuation_trace: TraceIdentity
-    result: DurableToolRunResult | None = None
+class DurableAccessRequestWorkflow:
+    """Durable workflow only for the access-request DRAFT approval path."""
 
-
-class SQLiteApprovalStore:
-    def __init__(self, path: Path) -> None:
-        self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = RLock()
-        with self._connect() as connection:
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS durable_approvals (
-                    approval_id TEXT PRIMARY KEY,
-                    token_sha256 TEXT NOT NULL UNIQUE,
-                    thread_id TEXT NOT NULL UNIQUE,
-                    request_json TEXT NOT NULL,
-                    tool_call_sha256 TEXT NOT NULL,
-                    status TEXT NOT NULL CHECK (status IN ('PENDING','COMPLETED','REJECTED')),
-                    continuation_trace_json TEXT NOT NULL,
-                    result_json TEXT
-                )
-                """
-            )
-
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.path, timeout=10.0)
-        connection.row_factory = sqlite3.Row
-        return connection
-
-    def create(
-        self,
-        request: DurableToolRunRequest,
-        *,
-        thread_id: str,
-        tool_call_sha256: str,
-        continuation_trace: TraceIdentity,
-    ) -> tuple[_ApprovalRecord, str]:
-        token = secrets.token_urlsafe(32)
-        record = _ApprovalRecord(
-            approval_id=f"approval-{secrets.token_hex(12)}",
-            token_sha256=_sha256(token),
-            thread_id=thread_id,
-            request=request,
-            tool_call_sha256=tool_call_sha256,
-            status="PENDING",
-            continuation_trace=continuation_trace,
-        )
-        with self._lock, self._connect() as connection:
-            connection.execute(
-                "INSERT INTO durable_approvals VALUES (?, ?, ?, ?, ?, ?, ?, NULL)",
-                (
-                    record.approval_id,
-                    record.token_sha256,
-                    record.thread_id,
-                    request.model_dump_json(),
-                    tool_call_sha256,
-                    record.status,
-                    continuation_trace.model_dump_json(),
-                ),
-            )
-        return record, token
-
-    def by_token(self, token: str) -> _ApprovalRecord:
-        with self._connect() as connection:
-            row = connection.execute(
-                "SELECT * FROM durable_approvals WHERE token_sha256 = ?",
-                (_sha256(token),),
-            ).fetchone()
-        if row is None:
-            raise ValueError("approval token is invalid")
-        return _ApprovalRecord(
-            approval_id=row["approval_id"],
-            token_sha256=row["token_sha256"],
-            thread_id=row["thread_id"],
-            request=DurableToolRunRequest.model_validate_json(row["request_json"]),
-            tool_call_sha256=row["tool_call_sha256"],
-            status=row["status"],
-            continuation_trace=TraceIdentity.model_validate_json(
-                row["continuation_trace_json"]
-            ),
-            result=(
-                DurableToolRunResult.model_validate_json(row["result_json"])
-                if row["result_json"]
-                else None
-            ),
-        )
-
-    def finish(self, approval_id: str, result: DurableToolRunResult) -> None:
-        status = "REJECTED" if result.status == "rejected" else "COMPLETED"
-        with self._lock, self._connect() as connection:
-            connection.execute(
-                """
-                UPDATE durable_approvals
-                SET status = ?, result_json = ?
-                WHERE approval_id = ? AND status = 'PENDING'
-                """,
-                (status, result.model_dump_json(), approval_id),
-            )
-
-
-class DurableLangGraphOrchestrator:
-    """Optional durable workflow; bounded remains the product default."""
-
-    name: Literal["durable_langgraph"] = "durable_langgraph"
+    name: Literal["durable_access_request"] = "durable_access_request"
 
     def __init__(
         self,
@@ -227,20 +131,27 @@ class DurableLangGraphOrchestrator:
         trajectory_store: SQLiteTrajectoryStore | None = None,
         telemetry: AgentTelemetry | None = None,
         tenant_status_checker: Callable[[str], bool] | None = None,
-        acl_revalidator: Callable[[DurableToolRunRequest], Literal["ALLOW", "DENY"]]
-        | None = None,
+        acl_revalidator: Callable[[DurableToolRunRequest], Literal["ALLOW", "DENY"]] | None = None,
+        resume_lease_ms: float = 30_000.0,
+        after_resume_acquired: Callable[[ApprovalRecord], None] | None = None,
     ) -> None:
+        if resume_lease_ms <= 0:
+            raise ValueError("resume lease must be positive")
         self.registry = registry
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.clock_ms = clock_ms or (lambda: time.time() * 1000.0)
         self.policy_hooks = policy_hooks or PolicyHookDispatcher()
-        self.approvals = SQLiteApprovalStore(self.state_dir / "approvals.sqlite3")
-        self.side_effects = SQLiteSideEffectStore(self.state_dir / "side_effects.sqlite3")
+        # Reuse the v1 approval file so pending approvals survive an in-place upgrade.
+        self.store = SQLiteDurableWorkflowStore(self.state_dir / "approvals.sqlite3")
+        self.approvals = self.store
+        self.side_effects = self.store
         self.trajectory_store = trajectory_store
         self.telemetry = telemetry or AgentTelemetry()
         self.tenant_status_checker = tenant_status_checker or (lambda tenant_id: True)
         self.acl_revalidator = acl_revalidator or (lambda request: request.acl_decision)
+        self.resume_lease_ms = float(resume_lease_ms)
+        self.after_resume_acquired = after_resume_acquired
         self._checkpoint_connection = None
         if checkpointer is None:
             self._checkpoint_connection = sqlite3.connect(
@@ -256,10 +167,6 @@ class DurableLangGraphOrchestrator:
         if self._checkpoint_connection is not None:
             self._checkpoint_connection.close()
             self._checkpoint_connection = None
-
-    def run(self, request: AgentRunRequest) -> AgentRunResult:
-        result = LangGraphOrchestratorAdapter(self.registry).run(request)
-        return result.model_copy(update={"orchestrator": self.name})
 
     def start_access_request(
         self,
@@ -306,11 +213,12 @@ class DurableLangGraphOrchestrator:
             operation="interrupt",
             attributes={"tool.name": request.tool_name, "run": request.run_id},
         ) as continuation_trace:
-            record, raw_token = self.approvals.create(
-                request,
+            record, raw_token = self.store.create(
+                request_json=request.model_dump_json(),
+                approval_expires_at_ms=request.approval_expires_at_ms,
                 thread_id=thread_id,
                 tool_call_sha256=policy_input.normalized_arguments_sha256,
-                continuation_trace=continuation_trace,
+                continuation_trace_json=continuation_trace.model_dump_json(),
             )
             self._record_start(request, record.approval_id)
             state = self.graph.invoke(
@@ -346,10 +254,10 @@ class DurableLangGraphOrchestrator:
         decision: Literal["approve", "reject"],
         reviewer: UserContext,
         expected_tool_call_sha256: str,
-        crash_point: Literal["before_commit", "after_commit"] | None = None,
+        crash_point: IntegrityCrashPoint | None = None,
     ) -> DurableToolRunResult:
-        record = self.approvals.by_token(approval_token)
-        request = record.request
+        record = self.store.by_token(approval_token)
+        request = DurableToolRunRequest.model_validate_json(record.request_json)
         now = float(self.clock_ms())
         if not self.tenant_status_checker(request.tenant_id):
             raise PermissionError("tenant is no longer active")
@@ -361,17 +269,26 @@ class DurableLangGraphOrchestrator:
             raise PermissionError("knowledge_reviewer role is required")
         if expected_tool_call_sha256 != record.tool_call_sha256:
             raise PermissionError("tool arguments changed after approval was requested")
-        if record.status != "PENDING":
-            if record.result is None:
-                raise RuntimeError("completed approval has no persisted result")
-            completed_decision = (
-                "reject" if record.result.status == "rejected" else "approve"
+        if record.status in {"COMPLETED", "REJECTED", "EXPIRED"}:
+            claim = self.store.claim_resume(
+                approval_id=record.approval_id,
+                approval_token=approval_token,
+                decision=decision,
+                resumed_by=reviewer.user_id,
+                now_ms=now,
+                lease_ms=self.resume_lease_ms,
             )
-            if decision != completed_decision:
-                raise ValueError("approval decision conflicts with completed result")
-            return record.result
+            return self._stable_claim_result(claim, request, decision)
         if now >= request.approval_expires_at_ms:
-            raise PermissionError("approval has expired")
+            claim = self.store.claim_resume(
+                approval_id=record.approval_id,
+                approval_token=approval_token,
+                decision=decision,
+                resumed_by=reviewer.user_id,
+                now_ms=now,
+                lease_ms=self.resume_lease_ms,
+            )
+            return self._stable_claim_result(claim, request, decision)
         current_policy = self.policy_hooks.pre_tool_use(
             self._policy_input(
                 request,
@@ -380,76 +297,266 @@ class DurableLangGraphOrchestrator:
         )
         if current_policy.decision != PolicyDecision.ASK:
             raise PermissionError("current policy no longer permits approval")
+        claim = self.store.claim_resume(
+            approval_id=record.approval_id,
+            approval_token=approval_token,
+            decision=decision,
+            resumed_by=reviewer.user_id,
+            now_ms=now,
+            lease_ms=self.resume_lease_ms,
+        )
+        if claim.outcome not in {ResumeOutcome.ACQUIRED, ResumeOutcome.RECOVERED}:
+            return self._stable_claim_result(claim, request, decision)
+        if claim.owner_token is None:
+            raise RuntimeError("acquired approval is missing an owner token")
+        if self.after_resume_acquired is not None:
+            self.after_resume_acquired(claim.record)
+
+        try:
+            state = self._resume_graph(claim.record, decision)
+            policy_result = PolicyResult.model_validate(state["policy_result"])
+            effective_decision = state.get("approval", {}).get("decision", decision)
+            if effective_decision != decision:
+                raise ValueError("approval decision conflicts with checkpointed state")
+            continuation = TraceIdentity.model_validate_json(claim.record.continuation_trace_json)
+            with self.telemetry.span(
+                "agent.approval.resume",
+                operation="resume",
+                continuation=continuation,
+                attributes={
+                    "tenant": request.tenant_id,
+                    "run": request.run_id,
+                    "approval.outcome": claim.outcome.value,
+                    "approval.version": claim.record.version,
+                },
+            ):
+                if decision == "reject":
+                    result = self._completion_result(
+                        self._result(
+                            request,
+                            status="rejected",
+                            terminal_state="HUMAN_REJECTED",
+                            policy_result=policy_result,
+                            resume_outcome=claim.outcome,
+                        )
+                    )
+                    result_data = self.store.finalize_rejected(
+                        approval_id=record.approval_id,
+                        owner_token=claim.owner_token,
+                        version=claim.record.version,
+                        now_ms=float(self.clock_ms()),
+                        result=result.model_dump(mode="json"),
+                        completion=self._completion_envelope(
+                            record.approval_id,
+                            request,
+                            result,
+                            reviewer,
+                            decision,
+                        ),
+                    )
+                    result = DurableToolRunResult.model_validate(result_data)
+                else:
+                    with self.telemetry.span(
+                        "agent.side_effect.commit",
+                        operation="side_effect",
+                        attributes={
+                            "tool.name": request.tool_name,
+                            "side_effect.status": "COMMITTED",
+                            "approval.version": claim.record.version,
+                        },
+                    ):
+                        _, result_data = self.store.finalize_approved(
+                            approval_id=record.approval_id,
+                            owner_token=claim.owner_token,
+                            version=claim.record.version,
+                            now_ms=float(self.clock_ms()),
+                            policy_input=ToolPolicyInput.model_validate(state["policy_input"]),
+                            arguments=request.arguments,
+                            result_factory=lambda draft: self._completion_result(
+                                self._result(
+                                    request,
+                                    status="completed",
+                                    terminal_state="DRAFT_CREATED",
+                                    policy_result=policy_result,
+                                    draft=draft,
+                                    resume_outcome=claim.outcome,
+                                )
+                            ).model_dump(mode="json"),
+                            completion_factory=lambda data: self._completion_envelope(
+                                record.approval_id,
+                                request,
+                                DurableToolRunResult.model_validate(data),
+                                reviewer,
+                                decision,
+                            ),
+                            crash_point=crash_point,
+                        )
+                    result = DurableToolRunResult.model_validate(result_data)
+        except (InjectedIntegrityCrash, DurableStoreConflict):
+            raise
+        except Exception as exc:
+            try:
+                self.store.mark_failed_recoverable(
+                    approval_id=record.approval_id,
+                    owner_token=claim.owner_token,
+                    version=claim.record.version,
+                    now_ms=float(self.clock_ms()),
+                    failure_code=type(exc).__name__,
+                )
+            except DurableStoreConflict:
+                pass
+            raise
+
+        self._drain_completion(record.approval_id)
+        return result
+
+    def _stable_claim_result(
+        self,
+        claim,
+        request: DurableToolRunRequest,
+        decision: Literal["approve", "reject"],
+    ) -> DurableToolRunResult:
+        if claim.outcome in {ResumeOutcome.ALREADY_COMPLETED, ResumeOutcome.REJECTED}:
+            if claim.record.result_json is None:
+                raise RuntimeError("terminal approval has no persisted result")
+            result = DurableToolRunResult.model_validate_json(claim.record.result_json)
+            persisted_decision = "reject" if result.status == "rejected" else "approve"
+            if persisted_decision != decision:
+                raise ValueError("approval decision conflicts with completed result")
+            self._drain_completion(claim.record.approval_id)
+            return result.model_copy(update={"resume_outcome": claim.outcome})
+        policy_result = PolicyResult(
+            decision=(
+                PolicyDecision.DENY
+                if claim.outcome == ResumeOutcome.EXPIRED
+                else PolicyDecision.ASK
+            ),
+            reason_code=(
+                "approval_expired"
+                if claim.outcome == ResumeOutcome.EXPIRED
+                else "approval_already_resuming"
+            ),
+        )
+        return self._result(
+            request,
+            status=("expired" if claim.outcome == ResumeOutcome.EXPIRED else "already_resuming"),
+            terminal_state=claim.outcome.value,
+            policy_result=policy_result,
+            resume_outcome=claim.outcome,
+        )
+
+    def _resume_graph(
+        self,
+        record: ApprovalRecord,
+        decision: Literal["approve", "reject"],
+    ) -> dict[str, Any]:
         config = self._config(record.thread_id)
         snapshot = self.graph.get_state(config)
-        if "execute_side_effect" in snapshot.next:
+        if not snapshot.next and snapshot.values.get("approval"):
+            persisted_decision = snapshot.values["approval"].get("decision")
+            if persisted_decision != decision:
+                raise ValueError("approval decision was already checkpointed")
+            return dict(snapshot.values)
+        if "prepare_side_effect" in snapshot.next:
             persisted_decision = snapshot.values.get("approval", {}).get("decision")
             if persisted_decision != decision:
                 raise ValueError("approval decision was already checkpointed")
-            self.graph.update_state(config, {"crash_point": crash_point})
             graph_input = None
         else:
-            graph_input = Command(
-                resume={
-                    "decision": decision,
-                    "crash_point": crash_point,
-                }
-            )
-        with self.telemetry.span(
-            "agent.approval.resume",
-            operation="resume",
-            continuation=record.continuation_trace,
-            attributes={"tenant": request.tenant_id, "run": request.run_id},
-        ):
-            state = self.graph.invoke(graph_input, config=config)
+            graph_input = Command(resume={"decision": decision})
+        state = self.graph.invoke(graph_input, config=config)
         if "__interrupt__" in state:
             raise RuntimeError("workflow remained interrupted after a valid decision")
-        policy_result = PolicyResult.model_validate(state["policy_result"])
-        effective_decision = state.get("approval", {}).get("decision", decision)
-        if effective_decision == "reject":
-            result = self._result(
-                request,
-                status="rejected",
-                terminal_state="HUMAN_REJECTED",
-                policy_result=policy_result,
-            )
-        else:
-            result = self._result(
-                request,
-                status="completed",
-                terminal_state=state["terminal_state"],
-                policy_result=policy_result,
-                draft=AccessRequestDraft.model_validate(state["draft"]),
-            )
-        self._record_completion(request, result, reviewer)
+        return state
+
+    def _completion_result(
+        self,
+        result: DurableToolRunResult,
+    ) -> DurableToolRunResult:
+        if self.trajectory_store is None:
+            return result
+        events = list(result.trajectory_events)
+        for event_type in (
+            "human_review.completed",
+            "terminal.reached",
+            "session.completed",
+        ):
+            if event_type not in events:
+                events.append(event_type)
+        return result.model_copy(update={"trajectory_events": tuple(events)})
+
+    @staticmethod
+    def _completion_envelope(
+        approval_id: str,
+        request: DurableToolRunRequest,
+        result: DurableToolRunResult,
+        reviewer: UserContext,
+        decision: Literal["approve", "reject"],
+    ) -> CompletionEnvelope:
+        return CompletionEnvelope(
+            approval_id=approval_id,
+            session_id=request.session_id,
+            trace_id=request.trace_id,
+            decision=decision,
+            result_status=result.status,
+            terminal_state=result.terminal_state,
+            reviewer_sha256=_sha256(reviewer.user_id),
+        )
+
+    def _drain_completion(self, approval_id: str) -> None:
+        envelope = self.store.completion(approval_id)
+        if envelope is None:
+            return
         if self.trajectory_store is not None:
-            result = result.model_copy(
-                update={
-                    "trajectory_events": tuple(
-                        event.event_type
-                        for event in self.trajectory_store.load(request.session_id)
-                    )
-                }
-            )
-        self.approvals.finish(record.approval_id, result)
-        return result
+            for event_type, payload, terminal_reason in (
+                (
+                    "human_review.completed",
+                    {
+                        "decision": envelope.result_status,
+                        "reviewer_sha256": envelope.reviewer_sha256,
+                    },
+                    None,
+                ),
+                (
+                    "terminal.reached",
+                    {"terminal_state": envelope.terminal_state},
+                    envelope.terminal_state,
+                ),
+                (
+                    "session.completed",
+                    {"status": envelope.result_status},
+                    None,
+                ),
+            ):
+                self.trajectory_store.append(
+                    AgentEventDraft(
+                        session_id=envelope.session_id,
+                        trace_id=envelope.trace_id,
+                        event_type=event_type,
+                        payload=payload,
+                        terminal_reason=terminal_reason,
+                    ),
+                    idempotency_key=f"{approval_id}:{event_type}",
+                )
+        self.store.mark_completion_delivered(
+            approval_id,
+            delivered_at_ms=float(self.clock_ms()),
+        )
 
     def _compile(self):
         builder = StateGraph(_DurableState)
         builder.add_node("approval", self._approval_node)
-        builder.add_node("execute_side_effect", self._execute_side_effect_node)
+        builder.add_node("prepare_side_effect", self._prepare_side_effect_node)
         builder.add_node("reject", lambda state: {"terminal_state": "HUMAN_REJECTED"})
         builder.add_edge(START, "approval")
         builder.add_conditional_edges(
             "approval",
             lambda state: (
-                "execute_side_effect"
-                if state["approval"]["decision"] == "approve"
-                else "reject"
+                "prepare_side_effect" if state["approval"]["decision"] == "approve" else "reject"
             ),
-            {"execute_side_effect": "execute_side_effect", "reject": "reject"},
+            {"prepare_side_effect": "prepare_side_effect", "reject": "reject"},
         )
-        builder.add_edge("execute_side_effect", END)
+        builder.add_edge("prepare_side_effect", END)
         builder.add_edge("reject", END)
         return builder.compile(checkpointer=self.checkpointer)
 
@@ -468,20 +575,11 @@ class DurableLangGraphOrchestrator:
         )
         if value.get("decision") not in {"approve", "reject"}:
             value = {"decision": "reject", "crash_point": None}
-        return {"approval": value, "crash_point": value.get("crash_point")}
+        return {"approval": value}
 
-    def _execute_side_effect_node(self, state: _DurableState) -> dict[str, Any]:
-        with self.telemetry.span(
-            "agent.tool.create_access_request_draft",
-            operation="tool",
-            attributes={"tool.name": "create_access_request_draft"},
-        ):
-            draft = self.side_effects.create_access_request_draft(
-                ToolPolicyInput.model_validate(state["policy_input"]),
-                DurableToolRunRequest.model_validate(state["request"]).arguments,
-                crash_point=state.get("crash_point"),
-            )
-        return {"draft": draft.model_dump(mode="json"), "terminal_state": "DRAFT_CREATED"}
+    @staticmethod
+    def _prepare_side_effect_node(state: _DurableState) -> dict[str, Any]:
+        return {"terminal_state": "DRAFT_READY"}
 
     def _policy_input(
         self,
@@ -514,13 +612,22 @@ class DurableLangGraphOrchestrator:
         self,
         request: DurableToolRunRequest,
         *,
-        status: Literal["needs_approval", "completed", "denied", "rejected"],
+        status: Literal[
+            "needs_approval",
+            "completed",
+            "denied",
+            "rejected",
+            "already_resuming",
+            "expired",
+            "failed_recoverable",
+        ],
         terminal_state: str,
         policy_result: PolicyResult,
         approval: DurableApprovalRequest | None = None,
         draft: AccessRequestDraft | None = None,
+        resume_outcome: ResumeOutcome | None = None,
     ) -> DurableToolRunResult:
-        events = ()
+        events: tuple[AgentEventType, ...] = ()
         if self.trajectory_store is not None:
             events = tuple(
                 event.event_type for event in self.trajectory_store.load(request.session_id)
@@ -536,6 +643,7 @@ class DurableLangGraphOrchestrator:
             approval=approval,
             draft=draft,
             trajectory_events=events,
+            resume_outcome=resume_outcome,
         )
 
     def _record_start(self, request: DurableToolRunRequest, approval_id: str) -> None:
@@ -562,37 +670,21 @@ class DurableLangGraphOrchestrator:
             )
         )
 
-    def _record_completion(
-        self,
-        request: DurableToolRunRequest,
-        result: DurableToolRunResult,
-        reviewer: UserContext,
-    ) -> None:
-        if self.trajectory_store is None:
-            return
-        for event_type, payload in (
-            (
-                "human_review.completed",
-                {"decision": result.status, "reviewer_sha256": _sha256(reviewer.user_id)},
-            ),
-            (
-                "terminal.reached",
-                {"terminal_state": result.terminal_state},
-            ),
-            (
-                "session.completed",
-                {"status": result.status},
-            ),
-        ):
-            self.trajectory_store.append(
-                AgentEventDraft(
-                    session_id=request.session_id,
-                    trace_id=request.trace_id,
-                    event_type=event_type,
-                    payload=payload,
-                    terminal_reason=(result.terminal_state if event_type == "terminal.reached" else None),
-                )
-            )
+
+class DurableLangGraphOrchestrator(DurableAccessRequestWorkflow):
+    """Deprecated name retained for import compatibility only."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        warnings.warn(
+            "DurableLangGraphOrchestrator only covers the access-request DRAFT "
+            "workflow; use DurableAccessRequestWorkflow",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+SQLiteApprovalStore = SQLiteDurableWorkflowStore
 
 
 def _stable_thread_id(request: DurableToolRunRequest) -> str:
@@ -618,6 +710,7 @@ def _sha256(value: str) -> str:
 
 __all__ = [
     "DurableApprovalRequest",
+    "DurableAccessRequestWorkflow",
     "DurableLangGraphOrchestrator",
     "DurableToolRunRequest",
     "DurableToolRunResult",
