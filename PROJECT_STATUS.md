@@ -5,13 +5,15 @@
 ```text
 working branch                     codex/durable-agent-runtime-and-policy-v1
 base                               909a9710932c6c4744c462db0e33ed0d222ecb1a
+verified implementation head       e848d8e6090267b28d351758fe8d3cb557dcd586
 default runtime                    BOUNDED CONTROLLER / UNCHANGED
 partial-answer HITL                SAME-PROCESS / EXISTING PATH
 draft approval HITL                FILE-BACKED SQLITE RESTART TESTED
 tool policy                        DENY > ASK > ALLOW / TYPED HOOKS
 side effect                        ACCESS-REQUEST DRAFT ONLY / IDEMPOTENT SQLITE
 OpenTelemetry                      W3C TRACE CONTEXT / CONTENT CAPTURE OFF
-PostgreSQL checkpointer            TEST IMPLEMENTED / LOCAL DSN NOT CONFIGURED
+PostgreSQL checkpointer            CI VERIFIED / POSTGRESQL 17.6 SERVICE
+remote CI                          SUCCESS / RUN 32470591376 / 4 JOB GROUPS
 production readiness               NOT ESTABLISHED / NOT CLAIMED
 ```
 
@@ -19,9 +21,11 @@ This overlay is a feature-branch candidate on top of the closed vNext baseline.
 It does not rewrite the frozen retrieval, answer, security, or latency results.
 The durable path is limited to one approved access-request draft operation; the
 existing partial-answer HITL remains same-process. Local Agent Runtime evidence
-is `81 passed, 1 skipped`, where the skip is the real PostgreSQL checkpointer
-test awaiting its configured CI service. The canonical mechanism documents are
-under `docs/production_runtime/`. Exactly-once, production IAM, arbitrary-action
+is `81 passed, 1 skipped`; the local skip reflects an absent PostgreSQL DSN, and
+the same real `PostgresSaver` integration passed in the dedicated PostgreSQL
+17.6 GitHub Actions job. The complete remote run also passed Windows, Ubuntu,
+and Linux-container contracts. The canonical review entry is
+`docs/review/FINAL_REVIEW_PACKET.md`. Exactly-once, production IAM, arbitrary-action
 HITL, high availability, and production readiness remain forbidden claims.
 
 ## 2026-08-20 Canonical vNext base state

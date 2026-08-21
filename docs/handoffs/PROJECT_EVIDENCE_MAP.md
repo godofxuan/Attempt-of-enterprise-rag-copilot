@@ -6,8 +6,13 @@ execution SHAs identify the code that produced an artifact; the current
 documentation HEAD must be checked separately with `git rev-parse HEAD` and the
 portfolio verifier.
 
-Current portfolio state on branch `codex/agent-runtime-vnext`:
-`RAG_VNEXT_CLOSED`.
+Current public review overlay is branch
+`codex/durable-agent-runtime-and-policy-v1` at exact implementation commit
+`e848d8e6090267b28d351758fe8d3cb557dcd586`. Its GitHub Actions run
+`32470591376` passed Windows, Ubuntu, PostgreSQL 17.6, and Linux-container
+contracts. The underlying vNext baseline remains `RAG_VNEXT_CLOSED`; this
+overlay adds runtime durability, policy, idempotency, and trace-continuity
+mechanisms without changing frozen retrieval or answer-quality results.
 
 That state means the vNext implementation, evidence, resume handoff, and
 teaching handoff are closed for this branch and are usable within their stated
@@ -152,6 +157,22 @@ decision.
 | Allowed wording | "Implemented hash-chained Agent trajectories, deterministic replay, bounded HITL resume, and a versioned EvalOps artifact." |
 | Forbidden wording | "WORM audit ledger"; "durable crash-safe resume"; "production audit certification"; "external EvalOps adoption". |
 | Interview explanation | Replay reconstructs recorded facts after verifying the chain and does not rerun side effects. Pending HITL state is in memory, so process restart remains an explicit boundary. |
+
+## Claim P9: durable approval runtime, policy hooks, and trace continuity
+
+| Field | Binding |
+|---|---|
+| Claim | A bounded optional runtime persists LangGraph approval checkpoints, revalidates authority after restart, and executes one idempotent draft-only side effect through deterministic tool policy hooks. |
+| Metric | Local Agent Runtime `81 passed, 1 skipped`; clean repository verifier `5/5`; GitHub Actions run `32470591376` passed Windows, Ubuntu, PostgreSQL 17.6, and Linux-container jobs. |
+| Scope | Deterministic mechanism and failure-recovery evidence; one access-request draft operation; not answer-quality gain or production HA. |
+| Code path | `app/agent_runtime/durable_orchestrator.py`; `tool_policy.py`; `side_effects.py`; `telemetry.py`; `harness_contract.py` |
+| Test path | `tests/agent_runtime/test_durable_orchestrator.py`; `test_tool_policy.py`; `test_side_effects.py`; `test_telemetry.py`; `test_harness_contract.py` |
+| Evidence | `docs/production_runtime/RESULTS.md`; `FAILURE_MATRIX.md`; `KNOWN_LIMITATIONS.md`; GitHub Actions run `32470591376` |
+| Reproduction command | `python -m pytest tests/agent_runtime -q`; then run the clean portfolio verifier documented in the final review packet. |
+| Code SHA | `e848d8e6090267b28d351758fe8d3cb557dcd586` |
+| Allowed wording | "Implemented restart-tested LangGraph approval checkpoints, deterministic tool policy hooks, an idempotent draft transaction, and privacy-default W3C trace continuity; all remote CI jobs passed." |
+| Forbidden wording | "Production-ready durable Agent"; "distributed exactly-once"; "production IAM"; "LangGraph improved answer quality"; "AgentDojo passed". |
+| Interview explanation | Restart durability is useful only when authority is rechecked and side effects are retry-safe. The checkpoint resumes control flow; policy and ACL decide permission; the idempotency ledger prevents duplicate draft creation; trace links preserve observability across the interrupt boundary. |
 
 ## Claim N1: rejected multi-document candidate
 

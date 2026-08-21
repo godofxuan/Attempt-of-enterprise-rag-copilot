@@ -45,3 +45,25 @@ def test_readme_keeps_bounded_default_and_durable_claim_scoped() -> None:
     assert "access-request DRAFT (never an ACL grant)" in readme
     assert "exactly-once" not in readme.lower()
     assert "docs/production_runtime/" in readme
+
+
+def test_public_review_packet_binds_evidence_without_overclaiming() -> None:
+    packet = (ROOT / "docs" / "review" / "FINAL_REVIEW_PACKET.md").read_text(
+        encoding="utf-8"
+    )
+    prompt = (
+        ROOT / "docs" / "review" / "GPT_GITHUB_REVIEW_PROMPT_CN.md"
+    ).read_text(encoding="utf-8")
+
+    required = (
+        "e848d8e6090267b28d351758fe8d3cb557dcd586",
+        "32470591376",
+        "PROJECT_EVIDENCE_MAP.md",
+        "KNOWN_LIMITATIONS.md",
+        "3322 passed, 30 skipped",
+        "Production readiness",
+    )
+    assert all(value in packet for value in required)
+    assert "branch HEAD to equal the implementation SHA" in packet
+    assert "不要只根据我粘贴的描述评价" in prompt
+    assert "不要错误要求移动中的分支 HEAD" in prompt

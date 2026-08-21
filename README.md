@@ -4,6 +4,10 @@
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB)](https://www.python.org/)
 [![Portfolio status](https://img.shields.io/badge/status-portfolio--ready-2F7D4A)](PROJECT_STATUS.md)
 
+> Reviewing this feature branch? Start with the
+> [final public review packet](docs/review/FINAL_REVIEW_PACKET.md). It binds the
+> exact commit, CI run, evidence files, safe claims, and known limitations.
+
 ## What it does
 
 This is a controlled enterprise knowledge Agent / Agentic RAG Runtime. Teams
