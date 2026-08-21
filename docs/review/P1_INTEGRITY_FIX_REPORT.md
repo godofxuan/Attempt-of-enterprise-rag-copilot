@@ -1,7 +1,7 @@
 # P1 Durable Approval Integrity Fix Report
 
-Status: implementation and local evidence in progress. Remote CI coordinates
-are bound only after the implementation commit is pushed.
+Status: implementation and exact-commit CI complete. The evidence manifest is
+bound to the implementation commit below.
 
 ## Review coordinates
 
@@ -11,6 +11,8 @@ are bound only after the implementation commit is pushed.
 | Branch | `codex/durable-runtime-integrity-fix-v1` |
 | Required implementation ancestor | `e848d8e6090267b28d351758fe8d3cb557dcd586` |
 | Start HEAD | `2e1c93cc8713bb2804a665221af38457b79afa44` |
+| Implementation commit | `730f58e2988f981780a76ca66a878c675d873f50` |
+| GitHub Actions | Run `32511685853`, success, 4/4 job groups |
 | Default Agent runtime | bounded controller, unchanged |
 | Durable scope | `create_access_request_draft` approval only |
 
@@ -105,9 +107,10 @@ partial-answer HITL, arbitrary tools, or the whole Agent runtime crash durable.
 | `python -u -X faulthandler -m pytest -q -p no:cacheprovider` | final rerun: `3344 passed, 31 skipped`, 3 existing SWIG warnings |
 | first public audit | expected development failure: credential-like fixture assignment plus not-yet-created commit-bound manifest; both fixed before closeout |
 | final pre-commit public audit | `1695 candidates / 0 findings` |
+| implementation GitHub Actions | PostgreSQL, Windows, Ubuntu, and Linux-container jobs all passed at exact SHA `730f58e2988f981780a76ca66a878c675d873f50` |
 
-Clean-worktree verification, exact implementation SHA, manifest hashes, push
-result, and new-branch CI are intentionally not claimed until they run.
+The implementation SHA, manifest hashes, push result, and implementation CI are
+now bound. Clean-worktree verification is rerun after the evidence-only commit.
 
 ## Claim boundary
 

@@ -4,6 +4,12 @@
 
 Review branch: `codex/durable-runtime-integrity-fix-v1`.
 
+Implementation commit:
+`730f58e2988f981780a76ca66a878c675d873f50`.
+
+Implementation CI: GitHub Actions run `32511685853`, success across PostgreSQL,
+Windows, Ubuntu, and Linux-container job groups.
+
 Implementation ancestor:
 `e848d8e6090267b28d351758fe8d3cb557dcd586`.
 
@@ -20,7 +26,7 @@ exactly-once execution.
 The prior `e848d8e` / Actions `32470591376` record below remains historical base
 evidence. It is not proof that the current integrity-fix branch passes CI. The
 new branch's exact implementation commit and Actions run are bound in the P1
-manifest only after those checks finish.
+manifest.
 
 This is the single entry point for a human reviewer or a web-enabled GPT. It is
 an index of public evidence, not a new experiment and not a production-readiness

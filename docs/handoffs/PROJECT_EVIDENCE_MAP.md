@@ -5,14 +5,14 @@
 | Field | Binding |
 |---|---|
 | Claim | The access-request DRAFT approval path uses database CAS, expiring ownership leases, version fencing, and a transactionally coupled effect command/completion outbox/approval final state. |
-| Metric | Local deterministic durable suite: `24 passed, 2 PostgreSQL skipped`; full new-branch CI is pending. |
+| Metric | Local deterministic durable suite: `24 passed, 2 PostgreSQL skipped`; implementation CI run `32511685853` passed both real PostgreSQL tests and all four job groups. |
 | Scope | One local SQLite-backed draft workflow only; LangGraph checkpoint and trajectory projection are outside the transaction. |
 | Dataset | Deterministic approval, concurrency, crash-injection, migration, and privacy fixtures; no model or retrieval dataset. |
 | Code path | `app/agent_runtime/durable_store.py`; `durable_orchestrator.py`; `side_effects.py`; `trajectory.py` |
 | Test path | `tests/agent_runtime/test_durable_orchestrator.py`; `test_trajectory.py` |
-| Evidence JSON | `docs/review/P1_INTEGRITY_EVIDENCE_MANIFEST.json` (created after the implementation commit). |
+| Evidence JSON | `docs/review/P1_INTEGRITY_EVIDENCE_MANIFEST.json` |
 | Reproduction command | `python -m pytest tests/agent_runtime/test_durable_orchestrator.py -q`; full command matrix is in `docs/review/P1_INTEGRITY_FIX_REPORT.md`. |
-| Code SHA | Pending implementation commit; the final manifest binds the exact SHA. |
+| Code SHA | `730f58e2988f981780a76ca66a878c675d873f50` |
 | Concurrency evidence | Two workflow objects and independent DB/checkpointer connections race through a `ThreadPoolExecutor`; one owner acquires and one gets `ALREADY_RESUMING`. A stale owner is rejected after lease recovery by version/token fencing. |
 | Failure evidence | Five injection points cover rollback before commit and stable recovery after commit-before-response; final state has one draft, one completion envelope, and one terminal approval. |
 | Allowed wording | "Implemented CAS/lease/fencing and idempotent completion for a restart-recoverable access-request draft approval workflow." |
@@ -24,8 +24,8 @@
 This P10 overlay is newer than the P9/base durable evidence below. The
 underlying canonical vNext branch remains `codex/agent-runtime-vnext`. P10 does not
 change any frozen retrieval, answer-quality, indexing, or security benchmark
-number. New-branch GitHub Actions evidence must be linked before using a remote
-PostgreSQL claim.
+number. Remote PostgreSQL evidence is limited to implementation Actions run
+`32511685853`; it is not a production-database or HA claim.
 
 This is the canonical claim-to-evidence index for the public portfolio. Read it
 before reusing a project number in a README, interview answer, or resume. Metric

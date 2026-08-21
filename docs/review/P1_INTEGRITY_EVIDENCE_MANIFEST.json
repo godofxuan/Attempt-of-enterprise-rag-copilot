@@ -1,0 +1,53 @@
+{
+  "schema_version": "p1-integrity-evidence-manifest/1.0",
+  "source_commit": "730f58e2988f981780a76ca66a878c675d873f50",
+  "source_commit_message": "fix: harden durable approval concurrency and completion integrity",
+  "branch": "codex/durable-runtime-integrity-fix-v1",
+  "base_implementation_ancestor": "e848d8e6090267b28d351758fe8d3cb557dcd586",
+  "start_head": "2e1c93cc8713bb2804a665221af38457b79afa44",
+  "scope": "access-request DRAFT approval only",
+  "claim_boundary": "Database-fenced retry-safe local workflow; not a general durable Agent runtime or distributed exactly-once guarantee.",
+  "artifacts": [
+    {"path": ".github/workflows/ci.yml", "size": 15543, "sha256": "19466e02ecc98c25dffc418384e773f1f2f3530048b0cdca8e4e7f397f51a650"},
+    {"path": "app/agent_runtime/durable_store.py", "size": 23158, "sha256": "1b5320290f3b5412a0fb66db31655bea136a995df163dbb82086a2dc114495e5"},
+    {"path": "app/agent_runtime/durable_orchestrator.py", "size": 28635, "sha256": "9ae6ad5e896f42c31b59ff40d68c626eee23b5b6475409bed6afdbf8be0bdbed"},
+    {"path": "app/agent_runtime/side_effects.py", "size": 6551, "sha256": "6b861576c1c3ab5815dee259940608624d2807e349cfeefcd7f30c99954e6163"},
+    {"path": "app/agent_runtime/trajectory.py", "size": 13635, "sha256": "78401b3c28d6de18810f53bc8675520c2aaa8de84ba35fc805225b99a4abf4ea"},
+    {"path": "app/agent_runtime/telemetry.py", "size": 9941, "sha256": "4eb99eb58cb1177184bc36b16b4bc15f837c33643e95df17c19229e6fa9ebf62"},
+    {"path": "app/agent_runtime/tool_policy.py", "size": 16736, "sha256": "594a014f932b5a018e3429c25d615a4bbc780186533c20a33fbc73befd695364"},
+    {"path": "tests/agent_runtime/test_durable_orchestrator.py", "size": 31388, "sha256": "79dfe2fa64c39bcb08c4d6a0c4e051d957c40e85522dfe1997bc19a7df46e22a"},
+    {"path": "tests/agent_runtime/test_telemetry.py", "size": 5212, "sha256": "b0c29433ee766c10fc1bc92583c9e56e3a2c6185d2710e32f4db51c6c5ebcea3"},
+    {"path": "tests/agent_runtime/test_tool_policy.py", "size": 8470, "sha256": "d1757d5b23a8ac23089dd91ae6425598a63056128784c9e0e7edc2995effd42a"},
+    {"path": "tests/agent_runtime/test_trajectory.py", "size": 5251, "sha256": "a7f0464e1c1a3cee3d0f537d2a1071d0f660dafec5043344217a4e21a904f02b"},
+    {"path": "docs/review/P1_INTEGRITY_FIX_REPORT.md", "size": 6358, "sha256": "4ad0ed70d756cddb6903048436225c73fa95baed0f5bdabe42a3ca21676da186"},
+    {"path": "docs/production_runtime/DURABLE_LANGGRAPH.md", "size": 3676, "sha256": "554f50075e0816e11ff18ad431589f96c5dbc5c73738116e8caa23f8fbbd434f"},
+    {"path": "docs/production_runtime/KNOWN_LIMITATIONS.md", "size": 2130, "sha256": "02efcb509fbd926d2bc8b60bb15dc28a14cc8516fd5edc1314d52b27aaa6333a"},
+    {"path": "docs/production_runtime/RESUME_SAFE_CLAIMS.md", "size": 2111, "sha256": "48f369f94ca9cba3391d7acfda83132013dec0b8c41ac5e8afc4bf60db97e397"}
+  ],
+  "tests": [
+    {"command": "python -m pip check", "exit_code": 0, "result": "passed"},
+    {"command": "python -m compileall -q app scripts streamlit_app tests", "exit_code": 0, "result": "passed"},
+    {"command": "python -m ruff check <integrity-fix surfaces>", "exit_code": 0, "result": "passed"},
+    {"command": "python -m ruff format --check <new integrity surfaces>", "exit_code": 0, "result": "passed; 10 files already formatted"},
+    {"command": "python -m mypy --follow-imports=skip <seven integrity modules>", "exit_code": 0, "result": "passed; scoped gate, not whole-repository mypy"},
+    {"command": "python -m pytest tests/agent_runtime/test_durable_orchestrator.py -q", "exit_code": 0, "result": "24 passed, 2 skipped; both skips require local TEST_POSTGRES_DSN"},
+    {"command": "python -m pytest tests/agent_runtime -q", "exit_code": 0, "result": "103 passed, 2 skipped; same PostgreSQL reason"},
+    {"command": "python -m pytest tests/agent_v2 tests/agent_runtime/test_orchestrators.py tests/agent_runtime/test_harness_contract.py -q", "exit_code": 0, "result": "144 passed"},
+    {"command": "python -u -X faulthandler -m pytest -q -p no:cacheprovider", "exit_code": 0, "result": "3344 passed, 31 skipped, 3 existing SWIG warnings"},
+    {"command": "python -m scripts.audit_public_repo", "exit_code": 0, "result": "1695 candidates, 0 findings"}
+  ],
+  "remote_ci": {
+    "provider": "GitHub Actions",
+    "run_id": 32511685853,
+    "url": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/32511685853",
+    "head_sha": "730f58e2988f981780a76ca66a878c675d873f50",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {"name": "postgres-checkpointer-integration", "conclusion": "success", "result": "both real PostgreSQL integration tests executed"},
+      {"name": "deterministic-windows-latest", "conclusion": "success"},
+      {"name": "deterministic-ubuntu-latest", "conclusion": "success"},
+      {"name": "linux-container-contract", "conclusion": "success"}
+    ]
+  }
+}

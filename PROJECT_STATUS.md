@@ -13,7 +13,7 @@ atomic boundary                     EFFECT COMMAND + COMPLETION OUTBOX + APPROVA
 trajectory delivery                 IDEMPOTENT OUTBOX PROJECTION / SEPARATE DB
 telemetry                           OPERATION-TYPED ALLOWLIST / CONTENT OFF
 local agent-runtime gate            103 PASSED / 2 POSTGRESQL SKIPPED
-remote PostgreSQL / CI              PENDING FOR THIS NEW BRANCH HEAD
+implementation CI                   SUCCESS / RUN 32511685853 / 4 JOB GROUPS
 production readiness               NOT ESTABLISHED / NOT CLAIMED
 ```
 
@@ -27,11 +27,12 @@ outside that transaction; the implementation therefore provides retry-safe,
 fenced completion for this local draft operation, not distributed
 exactly-once execution or a generally durable Agent runtime.
 
-Local verification currently includes real two-connection/thread races, stale
+Local verification includes real two-connection/thread races, stale
 owner fencing, lease recovery, five injected commit-boundary failures, typed
 telemetry privacy tests, and hook failure isolation. The two PostgreSQL tests
-are explicitly skipped locally because `TEST_POSTGRES_DSN` is absent; only the
-new branch's GitHub Actions run may close that evidence. See
+are explicitly skipped locally because `TEST_POSTGRES_DSN` is absent. Both real
+PostgreSQL tests passed in GitHub Actions run `32511685853` at implementation
+SHA `730f58e2988f981780a76ca66a878c675d873f50`. See
 `docs/review/P1_INTEGRITY_FIX_REPORT.md`.
 
 ## 2026-08-21 Durable runtime candidate overlay

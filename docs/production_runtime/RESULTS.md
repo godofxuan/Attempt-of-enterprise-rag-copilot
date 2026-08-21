@@ -20,6 +20,7 @@ Local results recorded before the implementation commit:
 | final full repository rerun | `3344 passed, 31 skipped`, 3 existing SWIG warnings |
 | first public audit | `1695 candidates / 2 findings`; deterministic token fixture naming and a pre-commit manifest link, fixed before closeout |
 | final pre-commit public audit | `1695 candidates / 0 findings` |
+| implementation GitHub Actions | Run `32511685853`, exact SHA `730f58e2988f981780a76ca66a878c675d873f50`, PostgreSQL/Windows/Ubuntu/Linux-container all passed |
 
 The three full-run failures were retained and diagnosed: P10 initially reused a
 historical table-count contract incorrectly, the canonical vNext branch phrase
