@@ -1,0 +1,212 @@
+{
+  "schema_version": "final-resume-readiness-manifest/1.0",
+  "repository": "godofxuan/Attempt-of-enterprise-rag-copilot",
+  "branch": "codex/final-resume-readiness-closeout-v1",
+  "base_head": "445cd642f46e90ff2f236217bb4bc671bcf6b6f9",
+  "implementation_head": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+  "evidence_commit_binding": "PENDING_EXACT_SHA_CI",
+  "status": [
+    "IMPLEMENTATION_COMPLETE",
+    "EXACT_SHA_CI_REQUIRED",
+    "NOT_MERGED",
+    "NOT_RELEASED",
+    "PORTFOLIO_READY",
+    "PRODUCTION_NOT_VERIFIED"
+  ],
+  "durability_scope": "ACCESS_REQUEST_DRAFT_ONLY",
+  "capabilities": {
+    "start_idempotency_supported": true,
+    "resume_concurrency_fenced": true,
+    "multi_instance_ha": false
+  },
+  "artifacts": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "ea87e9d65a925a277a690932cd013d384e62ad4d5d0ad8277642e83da6870e83",
+      "byte_size": 16071,
+      "schema_version": "github-actions-workflow/1",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "git show 7a74fbd4bf368a9dedffe28a814a65c87c1219af:.github/workflows/ci.yml",
+      "test_result": "CI run 32554467461: four job groups succeeded"
+    },
+    {
+      "path": "app/agent_runtime/durable_store.py",
+      "sha256": "4dc45a9667308fc22320fa275aa97b5174baf49758676e4bef554c3107240e29",
+      "byte_size": 45476,
+      "schema_version": "approval-start-resume-store/2",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "git show 7a74fbd4bf368a9dedffe28a814a65c87c1219af:app/agent_runtime/durable_store.py",
+      "test_result": "inline migration, Start CAS/lease/version/generation, Resume fencing: passed"
+    },
+    {
+      "path": "app/agent_runtime/durable_orchestrator.py",
+      "sha256": "f98619908cd982b5d34eb217356963e4eb7c77cd2a1c1aa3b9081653e504b876",
+      "byte_size": 38013,
+      "schema_version": "durable-access-request-workflow/2",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "git show 7a74fbd4bf368a9dedffe28a814a65c87c1219af:app/agent_runtime/durable_orchestrator.py",
+      "test_result": "Start/checkpoint/recovery and Resume authorization path: passed"
+    },
+    {
+      "path": "app/agent_runtime/harness_contract.py",
+      "sha256": "51058ae976af65e85f27beeb34e8a13c114448084356c633589312f10dfa8e95",
+      "byte_size": 10373,
+      "schema_version": "enterprise.agent-harness-result/1.0",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "git show 7a74fbd4bf368a9dedffe28a814a65c87c1219af:app/agent_runtime/harness_contract.py",
+      "test_result": "scope and capability fields exactly match public JSON schema"
+    },
+    {
+      "path": "tests/agent_runtime/test_start_lifecycle.py",
+      "sha256": "152de76d18daafed02395092ebbd48c59f60dd8195f93f7e99803faac0ce001f",
+      "byte_size": 17499,
+      "schema_version": "start-lifecycle-test-matrix/1",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "python -m pytest tests/agent_runtime/test_start_lifecycle.py -q",
+      "test_result": "21 passed; threads, spawn processes, F1-F8, identity, privacy, generation, fencing"
+    },
+    {
+      "path": "tests/agent_runtime/test_durable_orchestrator.py",
+      "sha256": "30b346d21fddc15f59169e04bdc76fe66d67e1abed6bfaf6c2d3cb3ee58e074b",
+      "byte_size": 31423,
+      "schema_version": "resume-concurrency-test-matrix/2",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "python -m pytest tests/agent_runtime/test_durable_orchestrator.py -q",
+      "test_result": "24 passed, 2 local PostgreSQL skips; PostgreSQL tests passed in CI"
+    },
+    {
+      "path": "tests/agent_runtime/test_telemetry.py",
+      "sha256": "b0c29433ee766c10fc1bc92583c9e56e3a2c6185d2710e32f4db51c6c5ebcea3",
+      "byte_size": 5212,
+      "schema_version": "typed-telemetry-privacy-tests/1",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "python -m pytest tests/agent_runtime/test_telemetry.py -q",
+      "test_result": "typed allowlist and content-off privacy tests passed"
+    },
+    {
+      "path": "tests/agent_runtime/test_harness_contract.py",
+      "sha256": "8737b176e6900624dfb668470ed7b8e825f9d2df76810ca99dbb46e2edd34e63",
+      "byte_size": 4379,
+      "schema_version": "harness-contract-tests/1",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "python -m pytest tests/agent_runtime/test_harness_contract.py -q",
+      "test_result": "public schema and durability boundary fields passed"
+    },
+    {
+      "path": "tests/agent_runtime/test_production_runtime_docs.py",
+      "sha256": "9226136dd06d13f308250b029965bf5f79e6970cafc6c82181517b3b6351f2e1",
+      "byte_size": 3124,
+      "schema_version": "runtime-document-gate/1",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "python -m pytest tests/agent_runtime/test_production_runtime_docs.py -q",
+      "test_result": "I1-I10 and release-boundary document assertions passed"
+    },
+    {
+      "path": "docs/production_runtime/APPROVAL_LIFECYCLE_INVARIANTS.md",
+      "sha256": "88fb855f49dc3ddad46800b9576c9f1898d4f315edf3183e22da699cbfc47e9e",
+      "byte_size": 4178,
+      "schema_version": "approval-lifecycle-invariants/1",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "git show 7a74fbd4bf368a9dedffe28a814a65c87c1219af:docs/production_runtime/APPROVAL_LIFECYCLE_INVARIANTS.md",
+      "test_result": "document gate passed"
+    },
+    {
+      "path": "docs/production_runtime/DURABLE_LANGGRAPH.md",
+      "sha256": "4b8e4df4f118711b0d55de17f339d41dbf578354875ac1e11ea4e86ac51713b8",
+      "byte_size": 4575,
+      "schema_version": "durable-flow-document/2",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "git show 7a74fbd4bf368a9dedffe28a814a65c87c1219af:docs/production_runtime/DURABLE_LANGGRAPH.md",
+      "test_result": "document gate passed"
+    },
+    {
+      "path": "docs/production_runtime/KNOWN_LIMITATIONS.md",
+      "sha256": "e2ee0ad4a764d7d5600c1b9a6a374d449fe7197beaf3859dff72fe2aab9199a5",
+      "byte_size": 2551,
+      "schema_version": "known-limitations/2",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "git show 7a74fbd4bf368a9dedffe28a814a65c87c1219af:docs/production_runtime/KNOWN_LIMITATIONS.md",
+      "test_result": "public audit passed with 0 findings"
+    },
+    {
+      "path": "docs/production_runtime/RESUME_SAFE_CLAIMS.md",
+      "sha256": "6dcca488ac0b656aff6d3085ac2b689259b393530dd91eaf26959399d898d715",
+      "byte_size": 2270,
+      "schema_version": "resume-safe-claims/2",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "git show 7a74fbd4bf368a9dedffe28a814a65c87c1219af:docs/production_runtime/RESUME_SAFE_CLAIMS.md",
+      "test_result": "scope and forbidden-claim document gates passed"
+    },
+    {
+      "path": "docs/production_runtime/schemas/agent_harness_result_v1.schema.json",
+      "sha256": "c59d9baa294c1257b51628e70c78fd61a4942af1b7de413e15d25473cc2a4a4d",
+      "byte_size": 2776,
+      "schema_version": "enterprise.agent-harness-result/1.0",
+      "source_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+      "producing_command": "python -c HarnessOutputV1.model_json_schema",
+      "test_result": "exact JSON schema equality passed"
+    }
+  ],
+  "tests": {
+    "local_full_suite": {
+      "command": "python -u -X faulthandler -m pytest -q -p no:cacheprovider",
+      "exit_code": 0,
+      "passed": 3368,
+      "failed": 0,
+      "skipped": 31,
+      "skip_reason": "environment-gated PostgreSQL, real-model, and optional external tests",
+      "environment": "Windows, Python 3.11 virtual environment"
+    },
+    "local_agent_runtime": {
+      "command": "python -m pytest tests/agent_runtime -q",
+      "exit_code": 0,
+      "passed": 123,
+      "failed": 0,
+      "skipped": 2,
+      "skip_reason": "TEST_POSTGRES_DSN absent locally; both tests executed successfully in CI",
+      "environment": "Windows, SQLite workflow/checkpointer"
+    },
+    "public_audit": {
+      "command": "python -m scripts.audit_public_repo",
+      "exit_code": 0,
+      "passed": 1699,
+      "failed": 0,
+      "skipped": 0,
+      "skip_reason": "none",
+      "environment": "public repository candidate scan"
+    }
+  },
+  "remote_ci": {
+    "provider": "GitHub Actions",
+    "run_id": 32554467461,
+    "url": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/32554467461",
+    "head_sha": "7a74fbd4bf368a9dedffe28a814a65c87c1219af",
+    "status": "completed",
+    "conclusion": "success",
+    "run_started_at": "2026-08-22T05:29:13Z",
+    "updated_at": "2026-08-22T05:39:55Z",
+    "jobs": [
+      {
+        "name": "postgres-checkpointer-integration",
+        "conclusion": "success",
+        "url": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/32554467461/job/96986373508"
+      },
+      {
+        "name": "deterministic-ubuntu-latest",
+        "conclusion": "success",
+        "url": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/32554467461/job/96986373543"
+      },
+      {
+        "name": "deterministic-windows-latest",
+        "conclusion": "success",
+        "url": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/32554467461/job/96986373548"
+      },
+      {
+        "name": "linux-container-contract",
+        "conclusion": "success",
+        "url": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/32554467461/job/96986998259"
+      }
+    ]
+  },
+  "claim_boundary": "Retry-safe database-fenced access-request DRAFT approval only; not a general durable Agent runtime, exactly-once system, production HITL service, or multi-instance HA deployment."
+}
