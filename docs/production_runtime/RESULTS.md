@@ -1,5 +1,17 @@
 # Production Runtime Validation Results
 
+## Final Start/Resume lifecycle closeout
+
+Status is `IMPLEMENTATION_COMPLETE`, pending exact implementation-SHA and final
+evidence-SHA CI binding. Scope is `ACCESS_REQUEST_DRAFT_ONLY`.
+
+Deterministic local tests now cover same-key sequential retry, two-thread and
+two-process Start races, new generations in one session, seven Start crash
+points, missing client acknowledgement, Handle reissue and identity rejection,
+Start/Resume overlap, two-caller Resume, stale owner fencing, and single final
+draft/completion facts. These are mechanism tests, not production HA, latency,
+throughput, or answer-quality evidence.
+
 ## 2026-08-22 P1 integrity overlay
 
 Branch: `codex/durable-runtime-integrity-fix-v1`. Start HEAD:

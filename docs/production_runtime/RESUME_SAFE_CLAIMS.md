@@ -5,10 +5,12 @@ Candidates become usable only when the final commit and CI evidence are linked.
 ## Evidence-supported candidates
 
 1. Implemented a restart-recoverable `DurableAccessRequestWorkflow` for one
-   access-request DRAFT operation; resume revalidates tenant, reviewer, role,
-   ACL/policy, expiry, and tool-argument hash.
-2. Added database CAS ownership, expiring leases, and owner-token/version
-   fencing so concurrent resume attempts cannot both finalize one approval.
+   access-request DRAFT operation, including idempotent Start generations,
+   stable recoverable client handles, and checkpoint recovery; Resume
+   revalidates tenant, reviewer, role, ACL/policy, expiry, and tool-argument hash.
+2. Added separate database CAS ownership, expiring leases, and
+   owner-token/version fencing for concurrent Start and Resume; same-key
+   two-process Start creates one logical approval and one generation.
 3. Atomically records the local draft effect command, one immutable completion
    outbox envelope, and approval final state; retries project completion events
    with stable idempotency keys.

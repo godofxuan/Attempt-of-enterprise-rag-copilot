@@ -10,8 +10,11 @@
    single-database deployment assumption.
 4. There is no approval inbox, notification delivery, revocation UI, retention
    worker, or operational runbook.
-5. Approval tokens are bearer secrets returned to the caller. Only their hashes
-   are persisted, but transport/session protection remains deployment work.
+5. Current approvals use a persisted server-side locator Handle so a lost Start
+   response can be recovered. The Handle is not authorization. Authenticated
+   identity, tenant, reviewer role, ACL/policy, expiry, and argument hash are
+   revalidated. Handle revocation policy, transport hardening, and an operational
+   approval service remain deployment work.
 6. SHA-256 identity fields are pseudonyms and may remain personal data under a
    real organization's policy.
 7. OTel has no configured production collector, sampling policy, tail sampling,
@@ -33,3 +36,6 @@
 14. Completion outbox delivery is an idempotent local projection, not an
     externally managed dispatcher with retries, alerts, retention, or dead
     lettering.
+15. Start/Resume process concurrency is tested against one SQLite database, but
+    multi-host HA, database failover, network partition behavior, and automatic
+    failover remain unverified and must not be claimed.

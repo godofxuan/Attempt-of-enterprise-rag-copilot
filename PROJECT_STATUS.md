@@ -1,5 +1,32 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-08-22 Final resume-readiness closeout
+
+```text
+branch                             codex/final-resume-readiness-closeout-v1
+base head                          445cd642f46e90ff2f236217bb4bc671bcf6b6f9
+status                             IMPLEMENTATION_COMPLETE
+exact SHA CI                       EXACT_SHA_CI_REQUIRED
+merge / release                    NOT_MERGED / NOT_RELEASED
+portfolio                          PORTFOLIO_READY
+production                         PRODUCTION_NOT_VERIFIED
+durability scope                   ACCESS_REQUEST_DRAFT_ONLY
+start idempotency                  KEY + GENERATION + SQLITE UNIQUE INDEX
+start ownership                    CAS + LEASE + VERSION FENCING
+client recovery                    PERSISTED NON-AUTHORIZING HANDLE
+resume ownership                   CAS + LEASE + VERSION FENCING
+multi-instance HA                  FALSE / NOT CLAIMED
+```
+
+The final closeout extends the prior Resume integrity work to the complete
+Start/Checkpoint/response lifecycle. Same-key retries return one logical
+approval and stable handle; new keys in the same session create monotonically
+increasing generations and distinct checkpoint threads. Seven injected Start
+crash points plus missing client acknowledgement recover through the same key.
+The handle locates state but does not authorize it: Resume still rechecks
+trusted identity, tenant, role, ACL/policy, expiry, and tool-argument hash.
+See `docs/production_runtime/APPROVAL_LIFECYCLE_INVARIANTS.md`.
+
 ## 2026-08-22 Durable approval integrity overlay
 
 ```text

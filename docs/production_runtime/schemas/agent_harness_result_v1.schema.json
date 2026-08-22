@@ -76,6 +76,30 @@
     "error_classification": {
       "title": "Error Classification",
       "type": "string"
+    },
+    "durability_scope": {
+      "const": "access_request_draft_only",
+      "default": "access_request_draft_only",
+      "title": "Durability Scope",
+      "type": "string"
+    },
+    "start_idempotency_supported": {
+      "const": true,
+      "default": true,
+      "title": "Start Idempotency Supported",
+      "type": "boolean"
+    },
+    "resume_concurrency_fenced": {
+      "const": true,
+      "default": true,
+      "title": "Resume Concurrency Fenced",
+      "type": "boolean"
+    },
+    "multi_instance_ha": {
+      "const": false,
+      "default": false,
+      "title": "Multi Instance Ha",
+      "type": "boolean"
     }
   },
   "required": [

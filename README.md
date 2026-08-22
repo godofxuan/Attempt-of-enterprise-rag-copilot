@@ -8,6 +8,10 @@
 > [final public review packet](docs/review/FINAL_REVIEW_PACKET.md). It binds the
 > exact commit, CI run, evidence files, safe claims, and known limitations.
 
+Current closeout status: `IMPLEMENTATION_COMPLETE`, `EXACT_SHA_CI_REQUIRED`,
+`NOT_MERGED`, `NOT_RELEASED`, `PORTFOLIO_READY`,
+`PRODUCTION_NOT_VERIFIED`; `DURABILITY_SCOPE = ACCESS_REQUEST_DRAFT_ONLY`.
+
 ## What it does
 
 This is a controlled enterprise knowledge Agent / Agentic RAG Runtime. Teams
@@ -52,7 +56,7 @@ an alternative orchestrator rather than a claimed quality improvement.
 | Replaceable Agent Runtime | Common `AgentOrchestrator` contract with the existing bounded adapter and a real LangGraph `StateGraph`, both using the same guarded tool and publication path |
 | MCP tool access | Official MCP SDK adapter for `search/find/open`; opaque server-issued context handles preserve identity, ACL, budget, expiry, and Guard enforcement |
 | Replay and HITL | Append-only SHA-256-chained semantic trajectory, deterministic no-network replay, and a tenant/role-bound one-time human review resume path |
-| Durable approval candidate | SQLite CAS/lease/fencing, restart recovery, reviewer/tool-hash revalidation, one atomic draft/completion/approval transaction, PostgreSQL checkpointer CI contract, and W3C trace propagation |
+| Durable draft approval | Idempotent Start generations, recoverable non-authorizing client handles, SQLite CAS/lease/version fencing for Start and Resume, restart recovery, reviewer/tool-hash revalidation, one atomic draft/completion/approval transaction, PostgreSQL checkpointer CI contract, and W3C trace propagation |
 | EvalOps integration | Versioned `enterprise.agent-run/1.0` JSON schema, serializer, verifier, public sample artifact, and reproducible CLI tooling |
 | Enterprise retrieval | BM25, BGE-M3 Dense, RRF ablation, metadata and temporal authority, parent context, ACL filtering before evidence reaches the model |
 | Grounded answers | Structured claims, visible-source citations, deterministic numeric/date/negation checks, and removal of unsupported claims |
@@ -84,7 +88,9 @@ verified identity
   -> append semantic trajectory -> replay / EvalOps artifact
 
 optional sensitive action
-  -> ToolPolicy ASK -> DurableAccessRequestWorkflow JSON interrupt
+  -> ToolPolicy ASK -> idempotent Start key -> Approval Generation
+  -> fenced Checkpoint creation -> stable non-authorizing Handle
+  -> DurableAccessRequestWorkflow JSON interrupt
   -> reviewer/tenant/tool-hash revalidation after restart
   -> idempotent access-request DRAFT (never an ACL grant)
 ```

@@ -28,6 +28,17 @@ ApprovalStatus = Literal[
     "FAILED_RECOVERABLE",
 ]
 ApprovalDecision = Literal["approve", "reject"]
+StartStatus = Literal["STARTING", "READY", "FAILED_RECOVERABLE"]
+CheckpointStatus = Literal["NOT_STARTED", "IN_PROGRESS", "READY"]
+StartCrashPoint = Literal[
+    "before_approval_insert",
+    "after_approval_insert_before_checkpoint",
+    "during_checkpoint",
+    "after_checkpoint_before_ready",
+    "after_ready_before_trajectory",
+    "after_trajectory_before_response",
+    "during_response",
+]
 IntegrityCrashPoint = Literal[
     "before_effect_commit",
     "after_effect_before_completion",
@@ -46,6 +57,14 @@ class ResumeOutcome(StrEnum):
     ALREADY_COMPLETED = "ALREADY_COMPLETED"
     REJECTED = "REJECTED"
     EXPIRED = "EXPIRED"
+
+
+class StartOutcome(StrEnum):
+    ACQUIRED = "ACQUIRED"
+    RECOVERED = "RECOVERED"
+    ALREADY_STARTING = "ALREADY_STARTING"
+    READY = "READY"
+    TERMINAL = "TERMINAL"
 
 
 class DurableStoreConflict(RuntimeError):
@@ -80,10 +99,34 @@ class ApprovalRecord(_FrozenModel):
     resumed_at_ms: float | None = None
     decision: ApprovalDecision | None = None
     failure_code: str | None = None
+    start_scope_sha256: str | None = None
+    generation_scope_sha256: str | None = None
+    request_binding_sha256: str | None = None
+    start_key_sha256: str | None = None
+    approval_generation: int = Field(default=1, ge=1)
+    client_handle_id: str | None = None
+    trajectory_session_id: str | None = None
+    start_status: StartStatus = "READY"
+    checkpoint_status: CheckpointStatus = "READY"
+    start_owner_token_sha256: str | None = None
+    start_lease_expires_at_ms: float | None = None
+    start_version: int = Field(default=0, ge=0)
+    start_attempt: int = Field(default=0, ge=0)
+    start_started_at_ms: float | None = None
+    start_result_json: str | None = None
+    start_trajectory_delivered_at_ms: float | None = None
+    start_response_issued_at_ms: float | None = None
+    client_acknowledged_at_ms: float | None = None
 
 
 class ResumeClaim(_FrozenModel):
     outcome: ResumeOutcome
+    record: ApprovalRecord
+    owner_token: str | None = Field(default=None, repr=False)
+
+
+class StartClaim(_FrozenModel):
+    outcome: StartOutcome
     record: ApprovalRecord
     owner_token: str | None = Field(default=None, repr=False)
 
@@ -124,6 +167,7 @@ class SQLiteDurableWorkflowStore:
         if existing is not None and "RESUMING" not in str(existing["sql"]):
             self._migrate_v1_approval_table(connection)
         self._create_approval_table(connection)
+        self._migrate_start_lifecycle_columns(connection)
         initialize_side_effect_schema(connection)
         connection.executescript(
             """
@@ -176,6 +220,55 @@ class SQLiteDurableWorkflowStore:
                 decision TEXT CHECK (decision IN ('approve','reject')),
                 failure_code TEXT
             )
+            """
+        )
+
+    @staticmethod
+    def _migrate_start_lifecycle_columns(connection: sqlite3.Connection) -> None:
+        columns = {
+            str(row[1])
+            for row in connection.execute("PRAGMA table_info(durable_approvals)").fetchall()
+        }
+        additions = {
+            "start_scope_sha256": "TEXT",
+            "generation_scope_sha256": "TEXT",
+            "request_binding_sha256": "TEXT",
+            "start_key_sha256": "TEXT",
+            "approval_generation": "INTEGER NOT NULL DEFAULT 1 CHECK (approval_generation >= 1)",
+            "client_handle_id": "TEXT",
+            "trajectory_session_id": "TEXT",
+            "start_status": (
+                "TEXT NOT NULL DEFAULT 'READY' CHECK "
+                "(start_status IN ('STARTING','READY','FAILED_RECOVERABLE'))"
+            ),
+            "checkpoint_status": (
+                "TEXT NOT NULL DEFAULT 'READY' CHECK "
+                "(checkpoint_status IN ('NOT_STARTED','IN_PROGRESS','READY'))"
+            ),
+            "start_owner_token_sha256": "TEXT",
+            "start_lease_expires_at_ms": "REAL",
+            "start_version": "INTEGER NOT NULL DEFAULT 0 CHECK (start_version >= 0)",
+            "start_attempt": "INTEGER NOT NULL DEFAULT 0 CHECK (start_attempt >= 0)",
+            "start_started_at_ms": "REAL",
+            "start_result_json": "TEXT",
+            "start_trajectory_delivered_at_ms": "REAL",
+            "start_response_issued_at_ms": "REAL",
+            "client_acknowledged_at_ms": "REAL",
+        }
+        for name, definition in additions.items():
+            if name not in columns:
+                connection.execute(f"ALTER TABLE durable_approvals ADD COLUMN {name} {definition}")
+        connection.executescript(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS durable_start_scope_unique
+            ON durable_approvals(start_scope_sha256)
+            WHERE start_scope_sha256 IS NOT NULL;
+            CREATE UNIQUE INDEX IF NOT EXISTS durable_client_handle_unique
+            ON durable_approvals(client_handle_id)
+            WHERE client_handle_id IS NOT NULL;
+            CREATE UNIQUE INDEX IF NOT EXISTS durable_generation_unique
+            ON durable_approvals(generation_scope_sha256, approval_generation)
+            WHERE generation_scope_sha256 IS NOT NULL;
             """
         )
 
@@ -239,7 +332,166 @@ class SQLiteDurableWorkflowStore:
             )
         return self.by_token(token), token
 
+    def begin_start(
+        self,
+        *,
+        request_json: str,
+        approval_expires_at_ms: float,
+        start_scope_sha256: str,
+        generation_scope_sha256: str,
+        request_binding_sha256: str,
+        start_key_sha256: str,
+        tool_call_sha256: str,
+        continuation_trace_json: str,
+        base_session_id: str,
+        now_ms: float,
+        lease_ms: float,
+    ) -> StartClaim:
+        """Get or create one approval generation and acquire fenced Start ownership."""
+        owner_token = secrets.token_urlsafe(32)
+        owner_sha256 = _sha256(owner_token)
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT * FROM durable_approvals WHERE start_scope_sha256 = ?",
+                (start_scope_sha256,),
+            ).fetchone()
+            if row is None:
+                generation_row = connection.execute(
+                    """
+                    SELECT COALESCE(MAX(approval_generation), 0) + 1 AS generation
+                    FROM durable_approvals WHERE generation_scope_sha256 = ?
+                    """,
+                    (generation_scope_sha256,),
+                ).fetchone()
+                generation = int(generation_row["generation"])
+                approval_id = f"approval-{secrets.token_hex(12)}"
+                client_handle_id = f"handle-{secrets.token_urlsafe(24)}"
+                thread_id = _stable_thread_id(generation_scope_sha256, generation, approval_id)
+                trajectory_session_id = (
+                    base_session_id
+                    if generation == 1
+                    else _generation_session_id(base_session_id, generation, approval_id)
+                )
+                connection.execute(
+                    """
+                    INSERT INTO durable_approvals (
+                        approval_id, token_sha256, thread_id, request_json,
+                        tool_call_sha256, approval_expires_at_ms, status,
+                        continuation_trace_json, result_json,
+                        start_scope_sha256, generation_scope_sha256,
+                        request_binding_sha256, start_key_sha256,
+                        approval_generation, client_handle_id,
+                        trajectory_session_id, start_status, checkpoint_status,
+                        start_owner_token_sha256, start_lease_expires_at_ms,
+                        start_version, start_attempt, start_started_at_ms
+                    ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, NULL,
+                              ?, ?, ?, ?, ?, ?, ?, 'STARTING', 'NOT_STARTED',
+                              ?, ?, 1, 1, ?)
+                    """,
+                    (
+                        approval_id,
+                        _sha256(client_handle_id),
+                        thread_id,
+                        request_json,
+                        tool_call_sha256,
+                        approval_expires_at_ms,
+                        continuation_trace_json,
+                        start_scope_sha256,
+                        generation_scope_sha256,
+                        request_binding_sha256,
+                        start_key_sha256,
+                        generation,
+                        client_handle_id,
+                        trajectory_session_id,
+                        owner_sha256,
+                        now_ms + lease_ms,
+                        now_ms,
+                    ),
+                )
+                connection.commit()
+                return StartClaim(
+                    outcome=StartOutcome.ACQUIRED,
+                    record=self.by_handle(client_handle_id),
+                    owner_token=owner_token,
+                )
+
+            record = _record(row)
+            if record.request_binding_sha256 != request_binding_sha256:
+                raise DurableStoreConflict("START_IDEMPOTENCY_CONFLICT")
+            if record.start_status == "READY":
+                return StartClaim(
+                    outcome=(
+                        StartOutcome.TERMINAL
+                        if record.status in {"COMPLETED", "REJECTED", "EXPIRED"}
+                        else StartOutcome.READY
+                    ),
+                    record=record,
+                )
+            if (
+                record.start_status == "STARTING"
+                and record.start_lease_expires_at_ms is not None
+                and record.start_lease_expires_at_ms > now_ms
+            ):
+                return StartClaim(outcome=StartOutcome.ALREADY_STARTING, record=record)
+            recover = record.start_status in {"STARTING", "FAILED_RECOVERABLE"}
+            changed = connection.execute(
+                """
+                UPDATE durable_approvals
+                SET start_status = 'STARTING', start_owner_token_sha256 = ?,
+                    start_lease_expires_at_ms = ?, start_version = start_version + 1,
+                    start_attempt = start_attempt + 1, start_started_at_ms = ?,
+                    failure_code = NULL
+                WHERE approval_id = ? AND start_version = ?
+                  AND (start_status = 'FAILED_RECOVERABLE'
+                       OR (start_status = 'STARTING'
+                           AND start_lease_expires_at_ms <= ?))
+                """,
+                (
+                    owner_sha256,
+                    now_ms + lease_ms,
+                    now_ms,
+                    record.approval_id,
+                    record.start_version,
+                    now_ms,
+                ),
+            )
+            if changed.rowcount != 1:
+                raise DurableStoreConflict("START_CAS_CONFLICT")
+            connection.commit()
+        return StartClaim(
+            outcome=StartOutcome.RECOVERED if recover else StartOutcome.ACQUIRED,
+            record=self.by_handle(record.client_handle_id or ""),
+            owner_token=owner_token,
+        )
+
+    def by_handle(self, approval_handle_id: str) -> ApprovalRecord:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM durable_approvals WHERE client_handle_id = ?",
+                (approval_handle_id,),
+            ).fetchone()
+        if row is None:
+            raise ValueError("approval handle is invalid")
+        return _record(row)
+
+    def by_resume_locator(self, approval_handle_id: str) -> ApprovalRecord:
+        """Resolve a current Handle or a hash-only locator from a migrated record."""
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT * FROM durable_approvals
+                WHERE client_handle_id = ?
+                   OR (client_handle_id IS NULL AND token_sha256 = ?)
+                """,
+                (approval_handle_id, _sha256(approval_handle_id)),
+            ).fetchone()
+        if row is None:
+            raise ValueError("approval handle is invalid")
+        return _record(row)
+
     def by_token(self, token: str) -> ApprovalRecord:
+        """Legacy hashed-token lookup retained for pre-migration approvals."""
         with self._connect() as connection:
             row = connection.execute(
                 "SELECT * FROM durable_approvals WHERE token_sha256 = ?",
@@ -249,31 +501,281 @@ class SQLiteDurableWorkflowStore:
             raise ValueError("approval token is invalid")
         return _record(row)
 
+    def mark_checkpoint_in_progress(
+        self,
+        *,
+        approval_id: str,
+        owner_token: str,
+        start_version: int,
+        now_ms: float,
+    ) -> ApprovalRecord:
+        with self._connect() as connection:
+            changed = connection.execute(
+                """
+                UPDATE durable_approvals
+                SET checkpoint_status = 'IN_PROGRESS'
+                WHERE approval_id = ? AND start_status = 'STARTING'
+                  AND start_owner_token_sha256 = ? AND start_version = ?
+                  AND start_lease_expires_at_ms > ?
+                  AND checkpoint_status IN ('NOT_STARTED','IN_PROGRESS')
+                """,
+                (approval_id, _sha256(owner_token), start_version, now_ms),
+            )
+            if changed.rowcount != 1:
+                raise DurableStoreConflict("START_FENCING_CONFLICT")
+        return self.by_approval_id(approval_id)
+
+    def mark_checkpoint_ready(
+        self,
+        *,
+        approval_id: str,
+        owner_token: str,
+        start_version: int,
+        now_ms: float,
+    ) -> ApprovalRecord:
+        with self._connect() as connection:
+            changed = connection.execute(
+                """
+                UPDATE durable_approvals
+                SET checkpoint_status = 'READY'
+                WHERE approval_id = ? AND start_status = 'STARTING'
+                  AND start_owner_token_sha256 = ? AND start_version = ?
+                  AND start_lease_expires_at_ms > ?
+                  AND checkpoint_status = 'IN_PROGRESS'
+                """,
+                (approval_id, _sha256(owner_token), start_version, now_ms),
+            )
+            if changed.rowcount != 1:
+                raise DurableStoreConflict("START_FENCING_CONFLICT")
+        return self.by_approval_id(approval_id)
+
+    def finalize_start(
+        self,
+        *,
+        approval_id: str,
+        owner_token: str,
+        start_version: int,
+        now_ms: float,
+        result: Mapping[str, Any],
+    ) -> ApprovalRecord:
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            changed = connection.execute(
+                """
+                UPDATE durable_approvals
+                SET start_status = 'READY', start_result_json = ?,
+                    start_response_issued_at_ms = ?,
+                    start_owner_token_sha256 = NULL,
+                    start_lease_expires_at_ms = NULL, failure_code = NULL
+                WHERE approval_id = ? AND start_status = 'STARTING'
+                  AND checkpoint_status = 'READY'
+                  AND start_owner_token_sha256 = ? AND start_version = ?
+                  AND start_lease_expires_at_ms > ?
+                """,
+                (
+                    _canonical_json(result),
+                    now_ms,
+                    approval_id,
+                    _sha256(owner_token),
+                    start_version,
+                    now_ms,
+                ),
+            )
+            if changed.rowcount != 1:
+                raise DurableStoreConflict("START_FENCING_CONFLICT")
+            connection.commit()
+        return self.by_approval_id(approval_id)
+
+    def mark_start_trajectory_delivered(self, approval_id: str, *, delivered_at_ms: float) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE durable_approvals
+                SET start_trajectory_delivered_at_ms = COALESCE(
+                    start_trajectory_delivered_at_ms, ?
+                )
+                WHERE approval_id = ? AND start_status = 'READY'
+                """,
+                (delivered_at_ms, approval_id),
+            )
+
+    def mark_start_failed_recoverable(
+        self,
+        *,
+        approval_id: str,
+        owner_token: str,
+        start_version: int,
+        now_ms: float,
+        failure_code: str,
+    ) -> None:
+        with self._connect() as connection:
+            changed = connection.execute(
+                """
+                UPDATE durable_approvals
+                SET start_status = 'FAILED_RECOVERABLE',
+                    start_owner_token_sha256 = NULL,
+                    start_lease_expires_at_ms = NULL, failure_code = ?
+                WHERE approval_id = ? AND start_status = 'STARTING'
+                  AND start_owner_token_sha256 = ? AND start_version = ?
+                  AND start_lease_expires_at_ms > ?
+                """,
+                (
+                    failure_code[:100],
+                    approval_id,
+                    _sha256(owner_token),
+                    start_version,
+                    now_ms,
+                ),
+            )
+            if changed.rowcount != 1:
+                raise DurableStoreConflict("START_FENCING_CONFLICT")
+
+    def reap_expired_start_owners(self, *, now_ms: float) -> int:
+        with self._connect() as connection:
+            changed = connection.execute(
+                """
+                UPDATE durable_approvals
+                SET start_status = 'FAILED_RECOVERABLE',
+                    start_owner_token_sha256 = NULL,
+                    start_lease_expires_at_ms = NULL,
+                    failure_code = 'start_owner_lease_expired'
+                WHERE start_status = 'STARTING'
+                  AND start_lease_expires_at_ms <= ?
+                """,
+                (now_ms,),
+            )
+        return int(changed.rowcount)
+
+    def acknowledge_start(
+        self,
+        approval_handle_id: str,
+        *,
+        tenant_id: str,
+        user_id: str,
+        acknowledged_at_ms: float,
+    ) -> ApprovalRecord:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM durable_approvals WHERE client_handle_id = ?",
+                (approval_handle_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("approval handle is invalid")
+            request = json.loads(row["request_json"])
+            if request["tenant_id"] != tenant_id or request["user_id"] != user_id:
+                raise PermissionError("requester identity does not own this approval")
+            changed = connection.execute(
+                """
+                UPDATE durable_approvals
+                SET client_acknowledged_at_ms = COALESCE(client_acknowledged_at_ms, ?)
+                WHERE approval_id = ? AND start_status = 'READY'
+                """,
+                (acknowledged_at_ms, row["approval_id"]),
+            )
+            if changed.rowcount != 1:
+                raise DurableStoreConflict("START_NOT_READY")
+        return self.by_handle(approval_handle_id)
+
+    def reissue_handle(
+        self,
+        approval_handle_id: str,
+        *,
+        tenant_id: str,
+        user_id: str,
+    ) -> ApprovalRecord:
+        new_handle = f"handle-{secrets.token_urlsafe(24)}"
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT * FROM durable_approvals WHERE client_handle_id = ?",
+                (approval_handle_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("approval handle is invalid")
+            request = json.loads(row["request_json"])
+            if request["tenant_id"] != tenant_id or request["user_id"] != user_id:
+                raise PermissionError("requester identity does not own this approval")
+            result = json.loads(row["start_result_json"]) if row["start_result_json"] else None
+            if result is not None and result.get("approval"):
+                result["approval"]["approval_handle_id"] = new_handle
+            changed = connection.execute(
+                """
+                UPDATE durable_approvals
+                SET client_handle_id = ?, token_sha256 = ?, start_result_json = ?
+                WHERE approval_id = ? AND client_handle_id = ?
+                """,
+                (
+                    new_handle,
+                    _sha256(new_handle),
+                    _canonical_json(result) if result is not None else None,
+                    row["approval_id"],
+                    approval_handle_id,
+                ),
+            )
+            if changed.rowcount != 1:
+                raise DurableStoreConflict("HANDLE_REISSUE_CONFLICT")
+            connection.commit()
+        return self.by_handle(new_handle)
+
+    def by_approval_id(self, approval_id: str) -> ApprovalRecord:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM durable_approvals WHERE approval_id = ?",
+                (approval_id,),
+            ).fetchone()
+        if row is None:
+            raise ValueError("approval is invalid")
+        return _record(row)
+
+    def approval_count(self) -> int:
+        return self._count("durable_approvals")
+
+    def expire_pending_approval(self, approval_id: str, *, now_ms: float) -> ApprovalRecord:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE durable_approvals
+                SET status = 'EXPIRED', version = version + 1,
+                    failure_code = 'approval_expired'
+                WHERE approval_id = ? AND status = 'PENDING'
+                  AND start_status = 'READY' AND approval_expires_at_ms <= ?
+                """,
+                (approval_id, now_ms),
+            )
+        return self.by_approval_id(approval_id)
+
     def claim_resume(
         self,
         *,
         approval_id: str,
-        approval_token: str,
+        approval_handle_id: str | None = None,
+        approval_token: str | None = None,
         decision: ApprovalDecision,
         resumed_by: str,
         now_ms: float,
         lease_ms: float,
     ) -> ResumeClaim:
+        approval_handle_id = approval_handle_id or approval_token
+        if approval_handle_id is None:
+            raise ValueError("approval handle is required")
         owner_token = secrets.token_urlsafe(32)
         owner_sha256 = _sha256(owner_token)
-        token_sha256 = _sha256(approval_token)
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
                 """
                 SELECT * FROM durable_approvals
-                WHERE approval_id = ? AND token_sha256 = ?
+                WHERE approval_id = ?
+                  AND (client_handle_id = ?
+                       OR (client_handle_id IS NULL AND token_sha256 = ?))
                 """,
-                (approval_id, token_sha256),
+                (approval_id, approval_handle_id, _sha256(approval_handle_id)),
             ).fetchone()
             if row is None:
-                raise ValueError("approval token is invalid")
+                raise ValueError("approval handle is invalid")
             record = _record(row)
+            if record.start_status != "READY" or record.checkpoint_status != "READY":
+                raise DurableStoreConflict("START_NOT_READY")
             terminal = _terminal_outcome(record.status)
             if terminal is not None:
                 return ResumeClaim(outcome=terminal, record=record)
@@ -293,10 +795,17 @@ class SQLiteDurableWorkflowStore:
                     SET status = 'EXPIRED', version = version + 1,
                         owner_token_sha256 = NULL, lease_expires_at_ms = NULL,
                         failure_code = 'approval_expired'
-                    WHERE approval_id = ? AND token_sha256 = ?
+                    WHERE approval_id = ?
+                      AND (client_handle_id = ?
+                           OR (client_handle_id IS NULL AND token_sha256 = ?))
                       AND version = ? AND status IN ('PENDING','FAILED_RECOVERABLE')
                     """,
-                    (approval_id, token_sha256, record.version),
+                    (
+                        approval_id,
+                        approval_handle_id,
+                        _sha256(approval_handle_id),
+                        record.version,
+                    ),
                 )
                 if changed.rowcount == 0 and record.status == "RESUMING":
                     changed = connection.execute(
@@ -305,18 +814,26 @@ class SQLiteDurableWorkflowStore:
                         SET status = 'EXPIRED', version = version + 1,
                             owner_token_sha256 = NULL, lease_expires_at_ms = NULL,
                             failure_code = 'approval_expired'
-                        WHERE approval_id = ? AND token_sha256 = ?
+                          WHERE approval_id = ?
+                            AND (client_handle_id = ?
+                                 OR (client_handle_id IS NULL AND token_sha256 = ?))
                           AND version = ? AND status = 'RESUMING'
                           AND lease_expires_at_ms <= ?
                         """,
-                        (approval_id, token_sha256, record.version, now_ms),
+                        (
+                            approval_id,
+                            approval_handle_id,
+                            _sha256(approval_handle_id),
+                            record.version,
+                            now_ms,
+                        ),
                     )
                 if changed.rowcount == 0:
                     raise DurableStoreConflict("EXPIRY_CAS_CONFLICT")
                 connection.commit()
                 return ResumeClaim(
                     outcome=ResumeOutcome.EXPIRED,
-                    record=self.by_token(approval_token),
+                    record=self.by_resume_locator(approval_handle_id),
                 )
             recover = record.status in {"RESUMING", "FAILED_RECOVERABLE"}
             where = "status = ?"
@@ -331,7 +848,9 @@ class SQLiteDurableWorkflowStore:
                     lease_expires_at_ms = ?, version = version + 1,
                     attempt = attempt + 1, resumed_by_sha256 = ?,
                     resumed_at_ms = ?, decision = ?, failure_code = NULL
-                WHERE approval_id = ? AND token_sha256 = ? AND version = ?
+                WHERE approval_id = ? AND version = ?
+                  AND (client_handle_id = ?
+                       OR (client_handle_id IS NULL AND token_sha256 = ?))
                   AND {where}
                 """,
                 (
@@ -341,8 +860,9 @@ class SQLiteDurableWorkflowStore:
                     now_ms,
                     decision,
                     approval_id,
-                    token_sha256,
                     record.version,
+                    approval_handle_id,
+                    _sha256(approval_handle_id),
                     *parameters,
                 ),
             )
@@ -351,7 +871,7 @@ class SQLiteDurableWorkflowStore:
             connection.commit()
         return ResumeClaim(
             outcome=ResumeOutcome.RECOVERED if recover else ResumeOutcome.ACQUIRED,
-            record=self.by_token(approval_token),
+            record=self.by_resume_locator(approval_handle_id),
             owner_token=owner_token,
         )
 
@@ -519,6 +1039,7 @@ class SQLiteDurableWorkflowStore:
 
     def _count(self, table: str) -> int:
         allowed = {
+            "durable_approvals",
             "durable_completion_outbox",
             "durable_completion_deliveries",
             "side_effect_commands",
@@ -601,6 +1122,16 @@ def _completion_key(approval_id: str) -> str:
     return _sha256(f"{approval_id}:completion")
 
 
+def _stable_thread_id(generation_scope_sha256: str, generation: int, approval_id: str) -> str:
+    digest = _sha256(f"{generation_scope_sha256}:{generation}:{approval_id}")
+    return f"durable-{generation}-{digest[:40]}"
+
+
+def _generation_session_id(base_session_id: str, generation: int, approval_id: str) -> str:
+    digest = _sha256(f"{base_session_id}:{generation}:{approval_id}")
+    return f"approval-{generation}-{digest[:32]}"
+
+
 def _sha256(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -618,5 +1149,9 @@ __all__ = [
     "IntegrityCrashPoint",
     "ResumeClaim",
     "ResumeOutcome",
+    "StartClaim",
+    "StartCrashPoint",
+    "StartOutcome",
+    "StartStatus",
     "SQLiteDurableWorkflowStore",
 ]

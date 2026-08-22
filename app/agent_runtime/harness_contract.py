@@ -23,9 +23,7 @@ class _StrictModel(BaseModel):
 
 
 class HarnessRequestV1(_StrictModel):
-    schema_name: Literal["enterprise.agent-harness-request"] = (
-        "enterprise.agent-harness-request"
-    )
+    schema_name: Literal["enterprise.agent-harness-request"] = "enterprise.agent-harness-request"
     schema_version: Literal["1.0"] = "1.0"
     case_id: str = Field(min_length=1, max_length=200)
     question: str = Field(min_length=1, max_length=2000)
@@ -42,9 +40,7 @@ class HarnessRequestV1(_StrictModel):
 
 
 class HarnessOutputV1(_StrictModel):
-    schema_name: Literal["enterprise.agent-harness-result"] = (
-        "enterprise.agent-harness-result"
-    )
+    schema_name: Literal["enterprise.agent-harness-result"] = "enterprise.agent-harness-result"
     schema_version: Literal["1.0"] = "1.0"
     case_id: str
     attempt_id: str
@@ -56,10 +52,12 @@ class HarnessOutputV1(_StrictModel):
     trajectory_artifact: dict[str, Any]
     trace_id: str = Field(pattern=r"^[0-9a-f]{32}$")
     root_span_id: str = Field(pattern=r"^[0-9a-f]{16}$")
-    propagated_traceparent: str = Field(
-        pattern=r"^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
-    )
+    propagated_traceparent: str = Field(pattern=r"^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$")
     error_classification: str
+    durability_scope: Literal["access_request_draft_only"] = "access_request_draft_only"
+    start_idempotency_supported: Literal[True] = True
+    resume_concurrency_fenced: Literal[True] = True
+    multi_instance_ha: Literal[False] = False
 
 
 class AgentHarnessRunner:
@@ -81,9 +79,7 @@ class AgentHarnessRunner:
 
     def run(self, request: HarnessRequestV1) -> HarnessOutputV1:
         attempt_id = request.attempt_id or uuid4().hex
-        case_hash = hashlib.sha256(
-            f"{request.case_id}:{attempt_id}".encode()
-        ).hexdigest()[:20]
+        case_hash = hashlib.sha256(f"{request.case_id}:{attempt_id}".encode()).hexdigest()[:20]
         session_id = f"harness-{case_hash}"
         request_id = f"request-{case_hash}"
         trajectory = SQLiteTrajectoryStore(self.state_root / "trajectory.sqlite3")
@@ -128,8 +124,7 @@ class AgentHarnessRunner:
                 attributes={"citation.count": len(result.response.citations)},
             ):
                 citations = [
-                    citation.model_dump(mode="json")
-                    for citation in result.response.citations
+                    citation.model_dump(mode="json") for citation in result.response.citations
                 ]
             with self.telemetry.span("agent.evalops.export", operation="evalops"):
                 artifact = build_agent_run_artifact(
@@ -208,9 +203,7 @@ def _trusted_fixture(tenant_fixture: str, user_fixture: str) -> UserContext:
     )
 
 
-def _build_local_real_orchestrator(
-    *, timeout_ms, trajectory_store, policy_hooks, telemetry
-):
+def _build_local_real_orchestrator(*, timeout_ms, trajectory_store, policy_hooks, telemetry):
     from app.agent.generation_v2 import GenerationV2ResponseBuilder
     from app.config import get_settings
     from app.retrieval.navigation import DocumentNavigator

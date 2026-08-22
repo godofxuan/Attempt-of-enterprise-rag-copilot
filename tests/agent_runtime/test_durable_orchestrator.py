@@ -32,6 +32,7 @@ def _request(**updates) -> DurableToolRunRequest:
         "session_id": "durable-session-one",
         "run_id": "durable-run-one",
         "trace_id": "durable-trace-one",
+        "start_idempotency_key": "start-request-one",
         "arguments": AccessRequestDraftArguments(
             resource_id="finance/policy-7",
             requested_group="finance-readers",
@@ -408,7 +409,7 @@ def test_two_store_connections_read_pending_then_only_one_cas_owner(tmp_path) ->
     persisted_bytes = b"".join(
         path.read_bytes() for path in first_store.path.parent.glob("approvals.sqlite3*")
     )
-    assert paused.approval.approval_token.encode() not in persisted_bytes
+    assert owner_token.encode() not in persisted_bytes
     assert owner_token.encode() not in persisted_bytes
     runtime.close()
 

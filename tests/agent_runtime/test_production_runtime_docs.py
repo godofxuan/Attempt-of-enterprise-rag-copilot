@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -17,6 +16,7 @@ def test_required_production_runtime_evidence_is_present_and_nonempty() -> None:
         "RESULTS.md",
         "RESUME_SAFE_CLAIMS.md",
         "KNOWN_LIMITATIONS.md",
+        "APPROVAL_LIFECYCLE_INVARIANTS.md",
     }
     root = ROOT / "docs" / "production_runtime"
     assert {path.name for path in root.glob("*.md")} == expected
@@ -27,9 +27,9 @@ def test_external_patterns_and_agentdojo_decision_are_explicit() -> None:
     patterns = (
         ROOT / "docs" / "agent_runtime" / "EXTERNAL_HARNESS_PATTERN_DECISIONS.md"
     ).read_text(encoding="utf-8")
-    dojo = (
-        ROOT / "docs" / "security" / "AGENTDOJO_ADAPTATION_DECISION.md"
-    ).read_text(encoding="utf-8")
+    dojo = (ROOT / "docs" / "security" / "AGENTDOJO_ADAPTATION_DECISION.md").read_text(
+        encoding="utf-8"
+    )
 
     for decision in ("ADOPT", "ADAPT", "REJECT"):
         assert decision in patterns
@@ -47,13 +47,32 @@ def test_readme_keeps_bounded_default_and_durable_claim_scoped() -> None:
     assert "docs/production_runtime/" in readme
 
 
+def test_approval_lifecycle_invariants_and_release_boundaries_are_explicit() -> None:
+    invariants = (
+        ROOT / "docs" / "production_runtime" / "APPROVAL_LIFECYCLE_INVARIANTS.md"
+    ).read_text(encoding="utf-8")
+
+    for number in range(1, 11):
+        assert f"I{number}" in invariants
+    for status in (
+        "IMPLEMENTATION_COMPLETE",
+        "EXACT_SHA_CI_REQUIRED",
+        "NOT_MERGED",
+        "NOT_RELEASED",
+        "PORTFOLIO_READY",
+        "PRODUCTION_NOT_VERIFIED",
+        "DURABILITY_SCOPE = ACCESS_REQUEST_DRAFT_ONLY",
+    ):
+        assert status in invariants
+    assert "Handle is not authentication" in invariants
+    assert "not exactly-once" in invariants
+
+
 def test_public_review_packet_binds_evidence_without_overclaiming() -> None:
-    packet = (ROOT / "docs" / "review" / "FINAL_REVIEW_PACKET.md").read_text(
+    packet = (ROOT / "docs" / "review" / "FINAL_REVIEW_PACKET.md").read_text(encoding="utf-8")
+    prompt = (ROOT / "docs" / "review" / "GPT_GITHUB_REVIEW_PROMPT_CN.md").read_text(
         encoding="utf-8"
     )
-    prompt = (
-        ROOT / "docs" / "review" / "GPT_GITHUB_REVIEW_PROMPT_CN.md"
-    ).read_text(encoding="utf-8")
 
     required = (
         "e848d8e6090267b28d351758fe8d3cb557dcd586",

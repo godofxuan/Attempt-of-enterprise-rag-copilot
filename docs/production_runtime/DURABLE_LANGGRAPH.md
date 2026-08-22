@@ -10,32 +10,40 @@ restart lost both checkpoint and pending review state.
 
 ## Durable flow
 
-1. Server constructs `DurableToolRunRequest`; the model cannot choose identity.
+1. Server constructs `DurableToolRunRequest` with a caller-generated
+   `start_idempotency_key`; the model cannot choose identity.
 2. Policy must return `ASK`; `DENY` never creates an approval.
-3. A deterministic, hashed `thread_id` binds tenant, requester, run, and session
-   and remains below PostgreSQL's length limit.
-4. Approval store persists token SHA-256, expected reviewer, request binding,
-   tool argument hash, policy version, and expiry. The raw token is returned once
-   but not persisted.
-5. LangGraph checkpoints state, enters a JSON-only `interrupt`, and returns
-   `needs_approval` before any side effect.
-6. Resume revalidates token, tenant, exact reviewer, reviewer role, argument hash,
+3. SQLite atomically gets or creates one Approval Generation for the hash of
+   tenant, requester, run, session, and Start key, then acquires a fenced Start
+   owner with a lease and version.
+4. `thread_id` binds the generation scope, generation number, and approval ID.
+   A new key in the same session creates a new generation and checkpoint thread.
+5. LangGraph checkpoints state, enters a JSON-only `interrupt`, and the store
+   moves checkpoint state from `NOT_STARTED` through `IN_PROGRESS` to `READY`.
+6. The persisted `approval_handle_id` is returned in a stable Start result. It
+   is a locator, not a bearer credential; a lost response is recovered by
+   retrying with the same Start key.
+7. Resume revalidates handle, tenant, exact reviewer, reviewer role, argument hash,
    expiry, authentication/deadline, ACL, and current policy.
-7. The approval store atomically changes `PENDING` or recoverable state to
+8. The approval store atomically changes `PENDING` or recoverable state to
    `RESUMING` with a random owner-token hash, lease expiry, attempt, and version.
    A second live caller gets `ALREADY_RESUMING`; an expired owner can be fenced
    out by a new version.
-8. `reject` terminates without a side effect. `approve` prepares the operation
+9. `reject` terminates without a side effect. `approve` prepares the operation
    in LangGraph, but the database store executes the local draft write.
-9. One SQLite transaction commits the effect command/draft, immutable
+10. One SQLite transaction commits the effect command/draft, immutable
    completion outbox envelope, and terminal approval result. Every terminal
    update checks owner token, version, state, lease, and `rowcount == 1`.
-10. Completion trajectory events are projected from the outbox with stable
+11. Completion trajectory events are projected from the outbox with stable
     idempotency keys. Repeated authorized resume returns the persisted result.
 
 ## Explicit state machine
 
 ```text
+STARTING / NOT_STARTED -> STARTING / IN_PROGRESS -> READY / READY / PENDING
+          |                         |
+          +-> FAILED_RECOVERABLE <-+
+
 PENDING ---------------------------> RESUMING
    |                                  |  owner token hash
    +-> EXPIRED                        |  lease expiry
@@ -47,13 +55,20 @@ expired RESUMING -------------------> |  (RECOVERED, new fence)
                                       +-> FAILED_RECOVERABLE
 ```
 
+An expired Start lease is reaped to `FAILED_RECOVERABLE`; a same-key retry must
+pass current tenant, ACL and policy checks before acquiring a new Start version.
+Client acknowledgement is separate from readiness, so response loss does not
+create a second approval or checkpoint.
+
 `COMPLETED`, `REJECTED`, and `EXPIRED` are stable terminal outcomes. An active
 `RESUMING` owner is never stolen. A stale owner cannot finalize after another
 caller increments the version, even if the stale process later continues.
 
 ## Crash behavior
 
-Five failure injection points surround effect creation, completion insertion,
+Seven Start failure injection points surround approval insertion, checkpoint
+creation, READY, trajectory projection, and response delivery. Five Resume
+failure injection points surround effect creation, completion insertion,
 approval update, transaction commit, and response return. Every pre-commit
 failure rolls back all three facts. A post-commit response loss leaves all three
 facts committed; retry returns the same result and idempotently projects one

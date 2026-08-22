@@ -23,6 +23,8 @@ from app.agent_runtime.durable_store import (
     IntegrityCrashPoint,
     ResumeOutcome,
     SQLiteDurableWorkflowStore,
+    StartCrashPoint,
+    StartOutcome,
 )
 from app.agent_runtime.side_effects import (
     AccessRequestDraft,
@@ -53,6 +55,7 @@ class DurableToolRunRequest(_StrictModel):
     session_id: str = Field(min_length=1, max_length=128)
     run_id: str = Field(min_length=1, max_length=128)
     trace_id: str = Field(min_length=1, max_length=128)
+    start_idempotency_key: str = Field(min_length=8, max_length=200)
     traceparent: str | None = Field(
         default=None,
         pattern=r"^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$",
@@ -69,7 +72,8 @@ class DurableToolRunRequest(_StrictModel):
 
 class DurableApprovalRequest(_StrictModel):
     approval_id: str = Field(min_length=1, max_length=128)
-    approval_token: str = Field(min_length=32, max_length=256, repr=False)
+    approval_handle_id: str = Field(min_length=32, max_length=256, repr=False)
+    approval_generation: int = Field(ge=1)
     thread_id: str = Field(min_length=1, max_length=128)
     tool_call_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     expires_at_ms: float = Field(gt=0)
@@ -78,6 +82,11 @@ class DurableApprovalRequest(_StrictModel):
         "approve",
         "reject",
     )
+
+    @property
+    def approval_token(self) -> str:
+        """Deprecated compatibility name; the value is a non-authorizing locator."""
+        return self.approval_handle_id
 
 
 class DurableToolRunResult(_StrictModel):
@@ -89,6 +98,7 @@ class DurableToolRunResult(_StrictModel):
         "denied",
         "rejected",
         "already_resuming",
+        "start_in_progress",
         "expired",
         "failed_recoverable",
     ]
@@ -133,10 +143,12 @@ class DurableAccessRequestWorkflow:
         tenant_status_checker: Callable[[str], bool] | None = None,
         acl_revalidator: Callable[[DurableToolRunRequest], Literal["ALLOW", "DENY"]] | None = None,
         resume_lease_ms: float = 30_000.0,
+        start_lease_ms: float = 30_000.0,
         after_resume_acquired: Callable[[ApprovalRecord], None] | None = None,
+        after_start_acquired: Callable[[ApprovalRecord], None] | None = None,
     ) -> None:
-        if resume_lease_ms <= 0:
-            raise ValueError("resume lease must be positive")
+        if resume_lease_ms <= 0 or start_lease_ms <= 0:
+            raise ValueError("start and resume leases must be positive")
         self.registry = registry
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -151,7 +163,9 @@ class DurableAccessRequestWorkflow:
         self.tenant_status_checker = tenant_status_checker or (lambda tenant_id: True)
         self.acl_revalidator = acl_revalidator or (lambda request: request.acl_decision)
         self.resume_lease_ms = float(resume_lease_ms)
+        self.start_lease_ms = float(start_lease_ms)
         self.after_resume_acquired = after_resume_acquired
+        self.after_start_acquired = after_start_acquired
         self._checkpoint_connection = None
         if checkpointer is None:
             self._checkpoint_connection = sqlite3.connect(
@@ -171,6 +185,8 @@ class DurableAccessRequestWorkflow:
     def start_access_request(
         self,
         request: DurableToolRunRequest,
+        *,
+        crash_point: StartCrashPoint | None = None,
     ) -> DurableToolRunResult:
         policy_input = self._policy_input(
             request,
@@ -207,56 +223,133 @@ class DurableAccessRequestWorkflow:
             )
         if policy_result.decision != PolicyDecision.ASK:
             raise RuntimeError("side-effect tool must require approval")
-        thread_id = _stable_thread_id(request)
+        if crash_point == "before_approval_insert":
+            raise InjectedIntegrityCrash("injected crash before approval insert")
+
+        now = float(self.clock_ms())
+        start_scope = _start_scope_sha256(request)
+        generation_scope = _generation_scope_sha256(request)
+        request_binding = _request_binding_sha256(request)
         with self.telemetry.span(
             "agent.approval.interrupt",
             operation="interrupt",
             attributes={"tool.name": request.tool_name, "run": request.run_id},
         ) as continuation_trace:
-            record, raw_token = self.store.create(
+            claim = self.store.begin_start(
                 request_json=request.model_dump_json(),
                 approval_expires_at_ms=request.approval_expires_at_ms,
-                thread_id=thread_id,
+                start_scope_sha256=start_scope,
+                generation_scope_sha256=generation_scope,
+                request_binding_sha256=request_binding,
+                start_key_sha256=_sha256(request.start_idempotency_key),
                 tool_call_sha256=policy_input.normalized_arguments_sha256,
                 continuation_trace_json=continuation_trace.model_dump_json(),
+                base_session_id=request.session_id,
+                now_ms=now,
+                lease_ms=self.start_lease_ms,
             )
-            self._record_start(request, record.approval_id)
-            state = self.graph.invoke(
-                {
-                    "request": request.model_dump(mode="json"),
-                    "policy_input": policy_input.model_dump(mode="json"),
-                    "policy_result": policy_result.model_dump(mode="json"),
-                    "approval_id": record.approval_id,
-                },
-                config=self._config(thread_id),
+        if claim.outcome in {StartOutcome.READY, StartOutcome.TERMINAL}:
+            return self._stable_start_result(claim.record, request)
+        if claim.outcome == StartOutcome.ALREADY_STARTING:
+            return self._result(
+                request,
+                status="start_in_progress",
+                terminal_state="STARTING",
+                policy_result=policy_result,
+                approval=self._approval_from_record(claim.record),
+                trajectory_session_id=claim.record.trajectory_session_id,
             )
-        if "__interrupt__" not in state:
-            raise RuntimeError("durable workflow did not pause before side effect")
-        approval = DurableApprovalRequest(
-            approval_id=record.approval_id,
-            approval_token=raw_token,
-            thread_id=thread_id,
-            tool_call_sha256=record.tool_call_sha256,
-            expires_at_ms=request.approval_expires_at_ms,
-        )
-        return self._result(
-            request,
-            status="needs_approval",
-            terminal_state="INTERRUPTED",
-            policy_result=policy_result,
-            approval=approval,
-        )
+        if claim.owner_token is None:
+            raise RuntimeError("acquired Start is missing an owner token")
+        if self.after_start_acquired is not None:
+            self.after_start_acquired(claim.record)
+
+        try:
+            if crash_point == "after_approval_insert_before_checkpoint":
+                raise InjectedIntegrityCrash("injected crash after approval insert")
+            record = self.store.mark_checkpoint_in_progress(
+                approval_id=claim.record.approval_id,
+                owner_token=claim.owner_token,
+                start_version=claim.record.start_version,
+                now_ms=float(self.clock_ms()),
+            )
+            if crash_point == "during_checkpoint":
+                raise InjectedIntegrityCrash("injected crash during checkpoint creation")
+            config = self._config(record.thread_id)
+            snapshot = self.graph.get_state(config)
+            if snapshot.values.get("approval_id") == record.approval_id and snapshot.next:
+                state = dict(snapshot.values)
+                state["__interrupt__"] = True
+            else:
+                state = self.graph.invoke(
+                    {
+                        "request": request.model_dump(mode="json"),
+                        "policy_input": policy_input.model_dump(mode="json"),
+                        "policy_result": policy_result.model_dump(mode="json"),
+                        "approval_id": record.approval_id,
+                    },
+                    config=config,
+                )
+            if "__interrupt__" not in state:
+                raise RuntimeError("durable workflow did not pause before side effect")
+            if crash_point == "after_checkpoint_before_ready":
+                raise InjectedIntegrityCrash("injected crash after checkpoint")
+            record = self.store.mark_checkpoint_ready(
+                approval_id=record.approval_id,
+                owner_token=claim.owner_token,
+                start_version=record.start_version,
+                now_ms=float(self.clock_ms()),
+            )
+            result = self._result(
+                request,
+                status="needs_approval",
+                terminal_state="INTERRUPTED",
+                policy_result=policy_result,
+                approval=self._approval_from_record(record),
+                trajectory_session_id=record.trajectory_session_id,
+                expected_start_events=True,
+            )
+            record = self.store.finalize_start(
+                approval_id=record.approval_id,
+                owner_token=claim.owner_token,
+                start_version=record.start_version,
+                now_ms=float(self.clock_ms()),
+                result=result.model_dump(mode="json"),
+            )
+            if crash_point == "after_ready_before_trajectory":
+                raise InjectedIntegrityCrash("injected crash after Start became READY")
+            self._drain_start(record, request)
+            if crash_point in {
+                "after_trajectory_before_response",
+                "during_response",
+            }:
+                raise InjectedIntegrityCrash("injected crash before Start response completed")
+            return result
+        except (InjectedIntegrityCrash, DurableStoreConflict):
+            raise
+        except Exception as exc:
+            try:
+                self.store.mark_start_failed_recoverable(
+                    approval_id=claim.record.approval_id,
+                    owner_token=claim.owner_token,
+                    start_version=claim.record.start_version,
+                    now_ms=float(self.clock_ms()),
+                    failure_code=type(exc).__name__,
+                )
+            except DurableStoreConflict:
+                pass
+            raise
 
     def resume_access_request(
         self,
-        approval_token: str,
+        approval_handle_id: str,
         *,
         decision: Literal["approve", "reject"],
         reviewer: UserContext,
         expected_tool_call_sha256: str,
         crash_point: IntegrityCrashPoint | None = None,
     ) -> DurableToolRunResult:
-        record = self.store.by_token(approval_token)
+        record = self.store.by_resume_locator(approval_handle_id)
         request = DurableToolRunRequest.model_validate_json(record.request_json)
         now = float(self.clock_ms())
         if not self.tenant_status_checker(request.tenant_id):
@@ -272,7 +365,7 @@ class DurableAccessRequestWorkflow:
         if record.status in {"COMPLETED", "REJECTED", "EXPIRED"}:
             claim = self.store.claim_resume(
                 approval_id=record.approval_id,
-                approval_token=approval_token,
+                approval_handle_id=approval_handle_id,
                 decision=decision,
                 resumed_by=reviewer.user_id,
                 now_ms=now,
@@ -282,7 +375,7 @@ class DurableAccessRequestWorkflow:
         if now >= request.approval_expires_at_ms:
             claim = self.store.claim_resume(
                 approval_id=record.approval_id,
-                approval_token=approval_token,
+                approval_handle_id=approval_handle_id,
                 decision=decision,
                 resumed_by=reviewer.user_id,
                 now_ms=now,
@@ -299,7 +392,7 @@ class DurableAccessRequestWorkflow:
             raise PermissionError("current policy no longer permits approval")
         claim = self.store.claim_resume(
             approval_id=record.approval_id,
-            approval_token=approval_token,
+            approval_handle_id=approval_handle_id,
             decision=decision,
             resumed_by=reviewer.user_id,
             now_ms=now,
@@ -338,6 +431,7 @@ class DurableAccessRequestWorkflow:
                             terminal_state="HUMAN_REJECTED",
                             policy_result=policy_result,
                             resume_outcome=claim.outcome,
+                            trajectory_session_id=claim.record.trajectory_session_id,
                         )
                     )
                     result_data = self.store.finalize_rejected(
@@ -348,6 +442,7 @@ class DurableAccessRequestWorkflow:
                         result=result.model_dump(mode="json"),
                         completion=self._completion_envelope(
                             record.approval_id,
+                            claim.record,
                             request,
                             result,
                             reviewer,
@@ -380,10 +475,12 @@ class DurableAccessRequestWorkflow:
                                     policy_result=policy_result,
                                     draft=draft,
                                     resume_outcome=claim.outcome,
+                                    trajectory_session_id=claim.record.trajectory_session_id,
                                 )
                             ).model_dump(mode="json"),
                             completion_factory=lambda data: self._completion_envelope(
                                 record.approval_id,
+                                claim.record,
                                 request,
                                 DurableToolRunResult.model_validate(data),
                                 reviewer,
@@ -409,6 +506,110 @@ class DurableAccessRequestWorkflow:
 
         self._drain_completion(record.approval_id)
         return result
+
+    def acknowledge_start(
+        self, approval_handle_id: str, *, requester: UserContext
+    ) -> ApprovalRecord:
+        if not self.tenant_status_checker(requester.tenant_id):
+            raise PermissionError("tenant is no longer active")
+        return self.store.acknowledge_start(
+            approval_handle_id,
+            tenant_id=requester.tenant_id,
+            user_id=requester.user_id,
+            acknowledged_at_ms=float(self.clock_ms()),
+        )
+
+    def reissue_approval_handle(
+        self, approval_handle_id: str, *, requester: UserContext
+    ) -> DurableApprovalRequest:
+        if not self.tenant_status_checker(requester.tenant_id):
+            raise PermissionError("tenant is no longer active")
+        record = self.store.reissue_handle(
+            approval_handle_id,
+            tenant_id=requester.tenant_id,
+            user_id=requester.user_id,
+        )
+        return self._approval_from_record(record)
+
+    def recover_stale_starts(self) -> int:
+        """Reaper entry point; callers still retry Start through policy and ACL checks."""
+        return self.store.reap_expired_start_owners(now_ms=float(self.clock_ms()))
+
+    def _stable_start_result(
+        self, record: ApprovalRecord, request: DurableToolRunRequest
+    ) -> DurableToolRunResult:
+        if record.status == "PENDING" and float(self.clock_ms()) >= record.approval_expires_at_ms:
+            record = self.store.expire_pending_approval(
+                record.approval_id,
+                now_ms=float(self.clock_ms()),
+            )
+        if record.status in {"COMPLETED", "REJECTED"} and record.result_json is not None:
+            self._drain_completion(record.approval_id)
+            return DurableToolRunResult.model_validate_json(record.result_json)
+        if record.status == "EXPIRED":
+            return self._result(
+                request,
+                status="expired",
+                terminal_state="EXPIRED",
+                policy_result=PolicyResult(
+                    decision=PolicyDecision.DENY,
+                    reason_code="approval_expired",
+                ),
+                approval=self._approval_from_record(record),
+                trajectory_session_id=record.trajectory_session_id,
+            )
+        if record.start_result_json is None:
+            raise RuntimeError("READY Start has no persisted result")
+        self._drain_start(record, request)
+        return DurableToolRunResult.model_validate_json(record.start_result_json)
+
+    @staticmethod
+    def _approval_from_record(record: ApprovalRecord) -> DurableApprovalRequest:
+        if record.client_handle_id is None:
+            raise RuntimeError("approval has no recoverable client handle")
+        return DurableApprovalRequest(
+            approval_id=record.approval_id,
+            approval_handle_id=record.client_handle_id,
+            approval_generation=record.approval_generation,
+            thread_id=record.thread_id,
+            tool_call_sha256=record.tool_call_sha256,
+            expires_at_ms=record.approval_expires_at_ms,
+        )
+
+    def _drain_start(self, record: ApprovalRecord, request: DurableToolRunRequest) -> None:
+        if self.trajectory_store is not None:
+            trajectory_session_id = record.trajectory_session_id or request.session_id
+            self.trajectory_store.append(
+                AgentEventDraft(
+                    session_id=trajectory_session_id,
+                    trace_id=request.trace_id,
+                    event_type="session.started",
+                    payload={
+                        "orchestrator": self.name,
+                        "run_id": request.run_id,
+                        "approval_generation": record.approval_generation,
+                    },
+                ),
+                idempotency_key=f"{record.approval_id}:session.started",
+            )
+            self.trajectory_store.append(
+                AgentEventDraft(
+                    session_id=trajectory_session_id,
+                    trace_id=request.trace_id,
+                    event_type="human_review.requested",
+                    payload={
+                        "approval_id": record.approval_id,
+                        "approval_generation": record.approval_generation,
+                        "tool_name": request.tool_name,
+                        "arguments_sha256": normalized_arguments_sha256(request.arguments),
+                    },
+                ),
+                idempotency_key=f"{record.approval_id}:human_review.requested",
+            )
+        self.store.mark_start_trajectory_delivered(
+            record.approval_id,
+            delivered_at_ms=float(self.clock_ms()),
+        )
 
     def _stable_claim_result(
         self,
@@ -443,6 +644,7 @@ class DurableAccessRequestWorkflow:
             terminal_state=claim.outcome.value,
             policy_result=policy_result,
             resume_outcome=claim.outcome,
+            trajectory_session_id=claim.record.trajectory_session_id,
         )
 
     def _resume_graph(
@@ -488,6 +690,7 @@ class DurableAccessRequestWorkflow:
     @staticmethod
     def _completion_envelope(
         approval_id: str,
+        record: ApprovalRecord,
         request: DurableToolRunRequest,
         result: DurableToolRunResult,
         reviewer: UserContext,
@@ -495,7 +698,7 @@ class DurableAccessRequestWorkflow:
     ) -> CompletionEnvelope:
         return CompletionEnvelope(
             approval_id=approval_id,
-            session_id=request.session_id,
+            session_id=record.trajectory_session_id or request.session_id,
             trace_id=request.trace_id,
             decision=decision,
             result_status=result.status,
@@ -618,6 +821,7 @@ class DurableAccessRequestWorkflow:
             "denied",
             "rejected",
             "already_resuming",
+            "start_in_progress",
             "expired",
             "failed_recoverable",
         ],
@@ -626,12 +830,17 @@ class DurableAccessRequestWorkflow:
         approval: DurableApprovalRequest | None = None,
         draft: AccessRequestDraft | None = None,
         resume_outcome: ResumeOutcome | None = None,
+        trajectory_session_id: str | None = None,
+        expected_start_events: bool = False,
     ) -> DurableToolRunResult:
         events: tuple[AgentEventType, ...] = ()
         if self.trajectory_store is not None:
             events = tuple(
-                event.event_type for event in self.trajectory_store.load(request.session_id)
+                event.event_type
+                for event in self.trajectory_store.load(trajectory_session_id or request.session_id)
             )
+            if expected_start_events and not events:
+                events = ("session.started", "human_review.requested")
         return DurableToolRunResult(
             status=status,
             terminal_state=terminal_state,
@@ -644,30 +853,6 @@ class DurableAccessRequestWorkflow:
             draft=draft,
             trajectory_events=events,
             resume_outcome=resume_outcome,
-        )
-
-    def _record_start(self, request: DurableToolRunRequest, approval_id: str) -> None:
-        if self.trajectory_store is None:
-            return
-        self.trajectory_store.append(
-            AgentEventDraft(
-                session_id=request.session_id,
-                trace_id=request.trace_id,
-                event_type="session.started",
-                payload={"orchestrator": self.name, "run_id": request.run_id},
-            )
-        )
-        self.trajectory_store.append(
-            AgentEventDraft(
-                session_id=request.session_id,
-                trace_id=request.trace_id,
-                event_type="human_review.requested",
-                payload={
-                    "approval_id": approval_id,
-                    "tool_name": request.tool_name,
-                    "arguments_sha256": normalized_arguments_sha256(request.arguments),
-                },
-            )
         )
 
 
@@ -687,21 +872,29 @@ class DurableLangGraphOrchestrator(DurableAccessRequestWorkflow):
 SQLiteApprovalStore = SQLiteDurableWorkflowStore
 
 
-def _stable_thread_id(request: DurableToolRunRequest) -> str:
-    digest = _sha256(
-        json.dumps(
+def _generation_scope_sha256(request: DurableToolRunRequest) -> str:
+    return _sha256(
+        _canonical_json(
             {
                 "tenant": request.tenant_id,
                 "user": request.user_id,
                 "run": request.run_id,
                 "session": request.session_id,
-            },
-            ensure_ascii=True,
-            separators=(",", ":"),
-            sort_keys=True,
+            }
         )
     )
-    return f"durable-{digest[:48]}"
+
+
+def _start_scope_sha256(request: DurableToolRunRequest) -> str:
+    return _sha256(f"{_generation_scope_sha256(request)}:{request.start_idempotency_key}")
+
+
+def _request_binding_sha256(request: DurableToolRunRequest) -> str:
+    return _sha256(_canonical_json(request.model_dump(mode="json", exclude={"traceparent"})))
+
+
+def _canonical_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
 
 
 def _sha256(value: str) -> str:

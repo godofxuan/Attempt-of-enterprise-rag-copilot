@@ -169,15 +169,30 @@ Agent 的 `run()`。这是为了防止名字让人误以为“整个 Agent 都�
 ```text
 trusted request
   -> ToolPolicy returns ASK
-  -> persistent approval row + SqliteSaver checkpoint
+  -> start_idempotency_key get-or-creates one Approval Generation
+  -> database CAS obtains STARTING owner + lease/version fence
+  -> generation-bound SqliteSaver checkpoint
+  -> persist stable approval_handle_id and mark READY/PENDING
   -> interrupt (no side effect yet)
   -> process can stop
+  -> same Start key recovers a lost response and the same Handle
   -> new process validates tenant/reviewer/role/hash/expiry/current policy
   -> SQLite CAS obtains RESUMING ownership and a lease/version fence
   -> graph prepares the approved operation
   -> one SQLite transaction commits command + DRAFT + completion outbox + approval
   -> trajectory events are projected idempotently from the outbox
 ```
+
+这里的 `approval_handle_id` 与旧 bearer token 的含义不同。它只帮助服务端找到
+审批记录，数据库需要明文保存它，才能在 Start 响应丢失后重新交付；但仅拿到
+Handle 不能批准。Resume 仍要求当前服务端认证身份、同租户、指定 reviewer、
+`knowledge_reviewer` 角色、未过期、参数哈希相同且 ACL/策略仍允许 ASK。
+
+同一 `tenant + user + run + session + start_idempotency_key` 在 SQLite 中有唯一
+索引，因此线程或进程同时 Start 也只创建一条记录。相同 Key 重试取回同一个
+Approval ID、Generation、Handle 和 Checkpoint；同一 Session 使用新 Key 时，
+Generation 加一，`thread_id` 同时绑定新 Generation 与新 Approval ID，避免旧
+Checkpoint 被复用。
 
 为什么副作用必须在独立节点？LangGraph 恢复 interrupt 时可能重跑节点。如果在
 interrupt 之前发邮件或写 ACL，恢复可能重复执行。这里的唯一副作用是创建访问

@@ -1,5 +1,27 @@
 # Final Public Review Packet
 
+## Final resume-readiness overlay
+
+Branch: `codex/final-resume-readiness-closeout-v1`.
+
+Current state is `IMPLEMENTATION_COMPLETE`, `EXACT_SHA_CI_REQUIRED`,
+`NOT_MERGED`, `NOT_RELEASED`, `PORTFOLIO_READY`, and
+`PRODUCTION_NOT_VERIFIED`. `DURABILITY_SCOPE = ACCESS_REQUEST_DRAFT_ONLY`.
+
+This overlay adds idempotent Start ownership and recovery to the existing
+database-fenced Resume path. Same-key retries preserve Approval ID, Generation,
+Handle, checkpoint, and Start trajectory; a new key creates the next generation
+and a distinct checkpoint thread. The persisted Handle is only a locator and
+cannot bypass current service identity, tenant, reviewer role, ACL/policy,
+expiry, or argument binding. Exact implementation and final evidence SHAs will
+be added only after their respective CI runs complete.
+
+Primary review files are
+`docs/production_runtime/APPROVAL_LIFECYCLE_INVARIANTS.md`,
+`tests/agent_runtime/test_start_lifecycle.py`, and, after stage-two binding,
+`docs/review/FINAL_RESUME_READINESS_ENTRY.md` plus
+`FINAL_RESUME_READINESS_MANIFEST.json`.
+
 ## Current P1 integrity review overlay
 
 Review branch: `codex/durable-runtime-integrity-fix-v1`.

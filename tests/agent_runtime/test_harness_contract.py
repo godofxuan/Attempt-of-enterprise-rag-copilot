@@ -14,7 +14,6 @@ from app.agent_runtime.harness_contract import (
 )
 from app.agent_runtime.telemetry import AgentTelemetry, build_tracer_provider
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -83,6 +82,10 @@ def test_harness_serialized_output_has_versions_and_no_policy_identity_plaintext
     assert "authorization" not in serialized.lower()
     assert "api_key" not in serialized.lower()
     assert all("tenant_hash" not in item for item in output.policy_decisions)
+    assert output.durability_scope == "access_request_draft_only"
+    assert output.start_idempotency_supported is True
+    assert output.resume_concurrency_fenced is True
+    assert output.multi_instance_ha is False
 
 
 def test_same_case_can_run_twice_without_reusing_trajectory_identity(tmp_path) -> None:
@@ -97,24 +100,23 @@ def test_same_case_can_run_twice_without_reusing_trajectory_identity(tmp_path) -
 
     assert first.terminal_state == second.terminal_state == "answered"
     assert first.attempt_id != second.attempt_id
-    assert (
-        first.trajectory_artifact["session_id"]
-        != second.trajectory_artifact["session_id"]
-    )
+    assert first.trajectory_artifact["session_id"] != second.trajectory_artifact["session_id"]
 
 
 def test_public_harness_schemas_exactly_match_code_contracts() -> None:
     schema_root = ROOT / "docs" / "production_runtime" / "schemas"
 
-    assert json.loads(
-        (schema_root / "agent_harness_request_v1.schema.json").read_text(
-            encoding="utf-8"
+    assert (
+        json.loads(
+            (schema_root / "agent_harness_request_v1.schema.json").read_text(encoding="utf-8")
         )
-    ) == HarnessRequestV1.model_json_schema()
+        == HarnessRequestV1.model_json_schema()
+    )
     from app.agent_runtime.harness_contract import HarnessOutputV1
 
-    assert json.loads(
-        (schema_root / "agent_harness_result_v1.schema.json").read_text(
-            encoding="utf-8"
+    assert (
+        json.loads(
+            (schema_root / "agent_harness_result_v1.schema.json").read_text(encoding="utf-8")
         )
-    ) == HarnessOutputV1.model_json_schema()
+        == HarnessOutputV1.model_json_schema()
+    )

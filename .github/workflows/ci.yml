@@ -68,6 +68,10 @@ jobs:
           app/agent_runtime/__init__.py
           app/agent_runtime/orchestrator.py
           tests/agent_runtime/test_durable_orchestrator.py
+          tests/agent_runtime/test_start_lifecycle.py
+          tests/agent_runtime/test_harness_contract.py
+          tests/agent_runtime/test_production_runtime_docs.py
+          tests/agent_runtime/test_p1_integrity_evidence_manifest.py
           tests/agent_runtime/test_telemetry.py
           tests/agent_runtime/test_tool_policy.py
 
@@ -82,6 +86,10 @@ jobs:
           app/agent_runtime/trajectory.py
           app/agent_runtime/evalops_artifact.py
           tests/agent_runtime/test_durable_orchestrator.py
+          tests/agent_runtime/test_start_lifecycle.py
+          tests/agent_runtime/test_harness_contract.py
+          tests/agent_runtime/test_production_runtime_docs.py
+          tests/agent_runtime/test_p1_integrity_evidence_manifest.py
           tests/agent_runtime/test_telemetry.py
           tests/agent_runtime/test_tool_policy.py
 
@@ -95,6 +103,7 @@ jobs:
           app/agent_runtime/tool_policy.py
           app/agent_runtime/trajectory.py
           app/agent_runtime/evalops_artifact.py
+          app/agent_runtime/harness_contract.py
 
       - name: Verify frozen evaluation hash
         run: python -c "from pathlib import Path; from scripts.eval_enterprise_v2 import verify_frozen_test_hash; expected, actual = verify_frozen_test_hash(Path('data/v2/eval')); assert expected == actual; print(actual)"

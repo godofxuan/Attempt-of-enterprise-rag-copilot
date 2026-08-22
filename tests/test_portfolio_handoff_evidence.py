@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[1]
 HANDOFFS = ROOT / "docs" / "handoffs"
 PACKAGE = HANDOFFS / "resume_package"
@@ -21,42 +20,25 @@ def _text(path: Path) -> str:
 
 
 def test_resume_metric_ledger_derives_from_frozen_public_evidence() -> None:
-    wixqa = _json(
-        "docs/enterprise_eval/evidence/"
-        "wixqa_retrieval_baseline_public_v2.json"
-    )["results"]["expertwritten_fixed_external"]["arms"]
-    enterprise = _json(
-        "docs/enterprise_eval/evidence/"
-        "enterprise_rag_bench_bm25_public_v1.json"
-    )
-    garak = _json(
-        "docs/resume_metrics/evidence/garak_latent_report_holdout_v1.json"
-    )
-    fts = _json(
-        "docs/final_evidence_closure/evidence/fts_hard_crash_matrix_v1.json"
-    )
-    pointer = _json(
-        "docs/final_evidence_closure/evidence/"
-        "active_pointer_crash_matrix_v1.json"
-    )
-    candidate = _json(
-        "docs/multidoc_candidate/evidence/aggregate_v1.json"
-    )
+    wixqa = _json("docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json")[
+        "results"
+    ]["expertwritten_fixed_external"]["arms"]
+    enterprise = _json("docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json")
+    garak = _json("docs/resume_metrics/evidence/garak_latent_report_holdout_v1.json")
+    fts = _json("docs/final_evidence_closure/evidence/fts_hard_crash_matrix_v1.json")
+    pointer = _json("docs/final_evidence_closure/evidence/active_pointer_crash_matrix_v1.json")
+    candidate = _json("docs/multidoc_candidate/evidence/aggregate_v1.json")
     ledger = _text(HANDOFFS / "RESUME_METRIC_LEDGER.md")
 
     assert wixqa["bm25"]["article_recall_at_5"] == pytest.approx(0.4275)
-    assert wixqa["dense"]["article_recall_at_5"] == pytest.approx(
-        0.6641666666666666
-    )
+    assert wixqa["dense"]["article_recall_at_5"] == pytest.approx(0.6641666666666666)
     assert wixqa["bm25"]["ndcg_at_5"] == pytest.approx(0.3214579860909423)
     assert wixqa["dense"]["ndcg_at_5"] == pytest.approx(0.521583326944466)
     for expected in ("42.75% -> 66.42%", "32.15% -> 52.16%"):
         assert expected in ledger
 
     assert enterprise["dataset"]["document_row_count"] == 511_962
-    assert enterprise["index"]["active_build_duration_ms"] == pytest.approx(
-        231_349.29279994685
-    )
+    assert enterprise["index"]["active_build_duration_ms"] == pytest.approx(231_349.29279994685)
     assert enterprise["index"]["artifact_byte_count"] == 1_472_634_880
     assert enterprise["index"]["build_peak_rss_bytes"] == 1_966_538_752
     for expected in ("511,962", "1.37 GiB", "231.35 s", "1.83 GiB"):
@@ -67,9 +49,7 @@ def test_resume_metric_ledger_derives_from_frozen_public_evidence() -> None:
     assert garak["guard_on"]["attack_success_count"] == 0
     assert garak["guard_off"]["context_exposure_count"] == 12
     assert garak["guard_on"]["context_exposure_count"] == 0
-    assert garak["guard_on"]["guard_latency_ms_mean"] == pytest.approx(
-        1.4226714348686593
-    )
+    assert garak["guard_on"]["guard_latency_ms_mean"] == pytest.approx(1.4226714348686593)
     assert "ASR `4/12 -> 0/12`" in ledger
     assert "mean scan `1.42 ms`" in ledger
 
@@ -81,9 +61,7 @@ def test_resume_metric_ledger_derives_from_frozen_public_evidence() -> None:
     gate = candidate["combined_vs_current_gate"]
     assert gate["paired_fix_count"] == 0
     assert gate["citation_completeness_delta_pp"] == 0.0
-    assert gate["citation_precision_delta_pp"] == pytest.approx(
-        -5.833333333333335
-    )
+    assert gate["citation_precision_delta_pp"] == pytest.approx(-5.833333333333335)
     assert gate["p95_latency_ratio"] == pytest.approx(1.8590358323863405)
     for expected in ("precision `-5.83pp`", "p95 `1.859x`", "fixes `0`"):
         assert expected in ledger
@@ -134,22 +112,23 @@ def test_project_evidence_map_points_to_real_code_tests_and_artifacts() -> None:
         "P8",
         "P9",
         "P10",
+        "P11",
         "N1",
     ):
         assert f"Claim {claim_id}:" in evidence_map
     expected_field_counts = {
-        "| Claim |": 11,
-        "| Metric |": 11,
-        "| Scope |": 11,
-        "| Dataset |": 10,
-        "| Code path |": 11,
-        "| Test path |": 11,
-        "| Evidence JSON |": 10,
-        "| Reproduction command |": 11,
-        "| Code SHA |": 11,
-        "| Allowed wording |": 11,
-        "| Forbidden wording |": 11,
-        "| Interview explanation |": 11,
+        "| Claim |": 12,
+        "| Metric |": 12,
+        "| Scope |": 12,
+        "| Dataset |": 11,
+        "| Code path |": 12,
+        "| Test path |": 12,
+        "| Evidence JSON |": 11,
+        "| Reproduction command |": 12,
+        "| Code SHA |": 12,
+        "| Allowed wording |": 12,
+        "| Forbidden wording |": 12,
+        "| Interview explanation |": 12,
     }
     for field, expected_count in expected_field_counts.items():
         assert evidence_map.count(field) == expected_count

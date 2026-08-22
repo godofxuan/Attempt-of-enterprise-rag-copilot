@@ -17,8 +17,9 @@ trusted API / harness fixture
 
 ASK side-effect path
   -> DurableAccessRequestWorkflow
-  -> persistent checkpoint + JSON interrupt
-  -> server-side approval record (raw token is never stored)
+  -> Start key + Approval Generation + fenced Start owner
+  -> generation-bound persistent checkpoint + JSON interrupt
+  -> persisted non-authorizing server-side approval Handle
   -> resume identity/policy/hash revalidation
   -> CAS ownership: PENDING/RECOVERABLE -> RESUMING
   -> owner lease + attempt/version fencing
@@ -70,4 +71,6 @@ does not satisfy or expose the normal `AgentOrchestrator.run()` shape. The old
 JSON and returns `enterprise.agent-harness-result/1.0`. Public request/result
 schemas live under `docs/production_runtime/schemas/` and are tested for exact
 equality with the Pydantic models. `attempt_id` prevents repeated execution of
-the same case from reusing an immutable trajectory session.
+the same case from reusing an immutable trajectory session. Results explicitly
+publish `durability_scope=access_request_draft_only`, Start idempotency and
+Resume fencing support, and `multi_instance_ha=false`.

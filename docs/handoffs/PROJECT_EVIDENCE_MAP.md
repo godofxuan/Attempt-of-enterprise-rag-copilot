@@ -1,5 +1,30 @@
 # Project Evidence Map
 
+## Claim P11: Start/Resume lifecycle integrity
+
+| Field | Binding |
+|---|---|
+| Claim | The access-request DRAFT approval path supports same-key idempotent Start, approval generations, generation-bound checkpoints, recoverable non-authorizing Handles, and separately fenced Start/Resume ownership. |
+| Metric | Local deterministic Start lifecycle suite: `21 passed`; combined Agent Runtime suite: `123 passed, 2 PostgreSQL skipped`; exact remote CI pending the implementation commit. |
+| Current status | `IMPLEMENTATION_COMPLETE`; `EXACT_SHA_CI_REQUIRED`; final SHA is intentionally not predicted before the two-stage evidence process. |
+| Scope | `ACCESS_REQUEST_DRAFT_ONLY`; `NOT_MERGED`; `NOT_RELEASED`; `PORTFOLIO_READY`; `PRODUCTION_NOT_VERIFIED`. |
+| Dataset | Deterministic approval, generation, checkpoint, identity, concurrency, crash-injection, response-loss, migration, and privacy fixtures; no model or retrieval dataset. |
+| Code path | `app/agent_runtime/durable_store.py`; `durable_orchestrator.py`; `harness_contract.py` |
+| Test path | `tests/agent_runtime/test_start_lifecycle.py`; `test_durable_orchestrator.py`; `test_harness_contract.py` |
+| Evidence JSON | `docs/review/FINAL_RESUME_READINESS_MANIFEST.json` after stage-two evidence binding. |
+| Reproduction command | `python -m pytest tests/agent_runtime/test_start_lifecycle.py tests/agent_runtime/test_durable_orchestrator.py -q`; complete commands are recorded in the final readiness entry. |
+| Code SHA | `EXACT_SHA_CI_REQUIRED` until the implementation commit is created and its GitHub Actions run succeeds. |
+| Failure evidence | Seven Start crash points, missing client acknowledgement, two-thread/two-process Start, stale Start owner recovery, existing Resume crash matrix, and final single-fact assertions. |
+| Security boundary | Handle locates an approval but never replaces service authentication, tenant binding, reviewer role, ACL/policy, expiry, or argument-hash checks. |
+| Invariants | `docs/production_runtime/APPROVAL_LIFECYCLE_INVARIANTS.md` |
+| Final evidence | `docs/review/FINAL_RESUME_READINESS_ENTRY.md` and `FINAL_RESUME_READINESS_MANIFEST.json` after implementation CI succeeds. |
+| Allowed wording | "Implemented idempotent Start/Resume recovery with database CAS, leases, versions and approval generations for an access-request draft workflow." |
+| Forbidden wording | "Entire Agent runtime is durable"; "exactly-once"; "production HITL"; "multi-instance HA". |
+| Interview explanation | Start and Resume use separate database ownership fences; one Start key selects one generation, while a recoverable Handle remains a locator and never replaces authorization. |
+
+P11 supersedes only the lifecycle scope of P10. It does not change any frozen
+retrieval, answer, indexing, or prompt-injection metric.
+
 ## Claim P10: durable approval completion integrity
 
 | Field | Binding |

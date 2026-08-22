@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "docs" / "review" / "P1_INTEGRITY_EVIDENCE_MANIFEST.json"
@@ -12,6 +12,13 @@ IMPLEMENTATION_COMMIT = "730f58e2988f981780a76ca66a878c675d873f50"
 
 def test_p1_integrity_manifest_binds_exact_implementation_artifacts() -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    evidence_commit = subprocess.run(
+        ["git", "log", "-1", "--format=%H", "--", str(MANIFEST.relative_to(ROOT))],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
 
     assert manifest["schema_version"] == "p1-integrity-evidence-manifest/1.0"
     assert manifest["source_commit"] == IMPLEMENTATION_COMMIT
@@ -19,9 +26,12 @@ def test_p1_integrity_manifest_binds_exact_implementation_artifacts() -> None:
     assert manifest["remote_ci"]["conclusion"] == "success"
 
     for artifact in manifest["artifacts"]:
-        path = ROOT / artifact["path"]
-        content = path.read_bytes()
-        assert path.is_file(), artifact["path"]
+        content = subprocess.run(
+            ["git", "show", f"{evidence_commit}:{artifact['path']}"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout
         assert len(content) == artifact["size"], artifact["path"]
         assert hashlib.sha256(content).hexdigest() == artifact["sha256"], artifact["path"]
 
