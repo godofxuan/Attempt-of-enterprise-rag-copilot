@@ -4,12 +4,15 @@
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB)](https://www.python.org/)
 [![Portfolio status](https://img.shields.io/badge/status-portfolio--ready-2F7D4A)](PROJECT_STATUS.md)
 
-> Reviewing this feature branch? Start with the
-> [final public review packet](docs/review/FINAL_REVIEW_PACKET.md). It binds the
-> exact commit, CI run, evidence files, safe claims, and known limitations.
+> Recruiter or reviewer: `main` is the canonical public entry. Use the
+> [`portfolio-v1.0.0`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/tree/portfolio-v1.0.0)
+> tag for a stable portfolio snapshot and the
+> [public review packet](docs/review/FINAL_REVIEW_PACKET.md) for exact historical
+> evidence. Legacy `codex/*` refs remain available only so submitted resumes and
+> earlier review links do not break; see the
+> [branch compatibility policy](docs/BRANCH_COMPATIBILITY.md).
 
-Current closeout status: `IMPLEMENTATION_COMPLETE`, `EXACT_SHA_CI_REQUIRED`,
-`NOT_MERGED`, `NOT_RELEASED`, `PORTFOLIO_READY`,
+Current public status: `MAIN_CANONICAL`, `PORTFOLIO_READY`,
 `PRODUCTION_NOT_VERIFIED`; `DURABILITY_SCOPE = ACCESS_REQUEST_DRAFT_ONLY`.
 
 ## What it does

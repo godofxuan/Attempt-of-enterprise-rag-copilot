@@ -1,5 +1,26 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-09-01 Public entry and compatibility policy
+
+```text
+canonical public branch            main
+stable portfolio snapshot          portfolio-v1.0.0
+legacy codex branches              LINK-COMPATIBILITY ONLY
+portfolio                          PORTFOLIO_READY
+production                         PRODUCTION_NOT_VERIFIED
+durability scope                   ACCESS_REQUEST_DRAFT_ONLY
+```
+
+All completed development lines are contained in `main`. Historical
+`codex/*` refs remain available because submitted resume PDFs and earlier public
+review packets contain branch-specific URLs. New resumes and reviews must link
+to the repository root, `main`, an immutable commit, or the stable portfolio
+tag. See [`docs/BRANCH_COMPATIBILITY.md`](docs/BRANCH_COMPATIBILITY.md).
+
+The sections below are dated evidence records. Their original branch and
+`NOT_MERGED / NOT_RELEASED` fields describe the state when each record was
+frozen; they are not the current repository state.
+
 ## 2026-08-22 Final resume-readiness closeout
 
 ```text
