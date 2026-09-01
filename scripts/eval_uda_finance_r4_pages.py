@@ -89,7 +89,9 @@ def main(argv: list[str] | None = None) -> int:
         candidate_k=protocol.candidate_k,
         max_chunks_per_doc=protocol.max_chunks_per_doc,
         lexical_weight=protocol.lexical_weight,
+        original_bm25_weight=protocol.original_bm25_weight,
         rrf_k=protocol.rrf_k,
+        parallel_search=protocol.parallel_search,
     )
     before = runtime.counters.embedding_calls
     candidate_details = evaluate_uda_finance_pages(

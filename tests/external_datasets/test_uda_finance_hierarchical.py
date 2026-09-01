@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from threading import Barrier
 
 import pytest
 
@@ -15,6 +16,7 @@ from app.domain.queries import (
 from app.external_datasets.uda_finance_hierarchical import (
     FocusedPageFusionPipeline,
     focus_financial_query,
+    fuse_unique_page_rankings,
     fuse_unique_pages,
 )
 
@@ -116,6 +118,20 @@ def test_page_fusion_validates_frozen_parameters() -> None:
         fuse_unique_pages([], [], lexical_weight=1.1)
 
 
+def test_page_fusion_combines_three_rankings_and_keeps_first_representative() -> None:
+    dense = [_hit(1, 1), _hit(2, 2)]
+    bm25 = [_hit(1, 3, channel="bm25"), _hit(2, 2, channel="bm25")]
+    focused_bm25 = [_hit(1, 2, channel="bm25"), _hit(2, 4, channel="bm25")]
+
+    fused = fuse_unique_page_rankings(
+        ((dense, 1.0), (bm25, 0.5), (focused_bm25, 0.5)),
+        limit=4,
+    )
+
+    assert [item.locator.start for item in fused] == [2, 1, 3, 4]
+    assert fused[0].chunk_id == dense[1].chunk_id
+
+
 def test_pipeline_reuses_server_owned_scope_and_returns_original_hits() -> None:
     base = _FakePipeline()
     result = FocusedPageFusionPipeline(base).search(_request())
@@ -132,3 +148,46 @@ def test_pipeline_reuses_server_owned_scope_and_returns_original_hits() -> None:
     assert len(result.hits) == 5
     assert all(hit.context_text.startswith("original visible") for hit in result.hits)
     assert result.stage_counts["page_fusion_returned"] == 5
+
+
+def test_v2_pipeline_reuses_scope_for_all_three_channels() -> None:
+    base = _FakePipeline()
+    request = _request()
+
+    FocusedPageFusionPipeline(
+        base,
+        original_bm25_weight=0.5,
+        parallel_search=True,
+    ).search(request)
+
+    assert sorted(call.mode for call in base.calls) == ["bm25", "bm25", "dense"]
+    assert sorted(call.query for call in base.calls) == [
+        "What was the percentage change in R&D expenses from 2015 to 2016?",
+        "What was the percentage change in R&D expenses from 2015 to 2016?",
+        "r&d expenses 2015 2016",
+    ]
+    assert all(call.user == request.user for call in base.calls)
+    assert all(call.filters == request.filters for call in base.calls)
+    assert all(call.purpose == request.purpose for call in base.calls)
+
+
+@dataclass
+class _BarrierPipeline(_FakePipeline):
+    barrier: Barrier = field(default_factory=lambda: Barrier(3))
+
+    def search(self, request: SearchRequest) -> SearchResult:
+        self.barrier.wait(timeout=2)
+        return super().search(request)
+
+
+def test_v2_parallel_search_starts_all_channels_concurrently() -> None:
+    base = _BarrierPipeline()
+
+    result = FocusedPageFusionPipeline(
+        base,
+        original_bm25_weight=0.5,
+        parallel_search=True,
+    ).search(_request())
+
+    assert result.stop_reason == "ok"
+    assert len(base.calls) == 3

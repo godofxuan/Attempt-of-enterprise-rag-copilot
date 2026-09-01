@@ -53,7 +53,7 @@ class UdaFinanceR4Selection(_StrictModel):
 
 
 class UdaFinanceR4Protocol(_StrictModel):
-    schema_version: Literal["uda_finance_r4_protocol_v1"]
+    schema_version: Literal["uda_finance_r4_protocol_v1", "uda_finance_r4_protocol_v2"]
     baseline_revision: Literal["2065e571d77439babf76a763ac459a618950f218"]
     dataset: Literal["UDA-QA/FinHybrid"]
     repository: Literal["https://github.com/qinchuanhui/UDA-Benchmark"]
@@ -75,14 +75,19 @@ class UdaFinanceR4Protocol(_StrictModel):
     validation_case_count: int = Field(ge=1)
     test_case_count: int = Field(ge=1)
     selection_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    candidate_id: Literal["dense_focused_bm25_page_rrf_v1"]
+    candidate_id: Literal[
+        "dense_focused_bm25_page_rrf_v1",
+        "dense_dual_bm25_page_rrf_v2",
+    ]
     baseline_candidate_k: Literal[40]
     baseline_max_chunks_per_doc: Literal[5]
     source_top_k: Literal[20]
     candidate_k: Literal[80]
     max_chunks_per_doc: Literal[10]
     lexical_weight: float = Field(ge=0, le=1)
+    original_bm25_weight: float = Field(default=0.0, ge=0, le=1)
     rrf_k: Literal[60]
+    parallel_search: bool = False
     development_selection_metric: Literal["page_ndcg_at_5"]
     min_page_hit_at_5_delta: float = Field(ge=0, le=1)
     min_page_ndcg_at_5_delta: float = Field(ge=0, le=1)
@@ -94,8 +99,20 @@ class UdaFinanceR4Protocol(_StrictModel):
     def validate_contract(self) -> UdaFinanceR4Protocol:
         if self.qa_sha256 != UDA_FIN_QA_SHA256:
             raise ValueError("R4 protocol does not bind the pinned UDA QA file")
-        if self.lexical_weight != 0.5:
-            raise ValueError("R4 lexical weight must remain frozen at 0.5")
+        expected_candidate = (
+            "dense_focused_bm25_page_rrf_v1"
+            if self.schema_version == "uda_finance_r4_protocol_v1"
+            else "dense_dual_bm25_page_rrf_v2"
+        )
+        if self.candidate_id != expected_candidate:
+            raise ValueError("R4 candidate does not match its protocol version")
+        expected_v2 = self.schema_version == "uda_finance_r4_protocol_v2"
+        if (
+            self.lexical_weight != 0.5
+            or self.original_bm25_weight != (0.5 if expected_v2 else 0.0)
+            or self.parallel_search is not expected_v2
+        ):
+            raise ValueError("R4 retrieval parameters do not match the protocol version")
         observed = {
             "dev": self.dev_case_count,
             "validation": self.validation_case_count,

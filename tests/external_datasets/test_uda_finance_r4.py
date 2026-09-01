@@ -77,9 +77,36 @@ def test_r4_protocol_freezes_population_candidate_and_gates() -> None:
     assert protocol.baseline_candidate_k == 40
     assert protocol.baseline_max_chunks_per_doc == 5
     assert protocol.lexical_weight == 0.5
+    assert protocol.original_bm25_weight == 0.0
+    assert protocol.parallel_search is False
     assert protocol.min_page_hit_at_5_delta == 0.05
     assert protocol.min_page_ndcg_at_5_delta == 0.03
     assert protocol.test_execution_limit == 1
+
+
+def test_r4_v2_protocol_freezes_dual_bm25_and_parallel_execution() -> None:
+    protocol_path = Path("docs/r4/evidence/uda_finance_r4_protocol_v2.json")
+
+    protocol, digest = load_uda_finance_r4_protocol(protocol_path)
+
+    assert len(digest) == 64
+    assert protocol.schema_version == "uda_finance_r4_protocol_v2"
+    assert protocol.candidate_id == "dense_dual_bm25_page_rrf_v2"
+    assert protocol.lexical_weight == 0.5
+    assert protocol.original_bm25_weight == 0.5
+    assert protocol.parallel_search is True
+
+
+def test_r4_protocol_rejects_candidate_version_mismatch(tmp_path: Path) -> None:
+    payload = json.loads(
+        Path("docs/r4/evidence/uda_finance_r4_protocol_v2.json").read_text(encoding="utf-8")
+    )
+    payload["candidate_id"] = "dense_focused_bm25_page_rrf_v1"
+    invalid_path = tmp_path / "invalid_protocol.json"
+    invalid_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="does not match"):
+        load_uda_finance_r4_protocol(invalid_path)
 
 
 def test_r4_protocol_does_not_publish_company_or_question_content() -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 
 from app.domain.queries import SearchHit, SearchRequest, SearchResult
 
@@ -51,9 +52,31 @@ def fuse_unique_pages(
     if limit < 1:
         raise ValueError("limit must be positive")
 
+    return fuse_unique_page_rankings(
+        ((dense_hits, 1.0), (focused_bm25_hits, lexical_weight)),
+        rrf_k=rrf_k,
+        limit=limit,
+    )
+
+
+def fuse_unique_page_rankings(
+    rankings: Sequence[tuple[Sequence[SearchHit], float]],
+    *,
+    rrf_k: int = 60,
+    limit: int = 5,
+) -> list[SearchHit]:
+    if not rankings:
+        raise ValueError("page fusion requires at least one ranking")
+    if any(not 0.0 <= weight <= 1.0 for _, weight in rankings):
+        raise ValueError("page fusion weights must be between zero and one")
+    if rrf_k < 1:
+        raise ValueError("rrf_k must be positive")
+    if limit < 1:
+        raise ValueError("limit must be positive")
+
     scores: dict[tuple[str, int], float] = defaultdict(float)
     representatives: dict[tuple[str, int], SearchHit] = {}
-    for hits, weight in ((dense_hits, 1.0), (focused_bm25_hits, lexical_weight)):
+    for hits, weight in rankings:
         seen: set[tuple[str, int]] = set()
         page_rank = 0
         for hit in hits:
@@ -63,8 +86,7 @@ def fuse_unique_pages(
             seen.add(key)
             page_rank += 1
             scores[key] += weight / (rrf_k + page_rank)
-            current = representatives.get(key)
-            if current is None or (weight == 1.0 and current not in dense_hits):
+            if key not in representatives:
                 representatives[key] = hit
 
     ordered = sorted(scores, key=lambda key: (-scores[key], key[0], key[1]))
@@ -85,14 +107,18 @@ class FocusedPageFusionPipeline:
         candidate_k: int = 80,
         max_chunks_per_doc: int = 10,
         lexical_weight: float = 0.5,
+        original_bm25_weight: float = 0.0,
         rrf_k: int = 60,
+        parallel_search: bool = False,
     ) -> None:
         self.base_pipeline = base_pipeline
         self.source_top_k = source_top_k
         self.candidate_k = candidate_k
         self.max_chunks_per_doc = max_chunks_per_doc
         self.lexical_weight = lexical_weight
+        self.original_bm25_weight = original_bm25_weight
         self.rrf_k = rrf_k
+        self.parallel_search = parallel_search
 
     def search(self, request: SearchRequest) -> SearchResult:
         common = {
@@ -101,9 +127,23 @@ class FocusedPageFusionPipeline:
             "include_parent": False,
             "max_chunks_per_doc": self.max_chunks_per_doc,
         }
-        dense = self.base_pipeline.search(request.model_copy(update={**common, "mode": "dense"}))
         focused_query = focus_financial_query(request.query)
-        focused_bm25 = self.base_pipeline.search(
+        requests = [request.model_copy(update={**common, "mode": "dense"})]
+        labels = ["dense"]
+        weights = [1.0]
+        if self.original_bm25_weight > 0:
+            requests.append(
+                request.model_copy(
+                    update={
+                        **common,
+                        "request_id": f"{request.request_id[:185]}-bm25",
+                        "mode": "bm25",
+                    }
+                )
+            )
+            labels.append("bm25")
+            weights.append(self.original_bm25_weight)
+        requests.append(
             request.model_copy(
                 update={
                     **common,
@@ -113,32 +153,40 @@ class FocusedPageFusionPipeline:
                 }
             )
         )
-        if (
-            dense.index_run_id != focused_bm25.index_run_id
-            or dense.manifest_sha256 != focused_bm25.manifest_sha256
+        labels.append("focused_bm25")
+        weights.append(self.lexical_weight)
+        if self.parallel_search:
+            with ThreadPoolExecutor(max_workers=len(requests)) as executor:
+                results = list(executor.map(self.base_pipeline.search, requests))
+        else:
+            results = [self.base_pipeline.search(item) for item in requests]
+        dense = results[0]
+        if any(
+            result.index_run_id != dense.index_run_id
+            or result.manifest_sha256 != dense.manifest_sha256
+            for result in results[1:]
         ):
             raise ValueError("page fusion sources came from different index snapshots")
-        hits = fuse_unique_pages(
-            dense.hits,
-            focused_bm25.hits,
-            lexical_weight=self.lexical_weight,
+        hits = fuse_unique_page_rankings(
+            tuple((result.hits, weight) for result, weight in zip(results, weights, strict=True)),
             rrf_k=self.rrf_k,
             limit=request.top_k,
         )
-        stage_counts = {
-            **{f"dense_{key}": value for key, value in dense.stage_counts.items()},
-            **{f"focused_bm25_{key}": value for key, value in focused_bm25.stage_counts.items()},
-            "focused_query_tokens": len(focused_query.split()),
-            "page_fusion_returned": len(hits),
-        }
+        stage_counts = {"focused_query_tokens": len(focused_query.split())}
+        for label, result in zip(labels, results, strict=True):
+            stage_counts.update(
+                {f"{label}_{key}": value for key, value in result.stage_counts.items()}
+            )
+        stage_counts["page_fusion_returned"] = len(hits)
+        stop_reasons = {result.stop_reason for result in results}
         stop_reason = (
             "ok"
             if hits
             else (
                 "timeout"
-                if "timeout" in {dense.stop_reason, focused_bm25.stop_reason}
+                if "timeout" in stop_reasons
                 else "no_visible_evidence"
-                if "no_visible_evidence" in {dense.stop_reason, focused_bm25.stop_reason}
+                if "no_visible_evidence" in stop_reasons
                 else "no_match"
             )
         )
@@ -149,13 +197,8 @@ class FocusedPageFusionPipeline:
             index_run_id=dense.index_run_id,
             manifest_sha256=dense.manifest_sha256,
             hits=hits,
-            visible_candidate_count=max(
-                dense.visible_candidate_count,
-                focused_bm25.visible_candidate_count,
-            ),
-            internal_denied_count=(
-                dense.internal_denied_count + focused_bm25.internal_denied_count
-            ),
+            visible_candidate_count=max(result.visible_candidate_count for result in results),
+            internal_denied_count=sum(result.internal_denied_count for result in results),
             stage_counts=stage_counts,
             stop_reason=stop_reason,
         )
@@ -164,5 +207,6 @@ class FocusedPageFusionPipeline:
 __all__ = [
     "FocusedPageFusionPipeline",
     "focus_financial_query",
+    "fuse_unique_page_rankings",
     "fuse_unique_pages",
 ]
