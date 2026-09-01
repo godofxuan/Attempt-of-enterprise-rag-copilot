@@ -191,3 +191,26 @@ def test_v2_parallel_search_starts_all_channels_concurrently() -> None:
 
     assert result.stop_reason == "ok"
     assert len(base.calls) == 3
+
+
+@dataclass
+class _SameScopePipeline(_FakePipeline):
+    batches: list[list[SearchRequest]] = field(default_factory=list)
+
+    def search_many_same_scope(self, requests: list[SearchRequest]) -> list[SearchResult]:
+        self.batches.append(requests)
+        return [self.search(request) for request in requests]
+
+
+def test_v3_uses_one_server_owned_same_scope_batch() -> None:
+    base = _SameScopePipeline()
+
+    result = FocusedPageFusionPipeline(
+        base,
+        original_bm25_weight=0.5,
+        shared_scope_search=True,
+    ).search(_request())
+
+    assert result.stop_reason == "ok"
+    assert len(base.batches) == 1
+    assert len(base.batches[0]) == 3

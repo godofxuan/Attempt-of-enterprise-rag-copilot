@@ -110,6 +110,7 @@ class FocusedPageFusionPipeline:
         original_bm25_weight: float = 0.0,
         rrf_k: int = 60,
         parallel_search: bool = False,
+        shared_scope_search: bool = False,
     ) -> None:
         self.base_pipeline = base_pipeline
         self.source_top_k = source_top_k
@@ -119,6 +120,7 @@ class FocusedPageFusionPipeline:
         self.original_bm25_weight = original_bm25_weight
         self.rrf_k = rrf_k
         self.parallel_search = parallel_search
+        self.shared_scope_search = shared_scope_search
 
     def search(self, request: SearchRequest) -> SearchResult:
         common = {
@@ -155,9 +157,20 @@ class FocusedPageFusionPipeline:
         )
         labels.append("focused_bm25")
         weights.append(self.lexical_weight)
+        if self.parallel_search and self.shared_scope_search:
+            raise ValueError("parallel and shared-scope search are mutually exclusive")
         if self.parallel_search:
             with ThreadPoolExecutor(max_workers=len(requests)) as executor:
                 results = list(executor.map(self.base_pipeline.search, requests))
+        elif self.shared_scope_search:
+            search_many_same_scope = getattr(
+                self.base_pipeline,
+                "search_many_same_scope",
+                None,
+            )
+            if search_many_same_scope is None:
+                raise TypeError("shared-scope search requires pipeline support")
+            results = list(search_many_same_scope(requests))
         else:
             results = [self.base_pipeline.search(item) for item in requests]
         dense = results[0]

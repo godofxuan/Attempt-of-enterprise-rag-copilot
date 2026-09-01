@@ -53,7 +53,11 @@ class UdaFinanceR4Selection(_StrictModel):
 
 
 class UdaFinanceR4Protocol(_StrictModel):
-    schema_version: Literal["uda_finance_r4_protocol_v1", "uda_finance_r4_protocol_v2"]
+    schema_version: Literal[
+        "uda_finance_r4_protocol_v1",
+        "uda_finance_r4_protocol_v2",
+        "uda_finance_r4_protocol_v3",
+    ]
     baseline_revision: Literal["2065e571d77439babf76a763ac459a618950f218"]
     dataset: Literal["UDA-QA/FinHybrid"]
     repository: Literal["https://github.com/qinchuanhui/UDA-Benchmark"]
@@ -78,6 +82,7 @@ class UdaFinanceR4Protocol(_StrictModel):
     candidate_id: Literal[
         "dense_focused_bm25_page_rrf_v1",
         "dense_dual_bm25_page_rrf_v2",
+        "dense_dual_bm25_shared_scope_page_rrf_v3",
     ]
     baseline_candidate_k: Literal[40]
     baseline_max_chunks_per_doc: Literal[5]
@@ -88,6 +93,7 @@ class UdaFinanceR4Protocol(_StrictModel):
     original_bm25_weight: float = Field(default=0.0, ge=0, le=1)
     rrf_k: Literal[60]
     parallel_search: bool = False
+    shared_scope_search: bool = False
     development_selection_metric: Literal["page_ndcg_at_5"]
     min_page_hit_at_5_delta: float = Field(ge=0, le=1)
     min_page_ndcg_at_5_delta: float = Field(ge=0, le=1)
@@ -99,18 +105,22 @@ class UdaFinanceR4Protocol(_StrictModel):
     def validate_contract(self) -> UdaFinanceR4Protocol:
         if self.qa_sha256 != UDA_FIN_QA_SHA256:
             raise ValueError("R4 protocol does not bind the pinned UDA QA file")
-        expected_candidate = (
-            "dense_focused_bm25_page_rrf_v1"
-            if self.schema_version == "uda_finance_r4_protocol_v1"
-            else "dense_dual_bm25_page_rrf_v2"
-        )
+        expected_candidates = {
+            "uda_finance_r4_protocol_v1": "dense_focused_bm25_page_rrf_v1",
+            "uda_finance_r4_protocol_v2": "dense_dual_bm25_page_rrf_v2",
+            "uda_finance_r4_protocol_v3": "dense_dual_bm25_shared_scope_page_rrf_v3",
+        }
+        expected_candidate = expected_candidates[self.schema_version]
         if self.candidate_id != expected_candidate:
             raise ValueError("R4 candidate does not match its protocol version")
-        expected_v2 = self.schema_version == "uda_finance_r4_protocol_v2"
+        expected_dual_bm25 = self.schema_version != "uda_finance_r4_protocol_v1"
+        expected_parallel = self.schema_version == "uda_finance_r4_protocol_v2"
+        expected_shared_scope = self.schema_version == "uda_finance_r4_protocol_v3"
         if (
             self.lexical_weight != 0.5
-            or self.original_bm25_weight != (0.5 if expected_v2 else 0.0)
-            or self.parallel_search is not expected_v2
+            or self.original_bm25_weight != (0.5 if expected_dual_bm25 else 0.0)
+            or self.parallel_search is not expected_parallel
+            or self.shared_scope_search is not expected_shared_scope
         ):
             raise ValueError("R4 retrieval parameters do not match the protocol version")
         observed = {

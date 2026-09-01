@@ -209,6 +209,74 @@ def test_search_many_reuses_query_embedding_across_metadata_scopes(
     assert len(results[1].hits) == 1
 
 
+def test_same_scope_search_resolves_acl_once(
+    chunk_factory,
+    snapshot_factory,
+    monkeypatch,
+) -> None:
+    snapshot = snapshot_factory(
+        [
+            chunk_factory(
+                chunk_id="visible",
+                doc_id="visible-doc",
+                policy_id="visible-policy",
+                text="needle policy",
+                checksum="1" * 64,
+            )
+        ],
+        vectors=[[1.0, 0.0]],
+    )
+    pipeline = HybridRetrievalPipeline(snapshot, embed_text=lambda text: [1.0, 0.0])
+    calls = 0
+    original_visible_indices = pipeline.access_policy.visible_indices
+
+    def tracked_visible_indices(user, chunks):
+        nonlocal calls
+        calls += 1
+        return original_visible_indices(user, chunks)
+
+    monkeypatch.setattr(
+        pipeline.access_policy,
+        "visible_indices",
+        tracked_visible_indices,
+    )
+    common = {
+        "top_k": 1,
+        "candidate_k": 1,
+        "filters": QueryFilters(
+            policy_ids=["visible-policy"],
+            temporal_scope="all",
+        ),
+    }
+
+    results = pipeline.search_many_same_scope(
+        [
+            search_request(mode="dense", **common),
+            search_request(mode="bm25", **common),
+            search_request(query="policy", mode="bm25", **common),
+        ]
+    )
+
+    assert calls == 1
+    assert len(results) == 3
+    assert all(result.hits[0].chunk_id == "visible" for result in results)
+
+
+def test_same_scope_search_rejects_different_filters(
+    chunk_factory,
+    snapshot_factory,
+) -> None:
+    pipeline = HybridRetrievalPipeline(snapshot_factory([chunk_factory()]))
+
+    with pytest.raises(ValueError, match="identical user and filters"):
+        pipeline.search_many_same_scope(
+            [
+                search_request(),
+                search_request(filters=QueryFilters(temporal_scope="all")),
+            ]
+        )
+
+
 def test_metadata_current_authority_department_policy_and_as_of_filters(
     chunk_factory,
     snapshot_factory,

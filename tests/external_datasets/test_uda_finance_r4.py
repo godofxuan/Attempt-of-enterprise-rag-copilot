@@ -109,6 +109,19 @@ def test_r4_protocol_rejects_candidate_version_mismatch(tmp_path: Path) -> None:
         load_uda_finance_r4_protocol(invalid_path)
 
 
+def test_r4_v3_protocol_freezes_shared_scope_execution() -> None:
+    protocol_path = Path("docs/r4/evidence/uda_finance_r4_protocol_v3.json")
+
+    protocol, digest = load_uda_finance_r4_protocol(protocol_path)
+
+    assert len(digest) == 64
+    assert protocol.schema_version == "uda_finance_r4_protocol_v3"
+    assert protocol.candidate_id == "dense_dual_bm25_shared_scope_page_rrf_v3"
+    assert protocol.original_bm25_weight == 0.5
+    assert protocol.parallel_search is False
+    assert protocol.shared_scope_search is True
+
+
 def test_r4_protocol_does_not_publish_company_or_question_content() -> None:
     payload = json.loads(Path(R4_PROTOCOL_PATH).read_text(encoding="utf-8"))
 

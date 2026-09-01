@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -31,6 +31,13 @@ class _RankedCandidate:
     bm25_score: float | None
     dense_rank: int | None
     bm25_rank: int | None
+
+
+@dataclass(frozen=True)
+class _VisibleScope:
+    acl_indices: tuple[int, ...]
+    metadata_indices: tuple[int, ...]
+    denied_count: int
 
 
 @dataclass(frozen=True)
@@ -92,6 +99,29 @@ class HybridRetrievalPipeline:
             for request in requests
         ]
 
+    def search_many_same_scope(self, requests: list[SearchRequest]) -> list[SearchResult]:
+        if not requests:
+            return []
+        first = requests[0]
+        if any(
+            request.user != first.user or request.filters != first.filters
+            for request in requests[1:]
+        ):
+            raise ValueError("same-scope search requires identical user and filters")
+        visible_scope = self._resolve_visible_scope(first)
+        query_vectors: dict[str, np.ndarray] = {}
+        dense_search_cache: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+        return [
+            self._search(
+                request,
+                query_vectors=query_vectors,
+                bm25_score_cache=None,
+                dense_search_cache=dense_search_cache,
+                visible_scope=visible_scope,
+            )
+            for request in requests
+        ]
+
     def _search(
         self,
         request: SearchRequest,
@@ -99,12 +129,14 @@ class HybridRetrievalPipeline:
         query_vectors: dict[str, np.ndarray] | None,
         bm25_score_cache: dict[str, np.ndarray] | None,
         dense_search_cache: dict[str, tuple[np.ndarray, np.ndarray]] | None,
+        visible_scope: _VisibleScope | None = None,
     ) -> SearchResult:
         pool = self.ranked_candidates_for_guard(
             request,
             query_vectors=query_vectors,
             bm25_score_cache=bm25_score_cache,
             dense_search_cache=dense_search_cache,
+            visible_scope=visible_scope,
         )
         selected = self._select_diverse_ranked(
             pool.candidates,
@@ -136,17 +168,13 @@ class HybridRetrievalPipeline:
         query_vectors: dict[str, np.ndarray] | None = None,
         bm25_score_cache: dict[str, np.ndarray] | None = None,
         dense_search_cache: dict[str, tuple[np.ndarray, np.ndarray]] | None = None,
+        visible_scope: _VisibleScope | None = None,
     ) -> RankedSearchPool:
         started = time.perf_counter()
-        acl_indices, denied_count = self.access_policy.visible_indices(
-            request.user,
-            self.snapshot.chunks,
-        )
-        metadata_indices = [
-            index
-            for index in acl_indices
-            if _matches_filters(self.snapshot.chunks[index], request.filters)
-        ]
+        scope = visible_scope or self._resolve_visible_scope(request)
+        acl_indices = scope.acl_indices
+        metadata_indices = scope.metadata_indices
+        denied_count = scope.denied_count
         stage_counts = {
             "acl_visible": len(acl_indices),
             "metadata_visible": len(metadata_indices),
@@ -244,10 +272,26 @@ class HybridRetrievalPipeline:
             stop_reason="ok",
         )
 
+    def _resolve_visible_scope(self, request: SearchRequest) -> _VisibleScope:
+        acl_indices, denied_count = self.access_policy.visible_indices(
+            request.user,
+            self.snapshot.chunks,
+        )
+        metadata_indices = tuple(
+            index
+            for index in acl_indices
+            if _matches_filters(self.snapshot.chunks[index], request.filters)
+        )
+        return _VisibleScope(
+            acl_indices=tuple(acl_indices),
+            metadata_indices=metadata_indices,
+            denied_count=denied_count,
+        )
+
     def _rank_bm25(
         self,
         query: str,
-        visible_indices: list[int],
+        visible_indices: Sequence[int],
         candidate_k: int,
         *,
         score_cache: dict[str, np.ndarray] | None = None,
@@ -255,11 +299,12 @@ class HybridRetrievalPipeline:
         scores = score_cache.get(query) if score_cache is not None else None
         query_tokens = tokenize_for_bm25(query)
         if scores is None and score_cache is None:
+            batch_indices = list(visible_indices)
             visible_scores = self.snapshot.bm25.get_batch_scores(
                 query_tokens,
-                visible_indices,
+                batch_indices,
             )
-            score_by_index = dict(zip(visible_indices, visible_scores, strict=True))
+            score_by_index = dict(zip(batch_indices, visible_scores, strict=True))
         else:
             if scores is None:
                 assert score_cache is not None
@@ -278,7 +323,7 @@ class HybridRetrievalPipeline:
     def _rank_dense(
         self,
         query: str,
-        visible_indices: list[int],
+        visible_indices: Sequence[int],
         candidate_k: int,
         *,
         query_vectors: dict[str, np.ndarray] | None = None,
