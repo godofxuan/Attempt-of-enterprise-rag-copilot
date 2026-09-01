@@ -4,7 +4,9 @@ Current public branch/state: `main` / `PORTFOLIO_READY`.
 Stable snapshot: `portfolio-v1.0.0`. Legacy `codex/*` refs remain only for
 submitted-resume and historical-review link compatibility. Portfolio, resume,
 teaching, and interview use are supported within the evidence boundaries below;
-production readiness is not established.
+production readiness is not established. `RAG_VNEXT_CLOSED` remains the
+historical vNext closeout marker originally recorded on
+`codex/agent-runtime-vnext`; neither value names the current public branch.
 
 ## One sentence
 

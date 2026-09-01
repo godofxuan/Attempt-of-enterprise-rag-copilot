@@ -229,7 +229,8 @@ separately with dataset, denominator, execution revision, and limitation.
 Current public state: `main` is canonical, `portfolio-v1.0.0` is the stable
 snapshot, and legacy `codex/*` refs are retained only for external-link
 compatibility. This remains a portfolio system, not a production-readiness
-claim.
+claim. `RAG_VNEXT_CLOSED` is retained as a historical milestone marker, not as
+the name of the current branch.
 
 ## Documentation
 
