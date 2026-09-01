@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -41,6 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--index-root", type=Path, default=R4_PRIVATE_ROOT / "indexes")
     parser.add_argument("--out-root", type=Path, default=R4_PRIVATE_ROOT / "page_eval_runs")
     parser.add_argument("--protocol", type=Path, default=R4_PROTOCOL_PATH)
+    parser.add_argument("--development-run-id")
     parser.add_argument("--execute-validation", action="store_true")
     parser.add_argument("--execute-frozen-test", action="store_true")
     return parser
@@ -58,6 +60,20 @@ def main(argv: list[str] | None = None) -> int:
     verify_uda_finance_r4_preparation(prepared_root=args.prepared_root)
     cases, cases_sha256 = load_uda_finance_r4_cases(args.prepared_root, split=args.split)
     code_revision = clean_git_revision()
+    if args.split == "validation":
+        if not args.development_run_id:
+            raise ValueError("R4 validation requires --development-run-id")
+        _, development_cases_sha256 = load_uda_finance_r4_cases(
+            args.prepared_root,
+            split="dev",
+        )
+        require_development_authorization(
+            args.out_root,
+            run_id=args.development_run_id,
+            code_revision=code_revision,
+            protocol_sha256=protocol_sha256,
+            cases_sha256=development_cases_sha256,
+        )
     settings = get_settings().model_copy(update={"v2_indexes_dir": args.index_root.resolve()})
     runtime = build_live_runtime(settings)
     marker = None
@@ -220,6 +236,27 @@ def require_validation_authorization(out_root: Path) -> None:
         "VALIDATION_PASSED_TEST_AUTHORIZED"
     ):
         raise ValueError("R4 frozen test is not authorized by validation")
+
+
+def require_development_authorization(
+    out_root: Path,
+    *,
+    run_id: str,
+    code_revision: str,
+    protocol_sha256: str,
+    cases_sha256: str,
+) -> None:
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", run_id):
+        raise ValueError("invalid R4 development run ID")
+    manifest = verify_r4_campaign(Path(out_root).resolve() / run_id)
+    if (
+        manifest.split != "dev"
+        or manifest.code_revision != code_revision
+        or manifest.protocol_sha256 != protocol_sha256
+        or manifest.cases_sha256 != cases_sha256
+        or not manifest.gate_checks.passed
+    ):
+        raise ValueError("R4 development run does not authorize validation")
 
 
 if __name__ == "__main__":

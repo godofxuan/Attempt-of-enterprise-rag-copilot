@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from scripts.build_uda_finance_r4_index import embedding_summary_payload
 from scripts.eval_uda_finance_r4_pages import (
     claim_split_execution,
     complete_split_execution,
+    require_development_authorization,
     require_validation_authorization,
 )
 
@@ -102,6 +104,77 @@ def test_failed_validation_forbids_test(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="not authorized"):
         require_validation_authorization(tmp_path)
+
+
+def _write_development_campaign(root: Path, *, passed: bool = True) -> None:
+    run_dir = root / "r4-dev-v3"
+    run_dir.mkdir()
+    empty_sha = hashlib.sha256(b"").hexdigest()
+    for arm in ("dense_chunk", "focused_page_fusion"):
+        (run_dir / f"{arm}.jsonl").write_bytes(b"")
+    summary = _summary(hit=0.8, ndcg=0.7, p95=100).model_dump(mode="json")
+    manifest = {
+        "schema_version": "uda_finance_r4_campaign_v1",
+        "run_id": "r4-dev-v3",
+        "split": "dev",
+        "code_revision": "a" * 40,
+        "protocol_sha256": "b" * 64,
+        "dataset_manifest_sha256": "c" * 64,
+        "cases_sha256": "d" * 64,
+        "index_run_id": "index-r4",
+        "index_manifest_sha256": "e" * 64,
+        "embedding_model": "bge-m3",
+        "arms": [
+            {"arm": arm, "summary": summary, "details_sha256": empty_sha}
+            for arm in ("dense_chunk", "focused_page_fusion")
+        ],
+        "page_hit_at_5_delta": 0.05,
+        "page_ndcg_at_5_delta": 0.03,
+        "p95_latency_multiplier": 1.1,
+        "gate_checks": {
+            "min_page_hit_at_5_delta": passed,
+            "min_page_ndcg_at_5_delta": True,
+            "max_p95_latency_multiplier": True,
+        },
+        "decision": "DEVELOPMENT_ONLY",
+    }
+    (run_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def test_development_authorization_binds_sha_protocol_cases_and_gates(
+    tmp_path: Path,
+) -> None:
+    _write_development_campaign(tmp_path)
+
+    require_development_authorization(
+        tmp_path,
+        run_id="r4-dev-v3",
+        code_revision="a" * 40,
+        protocol_sha256="b" * 64,
+        cases_sha256="d" * 64,
+    )
+
+    with pytest.raises(ValueError, match="does not authorize"):
+        require_development_authorization(
+            tmp_path,
+            run_id="r4-dev-v3",
+            code_revision="f" * 40,
+            protocol_sha256="b" * 64,
+            cases_sha256="d" * 64,
+        )
+
+
+def test_failed_development_gate_forbids_validation(tmp_path: Path) -> None:
+    _write_development_campaign(tmp_path, passed=False)
+
+    with pytest.raises(ValueError, match="does not authorize"):
+        require_development_authorization(
+            tmp_path,
+            run_id="r4-dev-v3",
+            code_revision="a" * 40,
+            protocol_sha256="b" * 64,
+            cases_sha256="d" * 64,
+        )
 
 
 def test_embedding_summary_report_serializes_dataclass(tmp_path: Path) -> None:
