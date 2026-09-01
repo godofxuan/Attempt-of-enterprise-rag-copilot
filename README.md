@@ -43,6 +43,7 @@ run can also emit a verifiable trajectory for replay and evaluation.
 | WixQA retrieval | On 200 fixed ExpertWritten questions, BGE-M3 Dense improved Recall@5 `42.75% -> 66.42%` and nDCG@5 `32.15% -> 52.16%` | Public-label retrieval, not answer accuracy. [Evidence](docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json) |
 | EnterpriseRAG-Bench indexing | Built and atomically activated a `1.37 GiB` SQLite FTS5 index over `511,962` public records in `231.35 s`, at about `1.83 GiB` peak RSS | Single-host lexical baseline, not production capacity. [Evidence](docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json) |
 | Clean retrieval replay | Rebuilt 11,975 embeddings and reproduced `63/63` frozen quality comparisons at tolerance `0.0` | Local replay of consumed public labels. [Evidence](docs/reproduction/evidence/wixqa_clean_reproduction_public_v1.json) |
+| UDA R4 release gate | On 64 company-disjoint validation questions, page fusion moved Hit@5 `76.56% -> 81.25%` and nDCG@5 `64.41% -> 72.61%` at `1.066x` p95 | Rejected: Hit@5 gain was 4.69pp versus the frozen 5pp gate; test was not run. [Evidence](docs/r4/evidence/uda_finance_r4_public_v1.json) |
 
 This repository is an engineering portfolio, not a framework showcase. MCP is
 an in-process protocol adapter rather than a network deployment; LangGraph is
@@ -67,7 +68,10 @@ an alternative orchestrator rather than a claimed quality improvement.
 Engineering judgment is part of the result: equal-weight RRF was not promoted,
 and a bounded multi-document candidate was rejected after producing **zero
 complete-case fixes**, reducing citation precision by `5.83pp`, and increasing
-p95 latency to `1.859x`. See the [negative-result record](docs/multidoc_candidate/02_RESULTS_AND_DECISION.md).
+p95 latency to `1.859x`. A later UDA R4 candidate was also rejected after
+missing its independent Hit@5 gate by 0.3125pp. See the
+[multi-document record](docs/multidoc_candidate/02_RESULTS_AND_DECISION.md) and
+[R4 journal](docs/r4/ENGINEERING_JOURNAL.md).
 
 ## Architecture
 
@@ -235,6 +239,7 @@ decision.
 - [Agent Runtime final architecture](docs/agent_runtime/10_FINAL_ARCHITECTURE.md)
 - [Agent Runtime security review](docs/agent_runtime/09_SECURITY_REVIEW.md)
 - [Agent Runtime learning tutorial](docs/learning/AGENT_RUNTIME_TUTORIAL.md)
+- [UDA R4 retrieval and gate tutorial](docs/learning/41_UDA_R4_分层检索_性能优化与失败门禁.md)
 - [vNext resume-safe evidence](docs/resume/RESUME_SAFE_VNEXT_METRICS.md)
 - [Production runtime candidate architecture](docs/production_runtime/ARCHITECTURE.md)
 - [Production runtime results and limitations](docs/production_runtime/RESULTS.md) / [limitations](docs/production_runtime/KNOWN_LIMITATIONS.md)

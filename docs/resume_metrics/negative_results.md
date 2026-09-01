@@ -54,3 +54,20 @@ The preregistered Dense arm reached 84.38% Page Hit@5 on 64 development
 questions and 73.96% on the company-disjoint 96-question fixed test. The test is
 now consumed. No tuning on its 25 failures is allowed, and no UDA improvement
 claim exists until another unused evaluation population is frozen.
+
+## UDA R4 hierarchical candidate missed the joint validation gate
+
+R4 froze a new 96/64/64 company-disjoint development/validation/test protocol.
+The final candidate combined Dense, original BM25 and a financially focused
+BM25 query, then deduplicated candidates by page. It passed all development
+gates, but independent validation improved Hit@5 by only 4.6875 percentage
+points against the required 5 points. nDCG@5 improved by 8.1994 points and p95
+rose only 6.58%, but the gate was conjunctive. The candidate was rejected and
+the frozen test remains `NOT_RUN`. Lowering the threshold after seeing the
+result or reporting the nDCG gain alone as a promoted system would be leakage.
+
+Earlier development attempts are also retained: v1 missed Hit@5 and latency;
+v2 passed quality but reached 2.304x p95; visible-only BM25 reduced this to
+1.700x; shared ACL/metadata scope reduced the final development multiplier to
+1.041x. These are mechanism and negative-result evidence, not resume quality
+claims.

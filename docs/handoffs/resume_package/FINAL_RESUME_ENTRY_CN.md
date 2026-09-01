@@ -56,6 +56,12 @@ workflow durable execution，也不是 exactly-once。
    公开仓库泄漏审计；保留 equal-RRF 与多文档候选的负结果，未达到预注册质量
    条件时拒绝集成，而不是为了技术栈完整度上线。
 
+可在面试版项目说明中补充一个具体例子：在 64 题 company-disjoint UDA R4
+validation 上，分层 Dense/BM25 页融合使 nDCG@5 从 `64.41%` 到 `72.61%`，并将
+开发阶段 2.30x 的 p95 开销通过 visible-only BM25 与共享 ACL scope 降至验证阶段
+1.07x；但 Hit@5 仅提升 4.69pp，未达到预注册 5pp 门槛，因此拒绝发布且未运行
+test。它体现评测与工程判断，不能写成已上线的正向效果。
+
 ## 安全岗替换条目
 
 在固定 12 条 garak retrieved-content injection 子集上进行 Guard OFF/ON 成对
@@ -73,6 +79,7 @@ workflow durable execution，也不是 exactly-once。
 | WixQA 检索 | `app/external_datasets/wixqa_retrieval.py` | `tests/external_datasets/test_wixqa_public_evidence.py` | `docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json` |
 | 单机 FTS5 | `app/external_datasets/enterprise_rag_bench_fts.py` | `tests/external_datasets/test_enterprise_rag_bench_fts.py`; `tests/test_final_evidence_closure.py` | `docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json` |
 | Retrieved-content Guard | `app/security/retrieved_content.py` | `tests/security/test_retrieved_content_guard.py`; `tests/evaluation/test_garak_latent_report.py` | `docs/resume_metrics/evidence/garak_latent_report_holdout_v1.json` |
+| UDA R4 负结果门禁 | `app/external_datasets/uda_finance_hierarchical.py`; `app/retrieval/pipeline.py` | `tests/external_datasets/test_uda_finance_r4_public.py`; `tests/retrieval/test_pipeline_ranking.py` | `docs/r4/evidence/uda_finance_r4_public_v1.json`; 未晋级 |
 
 ## 禁止表述
 

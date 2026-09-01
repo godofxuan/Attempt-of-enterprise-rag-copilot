@@ -75,6 +75,8 @@ ms`. This must be labeled non-blind recombined stress evidence.
 - WixQA Agent answered rate as answer correctness; semantic correctness was not
   measured and the route was rejected.
 - EnterpriseRAG-Bench `60.37%` Recall@5 as end-to-end answer accuracy.
+- R4 validation nDCG `64.41% -> 72.61%` as a promoted quality gain: the same
+  candidate missed the preregistered Hit@5 gate and was rejected before test.
 
 ## Evidence chain
 
@@ -91,3 +93,6 @@ ms`. This must be labeled non-blind recombined stress evidence.
 - EnterpriseRAG-Bench:
   `docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json`,
   execution SHA `955d86f1ca244bc90025c89806fd786f978b98ff`.
+- UDA R4 rejected validation:
+  `docs/r4/evidence/uda_finance_r4_public_v1.json`, SHA-256
+  `730eff46cdb82e56254c3c9bce63baa41bafbd216c4323b4e67bb69bc60fa2e7`.

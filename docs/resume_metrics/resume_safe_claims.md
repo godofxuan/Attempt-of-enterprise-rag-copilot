@@ -28,6 +28,10 @@ to a verified old or new snapshot. Always add that power-loss testing was
 - No production reliability, SOTA, cross-domain, or cross-model generalization claim exists.
 - Synthetic 100% results must never be presented without the word `synthetic`.
 - The UDA 96-case test is consumed and cannot be retuned or presented as hidden/blind.
+- The R4 hierarchical candidate is not a promoted improvement. It passed
+  development but missed the independent validation Hit@5 gate by 0.3125pp;
+  its frozen test was not run. The validation numbers may be discussed only as
+  a rejected experiment with all three gates and the known-report limitation.
 
 ## Promotion rule
 

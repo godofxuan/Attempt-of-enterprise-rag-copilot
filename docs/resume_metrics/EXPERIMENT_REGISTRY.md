@@ -211,3 +211,27 @@ Every result must be registered before it is used in a report or resume claim. A
 - Runtime: 56 model calls + 5 cache resets + 1 identity request = 62 allowed local requests; blocked egress 0
 - Limit: larger stress coverage, but less independent than RM-0143; do not replace the combination-disjoint resume claim
 - Private result/public summary hashes: `01f9a6b8e3014c0f958300e0cd1ac9174a6806d6c235d90f05641ef425d2132e` / `76e4f795fef0ce8bc76f23c6d59d5a13b37834fd7acba63c5657b876c9759f2e`
+
+### RM-0401 UDA R4 hierarchical page retrieval
+
+- Status: `VALIDATION_REJECTED_TEST_FORBIDDEN`; tier: `N`
+- Evaluation SHA: `c128c7a23fc1aea78b2a7c288a5a2a5f1d4a9909`
+- Dataset: pinned UDA-QA FinHybrid; 96-question development and 64-question
+  validation cohorts from disjoint companies, documents and questions; another
+  64-question frozen test remained unread and unexecuted.
+- Scope: page localization inside the known financial report, not open-corpus
+  document discovery or answer correctness.
+- Candidate: one BGE-M3 Dense channel plus original-query and financially
+  focused BM25 channels, page-level deduplication and weighted RRF. All channels
+  reuse the same server-owned ACL/metadata scope.
+- Development result: Hit@5 `83.33% -> 88.54%`, nDCG@5
+  `66.82% -> 73.95%`, p95 `112.68 -> 117.29 ms`; all three development gates
+  passed.
+- Independent validation result: Hit@5 `76.56% -> 81.25%` (+4.6875pp),
+  nDCG@5 `64.41% -> 72.61%` (+8.1994pp), p95 `112.65 -> 120.06 ms`
+  (1.0658x).
+- Decision: the preregistered joint gate required at least +5pp Hit@5, +3pp
+  nDCG@5 and at most 1.5x p95. Hit@5 missed by 0.3125pp, so the candidate was
+  rejected and the one-shot test was programmatically forbidden.
+- Public aggregate SHA-256:
+  `730eff46cdb82e56254c3c9bce63baa41bafbd216c4323b4e67bb69bc60fa2e7`.

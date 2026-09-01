@@ -1512,3 +1512,20 @@ refusal metrics, Enterprise Dense/RRF/Agent, Evidence Ledger ON/OFF quality and
 HERB remain explicitly `NOT_RUN`. The authoritative closeout is
 `docs/enterprise_eval/FINAL_REPORT.md`; the beginner-oriented code explanation
 is `docs/learning/RAG_PROJECT_TEACHING_HANDOFF.md`.
+
+## 51. UDA R4: hierarchical retrieval improved ranking but failed promotion
+
+R4 consumed 28 previously unused UDA companies as disjoint 96-question
+development, 64-question validation and 64-question frozen-test cohorts. A
+three-channel candidate combined BGE-M3 Dense, original BM25 and a focused
+financial BM25 query, deduplicated chunks by page and fused rankings with
+weighted RRF. Performance work changed BM25 from full-corpus to visible-only
+scoring and reused one server-owned ACL/metadata scope across the three
+channels, reducing development p95 overhead from 2.304x to 1.041x.
+
+The final exact-SHA development run passed all gates. Company-disjoint
+validation improved Hit@5 from 76.56% to 81.25%, nDCG@5 from 64.41% to 72.61%
+and p95 from 112.65 to 120.06 ms. The +4.6875pp Hit@5 delta missed the frozen
++5pp gate by 0.3125pp. The candidate was rejected and the one-shot test remains
+unexecuted. Public aggregate evidence and the full incident record are under
+`docs/r4`; no positive resume metric was promoted.
