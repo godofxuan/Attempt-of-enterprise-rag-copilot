@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import time
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 import numpy as np
 
@@ -19,7 +19,6 @@ from app.domain.queries import (
 from app.retrieval.snapshot import V2IndexSnapshot
 from app.security.access import AccessPolicy
 from app.utils import tokenize_for_bm25
-
 
 EmbedText = Callable[[str], list[float]]
 
@@ -157,9 +156,7 @@ class HybridRetrievalPipeline:
             "returned": 0,
         }
         if not metadata_indices:
-            stop_reason = (
-                "no_visible_evidence" if not acl_indices and denied_count else "no_match"
-            )
+            stop_reason = "no_visible_evidence" if not acl_indices and denied_count else "no_match"
             return self._empty_pool(
                 request,
                 denied_count=denied_count,
@@ -256,20 +253,27 @@ class HybridRetrievalPipeline:
         score_cache: dict[str, np.ndarray] | None = None,
     ) -> list[tuple[int, float]]:
         scores = score_cache.get(query) if score_cache is not None else None
-        if scores is None:
-            scores = np.asarray(
-                self.snapshot.bm25.get_scores(tokenize_for_bm25(query))
+        query_tokens = tokenize_for_bm25(query)
+        if scores is None and score_cache is None:
+            visible_scores = self.snapshot.bm25.get_batch_scores(
+                query_tokens,
+                visible_indices,
             )
-            if score_cache is not None:
+            score_by_index = dict(zip(visible_indices, visible_scores, strict=True))
+        else:
+            if scores is None:
+                assert score_cache is not None
+                scores = np.asarray(self.snapshot.bm25.get_scores(query_tokens))
                 score_cache[query] = scores
+            score_by_index = {index: float(scores[index]) for index in visible_indices}
         ranked = sorted(
             visible_indices,
             key=lambda index: (
-                -float(scores[index]),
+                -score_by_index[index],
                 self.snapshot.chunks[index].chunk_id,
             ),
         )
-        return [(index, float(scores[index])) for index in ranked[:candidate_k]]
+        return [(index, score_by_index[index]) for index in ranked[:candidate_k]]
 
     def _rank_dense(
         self,
@@ -280,20 +284,12 @@ class HybridRetrievalPipeline:
         query_vectors: dict[str, np.ndarray] | None = None,
         search_cache: dict[str, tuple[np.ndarray, np.ndarray]] | None = None,
     ) -> list[tuple[int, float]]:
-        vector = (
-            query_vectors.get(query)
-            if query_vectors is not None
-            else None
-        )
+        vector = query_vectors.get(query) if query_vectors is not None else None
         if vector is None:
             vector = self._normalized_query_vector(query)
             if query_vectors is not None:
                 query_vectors[query] = vector
-        search_result = (
-            search_cache.get(query)
-            if search_cache is not None
-            else None
-        )
+        search_result = search_cache.get(query) if search_cache is not None else None
         if search_result is None:
             search_result = self.snapshot.faiss_index.search(
                 vector,
@@ -304,7 +300,11 @@ class HybridRetrievalPipeline:
         scores, indices = search_result
         visible = set(visible_indices)
         ranked: list[tuple[int, float]] = []
-        for index, score in zip(indices[0].tolist(), scores[0].tolist()):
+        for index, score in zip(
+            indices[0].tolist(),
+            scores[0].tolist(),
+            strict=True,
+        ):
             if index == -1 or index not in visible:
                 continue
             ranked.append((index, float(score)))
@@ -319,8 +319,7 @@ class HybridRetrievalPipeline:
         expected = self.snapshot.version.manifest.embedding.dimension
         if vector.ndim != 1 or len(vector) != expected:
             raise ValueError(
-                f"query embedding dimension mismatch: expected {expected}, "
-                f"got {vector.shape}"
+                f"query embedding dimension mismatch: expected {expected}, got {vector.shape}"
             )
         if not np.isfinite(vector).all():
             raise ValueError("query embedding contains non-finite values")
@@ -336,14 +335,8 @@ class HybridRetrievalPipeline:
         bm25_ranked: list[tuple[int, float]],
         dense_ranked: list[tuple[int, float]],
     ) -> list[_RankedCandidate]:
-        bm25 = {
-            index: (rank, score)
-            for rank, (index, score) in enumerate(bm25_ranked, start=1)
-        }
-        dense = {
-            index: (rank, score)
-            for rank, (index, score) in enumerate(dense_ranked, start=1)
-        }
+        bm25 = {index: (rank, score) for rank, (index, score) in enumerate(bm25_ranked, start=1)}
+        dense = {index: (rank, score) for rank, (index, score) in enumerate(dense_ranked, start=1)}
         indices = (
             set(bm25)
             if mode == "bm25"
@@ -356,8 +349,10 @@ class HybridRetrievalPipeline:
             bm25_rank, bm25_score = bm25.get(index, (None, None))
             dense_rank, dense_score = dense.get(index, (None, None))
             if mode == "bm25":
+                assert bm25_score is not None
                 fused_score = float(bm25_score)
             elif mode == "dense":
+                assert dense_score is not None
                 fused_score = float(dense_score)
             else:
                 fused_score = 0.0

@@ -5,7 +5,6 @@ import pytest
 from app.domain.queries import QueryFilters, SearchRequest, UserContext
 from app.retrieval.pipeline import HybridRetrievalPipeline
 
-
 USER = UserContext(
     user_id="employee-one",
     tenant_id="tenant-one",
@@ -60,6 +59,55 @@ def test_bm25_mode_never_calls_embedder(chunk_factory, snapshot_factory) -> None
     assert result.hits[0].dense_rank is None
 
 
+def test_bm25_scores_only_acl_and_metadata_visible_chunks(
+    chunk_factory,
+    snapshot_factory,
+    monkeypatch,
+) -> None:
+    visible = chunk_factory(
+        chunk_id="visible",
+        doc_id="visible-doc",
+        policy_id="visible-policy",
+        text="needle visible",
+        checksum="1" * 64,
+    )
+    filtered = chunk_factory(
+        chunk_id="filtered",
+        doc_id="filtered-doc",
+        policy_id="filtered-policy",
+        text="needle filtered",
+        checksum="2" * 64,
+    )
+    snapshot = snapshot_factory([visible, filtered])
+    observed_doc_ids: list[list[int]] = []
+    original_batch = snapshot.bm25.get_batch_scores
+
+    def tracked_batch(query, doc_ids):
+        observed_doc_ids.append(list(doc_ids))
+        return original_batch(query, doc_ids)
+
+    def fail_full_corpus(query):
+        raise AssertionError("single search must not score the full BM25 corpus")
+
+    monkeypatch.setattr(snapshot.bm25, "get_batch_scores", tracked_batch)
+    monkeypatch.setattr(snapshot.bm25, "get_scores", fail_full_corpus)
+    pipeline = HybridRetrievalPipeline(snapshot)
+
+    result = pipeline.search(
+        search_request(
+            top_k=1,
+            candidate_k=1,
+            filters=QueryFilters(
+                policy_ids=["visible-policy"],
+                temporal_scope="all",
+            ),
+        )
+    )
+
+    assert observed_doc_ids == [[0]]
+    assert result.hits[0].chunk_id == "visible"
+
+
 def test_dense_mode_rejects_wrong_embedding_dimension(
     chunk_factory,
     snapshot_factory,
@@ -68,9 +116,7 @@ def test_dense_mode_rejects_wrong_embedding_dimension(
     pipeline = HybridRetrievalPipeline(snapshot, embed_text=lambda text: [1.0, 2.0, 3.0])
 
     with pytest.raises(ValueError, match="dimension"):
-        pipeline.search(
-            search_request(mode="dense", top_k=1, candidate_k=1)
-        )
+        pipeline.search(search_request(mode="dense", top_k=1, candidate_k=1))
 
 
 def test_hybrid_rrf_uses_deterministic_tie_break(
@@ -104,9 +150,7 @@ def test_hybrid_rrf_uses_deterministic_tie_break(
     first = pipeline.search(search_request(mode="hybrid", top_k=3, candidate_k=3))
     second = pipeline.search(search_request(mode="hybrid", top_k=3, candidate_k=3))
 
-    assert [hit.chunk_id for hit in first.hits] == [
-        hit.chunk_id for hit in second.hits
-    ]
+    assert [hit.chunk_id for hit in first.hits] == [hit.chunk_id for hit in second.hits]
     assert first.hits[0].chunk_id == "a-chunk"
 
 
@@ -209,9 +253,7 @@ def test_metadata_current_authority_department_policy_and_as_of_filters(
     assert {hit.chunk_id for hit in current.hits} == {"active-auth", "finance-auth"}
 
     scoped = pipeline.search(
-        search_request(
-            filters=QueryFilters(departments=["hr"], policy_ids=["policy-a"])
-        )
+        search_request(filters=QueryFilters(departments=["hr"], policy_ids=["policy-a"]))
     )
     assert [hit.chunk_id for hit in scoped.hits] == ["active-auth"]
 
@@ -268,9 +310,7 @@ def test_result_diversity_limits_chunks_per_document(
     ]
     pipeline = HybridRetrievalPipeline(snapshot_factory(chunks))
 
-    result = pipeline.search(
-        search_request(top_k=3, candidate_k=3, max_chunks_per_doc=1)
-    )
+    result = pipeline.search(search_request(top_k=3, candidate_k=3, max_chunks_per_doc=1))
 
     assert len(result.hits) == 2
     assert {hit.doc_id for hit in result.hits} == {"doc-a", "doc-b"}
