@@ -1,8 +1,10 @@
 # Project Summary
 
-Current branch/state: `codex/agent-runtime-vnext` / `RAG_VNEXT_CLOSED`.
-Portfolio, resume, teaching, and interview use are supported within the evidence
-boundaries below. Production readiness and merge approval are not established.
+Current public branch/state: `main` / `PORTFOLIO_READY`.
+Stable snapshot: `portfolio-v1.0.0`. Legacy `codex/*` refs remain only for
+submitted-resume and historical-review link compatibility. Portfolio, resume,
+teaching, and interview use are supported within the evidence boundaries below;
+production readiness is not established.
 
 ## One sentence
 
@@ -24,8 +26,10 @@ authenticated principal
 ```
 
 MCP is a local/in-process official-SDK adapter in front of the same ToolGateway;
-it cannot bypass identity, ACL, budget, deadline, or content admission. HITL is
-retry-safe within one process, but pending state is not durable across restart.
+it cannot bypass identity, ACL, budget, deadline, or content admission. Generic
+partial-answer HITL remains same-process. The optional durable path covers only
+one restart-tested, draft-only access-request workflow and is not a general
+durable Agent runtime.
 
 ## Measured evidence
 

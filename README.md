@@ -226,8 +226,10 @@ multi-document questions, and safe refusal without exposing private enterprise
 data. External WixQA, EnterpriseRAG-Bench, and garak evidence is reported
 separately with dataset, denominator, execution revision, and limitation.
 
-Current state: `RAG_VNEXT_CLOSED` on the vNext branch; merge remains a user
-decision.
+Current public state: `main` is canonical, `portfolio-v1.0.0` is the stable
+snapshot, and legacy `codex/*` refs are retained only for external-link
+compatibility. This remains a portfolio system, not a production-readiness
+claim.
 
 ## Documentation
 
