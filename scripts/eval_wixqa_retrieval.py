@@ -5,10 +5,8 @@ import hashlib
 import json
 import subprocess
 import time
+from importlib import import_module
 from pathlib import Path
-
-import torch
-from sentence_transformers import CrossEncoder
 
 from app.config import get_settings
 from app.domain.queries import SearchHit
@@ -109,13 +107,14 @@ def main(argv: list[str] | None = None) -> int:
     page_reranker = None
     reranker_load_ms = 0.0
     if args.article_reranker == "cross_encoder":
+        cross_encoder_type = import_module("sentence_transformers").CrossEncoder
         snapshot = _resolve_model_snapshot(
             args.reranker_cache_root,
             model_id=args.reranker_model,
             revision=args.reranker_revision,
         )
         load_started = time.perf_counter()
-        model = CrossEncoder(
+        model = cross_encoder_type(
             str(snapshot),
             device=args.reranker_device,
             model_kwargs=_model_kwargs_for_dtype(args.reranker_dtype),
@@ -280,9 +279,10 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _model_kwargs_for_dtype(dtype: str) -> dict[str, torch.dtype]:
+def _model_kwargs_for_dtype(dtype: str) -> dict[str, object]:
     if dtype == "auto":
         return {}
+    torch = import_module("torch")
     return {
         "torch_dtype": {
             "float32": torch.float32,
