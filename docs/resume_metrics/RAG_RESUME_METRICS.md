@@ -48,13 +48,18 @@ Required qualifiers: synthetic-company heterogeneous corpus, full lexical B0,
 
 The 4.63x comparison is development-only and should be described that way.
 
-Optional scoped retrieval result:
+Optional confirmed finance retrieval result:
 
-> On 64 company-disjoint public-label UDA-QA finance questions within the known
-> report, Dense + dual-BM25 page fusion improved Hit@5 from 76.56% to 81.25%
-> and nDCG@5 from 64.41% to 72.61% at 1.066x p95. A paired review found 6
-> rescued versus 3 regressed cases and approved an explicit opt-in canary; the
-> original +5pp Hit gate still failed and the frozen test remained unrun.
+> On a one-shot confirmation using all 192 eligible questions from 41 UDA-QA
+> companies unused by prior rounds, Dense + dual-BM25 page fusion improved
+> known-report Hit@5 from 80.21% to 88.02% and nDCG@5 from 70.95% to 77.60%,
+> reduced misses from 38 to 23, and increased p95 latency by 5.8%. Company-level
+> clustered 95% lower bounds remained positive for both quality deltas.
+
+Required qualifiers: public-label fresh-company confirmation, known-report page
+localization only, not blind evaluation, answer accuracy, or open-corpus search.
+The runtime promotion is restricted to server-classified finance policies and
+retains a kill switch.
 
 Additional engineering evidence, not a replacement for the first resume
 number: the unchanged current Guard was stress-reproduced on 48 recombined
@@ -83,9 +88,10 @@ ms`. This must be labeled non-blind recombined stress evidence.
 - WixQA Agent answered rate as answer correctness; semantic correctness was not
   measured and the route was rejected.
 - EnterpriseRAG-Bench `60.37%` Recall@5 as end-to-end answer accuracy.
-- R4 validation as a global default, production gain, blind test, answer
-  accuracy, or proof of generalization. Its only promoted status is a post-hoc
-  explicit known-report canary; the original gate remained failed.
+- R4 validation as a successful preregistered experiment: its original gate
+  failed and remains immutable. R5 is a separate fresh-company confirmation.
+- R5 as a global RAG gain, production gain, blind test, answer accuracy,
+  open-corpus document discovery, or proof of cross-domain generalization.
 
 ## Evidence chain
 
@@ -108,3 +114,6 @@ ms`. This must be labeled non-blind recombined stress evidence.
 - UDA R4 paired canary review:
   `docs/r4/evidence/uda_finance_r4_canary_review_v1.json`, SHA-256
   `dc8db412fa9b57ca0e3c05390f832783253b2801965851afb6c294b1064683b3`.
+- UDA R5 fresh-company confirmation:
+  `docs/r5/evidence/uda_finance_r5_public_v1.json`, SHA-256
+  `97aa582d996194171004964acfbda46732f685998dd3227b3730a8b778c404ce`.

@@ -150,3 +150,24 @@ Stop adding frameworks, agents, or post-test tuning. The UDA test is consumed,
 the FinanceBench test was historically visible, and no new intervention has an
 unused independent evaluation population. Continue only with a newly frozen
 dataset or an independently administered probe-family security holdout.
+
+## R5 confirmation addendum (2026-09-02)
+
+R5 followed that continuation rule by freezing a new protocol before touching
+the remaining UDA population. It evaluated all 192 eligible questions from all
+41 companies unused by prior UDA rounds. The candidate was the unchanged R4 v3
+page-fusion implementation, so the confirmation did not tune on these labels.
+
+- Hit@5: `80.21% -> 88.02%` (+7.8125pp).
+- nDCG@5: `70.95% -> 77.60%` (+6.6459pp).
+- Paired outcomes: 15 candidate-only hits, 0 baseline-only hits; misses
+  `38 -> 23` (39.47% relative reduction).
+- p95: `130.04 -> 137.60 ms` (1.0581x).
+- Company-cluster 95% lower bounds: +4.1026pp Hit@5 and +3.3227pp nDCG@5.
+
+All preregistered gates passed. The candidate was therefore promoted only for
+server-classified finance known-report policies, with a kill switch and legacy
+R4 compatibility. This does not establish blind answer correctness,
+open-corpus document discovery, or cross-domain improvement. The exact public
+evidence is `docs/r5/evidence/uda_finance_r5_public_v1.json` with SHA-256
+`97aa582d996194171004964acfbda46732f685998dd3227b3730a8b778c404ce`.

@@ -18,6 +18,7 @@ Allowed status vocabulary:
 | UDA 64-case v1 development | DEVELOPMENT_CONSUMED (legacy) | reproducibility only |
 | UDA 96-case fixed test | FIXED_CONSUMED | reporting only |
 | UDA R3 development/validation cohorts | FIXED_CONSUMED under their protocols | reporting and frozen candidate audit only |
+| UDA R5 all-remaining-company confirmation (41 companies / 192 questions) | FIXED_CONSUMED | reporting and exact-current-candidate regression only; no retuning |
 | FinQA fixed 100-case end-to-end sample | FIXED_CONSUMED | reporting/regression only |
 | FinQA disclosed development/calibration cohorts | DEVELOPMENT_CONSUMED (legacy) | retrospective diagnostics only |
 | FinQA 40-case E11 internal cohort | FIXED_CONSUMED | shadow/regression only |

@@ -136,6 +136,11 @@ Its ranked candidate pool continues through the existing Retrieved-content
 Guard; broad or unbound requests fall back to the default pipeline. Expanding beyond that scope requires a fresh company-disjoint
 cohort; the old validation and frozen test cannot be relabeled as new evidence.
 
+That exit requirement was later satisfied by the separate R5 protocol. R5 did
+not alter this R4 decision or run this frozen test; it used all 41 remaining
+previously unused UDA companies and confirmed the unchanged candidate on 192
+questions. See `docs/r5/ENGINEERING_JOURNAL.md`.
+
 ## What improved and what did not
 
 The work established a repeatable quality mechanism and removed most of its

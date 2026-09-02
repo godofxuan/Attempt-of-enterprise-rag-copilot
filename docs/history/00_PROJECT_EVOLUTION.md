@@ -1,5 +1,18 @@
 # Enterprise Agentic RAG Complete Evolution History
 
+## 2026-09-02 addendum: UDA R5 fresh confirmation and bounded promotion
+
+The R4 page-fusion candidate had only post-hoc canary evidence. R5 excluded all
+96 companies consumed by earlier UDA rounds and used every remaining eligible
+company: 41 reports and 192 questions. The unchanged candidate, gates and
+company-cluster bootstrap were committed before one-shot execution. Hit@5
+improved `80.21% -> 88.02%`, nDCG@5 `70.95% -> 77.60%`, with 15 rescues, zero
+regressions, misses `38 -> 23` and p95 `1.058x`. Positive cluster-bootstrap
+lower bounds and all frozen gates authorized promotion only for server-
+classified finance known-report policies, with an explicit kill switch and the
+existing Guard/ACL path preserved. R4's failed gate and unrun frozen test remain
+unchanged.
+
 ## 2026-08-07 addendum: FinQA E19 versioned service wiring
 
 E19 preserved the hash-frozen E16 entrypoint and added `app.main_v2:app` as a

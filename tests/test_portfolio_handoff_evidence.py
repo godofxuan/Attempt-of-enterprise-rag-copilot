@@ -28,6 +28,7 @@ def test_resume_metric_ledger_derives_from_frozen_public_evidence() -> None:
     fts = _json("docs/final_evidence_closure/evidence/fts_hard_crash_matrix_v1.json")
     pointer = _json("docs/final_evidence_closure/evidence/active_pointer_crash_matrix_v1.json")
     candidate = _json("docs/multidoc_candidate/evidence/aggregate_v1.json")
+    r5 = _json("docs/r5/evidence/uda_finance_r5_public_v1.json")
     ledger = _text(HANDOFFS / "RESUME_METRIC_LEDGER.md")
 
     assert wixqa["bm25"]["article_recall_at_5"] == pytest.approx(0.4275)
@@ -64,6 +65,14 @@ def test_resume_metric_ledger_derives_from_frozen_public_evidence() -> None:
     assert gate["citation_precision_delta_pp"] == pytest.approx(-5.833333333333335)
     assert gate["p95_latency_ratio"] == pytest.approx(1.8590358323863405)
     for expected in ("precision `-5.83pp`", "p95 `1.859x`", "fixes `0`"):
+        assert expected in ledger
+
+    assert r5["decision"] == "PROMOTED_FINANCE_KNOWN_REPORT_DEFAULT"
+    assert r5["baseline"]["page_hit_at_5"] == pytest.approx(154 / 192)
+    assert r5["candidate"]["page_hit_at_5"] == pytest.approx(169 / 192)
+    assert r5["paired_outcomes"]["candidate_only_hit"] == 15
+    assert r5["paired_outcomes"]["baseline_only_hit"] == 0
+    for expected in ("80.21% -> 88.02%", "70.95% -> 77.60%", "38 -> 23"):
         assert expected in ledger
 
 

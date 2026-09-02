@@ -1,5 +1,13 @@
 # Project Evidence Map
 
+R5 retrieval addendum: all 192 eligible questions from 41 UDA companies unused
+by earlier rounds were evaluated once under a frozen paired protocol. The
+unchanged page-fusion candidate moved known-report Hit@5 `80.21% -> 88.02%` and
+nDCG@5 `70.95% -> 77.60%`, with positive company-cluster 95% lower bounds and
+p95 `1.058x`. Evidence:
+`docs/r5/evidence/uda_finance_r5_public_v1.json`. This supports only the scoped
+finance-policy promotion, not blind answer accuracy or global RAG quality.
+
 ## Claim P11: Start/Resume lifecycle integrity
 
 | Field | Binding |

@@ -4,12 +4,12 @@ import argparse
 import json
 import subprocess
 import sys
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from subprocess import CompletedProcess
 from time import perf_counter
-from typing import Callable, Literal, Sequence
-
+from typing import Literal
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_VERSION = "portfolio_release_verification_v3"
@@ -57,6 +57,7 @@ GATES = (
             "tests/test_portfolio_handoff_evidence.py",
             "tests/evaluation/test_wixqa_multidoc_candidate_evidence.py",
             "tests/external_datasets/test_uda_finance_r4_canary.py",
+            "tests/external_datasets/test_uda_finance_r5.py",
             "-q",
             "-p",
             "no:cacheprovider",

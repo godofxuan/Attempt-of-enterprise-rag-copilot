@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -16,7 +17,10 @@ from app.external_datasets.uda_finance_r5 import (
     select_uda_finance_r5_cases,
     selection_sha256,
 )
-from app.external_datasets.uda_finance_r5_eval import analyze_company_cluster_pairs
+from app.external_datasets.uda_finance_r5_eval import (
+    analyze_company_cluster_pairs,
+    verify_r5_public_evidence,
+)
 
 
 def _rows() -> list[UdaFinanceQaRow]:
@@ -143,3 +147,21 @@ def test_r5_public_protocol_does_not_disclose_selected_content() -> None:
     assert "questions" not in payload
     assert "answers" not in payload
     assert "document_ids" not in payload
+
+
+def test_checked_in_r5_evidence_passes_every_preregistered_gate() -> None:
+    evidence_path = Path("docs/r5/evidence/uda_finance_r5_public_v1.json")
+    evidence = verify_r5_public_evidence(
+        evidence_path,
+        protocol_path=R5_PROTOCOL_PATH,
+    )
+
+    assert evidence.decision == "PROMOTED_FINANCE_KNOWN_REPORT_DEFAULT"
+    assert evidence.gate_checks.passed
+    assert evidence.paired_outcomes.candidate_only_hit == 15
+    assert evidence.paired_outcomes.baseline_only_hit == 0
+    assert evidence.page_hit_at_5_cluster_interval.lower_95 > 0
+    assert evidence.page_ndcg_at_5_cluster_interval.lower_95 > 0
+    assert hashlib.sha256(evidence_path.read_bytes()).hexdigest() == (
+        "97aa582d996194171004964acfbda46732f685998dd3227b3730a8b778c404ce"
+    )

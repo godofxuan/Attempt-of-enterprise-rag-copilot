@@ -1,6 +1,6 @@
 # UDA R5 Fresh Canary Confirmation
 
-Status: `PROTOCOL_FROZEN_NOT_RUN`
+Status: `PROMOTED_FINANCE_KNOWN_REPORT_DEFAULT`
 
 ## Why R5 exists
 
@@ -76,3 +76,39 @@ cryptographic bindings may enter Git.
   `a703cb7d7abf405c91265f07eca5d0e71072a1eaa83983ab04c8c75a4841d552`
 - Private corpus-manifest SHA-256:
   `9a25b42e4e55df56a85979379c1fd47a633268c0858d01646e6a5a769937ff0e`
+
+## One-shot result
+
+The protocol and runner were committed at
+`507b7f7f7e50c4a43d96c8332bbaf290d9bce7eb` before the confirmation marker
+was created. The run used the same 15,045-chunk index for both arms and made
+exactly 192 BGE-M3 calls per arm.
+
+| Metric | Dense baseline | Page fusion | Delta |
+|---|---:|---:|---:|
+| Page Hit@5 | 80.21% | 88.02% | +7.81pp |
+| Page nDCG@5 | 70.95% | 77.60% | +6.65pp |
+| Page MRR@5 | 67.80% | 74.11% | +6.30pp |
+| p95 latency | 130.04 ms | 137.60 ms | 1.058x |
+
+Company-macro Hit@5 improved from 81.56% to 89.59% (+8.03pp), and company-
+macro nDCG@5 improved from 72.72% to 79.02% (+6.29pp). The company-cluster
+bootstrap 95% interval was +4.10pp to +11.98pp for Hit@5 and +3.32pp to
++9.93pp for nDCG@5. Both lower bounds are positive.
+
+The paired table was 154 both-hit, 15 candidate-only rescues, zero baseline-
+only regressions and 23 both-miss. Misses fell from 38 to 23, a 39.47%
+relative reduction; exact two-sided McNemar p was 0.000061. Every frozen gate
+passed, so the exact v3 implementation is promoted for server-classified
+finance known-report retrieval.
+
+The promotion remains domain-bounded. Operators register finance report policy
+IDs in `RETRIEVAL_FINANCE_KNOWN_REPORT_POLICY_IDS`; all other policies keep the
+standard pipeline. `RETRIEVAL_FINANCE_KNOWN_REPORT_PAGE_FUSION_ENABLED=false`
+is the rollback switch. The legacy R4 explicit canary variables remain accepted
+for compatibility. Guard admission, ACL, evidence and citation publication are
+unchanged.
+
+Public aggregate evidence:
+`docs/r5/evidence/uda_finance_r5_public_v1.json`, SHA-256
+`97aa582d996194171004964acfbda46732f685998dd3227b3730a8b778c404ce`.

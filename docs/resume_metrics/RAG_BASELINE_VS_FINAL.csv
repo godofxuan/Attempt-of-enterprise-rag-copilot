@@ -18,3 +18,6 @@ answer,UDA-QA_FinHybrid_R3,development_192,numeric_accuracy,0.078125,0.015625,-0
 answer,UDA-QA_FinHybrid_R3,development_192,unsupported_answer_rate,0.3125,0.5885417,0.2760417,direct answer,typed numeric candidate,N,TYPED_REJECTED_NO_VALIDATION_OR_TEST
 security,NVIDIA_garak_LatentInjectionReport,expanded_recombined_stress_48_attacks,attack_success_rate,0.25,0.0,-0.25,Guard OFF,Guard ON,E2_STRESS_NOT_BLIND,CURRENT_IMPLEMENTATION_STRESS_ONLY
 security,NVIDIA_garak_LatentInjectionReport,expanded_recombined_stress_48_attacks,context_exposure_rate,1.0,0.0,-1.0,Guard OFF,Guard ON,E2_STRESS_NOT_BLIND,CURRENT_IMPLEMENTATION_STRESS_ONLY
+retrieval,UDA-QA_FinHybrid_R5,fresh_company_disjoint_confirmation_192,page_hit_at_5,0.8020833,0.8802083,0.0781250,Dense chunk baseline,Dense plus dual-BM25 page fusion,E2_PUBLIC_LABEL_CONFIRMATION,PROMOTED_FINANCE_KNOWN_REPORT_DEFAULT
+retrieval,UDA-QA_FinHybrid_R5,fresh_company_disjoint_confirmation_192,page_ndcg_at_5,0.7095095,0.7759681,0.0664586,Dense chunk baseline,Dense plus dual-BM25 page fusion,E2_PUBLIC_LABEL_CONFIRMATION,PROMOTED_FINANCE_KNOWN_REPORT_DEFAULT
+retrieval,UDA-QA_FinHybrid_R5,fresh_company_disjoint_confirmation_192,p95_latency_ms,130.0397,137.6012,7.5615,Dense chunk baseline,Dense plus dual-BM25 page fusion,E2_PUBLIC_LABEL_CONFIRMATION,1.058X_WITHIN_GATE

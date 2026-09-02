@@ -19,6 +19,7 @@ to a verified old or new snapshot. Always add that power-loss testing was
 6. On a preregistered, company-disjoint fixed 96-question subset of the external UDA-QA FinHybrid benchmark, BGE-M3 Dense retrieval reached 74.0% Page Hit@5, 61.3% nDCG@5, and 222.9 ms p95 latency when retrieving pages within the known financial report. This must say `within the known report`; it is not document discovery or answer accuracy.
 7. As additional non-blind stress evidence, on 48 recombined attacks from one pinned NVIDIA garak retrieved-report probe, the unchanged current Guard reduced ASR from 12/48 to 0/48 and prevented attack context from reaching the model in 48/48 cases; benign quarantine was 0/4 and mean Guard scan was 1.88 ms. This must say `recombined stress fixture`, `one probe`, and `not a new blind holdout`; the 12-attack combination-disjoint result remains the primary resume claim.
 8. On 64 company-disjoint public-label UDA-QA FinHybrid validation questions within the known report, three-channel page fusion improved Hit@5 from 76.56% to 81.25% and nDCG@5 from 64.41% to 72.61% at 1.066x p95. A post-hoc paired review found 6 rescued and 3 regressed cases, reducing misses from 15 to 12, and approved only an explicit opt-in canary. This must also state that the original preregistered +5pp Hit gate failed and the frozen test was not run.
+9. In a one-shot confirmation over all 192 questions from the 41 remaining previously unused UDA-QA FinHybrid companies, the unchanged page-fusion candidate improved known-report Page Hit@5 from 80.21% to 88.02% and nDCG@5 from 70.95% to 77.60%, rescued 15 cases with zero regressions, and reduced misses from 38 to 23 at 1.058x p95. Company-cluster bootstrap 95% lower bounds were +4.10pp Hit and +3.32pp nDCG. This must say `public-label`, `known-report page localization`, and `41 previously unused companies`; it is not answer accuracy, blind evaluation, open-corpus document discovery, or production evidence.
 
 ## Not yet safe
 
@@ -29,10 +30,10 @@ to a verified old or new snapshot. Always add that power-loss testing was
 - No production reliability, SOTA, cross-domain, or cross-model generalization claim exists.
 - Synthetic 100% results must never be presented without the word `synthetic`.
 - The UDA 96-case test is consumed and cannot be retuned or presented as hidden/blind.
-- The R4 hierarchical candidate is not a global-default or frozen-test
-  improvement. It missed the original validation Hit@5 gate by 0.3125pp and
-  its frozen test was not run. Only the later explicit known-report canary and
-  its post-hoc, public-label limitations may be described.
+- The R4 frozen test remains unrun and must not be relabeled. R5 is a separate
+  fresh-company confirmation of the unchanged candidate, not a retroactive R4
+  gate pass. Promotion is limited to server-classified finance known reports;
+  it is not a global retrieval, answer-accuracy or production claim.
 
 ## Promotion rule
 

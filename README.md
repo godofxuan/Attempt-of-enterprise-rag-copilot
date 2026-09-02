@@ -47,6 +47,7 @@ run can also emit a verifiable trajectory for replay and evaluation.
 | EnterpriseRAG-Bench indexing | Built and atomically activated a `1.37 GiB` SQLite FTS5 index over `511,962` public records in `231.35 s`, at about `1.83 GiB` peak RSS | Single-host lexical baseline, not production capacity. [Evidence](docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json) |
 | Clean retrieval replay | Rebuilt 11,975 embeddings and reproduced `63/63` frozen quality comparisons at tolerance `0.0` | Local replay of consumed public labels. [Evidence](docs/reproduction/evidence/wixqa_clean_reproduction_public_v1.json) |
 | UDA R4 scoped canary | On 64 company-disjoint validation questions, page fusion moved Hit@5 `76.56% -> 81.25%` and nDCG@5 `64.41% -> 72.61%` at `1.066x` p95; misses fell `15 -> 12` | The original 5pp Hit gate still failed and test stayed unrun. A later paired review approved explicit opt-in known-report canary only, not the global default. [Evidence](docs/r4/evidence/uda_finance_r4_canary_review_v1.json) |
+| UDA R5 fresh confirmation | On all 192 questions from the 41 remaining previously unused UDA companies, page fusion moved Hit@5 `80.21% -> 88.02%` and nDCG@5 `70.95% -> 77.60%`; it rescued `15` cases, regressed `0`, and reduced misses `38 -> 23` at `1.058x` p95 | One-shot public-label, company-disjoint known-report page localization. Company-cluster 95% lower bounds were `+4.10pp` Hit and `+3.32pp` nDCG. Promoted only for server-classified finance known reports. [Evidence](docs/r5/evidence/uda_finance_r5_public_v1.json) |
 
 This repository is an engineering portfolio, not a framework showcase. MCP is
 an in-process protocol adapter rather than a network deployment; LangGraph is
@@ -63,7 +64,7 @@ an alternative orchestrator rather than a claimed quality improvement.
 | Durable draft approval | Idempotent Start generations, recoverable non-authorizing client handles, SQLite CAS/lease/version fencing for Start and Resume, restart recovery, reviewer/tool-hash revalidation, one atomic draft/completion/approval transaction, PostgreSQL checkpointer CI contract, and W3C trace propagation |
 | EvalOps integration | Versioned `enterprise.agent-run/1.0` JSON schema, serializer, verifier, public sample artifact, and reproducible CLI tooling |
 | Enterprise retrieval | BM25, BGE-M3 Dense, RRF ablation, metadata and temporal authority, parent context, ACL filtering before evidence reaches the model |
-| Scoped retrieval canary | `RETRIEVAL_PROFILE=finance_known_report_page_fusion_v1` plus an operator-owned `RETRIEVAL_CANARY_POLICY_IDS` allowlist enables page fusion only for an approved single-policy report; other requests use the default pipeline and all candidates still pass through the Guard |
+| Promoted finance known-report retrieval | An operator-owned `RETRIEVAL_FINANCE_KNOWN_REPORT_POLICY_IDS` classification enables the R5-confirmed page-fusion path for exactly one bound finance report; other requests use the standard pipeline, a kill switch provides rollback, and all candidates still pass through the Guard |
 | Grounded answers | Structured claims, visible-source citations, deterministic numeric/date/negation checks, and removal of unsupported claims |
 | Retrieved-content security | Mandatory injection Guard on search/find/open content, quarantine, clean-candidate recovery, and Guard OFF/ON evaluation |
 | Knowledge lifecycle | Restricted file validation, Markdown/text/PDF/DOCX/EML parsing, revision catalog, tombstones, incremental invalidation, immutable snapshots, atomic activation, and rollback |
@@ -76,9 +77,13 @@ p95 latency to `1.859x`. The UDA R4 candidate missed its original independent
 Hit@5 gate by 0.3125pp; the immutable rejection remains recorded. A separate
 post-hoc paired review later promoted it only to an explicit known-report
 finance canary, because it rescued 6 cases, regressed 3, reduced misses by 20%,
-and kept p95 at 1.066x. See the
+and kept p95 at 1.066x. R5 then froze the unchanged candidate and evaluated all
+192 questions from 41 remaining companies: 15 rescues, zero regressions,
+Hit@5 +7.81pp, nDCG@5 +6.65pp and p95 1.058x, with positive company-cluster
+confidence lower bounds. That confirmatory result promotes page fusion as the
+default implementation only for server-classified finance known reports. See the
 [multi-document record](docs/multidoc_candidate/02_RESULTS_AND_DECISION.md) and
-[R4 journal](docs/r4/ENGINEERING_JOURNAL.md).
+[R4 journal](docs/r4/ENGINEERING_JOURNAL.md) / [R5 journal](docs/r5/ENGINEERING_JOURNAL.md).
 
 ## Architecture
 
@@ -250,6 +255,7 @@ the name of the current branch.
 - [Agent Runtime security review](docs/agent_runtime/09_SECURITY_REVIEW.md)
 - [Agent Runtime learning tutorial](docs/learning/AGENT_RUNTIME_TUTORIAL.md)
 - [UDA R4 retrieval and gate tutorial](docs/learning/41_UDA_R4_分层检索_性能优化与失败门禁.md)
+- [UDA R5 fresh confirmation journal](docs/r5/ENGINEERING_JOURNAL.md)
 - [vNext resume-safe evidence](docs/resume/RESUME_SAFE_VNEXT_METRICS.md)
 - [Production runtime candidate architecture](docs/production_runtime/ARCHITECTURE.md)
 - [Production runtime results and limitations](docs/production_runtime/RESULTS.md) / [limitations](docs/production_runtime/KNOWN_LIMITATIONS.md)

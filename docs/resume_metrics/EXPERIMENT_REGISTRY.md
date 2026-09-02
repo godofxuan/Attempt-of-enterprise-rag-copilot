@@ -254,3 +254,35 @@ Every result must be registered before it is used in a report or resume claim. A
   is required before wider promotion.
 - Evidence: `docs/r4/evidence/uda_finance_r4_canary_review_v1.json`, SHA-256
   `dc8db412fa9b57ca0e3c05390f832783253b2801965851afb6c294b1064683b3`.
+
+### RM-0501 UDA R5 fresh-company confirmation and scoped promotion
+
+- Status: `PROMOTED_FINANCE_KNOWN_REPORT_DEFAULT`; tier:
+  `E2_PUBLIC_LABEL_CONFIRMATION`.
+- Protocol/code SHA: protocol
+  `23ba6ec6be272bf528736743f76b2f069ce93e203d7570b20a5f43e16d1674d5`;
+  execution `507b7f7f7e50c4a43d96c8332bbaf290d9bce7eb`.
+- Dataset: all 192 eligible questions from the 41 UDA companies left unused by
+  every earlier UDA round. Company, report and question identities remain
+  private; aggregate evidence is public.
+- Scope: known-report page localization with BGE-M3, not document discovery,
+  answer correctness, a hidden test, or third-party validation.
+- Candidate: unchanged R4 v3 Dense + original BM25 + focused BM25 weighted
+  page fusion. Arm order was counterbalanced and each arm made exactly 192
+  embedding calls.
+- Frozen gates: Hit@5 delta at least 2pp; nDCG@5 delta at least 3pp; both
+  company-cluster bootstrap 95% lower bounds positive; rescues exceed
+  regressions; p95 at most 1.15x; one embedding call per case per arm.
+- Result: Hit@5 `80.21% -> 88.02%` (+7.8125pp); nDCG@5
+  `70.95% -> 77.60%` (+6.6459pp); misses `38 -> 23`; paired outcomes were
+  15 candidate-only hits and 0 baseline-only hits; p95
+  `130.04 -> 137.60 ms` (1.0581x).
+- Uncertainty: company-cluster 95% delta intervals were
+  `[+4.1026pp, +11.9792pp]` for Hit@5 and
+  `[+3.3227pp, +9.9323pp]` for nDCG@5; exact paired McNemar
+  p=`0.000061`.
+- Decision: all preregistered gates passed. The server may classify finance
+  known-report policies into the promoted path; a kill switch rolls back to
+  the standard pipeline. No global cross-domain promotion was made.
+- Public evidence SHA-256:
+  `97aa582d996194171004964acfbda46732f685998dd3227b3730a8b778c404ce`.

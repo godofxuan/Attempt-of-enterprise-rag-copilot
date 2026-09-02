@@ -77,3 +77,13 @@ development set.
 Rank distribution was 45 at rank 1, 10 at rank 2, 10 at rank 3, five at rank 4,
 one at rank 5, and 25 misses. The content-free evidence is
 `../external_datasets/evidence/uda_finance_test_v1.json`.
+
+## R5 fresh-company confirmation outcome
+
+The unchanged page-fusion candidate reduced aggregate misses from 38 to 23 on
+the 192-question fresh-company confirmation. It rescued 15 baseline misses and
+introduced no observed paired Hit@5 regression on this cohort. This validates
+the ranking intervention for the measured known-report finance scope, while the
+remaining 23 misses show that retrieval is not solved. Public evidence excludes
+questions and per-case failure rows, so no new parser or query policy is selected
+from this confirmation set after observation.

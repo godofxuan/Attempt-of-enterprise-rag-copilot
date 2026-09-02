@@ -24,7 +24,6 @@ from app.domain.retrieved_security import (
 )
 from app.security.access import redact_trace_payload
 
-
 ClockMs = Callable[[], float]
 
 
@@ -435,10 +434,10 @@ def _get_default_v2_runner() -> V2AgentRunner:
 
     pipeline = HybridRetrievalPipeline(snapshot, embed_text=embed_text)
     canary = get_retrieval_canary_settings()
-    if canary.profile == "finance_known_report_page_fusion_v1":
+    if canary.page_fusion_policy_ids:
         pipeline = build_finance_known_report_canary(
             pipeline,
-            allowed_policy_ids=canary.canary_policy_ids,
+            allowed_policy_ids=canary.page_fusion_policy_ids,
         )
     navigator = DocumentNavigator(snapshot, pipeline=pipeline)
     registry = V2ToolRegistry(navigator)
