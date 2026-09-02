@@ -1,0 +1,34 @@
+{
+  "allowed_claims": [
+    "On the 200-case WixQA simulated configuration-selection cohort, every registered MiniLM Cross-Encoder reranking arm reduced Recall@5 and nDCG@5 versus the dense baseline.",
+    "Dense candidate recall increased from 61.42% at Top-5 to 72.00% at Top-10 and 84.58% at Top-20, showing candidate-pool headroom but not reranker quality gain.",
+    "The failed validation gate prevented rerunning the historically consumed ExpertWritten cohort."
+  ],
+  "artifact_path": "docs/wixqa_reranker/evidence_v1.json",
+  "artifact_schema": "wixqa_reranker_aggregate_evidence_v1",
+  "artifact_sha256": "13e78b6950fa8e131b5dd7ec0639324ee66aff5bcb9dbd3fb66cca54a86dd3bd",
+  "case_count": 200,
+  "contains_private_case_payload": false,
+  "decision": "VALIDATION_REJECTED_EXPERTWRITTEN_FORBIDDEN",
+  "evidence_id": "wixqa-reranker-negative-v1",
+  "evidence_scope": "Aggregate WixQA article-retrieval validation, candidate-ceiling analysis, and bounded stronger-model cost smoke only.",
+  "forbidden_claims": [
+    "The reranker improved the fixed public ExpertWritten result.",
+    "The reranker was promoted to the default retrieval path.",
+    "The experiment measured answer correctness or citation quality.",
+    "The two-case stronger-model smoke establishes population-level quality."
+  ],
+  "formal_case_results": "INPUT_REQUIRED",
+  "payload_granularity": "aggregate_only",
+  "producing_code_sha": "37792aa40c29c6e3accb2489bc2f7fb0da312e62",
+  "protocol_sha256": "3f0c01376fddcfed6a57021583756a19a87c0bda5d1dea704ba584efacf3f67e",
+  "schema_version": "enterprise-rag.aggregate-evidence-reference/1.0",
+  "source_ci": {
+    "conclusion": "success",
+    "run_id": 33603747873,
+    "status": "completed",
+    "url": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/33603747873"
+  },
+  "source_repository": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot",
+  "source_sha": "37792aa40c29c6e3accb2489bc2f7fb0da312e62"
+}
