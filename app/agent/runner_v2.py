@@ -418,6 +418,10 @@ def budget_from_settings(settings: Settings | None = None) -> AgentBudget:
 @lru_cache(maxsize=1)
 def _get_default_v2_runner() -> V2AgentRunner:
     from app.agent.generation_v2 import GenerationV2ResponseBuilder
+    from app.external_datasets.uda_finance_hierarchical import (
+        build_finance_known_report_canary,
+    )
+    from app.retrieval.canary_config import get_retrieval_canary_settings
     from app.retrieval.navigation import DocumentNavigator
     from app.retrieval.pipeline import HybridRetrievalPipeline
     from app.retrieval.snapshot import V2IndexSnapshot
@@ -430,6 +434,12 @@ def _get_default_v2_runner() -> V2AgentRunner:
         return _embed_text(settings.embedding_model, text)
 
     pipeline = HybridRetrievalPipeline(snapshot, embed_text=embed_text)
+    canary = get_retrieval_canary_settings()
+    if canary.profile == "finance_known_report_page_fusion_v1":
+        pipeline = build_finance_known_report_canary(
+            pipeline,
+            allowed_policy_ids=canary.canary_policy_ids,
+        )
     navigator = DocumentNavigator(snapshot, pipeline=pipeline)
     registry = V2ToolRegistry(navigator)
     return V2AgentRunner(

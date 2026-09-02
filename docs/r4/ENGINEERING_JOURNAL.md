@@ -1,6 +1,7 @@
 # UDA R4 Hierarchical Retrieval Engineering Journal
 
-Status: `VALIDATION_REJECTED_TEST_FORBIDDEN`
+Status: original gate `VALIDATION_REJECTED_TEST_FORBIDDEN`; later rollout
+decision `LIMITED_CANARY_APPROVED`
 
 ## Objective and evidence boundary
 
@@ -100,13 +101,48 @@ The gate was conjunctive: Hit@5 delta >=5pp, nDCG@5 delta >=3pp and p95 <=1.5x.
 Hit@5 missed by 0.3125pp. The recorded decision is
 `VALIDATION_REJECTED_TEST_FORBIDDEN`; the 64-question test was not executed.
 
+## Post-hoc paired review and limited canary
+
+The 5pp threshold was a conservative release rule, not a definition of whether
+the observed change had value. It would be wrong to rewrite that rule after
+seeing validation, but it would also be wasteful to discard a candidate solely
+because `3/64` net additional hits equals 4.6875pp rather than 5pp.
+
+A later exploratory review compared every validation case under both arms:
+
+| Paired outcome | Cases |
+|---|---:|
+| Hit in both arms | 46 |
+| Candidate-only hit (rescue) | 6 |
+| Baseline-only hit (regression) | 3 |
+| Miss in both arms | 9 |
+
+Misses fell from `15` to `12`, a 20% relative reduction. A fixed-seed 100,000
+sample paired bootstrap estimated the Hit@5 delta at `+4.6875pp` with a 95%
+interval of `-4.6875pp to +14.0625pp`; the exact two-sided McNemar p-value was
+`0.5078`. Hit improvement therefore remains uncertain. The nDCG@5 delta was
+`+8.1994pp`, with a paired bootstrap 95% interval of `+1.5773pp to +15.0354pp`,
+so the ordering improvement is the more stable signal.
+
+This review did **not** retroactively pass the original gate and did not unlock
+the frozen test. It approved the exact v3 configuration only as the explicit
+`finance_known_report_page_fusion_v1` canary. The application default is
+unchanged. Operators must set
+`RETRIEVAL_PROFILE=finance_known_report_page_fusion_v1`, and the wrapper still
+requires `RETRIEVAL_CANARY_POLICY_IDS` as an operator-owned allowlist. It
+activates only when the request has exactly one server-validated `policy_id`
+and that ID is allowlisted; missing or stale configuration fails closed.
+Its ranked candidate pool continues through the existing Retrieved-content
+Guard; broad or unbound requests fall back to the default pipeline. Expanding beyond that scope requires a fresh company-disjoint
+cohort; the old validation and frozen test cannot be relabeled as new evidence.
+
 ## What improved and what did not
 
 The work established a repeatable quality mechanism and removed most of its
-runtime overhead. It did not establish a promotable external quality gain.
+runtime overhead. It did not establish a global-default external quality gain.
 The correct conclusion is that focused lexical evidence improves ordering and
-often page coverage, but the effect was not stable enough to clear the frozen
-joint gate on this validation cohort.
+often page coverage, while Hit@5 needs fresh confirmation. That is enough for a
+bounded canary, not for a broad production or test-quality claim.
 
 The next quality round must use a genuinely new evaluation population. R4
 validation/test cannot be repartitioned or rerun as a new independent claim.
@@ -118,6 +154,9 @@ be tested on new data with a paired parser protocol before replacing ingestion.
 
 - Protocol: `docs/r4/evidence/uda_finance_r4_protocol_v3.json`
 - Aggregate public evidence: `docs/r4/evidence/uda_finance_r4_public_v1.json`
+- Paired canary review: `docs/r4/evidence/uda_finance_r4_canary_review_v1.json`
+- Canary review SHA-256:
+  `dc8db412fa9b57ca0e3c05390f832783253b2801965851afb6c294b1064683b3`
 - Public evidence SHA-256:
   `730eff46cdb82e56254c3c9bce63baa41bafbd216c4323b4e67bb69bc60fa2e7`
 - Core tests: `tests/external_datasets/test_uda_finance_hierarchical.py`,

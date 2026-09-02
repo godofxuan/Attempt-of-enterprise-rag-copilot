@@ -14,7 +14,9 @@ from app.domain.queries import (
     UserContext,
 )
 from app.external_datasets.uda_finance_hierarchical import (
+    FINANCE_KNOWN_REPORT_CANARY_PROFILE,
     FocusedPageFusionPipeline,
+    build_finance_known_report_canary,
     focus_financial_query,
     fuse_unique_page_rankings,
     fuse_unique_pages,
@@ -68,6 +70,19 @@ def _request() -> SearchRequest:
         include_parent=False,
         max_chunks_per_doc=5,
     )
+
+
+def test_reviewed_canary_profile_is_explicit_and_uses_v3_parameters() -> None:
+    pipeline = build_finance_known_report_canary(_FakePipeline())
+
+    assert FINANCE_KNOWN_REPORT_CANARY_PROFILE == "finance_known_report_page_fusion_v1"
+    assert pipeline.source_top_k == 20
+    assert pipeline.candidate_k == 80
+    assert pipeline.max_chunks_per_doc == 10
+    assert pipeline.lexical_weight == 0.5
+    assert pipeline.original_bm25_weight == 0.5
+    assert not pipeline.parallel_search
+    assert pipeline.shared_scope_search
 
 
 @dataclass
@@ -214,3 +229,30 @@ def test_v3_uses_one_server_owned_same_scope_batch() -> None:
     assert result.stop_reason == "ok"
     assert len(base.batches) == 1
     assert len(base.batches[0]) == 3
+
+
+def test_canary_exposes_ranked_candidates_to_the_guard() -> None:
+    base = _SameScopePipeline()
+    pipeline = build_finance_known_report_canary(base)
+
+    pool = pipeline.ranked_candidates_for_guard(_request().model_copy(update={"candidate_k": 8}))
+
+    assert pool.stop_reason == "ok"
+    assert len(pool.candidates) == 8
+    assert [candidate.rank for candidate in pool.candidates] == list(range(1, 9))
+    assert pool.stage_counts["guard_candidates"] == 8
+    assert len(base.batches) == 1
+
+
+def test_canary_falls_back_when_the_known_report_is_not_allowlisted() -> None:
+    base = _FakePipeline()
+    pipeline = build_finance_known_report_canary(
+        base,
+        allowed_policy_ids=["another-report"],
+    )
+
+    result = pipeline.search(_request())
+
+    assert result.mode == "dense"
+    assert len(base.calls) == 1
+    assert base.calls[0] == _request()

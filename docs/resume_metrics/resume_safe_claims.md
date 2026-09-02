@@ -18,6 +18,7 @@ to a verified old or new snapshot. Always add that power-loss testing was
 `NOT_RUN`.
 6. On a preregistered, company-disjoint fixed 96-question subset of the external UDA-QA FinHybrid benchmark, BGE-M3 Dense retrieval reached 74.0% Page Hit@5, 61.3% nDCG@5, and 222.9 ms p95 latency when retrieving pages within the known financial report. This must say `within the known report`; it is not document discovery or answer accuracy.
 7. As additional non-blind stress evidence, on 48 recombined attacks from one pinned NVIDIA garak retrieved-report probe, the unchanged current Guard reduced ASR from 12/48 to 0/48 and prevented attack context from reaching the model in 48/48 cases; benign quarantine was 0/4 and mean Guard scan was 1.88 ms. This must say `recombined stress fixture`, `one probe`, and `not a new blind holdout`; the 12-attack combination-disjoint result remains the primary resume claim.
+8. On 64 company-disjoint public-label UDA-QA FinHybrid validation questions within the known report, three-channel page fusion improved Hit@5 from 76.56% to 81.25% and nDCG@5 from 64.41% to 72.61% at 1.066x p95. A post-hoc paired review found 6 rescued and 3 regressed cases, reducing misses from 15 to 12, and approved only an explicit opt-in canary. This must also state that the original preregistered +5pp Hit gate failed and the frozen test was not run.
 
 ## Not yet safe
 
@@ -28,10 +29,10 @@ to a verified old or new snapshot. Always add that power-loss testing was
 - No production reliability, SOTA, cross-domain, or cross-model generalization claim exists.
 - Synthetic 100% results must never be presented without the word `synthetic`.
 - The UDA 96-case test is consumed and cannot be retuned or presented as hidden/blind.
-- The R4 hierarchical candidate is not a promoted improvement. It passed
-  development but missed the independent validation Hit@5 gate by 0.3125pp;
-  its frozen test was not run. The validation numbers may be discussed only as
-  a rejected experiment with all three gates and the known-report limitation.
+- The R4 hierarchical candidate is not a global-default or frozen-test
+  improvement. It missed the original validation Hit@5 gate by 0.3125pp and
+  its frozen test was not run. Only the later explicit known-report canary and
+  its post-hoc, public-label limitations may be described.
 
 ## Promotion rule
 

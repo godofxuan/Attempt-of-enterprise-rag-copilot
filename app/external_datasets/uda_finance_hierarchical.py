@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 
 from app.domain.queries import SearchHit, SearchRequest, SearchResult
+from app.retrieval.pipeline import RankedSearchCandidate, RankedSearchPool
 
 _TOKEN = re.compile(r"[a-z0-9]+(?:[&'-][a-z0-9]+)*", re.IGNORECASE)
 _FOCUS_STOPWORDS = frozenset(
@@ -17,6 +18,8 @@ _FOCUS_STOPWORDS = frozenset(
     approximately million millions billion thousands dollars
     """.split()
 )
+
+FINANCE_KNOWN_REPORT_CANARY_PROFILE = "finance_known_report_page_fusion_v1"
 
 
 def focus_financial_query(question: str) -> str:
@@ -97,7 +100,7 @@ def fuse_unique_page_rankings(
 
 
 class FocusedPageFusionPipeline:
-    """Two-stage page retrieval candidate for frozen external evaluation only."""
+    """Two-stage page retrieval for evaluation or the explicit finance canary."""
 
     def __init__(
         self,
@@ -111,6 +114,7 @@ class FocusedPageFusionPipeline:
         rrf_k: int = 60,
         parallel_search: bool = False,
         shared_scope_search: bool = False,
+        allowed_policy_ids: Iterable[str] | None = None,
     ) -> None:
         self.base_pipeline = base_pipeline
         self.source_top_k = source_top_k
@@ -121,8 +125,13 @@ class FocusedPageFusionPipeline:
         self.rrf_k = rrf_k
         self.parallel_search = parallel_search
         self.shared_scope_search = shared_scope_search
+        self.allowed_policy_ids = (
+            None if allowed_policy_ids is None else frozenset(allowed_policy_ids)
+        )
 
     def search(self, request: SearchRequest) -> SearchResult:
+        if not self._is_known_report_request(request):
+            return self.base_pipeline.search(request)
         common = {
             "top_k": self.source_top_k,
             "candidate_k": self.candidate_k,
@@ -216,9 +225,69 @@ class FocusedPageFusionPipeline:
             stop_reason=stop_reason,
         )
 
+    def ranked_candidates_for_guard(self, request: SearchRequest) -> RankedSearchPool:
+        if not self._is_known_report_request(request):
+            return self.base_pipeline.ranked_candidates_for_guard(request)
+        pool_request = request.model_copy(
+            update={"top_k": min(request.candidate_k, self.source_top_k)}
+        )
+        result = self.search(pool_request)
+        snapshot = getattr(self.base_pipeline, "snapshot", None)
+        documents = getattr(snapshot, "documents_by_id", {})
+        candidates = tuple(
+            RankedSearchCandidate(
+                rank=rank,
+                hit=hit,
+                document_title=(documents[hit.doc_id].title if hit.doc_id in documents else None),
+            )
+            for rank, hit in enumerate(result.hits, start=1)
+        )
+        return RankedSearchPool(
+            request_id=result.request_id,
+            query=result.query,
+            mode=result.mode,
+            index_run_id=result.index_run_id,
+            manifest_sha256=result.manifest_sha256,
+            candidates=candidates,
+            visible_candidate_count=result.visible_candidate_count,
+            internal_denied_count=result.internal_denied_count,
+            stage_counts={**result.stage_counts, "guard_candidates": len(candidates)},
+            stop_reason=result.stop_reason,
+        )
+
+    def _is_known_report_request(self, request: SearchRequest) -> bool:
+        if len(request.filters.policy_ids) != 1:
+            return False
+        return self.allowed_policy_ids is None or request.filters.policy_ids[0] in (
+            self.allowed_policy_ids
+        )
+
+
+def build_finance_known_report_canary(
+    base_pipeline,
+    *,
+    allowed_policy_ids: Iterable[str] | None = None,
+) -> FocusedPageFusionPipeline:
+    """Build the reviewed profile without changing the application's default search."""
+
+    return FocusedPageFusionPipeline(
+        base_pipeline,
+        source_top_k=20,
+        candidate_k=80,
+        max_chunks_per_doc=10,
+        lexical_weight=0.5,
+        original_bm25_weight=0.5,
+        rrf_k=60,
+        parallel_search=False,
+        shared_scope_search=True,
+        allowed_policy_ids=allowed_policy_ids,
+    )
+
 
 __all__ = [
+    "FINANCE_KNOWN_REPORT_CANARY_PROFILE",
     "FocusedPageFusionPipeline",
+    "build_finance_known_report_canary",
     "focus_financial_query",
     "fuse_unique_page_rankings",
     "fuse_unique_pages",

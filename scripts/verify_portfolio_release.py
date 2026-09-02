@@ -56,6 +56,7 @@ GATES = (
             "tests/test_final_evidence_closure.py",
             "tests/test_portfolio_handoff_evidence.py",
             "tests/evaluation/test_wixqa_multidoc_candidate_evidence.py",
+            "tests/external_datasets/test_uda_finance_r4_canary.py",
             "-q",
             "-p",
             "no:cacheprovider",

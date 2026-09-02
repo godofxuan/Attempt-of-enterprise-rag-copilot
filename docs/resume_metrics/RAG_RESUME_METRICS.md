@@ -48,6 +48,14 @@ Required qualifiers: synthetic-company heterogeneous corpus, full lexical B0,
 
 The 4.63x comparison is development-only and should be described that way.
 
+Optional scoped retrieval result:
+
+> On 64 company-disjoint public-label UDA-QA finance questions within the known
+> report, Dense + dual-BM25 page fusion improved Hit@5 from 76.56% to 81.25%
+> and nDCG@5 from 64.41% to 72.61% at 1.066x p95. A paired review found 6
+> rescued versus 3 regressed cases and approved an explicit opt-in canary; the
+> original +5pp Hit gate still failed and the frozen test remained unrun.
+
 Additional engineering evidence, not a replacement for the first resume
 number: the unchanged current Guard was stress-reproduced on 48 recombined
 attacks from the same pinned garak probe, with ASR `12/48 -> 0/48`, context
@@ -75,8 +83,9 @@ ms`. This must be labeled non-blind recombined stress evidence.
 - WixQA Agent answered rate as answer correctness; semantic correctness was not
   measured and the route was rejected.
 - EnterpriseRAG-Bench `60.37%` Recall@5 as end-to-end answer accuracy.
-- R4 validation nDCG `64.41% -> 72.61%` as a promoted quality gain: the same
-  candidate missed the preregistered Hit@5 gate and was rejected before test.
+- R4 validation as a global default, production gain, blind test, answer
+  accuracy, or proof of generalization. Its only promoted status is a post-hoc
+  explicit known-report canary; the original gate remained failed.
 
 ## Evidence chain
 
@@ -93,6 +102,9 @@ ms`. This must be labeled non-blind recombined stress evidence.
 - EnterpriseRAG-Bench:
   `docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json`,
   execution SHA `955d86f1ca244bc90025c89806fd786f978b98ff`.
-- UDA R4 rejected validation:
+- UDA R4 original rejected validation:
   `docs/r4/evidence/uda_finance_r4_public_v1.json`, SHA-256
   `730eff46cdb82e56254c3c9bce63baa41bafbd216c4323b4e67bb69bc60fa2e7`.
+- UDA R4 paired canary review:
+  `docs/r4/evidence/uda_finance_r4_canary_review_v1.json`, SHA-256
+  `dc8db412fa9b57ca0e3c05390f832783253b2801965851afb6c294b1064683b3`.

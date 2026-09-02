@@ -235,3 +235,22 @@ Every result must be registered before it is used in a report or resume claim. A
   rejected and the one-shot test was programmatically forbidden.
 - Public aggregate SHA-256:
   `730eff46cdb82e56254c3c9bce63baa41bafbd216c4323b4e67bb69bc60fa2e7`.
+
+### RM-0402 UDA R4 post-hoc limited-canary review
+
+- Status: `LIMITED_CANARY_APPROVED`; tier: `E2_PUBLIC_LABEL_SCOPED`
+- Source: unchanged RM-0401 validation rankings; no new model or retrieval run.
+- Method: fixed-seed 100,000-sample paired bootstrap plus exact two-sided
+  McNemar test over the same 64 case IDs.
+- Paired outcomes: both hit 46, candidate-only hit 6, baseline-only hit 3,
+  both miss 9; misses `15 -> 12` (20% relative reduction).
+- Hit@5 delta: +4.6875pp, paired 95% interval
+  `[-4.6875pp, +14.0625pp]`, McNemar p=`0.5078`.
+- nDCG@5 delta: +8.1994pp, paired 95% interval
+  `[+1.5773pp, +15.0354pp]`; p95 multiplier `1.0658x`.
+- Decision boundary: post-hoc engineering rollout only. The original gate
+  remains failed, frozen test remains unrun, and activation is explicit opt-in
+  for known-report finance page localization. A fresh company-disjoint cohort
+  is required before wider promotion.
+- Evidence: `docs/r4/evidence/uda_finance_r4_canary_review_v1.json`, SHA-256
+  `dc8db412fa9b57ca0e3c05390f832783253b2801965851afb6c294b1064683b3`.

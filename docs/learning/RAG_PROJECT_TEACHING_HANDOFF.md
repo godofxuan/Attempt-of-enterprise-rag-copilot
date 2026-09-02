@@ -369,10 +369,12 @@ GPU 挂载仍需额外工程，且不能把本地重跑变成第三方复现。�
 4. 若复用 ID 影响 20% 问题，应继续做 sensitivity 还是升级 benchmark identity？
 5. 说明“独立第三方复现”还需要哪些本项目当前没有的参与方和环境证据。
 
-## 十一、UDA R4：一次没有晋级但真正有效的工程改进
+## 十一、UDA R4：原门禁失败后如何做限定 canary
 
 R4 的完整初学者讲解已经独立整理到
 [`41_UDA_R4_分层检索_性能优化与失败门禁.md`](41_UDA_R4_分层检索_性能优化与失败门禁.md)。
+旧的 +5pp Hit@5 门禁仍然以失败保留；后续逐题配对复核只把候选晋级为显式
+known-report finance canary，并没有运行 frozen test 或替换全局默认检索。
 它解释三路 Dense/BM25 页融合、RRF、visible-only BM25、共享 ACL scope、
 `rank-bm25` tuple/NumPy 故障、同 SHA 开发授权和一次性 validation。结论是：候选
 显著改善 nDCG 并把 p95 开销从 2.30x 降到 1.07x，但独立 validation 的 Hit@5

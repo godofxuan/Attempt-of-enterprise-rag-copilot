@@ -1513,7 +1513,7 @@ HERB remain explicitly `NOT_RUN`. The authoritative closeout is
 `docs/enterprise_eval/FINAL_REPORT.md`; the beginner-oriented code explanation
 is `docs/learning/RAG_PROJECT_TEACHING_HANDOFF.md`.
 
-## 51. UDA R4: hierarchical retrieval improved ranking but failed promotion
+## 51. UDA R4: hierarchical retrieval, failed gate, and scoped canary
 
 R4 consumed 28 previously unused UDA companies as disjoint 96-question
 development, 64-question validation and 64-question frozen-test cohorts. A
@@ -1527,5 +1527,10 @@ The final exact-SHA development run passed all gates. Company-disjoint
 validation improved Hit@5 from 76.56% to 81.25%, nDCG@5 from 64.41% to 72.61%
 and p95 from 112.65 to 120.06 ms. The +4.6875pp Hit@5 delta missed the frozen
 +5pp gate by 0.3125pp. The candidate was rejected and the one-shot test remains
-unexecuted. Public aggregate evidence and the full incident record are under
-`docs/r4`; no positive resume metric was promoted.
+unexecuted. That original decision remains immutable. A later post-hoc paired
+review found 6 candidate-only hits, 3 regressions and misses reduced from 15 to
+12; nDCG's paired bootstrap interval stayed above zero while Hit's interval
+crossed zero. The exact v3 profile was therefore promoted only to an explicit
+known-report finance canary. It did not become the global default and did not
+unlock the old frozen test. Public aggregate evidence and the full record are
+under `docs/r4`.

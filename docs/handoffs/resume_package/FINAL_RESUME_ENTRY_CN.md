@@ -59,8 +59,9 @@ workflow durable execution，也不是 exactly-once。
 可在面试版项目说明中补充一个具体例子：在 64 题 company-disjoint UDA R4
 validation 上，分层 Dense/BM25 页融合使 nDCG@5 从 `64.41%` 到 `72.61%`，并将
 开发阶段 2.30x 的 p95 开销通过 visible-only BM25 与共享 ACL scope 降至验证阶段
-1.07x；但 Hit@5 仅提升 4.69pp，未达到预注册 5pp 门槛，因此拒绝发布且未运行
-test。它体现评测与工程判断，不能写成已上线的正向效果。
+1.07x；Hit@5 从 `76.56%` 到 `81.25%`。原预注册 +5pp Hit 门槛仍以失败记录，test
+仍未运行；后续逐题分析发现 6 题救回、3 题退化，漏检 `15 -> 12`，因此只晋级为
+显式 opt-in 的 known-report canary。不能写成全局上线、test 提升或答案准确率。
 
 ## 安全岗替换条目
 
@@ -79,7 +80,7 @@ test。它体现评测与工程判断，不能写成已上线的正向效果。
 | WixQA 检索 | `app/external_datasets/wixqa_retrieval.py` | `tests/external_datasets/test_wixqa_public_evidence.py` | `docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json` |
 | 单机 FTS5 | `app/external_datasets/enterprise_rag_bench_fts.py` | `tests/external_datasets/test_enterprise_rag_bench_fts.py`; `tests/test_final_evidence_closure.py` | `docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json` |
 | Retrieved-content Guard | `app/security/retrieved_content.py` | `tests/security/test_retrieved_content_guard.py`; `tests/evaluation/test_garak_latent_report.py` | `docs/resume_metrics/evidence/garak_latent_report_holdout_v1.json` |
-| UDA R4 负结果门禁 | `app/external_datasets/uda_finance_hierarchical.py`; `app/retrieval/pipeline.py` | `tests/external_datasets/test_uda_finance_r4_public.py`; `tests/retrieval/test_pipeline_ranking.py` | `docs/r4/evidence/uda_finance_r4_public_v1.json`; 未晋级 |
+| UDA R4 限定 canary | `app/external_datasets/uda_finance_hierarchical.py`; `app/external_datasets/uda_finance_r4_canary.py`; `app/retrieval/pipeline.py` | `tests/external_datasets/test_uda_finance_r4_canary.py`; `test_uda_finance_r4_public.py`; `tests/retrieval/test_pipeline_ranking.py` | 原门禁 `uda_finance_r4_public_v1.json`; canary `uda_finance_r4_canary_review_v1.json` |
 
 ## 禁止表述
 

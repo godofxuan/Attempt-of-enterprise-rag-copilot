@@ -71,3 +71,9 @@ v2 passed quality but reached 2.304x p95; visible-only BM25 reduced this to
 1.700x; shared ACL/metadata scope reduced the final development multiplier to
 1.041x. These are mechanism and negative-result evidence, not resume quality
 claims.
+
+This negative result was not erased when a later post-hoc paired review
+approved an explicit canary. The canary is a narrower rollout decision:
+6 candidate-only hits versus 3 regressions, misses `15 -> 12`, nDCG paired 95%
+interval above zero, Hit interval crossing zero, and p95 `1.0658x`. It does not
+change the original gate or authorize the frozen test.
