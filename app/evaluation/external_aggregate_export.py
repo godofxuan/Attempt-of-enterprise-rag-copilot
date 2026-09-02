@@ -126,7 +126,12 @@ def load_and_verify_aggregate_reference(
         )
     if payload.get("decision") != reference.decision:
         raise AggregateEvidenceVerificationError("reference decision does not match artifact")
-    if payload.get("protocol_sha256") != reference.protocol_sha256:
+    protocol_digests = {
+        value
+        for key, value in payload.items()
+        if (key == "protocol_sha256" or key.endswith("_protocol_sha256")) and isinstance(value, str)
+    }
+    if reference.protocol_sha256 not in protocol_digests:
         raise AggregateEvidenceVerificationError(
             "reference protocol SHA-256 does not match artifact"
         )

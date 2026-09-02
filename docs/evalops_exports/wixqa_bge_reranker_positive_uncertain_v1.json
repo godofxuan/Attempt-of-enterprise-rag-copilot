@@ -1,0 +1,35 @@
+{
+  "allowed_claims": [
+    "On the 200-case simulated configuration-selection cohort, GPU FP16 bge-reranker-v2-m3 improved Recall@5 by 3.50pp and nDCG@5 by 2.47pp versus same-run Dense at a 3.33x retrieval-stage p95.",
+    "On the historically consumed 200-case ExpertWritten cohort, retrospective point estimates moved Recall@5 from 66.42% to 68.58%, nDCG@5 from 52.16% to 54.09%, and MRR@5 from 49.61% to 52.22%.",
+    "FP16 batch-10 inference preserved the FP32 validation ranking metrics while reducing reranker p95 from 624.67 ms to 133.04 ms."
+  ],
+  "artifact_path": "docs/wixqa_reranker/bge_v2_evidence.json",
+  "artifact_schema": "wixqa_bge_reranker_public_evidence_v1",
+  "artifact_sha256": "9ad53224685254303cd4af808dd762e5ad15e662717893987998ae923b1376c6",
+  "case_count": 200,
+  "contains_private_case_payload": false,
+  "decision": "VALIDATION_GATE_PASSED_RETROSPECTIVE_POSITIVE_UNCERTAIN",
+  "evidence_id": "wixqa-bge-reranker-positive-uncertain-v1",
+  "evidence_scope": "Aggregate WixQA article-ranking evidence for the selected GPU FP16 BGE reranker, including paired uncertainty and latency; no private per-case payload.",
+  "forbidden_claims": [
+    "The ExpertWritten improvement is statistically significant.",
+    "The ExpertWritten cohort is a fresh blind holdout.",
+    "The experiment measured answer accuracy or citation quality.",
+    "The GPU reranker is the unconditional production default.",
+    "The aggregate artifact is equivalent to 200 formal per-case EvalOps CaseResults."
+  ],
+  "formal_case_results": "INPUT_REQUIRED",
+  "payload_granularity": "aggregate_only",
+  "producing_code_sha": "e011843f8da4c6fd493a70457c1c76d7f84d2afb",
+  "protocol_sha256": "8622f0867871ab7ff403ba6344f925352a860d6a63335db2583e8bbc7133ebe2",
+  "schema_version": "enterprise-rag.aggregate-evidence-reference/1.0",
+  "source_ci": {
+    "conclusion": "success",
+    "run_id": 33613059251,
+    "status": "completed",
+    "url": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/33613059251"
+  },
+  "source_repository": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot",
+  "source_sha": "3b717f7731ba270cad66ad748550b4372d3da746"
+}

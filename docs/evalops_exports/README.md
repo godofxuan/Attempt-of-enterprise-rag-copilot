@@ -18,3 +18,9 @@ Verify the WixQA negative-result export from the repository root:
   docs/evalops_exports/wixqa_reranker_negative_v1.json
 ```
 
+Verify the later GPU BGE positive-but-uncertain export:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.verify_external_aggregate_export `
+  docs/evalops_exports/wixqa_bge_reranker_positive_uncertain_v1.json
+```

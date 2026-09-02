@@ -13,6 +13,8 @@ from app.evaluation.external_aggregate_export import (
     load_and_verify_aggregate_reference,
 )
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+
 
 def _json_bytes(value: object) -> bytes:
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
@@ -118,3 +120,34 @@ def test_aggregate_reference_rejects_unknown_fields(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="extra_forbidden"):
         AggregateEvidenceReference.model_validate(payload)
+
+
+def test_aggregate_reference_accepts_named_versioned_protocol_hash(tmp_path: Path) -> None:
+    artifact, reference_path = _write_fixture(tmp_path)
+    payload = json.loads(artifact.read_text(encoding="utf-8"))
+    payload["fp16_optimization_protocol_sha256"] = payload.pop("protocol_sha256")
+    artifact.write_bytes(_json_bytes(payload))
+    reference = json.loads(reference_path.read_text(encoding="utf-8"))
+    reference["artifact_sha256"] = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    reference_path.write_bytes(_json_bytes(reference))
+
+    verified = load_and_verify_aggregate_reference(reference_path, repository_root=tmp_path)
+
+    assert verified.protocol_sha256 == "2" * 64
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "wixqa_reranker_negative_v1.json",
+        "wixqa_bge_reranker_positive_uncertain_v1.json",
+    ],
+)
+def test_published_wixqa_aggregate_references_verify(name: str) -> None:
+    reference = load_and_verify_aggregate_reference(
+        REPOSITORY_ROOT / "docs" / "evalops_exports" / name,
+        repository_root=REPOSITORY_ROOT,
+    )
+
+    assert reference.contains_private_case_payload is False
+    assert reference.formal_case_results == "INPUT_REQUIRED"
