@@ -6,6 +6,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PROTOCOL = ROOT / "docs" / "wixqa_reranker" / "protocol_v1.json"
 BGE_V2_PROTOCOL = ROOT / "docs" / "wixqa_reranker" / "bge_v2_protocol.json"
+BGE_FP16_PROTOCOL = (
+    ROOT / "docs" / "wixqa_reranker" / "bge_fp16_optimization_protocol.json"
+)
 
 
 def test_wixqa_reranker_protocol_freezes_model_and_candidate_budget() -> None:
@@ -73,3 +76,24 @@ def test_wixqa_bge_v2_protocol_preserves_claim_and_latency_boundaries() -> None:
         "min_ndcg_at_5_delta": 0.02,
         "min_recall_at_5_delta": 0.0,
     }
+
+
+def test_wixqa_bge_fp16_protocol_freezes_runtime_only_candidate() -> None:
+    protocol = json.loads(BGE_FP16_PROTOCOL.read_text(encoding="utf-8"))
+    assert protocol["schema_version"] == "wixqa_bge_fp16_optimization_protocol_v1"
+    assert protocol["candidate"] == {
+        "batch_size": 10,
+        "dense_head_count": 0,
+        "device": "cuda",
+        "dtype": "float16",
+        "model": "BAAI/bge-reranker-v2-m3",
+        "model_weights_sha256": (
+            "d9e3e081faff1eefb84019509b2f5558fd74c1a05a2c7db22f74174fcedb5286"
+        ),
+        "reranker_top_n": 10,
+        "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+        "torch_build": "2.7.0+cu128",
+    }
+    assert protocol["gate"]["max_p95_latency_multiplier"] == 5.0
+    assert protocol["gate"]["min_ndcg_at_5_delta_vs_dense"] == 0.02
+    assert protocol["evaluation_boundary"]["independent_quality_test"] is False

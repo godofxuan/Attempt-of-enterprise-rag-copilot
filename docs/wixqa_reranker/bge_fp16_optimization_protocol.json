@@ -1,0 +1,36 @@
+{
+  "candidate": {
+    "batch_size": 10,
+    "dense_head_count": 0,
+    "device": "cuda",
+    "dtype": "float16",
+    "model": "BAAI/bge-reranker-v2-m3",
+    "model_weights_sha256": "d9e3e081faff1eefb84019509b2f5558fd74c1a05a2c7db22f74174fcedb5286",
+    "reranker_top_n": 10,
+    "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+    "torch_build": "2.7.0+cu128"
+  },
+  "evaluation_boundary": {
+    "expertwritten": "RUN_ONLY_AFTER_OPTIMIZATION_GATE_RETROSPECTIVE_FIXED_CONSUMED",
+    "independent_quality_test": false,
+    "runtime_promotion": "CONDITIONAL_GPU_ONLY_AFTER_CONFIRMATION",
+    "simulated": "POST_QUALITY_RUNTIME_OPTIMIZATION"
+  },
+  "gate": {
+    "max_p95_latency_multiplier": 5.0,
+    "min_ndcg_at_5": 0.5,
+    "min_ndcg_at_5_delta_vs_dense": 0.02,
+    "min_recall_at_5": 0.6475,
+    "min_recall_at_5_delta_vs_dense": 0.0
+  },
+  "implementation_commit": "25e0b1f202d020e854805b58909a2f28401c790c",
+  "reference_fp32": {
+    "dense_ndcg_at_5": 0.47779195278017633,
+    "dense_recall_at_5": 0.6141666666666667,
+    "ndcg_at_5": 0.5024650994019478,
+    "p95_latency_ms": 624.6695,
+    "recall_at_5": 0.6491666666666667,
+    "run_id": "wixqa-bge-v2-validation-top10-head0-v1"
+  },
+  "schema_version": "wixqa_bge_fp16_optimization_protocol_v1"
+}
