@@ -44,15 +44,17 @@ run can also emit a verifiable trajectory for replay and evaluation.
 | Result | Verified observation | Boundary |
 |---|---:|---|
 | WixQA retrieval | On 200 fixed ExpertWritten questions, BGE-M3 Dense improved Recall@5 `42.75% -> 66.42%` and nDCG@5 `32.15% -> 52.16%` | Public-label retrieval, not answer accuracy. [Evidence](docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json) |
+| WixQA BGE reranking | On the same 200 fixed ExpertWritten questions, GPU FP16 `bge-reranker-v2-m3` moved Recall@5 `66.42% -> 68.58%`, nDCG@5 `52.16% -> 54.09%`, and MRR@5 `49.61% -> 52.22%`; p95 moved `40.74 -> 135.92 ms` | Retrospective consumed public labels; positive point estimates but paired 95% CIs cross zero. GPU ranking only, not answer accuracy or an unconditional default. [Evidence](docs/wixqa_reranker/bge_v2_evidence.json) |
 | EnterpriseRAG-Bench indexing | Built and atomically activated a `1.37 GiB` SQLite FTS5 index over `511,962` public records in `231.35 s`, at about `1.83 GiB` peak RSS | Single-host lexical baseline, not production capacity. [Evidence](docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json) |
 | Clean retrieval replay | Rebuilt 11,975 embeddings and reproduced `63/63` frozen quality comparisons at tolerance `0.0` | Local replay of consumed public labels. [Evidence](docs/reproduction/evidence/wixqa_clean_reproduction_public_v1.json) |
 | UDA R4 scoped canary | On 64 company-disjoint validation questions, page fusion moved Hit@5 `76.56% -> 81.25%` and nDCG@5 `64.41% -> 72.61%` at `1.066x` p95; misses fell `15 -> 12` | The original 5pp Hit gate still failed and test stayed unrun. A later paired review approved explicit opt-in known-report canary only, not the global default. [Evidence](docs/r4/evidence/uda_finance_r4_canary_review_v1.json) |
 | UDA R5 fresh confirmation | On all 192 questions from the 41 remaining previously unused UDA companies, page fusion moved Hit@5 `80.21% -> 88.02%` and nDCG@5 `70.95% -> 77.60%`; it rescued `15` cases, regressed `0`, and reduced misses `38 -> 23` at `1.058x` p95 | One-shot public-label, company-disjoint known-report page localization. Company-cluster 95% lower bounds were `+4.10pp` Hit and `+3.32pp` nDCG. Promoted only for server-classified finance known reports. [Evidence](docs/r5/evidence/uda_finance_r5_public_v1.json) |
 
-A pinned WixQA Cross-Encoder experiment was also implemented and rejected:
-all three registered Top-10/20 configurations reduced validation Recall@5 and
-nDCG@5 while increasing p95 to `5.90x-12.28x` Dense. The consumed ExpertWritten
-set was not rerun after the gate failure. [Protocol and result](docs/wixqa_reranker/RESULTS.md).
+A pinned generic MiniLM WixQA reranker was rejected after all registered arms
+reduced validation quality. A separately frozen BGE follow-up recovered positive
+point estimates; FP16 batching reduced its p95 from `624.67 ms` to `133.04 ms`
+without changing the 200-case validation ranking metrics. The retrospective
+ExpertWritten gain remains statistically uncertain. [Protocols and results](docs/wixqa_reranker/RESULTS.md).
 
 This repository is an engineering portfolio, not a framework showcase. MCP is
 an in-process protocol adapter rather than a network deployment; LangGraph is

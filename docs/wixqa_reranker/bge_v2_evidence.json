@@ -1,0 +1,118 @@
+{
+  "claim_boundary": [
+    "Article retrieval and ranking only; answer correctness and citation quality were not evaluated.",
+    "The 200-case simulated cohort was used for configuration selection and runtime optimization, not blind testing.",
+    "ExpertWritten is a historically consumed fixed public cohort and this run is retrospective.",
+    "ExpertWritten point estimates are positive, but every reported paired 95% interval crosses zero.",
+    "The optimized configuration requires a CUDA-capable GPU and is not the unconditional default runtime."
+  ],
+  "decision": "VALIDATION_GATE_PASSED_RETROSPECTIVE_POSITIVE_UNCERTAIN",
+  "embedding_model": "bge-m3",
+  "expertwritten": {
+    "consumption": "FIXED_CONSUMED_RETROSPECTIVE",
+    "latency_ms": {
+      "baseline_p95": 40.74333999951705,
+      "candidate_p95": 135.92355500013582,
+      "p95_delta": 95.18021500061877,
+      "p95_multiplier": 3.336092598244204
+    },
+    "metrics": {
+      "ndcg_at_5": {
+        "baseline": 0.5215833269444662,
+        "candidate": 0.5408824596603183,
+        "ci95_high": 0.060774003511220545,
+        "ci95_low": -0.021218670978930657,
+        "delta": 0.019299132715852117,
+        "losses": 51,
+        "ties": 95,
+        "wins": 54
+      },
+      "recall_at_5": {
+        "baseline": 0.6641666666666667,
+        "candidate": 0.6858333333333334,
+        "ci95_high": 0.06583333333333333,
+        "ci95_low": -0.0225,
+        "delta": 0.02166666666666666,
+        "losses": 12,
+        "ties": 171,
+        "wins": 17
+      },
+      "reciprocal_rank_at_5": {
+        "baseline": 0.4960833333333333,
+        "candidate": 0.5221666666666667,
+        "ci95_high": 0.07566874999999998,
+        "ci95_low": -0.022583333333333334,
+        "delta": 0.026083333333333333,
+        "losses": 44,
+        "ties": 104,
+        "wins": 52
+      }
+    },
+    "paired_summary_sha256": "bd4db19b33e2a7058f236287880b9a5a894b1a35dd6bdc3b7a689019b55e2beb",
+    "run_id": "wixqa-bge-v2-fp16-batch10-expertwritten-retrospective-v1",
+    "run_summary_sha256": "b520ec762c717eb35de89369133b48055fa848e22c58b1c3cea49c8d2870c8c9",
+    "statistical_conclusion": "POSITIVE_POINT_ESTIMATES_CI_CROSSES_ZERO"
+  },
+  "fp16_optimization_protocol_sha256": "8622f0867871ab7ff403ba6344f925352a860d6a63335db2583e8bbc7133ebe2",
+  "gpu_runtime": {
+    "batch_size": 10,
+    "device": "NVIDIA GeForce RTX 5060",
+    "dtype": "float16",
+    "torch_build": "2.7.0+cu128"
+  },
+  "paired_statistics": {
+    "iterations": 10000,
+    "method": "paired_percentile_bootstrap",
+    "producer_commit": "b87c1b9a56b97285468caac20728401dd8c7a689",
+    "seed": 20260902
+  },
+  "reranker": {
+    "model": "BAAI/bge-reranker-v2-m3",
+    "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+    "weights_sha256": "d9e3e081faff1eefb84019509b2f5558fd74c1a05a2c7db22f74174fcedb5286"
+  },
+  "runtime_decision": "GPU_EXPERIMENTAL_QUALITY_MODE_NOT_UNCONDITIONAL_DEFAULT",
+  "schema_version": "wixqa_bge_reranker_public_evidence_v1",
+  "validation": {
+    "gate_checks": {
+      "max_p95_latency_multiplier": true,
+      "min_absolute_ndcg_at_5": true,
+      "min_absolute_recall_at_5": true,
+      "min_ndcg_at_5_delta": true,
+      "min_recall_at_5_delta": true
+    },
+    "latency_ms": {
+      "baseline_p95": 39.98378500045874,
+      "candidate_p95": 133.04263000109128,
+      "p95_delta": 93.05884500063254,
+      "p95_multiplier": 3.3274146006828738
+    },
+    "metrics": {
+      "ndcg_at_5": {
+        "baseline": 0.47779195278017667,
+        "candidate": 0.5024650994019484,
+        "ci95_high": 0.0633658596820493,
+        "ci95_low": -0.013021671835381061,
+        "delta": 0.024673146621771815
+      },
+      "recall_at_5": {
+        "baseline": 0.6141666666666666,
+        "candidate": 0.6491666666666666,
+        "ci95_high": 0.08,
+        "ci95_low": -0.01,
+        "delta": 0.035
+      },
+      "reciprocal_rank_at_5": {
+        "baseline": 0.45116666666666666,
+        "candidate": 0.4744166666666667,
+        "ci95_high": 0.06775208333333331,
+        "ci95_low": -0.02033333333333333,
+        "delta": 0.023250000000000003
+      }
+    },
+    "paired_summary_sha256": "5c148b0adb93ea0266e4fbb5f23bb8c8161c95ef8b3b7aa4adfabadffc817204",
+    "run_id": "wixqa-bge-v2-fp16-batch10-validation-v1",
+    "run_summary_sha256": "2a268e283baf574690caed31600619a5ed972fe5815525a26a4ae675b8c85253"
+  },
+  "v2_protocol_sha256": "a69bea61cc3bc5f3ba468859d5a181cd9821d7039334f0ac521f684a9785b839"
+}
