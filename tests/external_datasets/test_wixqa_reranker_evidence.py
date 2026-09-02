@@ -25,3 +25,14 @@ def test_wixqa_reranker_evidence_preserves_claim_boundary() -> None:
     assert "not a blind holdout" in boundary
     assert "answer and citation quality were not evaluated" in boundary
     assert evidence["code_revision"] == "00ed4bbf346aa5d2d8f14ffe08cb6fed41140398"
+
+
+def test_wixqa_candidate_ceiling_and_stronger_smoke_are_not_promotions() -> None:
+    evidence = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+    ceiling = evidence["candidate_ceiling"]
+    assert ceiling["recall_at_10"] > ceiling["recall_at_5"]
+    assert ceiling["recall_at_20"] > ceiling["recall_at_10"]
+    smoke = evidence["exploratory_stronger_model_smoke"]
+    assert smoke["case_count"] == 2
+    assert smoke["cuda_attempt"] == "BLOCKED_TORCH_CPU_ONLY"
+    assert smoke["decision"] == "FULL_RUN_NOT_JUSTIFIED_BY_COST"

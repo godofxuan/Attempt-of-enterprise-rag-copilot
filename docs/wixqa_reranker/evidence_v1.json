@@ -7,12 +7,35 @@
     "Private questions, article text, case IDs, and per-case outcomes are excluded."
   ],
   "code_revision": "00ed4bbf346aa5d2d8f14ffe08cb6fed41140398",
+  "candidate_ceiling": {
+    "case_count": 200,
+    "code_revision": "e7994086e916228c1763cdbfc16e10d067a6a9b3",
+    "details_sha256": "6319eb6d86bfde4ab239277ad3c8ff524b9fd8776d4a8d4aa878858b0fbb3318",
+    "multi_article_complete_at_10": 0.48148148148148145,
+    "multi_article_complete_at_20": 0.6296296296296297,
+    "multi_article_complete_at_5": 0.14814814814814814,
+    "recall_at_10": 0.72,
+    "recall_at_20": 0.8458333333333333,
+    "recall_at_5": 0.6141666666666667,
+    "summary_sha256": "e8d1df22e87382bef5bdd0db5d48ab47dd063f8e3916785ec5fb8eb0d909f6b7"
+  },
   "dataset": "WixQA",
   "dataset_manifest_sha256": "e40972d70a8c80685b3730733efd90ac82a01fd52a949a0d27e122809bc290dd",
   "decision": "VALIDATION_REJECTED_EXPERTWRITTEN_FORBIDDEN",
   "embedding_model": "bge-m3",
   "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
   "expertwritten_status": "NOT_RUN_GATE_FORBIDS",
+  "exploratory_stronger_model_smoke": {
+    "case_count": 2,
+    "cuda_attempt": "BLOCKED_TORCH_CPU_ONLY",
+    "decision": "FULL_RUN_NOT_JUSTIFIED_BY_COST",
+    "dense_latency_ms_p95": 55.33550000018295,
+    "details_sha256": "d95ae4eed06fd81ca01ec7d5b35e075d2fce3531772e43cdb87bea4c533d01cb",
+    "model": "BAAI/bge-reranker-v2-m3",
+    "model_revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+    "reranker_latency_ms_p95": 6616.063899999972,
+    "summary_sha256": "16b9951a98de4e7aa59c7892379788cd65ed127c0b4738cf6fc2c71e393daa7d"
+  },
   "index_manifest_sha256": "d21b3aa78bc578a86d421c4db724b6441d404e13ed628bd8c22fdaff002daa09",
   "protocol_sha256": "3f0c01376fddcfed6a57021583756a19a87c0bda5d1dea704ba584efacf3f67e",
   "reranker": {
