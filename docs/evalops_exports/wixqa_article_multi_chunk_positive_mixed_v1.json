@@ -1,0 +1,35 @@
+{
+  "allowed_claims": [
+    "Report fixed-cohort retrieval point estimates and measured local latency",
+    "Report that two-chunk article representation improved simulated selection metrics",
+    "Report retrospective ExpertWritten MRR paired interval above zero versus Dense"
+  ],
+  "artifact_path": "docs/wixqa_reranker/article_multi_chunk_evidence.json",
+  "artifact_schema": "wixqa_article_multi_chunk_evidence_v1",
+  "artifact_sha256": "20305ad1a518b1cf6f86959b5ce1bcf0614a9678835f7794cd8bcf9faf1c7990",
+  "case_count": 200,
+  "contains_private_case_payload": false,
+  "decision": "TOP10_TWO_CHUNK_EXPERIMENTAL_MODE_SELECTED",
+  "evidence_id": "wixqa-article-multi-chunk-positive-mixed-v1",
+  "evidence_scope": "Aggregate WixQA article-ranking evidence for a bounded two-chunk article representation, including same-run configuration selection, retrospective point estimates, paired uncertainty, latency, and retrieved-content Guard observations; no private per-case payload.",
+  "forbidden_claims": [
+    "Answer accuracy improvement",
+    "Fresh blind-test generalization",
+    "Unconditional production default",
+    "Production latency SLO",
+    "Improvement on every retrieval or multi-document metric"
+  ],
+  "formal_case_results": "INPUT_REQUIRED",
+  "payload_granularity": "aggregate_only",
+  "producing_code_sha": "ea60529372794e9fe50b7528277b71307773222e",
+  "protocol_sha256": "777a28157848cc9f0f7311cb68f58116b2cac46ebb9be75cc5294ce99dd9f4db",
+  "schema_version": "enterprise-rag.aggregate-evidence-reference/1.0",
+  "source_ci": {
+    "conclusion": "success",
+    "run_id": 33629262271,
+    "status": "completed",
+    "url": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/33629262271"
+  },
+  "source_repository": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot",
+  "source_sha": "d46a7766e362ec2bcb35afc7670113da9b18651e"
+}

@@ -131,10 +131,37 @@ def load_and_verify_aggregate_reference(
         for key, value in payload.items()
         if (key == "protocol_sha256" or key.endswith("_protocol_sha256")) and isinstance(value, str)
     }
+    protocol = payload.get("protocol")
+    if isinstance(protocol, dict) and isinstance(protocol.get("sha256"), str):
+        protocol_digests.add(protocol["sha256"])
     if reference.protocol_sha256 not in protocol_digests:
         raise AggregateEvidenceVerificationError(
             "reference protocol SHA-256 does not match artifact"
         )
+    claim_boundary = payload.get("claim_boundary")
+    if isinstance(claim_boundary, dict):
+        artifact_allowed = claim_boundary.get("allowed")
+        artifact_forbidden = claim_boundary.get("forbidden")
+        if not isinstance(artifact_allowed, list) or not all(
+            isinstance(item, str) for item in artifact_allowed
+        ):
+            raise AggregateEvidenceVerificationError(
+                "artifact allowed claim boundary must be a string list"
+            )
+        if not isinstance(artifact_forbidden, list) or not all(
+            isinstance(item, str) for item in artifact_forbidden
+        ):
+            raise AggregateEvidenceVerificationError(
+                "artifact forbidden claim boundary must be a string list"
+            )
+        if tuple(artifact_allowed) != reference.allowed_claims:
+            raise AggregateEvidenceVerificationError(
+                "reference allowed claims do not match artifact"
+            )
+        if tuple(artifact_forbidden) != reference.forbidden_claims:
+            raise AggregateEvidenceVerificationError(
+                "reference forbidden claims do not match artifact"
+            )
     return reference
 
 

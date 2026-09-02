@@ -136,11 +136,55 @@ def test_aggregate_reference_accepts_named_versioned_protocol_hash(tmp_path: Pat
     assert verified.protocol_sha256 == "2" * 64
 
 
+def test_aggregate_reference_accepts_nested_protocol_and_exact_claim_boundary(
+    tmp_path: Path,
+) -> None:
+    artifact, reference_path = _write_fixture(tmp_path)
+    payload = json.loads(artifact.read_text(encoding="utf-8"))
+    payload["protocol"] = {"sha256": payload.pop("protocol_sha256")}
+    payload["claim_boundary"] = {
+        "allowed": ["The validation candidate was rejected."],
+        "forbidden": ["The candidate improved the frozen test."],
+    }
+    artifact.write_bytes(_json_bytes(payload))
+    reference = json.loads(reference_path.read_text(encoding="utf-8"))
+    reference["artifact_sha256"] = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    reference_path.write_bytes(_json_bytes(reference))
+
+    verified = load_and_verify_aggregate_reference(
+        reference_path,
+        repository_root=tmp_path,
+    )
+
+    assert verified.allowed_claims == ("The validation candidate was rejected.",)
+
+
+def test_aggregate_reference_rejects_nested_claim_boundary_drift(tmp_path: Path) -> None:
+    artifact, reference_path = _write_fixture(tmp_path)
+    payload = json.loads(artifact.read_text(encoding="utf-8"))
+    payload["claim_boundary"] = {
+        "allowed": ["The validation candidate was rejected."],
+        "forbidden": ["The candidate improved the frozen test."],
+    }
+    artifact.write_bytes(_json_bytes(payload))
+    reference = json.loads(reference_path.read_text(encoding="utf-8"))
+    reference["artifact_sha256"] = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    reference["allowed_claims"] = ["A stronger claim not present in the artifact."]
+    reference_path.write_bytes(_json_bytes(reference))
+
+    with pytest.raises(
+        AggregateEvidenceVerificationError,
+        match="allowed claims do not match",
+    ):
+        load_and_verify_aggregate_reference(reference_path, repository_root=tmp_path)
+
+
 @pytest.mark.parametrize(
     "name",
     [
         "wixqa_reranker_negative_v1.json",
         "wixqa_bge_reranker_positive_uncertain_v1.json",
+        "wixqa_article_multi_chunk_positive_mixed_v1.json",
     ],
 )
 def test_published_wixqa_aggregate_references_verify(name: str) -> None:
