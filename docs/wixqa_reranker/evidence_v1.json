@@ -1,0 +1,110 @@
+{
+  "claim_boundary": [
+    "Configuration selection on the 200-case WixQA simulated cohort; not a blind holdout.",
+    "Article retrieval and ranking only; answer and citation quality were not evaluated.",
+    "Every registered Cross-Encoder arm failed the frozen validation gate.",
+    "The historically consumed ExpertWritten cohort was not rerun because the validation gate failed.",
+    "Private questions, article text, case IDs, and per-case outcomes are excluded."
+  ],
+  "code_revision": "00ed4bbf346aa5d2d8f14ffe08cb6fed41140398",
+  "dataset": "WixQA",
+  "dataset_manifest_sha256": "e40972d70a8c80685b3730733efd90ac82a01fd52a949a0d27e122809bc290dd",
+  "decision": "VALIDATION_REJECTED_EXPERTWRITTEN_FORBIDDEN",
+  "embedding_model": "bge-m3",
+  "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+  "expertwritten_status": "NOT_RUN_GATE_FORBIDS",
+  "index_manifest_sha256": "d21b3aa78bc578a86d421c4db724b6441d404e13ed628bd8c22fdaff002daa09",
+  "protocol_sha256": "3f0c01376fddcfed6a57021583756a19a87c0bda5d1dea704ba584efacf3f67e",
+  "reranker": {
+    "batch_size": 16,
+    "device": "cpu",
+    "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+    "model_weights_sha256": "821d1aa69520101d6e0737f78a042ae25b19e5cb9160701909d10434f4aeb0ae",
+    "revision": "c5ee24cb16019beea0893ab7796b1df96625c6b8"
+  },
+  "runs": [
+    {
+      "candidate": {
+        "article_recall_at_5": 0.5858333333333333,
+        "latency_ms_p95": 355.641299999661,
+        "multi_article_completeness_at_5": 0.3333333333333333,
+        "ndcg_at_5": 0.44643998293258874
+      },
+      "config": {"dense_head_count": 0, "reranker_top_n": 10},
+      "dense_baseline": {
+        "article_recall_at_5": 0.6141666666666667,
+        "latency_ms_p95": 60.24200000001656,
+        "multi_article_completeness_at_5": 0.14814814814814814,
+        "ndcg_at_5": 0.47779195278017633
+      },
+      "details_sha256": "6b9e1cb9862a9d7ba99d9092ed1717ec3a4b0c2badec3105d12f6c076657993a",
+      "gate_checks": {
+        "max_p95_latency_multiplier": false,
+        "min_ndcg_at_5_delta": false,
+        "min_recall_at_5_delta": false
+      },
+      "guard_quarantined_candidates": 9,
+      "latency_p95_multiplier": 5.903544039035278,
+      "ndcg_at_5_delta": -0.03135196984758759,
+      "recall_at_5_delta": -0.028333333333333433,
+      "run_id": "wixqa-rerank-validation-top10-head0-v1",
+      "summary_sha256": "8b89fff548b94baff4eeb707be4cc130fd44492d8987193be9c250ce4ba11c2c"
+    },
+    {
+      "candidate": {
+        "article_recall_at_5": 0.5958333333333333,
+        "latency_ms_p95": 357.4766000001546,
+        "multi_article_completeness_at_5": 0.3333333333333333,
+        "ndcg_at_5": 0.4649004544676776
+      },
+      "config": {"dense_head_count": 1, "reranker_top_n": 10},
+      "dense_baseline": {
+        "article_recall_at_5": 0.6141666666666667,
+        "latency_ms_p95": 54.17140000008658,
+        "multi_article_completeness_at_5": 0.14814814814814814,
+        "ndcg_at_5": 0.47779195278017633
+      },
+      "details_sha256": "2e082c13dad946dd91640277e4bb5048a8b2cd2b6757f9b2c96c8c750128c470",
+      "gate_checks": {
+        "max_p95_latency_multiplier": false,
+        "min_ndcg_at_5_delta": false,
+        "min_recall_at_5_delta": false
+      },
+      "guard_quarantined_candidates": 9,
+      "latency_p95_multiplier": 6.598991349671289,
+      "ndcg_at_5_delta": -0.01289149831249875,
+      "recall_at_5_delta": -0.018333333333333424,
+      "run_id": "wixqa-rerank-validation-top10-head1-v1",
+      "summary_sha256": "29ae429a38b8913301e189ee8341748ee10c067ff04e93fa7ee4e961e6e8a39d"
+    },
+    {
+      "candidate": {
+        "article_recall_at_5": 0.5916666666666667,
+        "latency_ms_p95": 602.8019999998833,
+        "multi_article_completeness_at_5": 0.2222222222222222,
+        "ndcg_at_5": 0.4611280142327175
+      },
+      "config": {"dense_head_count": 1, "reranker_top_n": 20},
+      "dense_baseline": {
+        "article_recall_at_5": 0.6141666666666667,
+        "latency_ms_p95": 49.08519999980854,
+        "multi_article_completeness_at_5": 0.14814814814814814,
+        "ndcg_at_5": 0.47779195278017633
+      },
+      "details_sha256": "fff1970a53539ffa9e691641a23593e73a0f8acd921bc086eb2bc690ea91c89a",
+      "gate_checks": {
+        "max_p95_latency_multiplier": false,
+        "min_ndcg_at_5_delta": false,
+        "min_recall_at_5_delta": false
+      },
+      "guard_quarantined_candidates": 21,
+      "latency_p95_multiplier": 12.280728203251378,
+      "ndcg_at_5_delta": -0.016663938547458845,
+      "recall_at_5_delta": -0.022500000000000075,
+      "run_id": "wixqa-rerank-validation-top20-head1-v1",
+      "summary_sha256": "142bfb115dba694d4184e1dfe1933f66878cf1e24f8876150791a1b41591bf0d"
+    }
+  ],
+  "schema_version": "wixqa_article_reranker_public_evidence_v1",
+  "split": "simulated_validation_200"
+}
