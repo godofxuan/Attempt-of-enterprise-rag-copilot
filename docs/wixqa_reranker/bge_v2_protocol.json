@@ -1,0 +1,37 @@
+{
+  "admission_gate": {
+    "max_p95_latency_multiplier": 5.0,
+    "min_ndcg_at_5_delta": 0.02,
+    "min_recall_at_5_delta": 0.0
+  },
+  "candidate_k_chunks": 200,
+  "dataset_manifest_sha256": "e40972d70a8c80685b3730733efd90ac82a01fd52a949a0d27e122809bc290dd",
+  "dataset_revision": "d662dc42479c14e202eccd832f8c4b66a035c4cc",
+  "embedding_model": "bge-m3",
+  "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+  "evaluation_boundary": {
+    "answer_accuracy": "NOT_RUN",
+    "expertwritten": "RUN_ONLY_AFTER_GATE_RETROSPECTIVE_FIXED_CONSUMED",
+    "runtime_promotion": "FORBIDDEN_BY_THIS_PROTOCOL",
+    "simulated": "CONFIGURATION_SELECTION"
+  },
+  "final_top_k_articles": 5,
+  "implementation_commit": "7a7d0a1a8c454ff89bb8679e1b6a725ae7937fb2",
+  "index_manifest_sha256": "d21b3aa78bc578a86d421c4db724b6441d404e13ed628bd8c22fdaff002daa09",
+  "pre_freeze_quality_smoke_case_count": 2,
+  "reranker": {
+    "batch_size": 4,
+    "device": "cuda",
+    "model": "BAAI/bge-reranker-v2-m3",
+    "model_weights_sha256": "d9e3e081faff1eefb84019509b2f5558fd74c1a05a2c7db22f74174fcedb5286",
+    "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+    "torch_build": "2.7.0+cu128"
+  },
+  "schema_version": "wixqa_bge_reranker_protocol_v2",
+  "selection_arms": [
+    {"dense_head_count": 0, "reranker_top_n": 10},
+    {"dense_head_count": 1, "reranker_top_n": 10},
+    {"dense_head_count": 1, "reranker_top_n": 20}
+  ],
+  "selection_order": ["ndcg_at_5", "article_recall_at_5", "mrr_at_5", "latency_ms_p95"]
+}
