@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
-
 import pytest
 
 from app.domain.enterprise_documents import EnterpriseDocument, RawProvenance
@@ -15,6 +13,7 @@ from app.external_datasets.wixqa_retrieval import (
     build_flat_chunks,
     build_wixqa_flat_index,
     load_wixqa_flat_index,
+    merge_reranked_article_ids,
     reciprocal_rank_fusion,
     score_wixqa_ranking,
     summarize_wixqa_scores,
@@ -30,7 +29,7 @@ def _article(article_id: str, text: str) -> EnterpriseDocument:
         source_native_id=article_id,
         title=f"Title {article_id}",
         text=text,
-        timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         raw_provenance=RawProvenance(
             dataset_name="WixQA",
             source_revision=WIXQA_REVISION,
@@ -93,9 +92,7 @@ def test_multi_article_metrics_separate_hit_from_completeness() -> None:
     assert partial.complete_at_5 == 0.0
     assert complete.recall_at_5 == 1.0
     assert complete.complete_at_5 == 1.0
-    summary = summarize_wixqa_scores(
-        [partial, complete], cohort="simulated", arm="hybrid_rrf"
-    )
+    summary = summarize_wixqa_scores([partial, complete], cohort="simulated", arm="hybrid_rrf")
     assert summary.article_recall_at_5 == 0.75
     assert summary.multi_article_completeness_at_5 == 0.5
 
@@ -134,6 +131,31 @@ def test_flat_index_is_hash_bound_and_loadable(tmp_path: Path) -> None:
     version = tmp_path / "versions" / "fixture-v1"
     assert verify_wixqa_flat_index(version) == manifest
     loaded = load_wixqa_flat_index(tmp_path)
-    assert loaded.dense_article_ranking(
+    assert (
+        loaded.dense_article_ranking(np.asarray([[0.0, 1.0]], dtype="float32"), candidate_k=2)[0]
+        == "b"
+    )
+    candidates = loaded.dense_article_candidates(
         np.asarray([[0.0, 1.0]], dtype="float32"), candidate_k=2
-    )[0] == "b"
+    )
+    assert [item.article_id for item in candidates] == ["b", "a"]
+    assert candidates[0].chunk_id.startswith("wixqa:b:flat:")
+    assert "beta billing" in candidates[0].text
+
+
+def test_reranked_articles_preserve_dense_head_and_candidate_set() -> None:
+    merged = merge_reranked_article_ids(
+        dense_article_ids=["a", "b", "c", "d", "e"],
+        reranked_article_ids=["c", "b"],
+        reranker_top_n=3,
+        dense_head_count=1,
+    )
+    assert merged == ["a", "c", "b", "d", "e"]
+
+    with pytest.raises(ValueError, match="unknown"):
+        merge_reranked_article_ids(
+            dense_article_ids=["a", "b"],
+            reranked_article_ids=["x"],
+            reranker_top_n=2,
+            dense_head_count=0,
+        )

@@ -21,8 +21,7 @@ from app.domain.enterprise_documents import EnterpriseDocument
 from app.external_datasets.wixqa import WixQAQuestion, canonical_json_bytes
 from app.utils import tokenize_for_bm25
 
-
-WixQARetrievalArm = Literal["bm25", "dense", "hybrid_rrf"]
+WixQARetrievalArm = Literal["bm25", "dense", "hybrid_rrf", "dense_cross_encoder"]
 
 
 class _StrictModel(BaseModel):
@@ -35,6 +34,13 @@ class WixQAFlatChunk(_StrictModel):
     ordinal: int = Field(ge=1)
     text: str = Field(min_length=1)
     text_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class WixQAArticleCandidate(_StrictModel):
+    article_id: str = Field(min_length=1)
+    chunk_id: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+    dense_score: float
 
 
 class WixQAIndexArtifact(_StrictModel):
@@ -63,7 +69,7 @@ class WixQAFlatIndexManifest(_StrictModel):
     artifacts: list[WixQAIndexArtifact] = Field(min_length=3, max_length=3)
 
     @model_validator(mode="after")
-    def validate_artifacts(self) -> "WixQAFlatIndexManifest":
+    def validate_artifacts(self) -> WixQAFlatIndexManifest:
         if {item.path for item in self.artifacts} != {
             "chunks.jsonl",
             "bm25_tokens.pkl",
@@ -91,9 +97,7 @@ class WixQACaseScore(_StrictModel):
 
 
 class WixQARetrievalSummary(_StrictModel):
-    schema_version: Literal["wixqa_retrieval_summary_v1"] = (
-        "wixqa_retrieval_summary_v1"
-    )
+    schema_version: Literal["wixqa_retrieval_summary_v1"] = "wixqa_retrieval_summary_v1"
     cohort: Literal["synthetic", "simulated", "expertwritten"]
     arm: WixQARetrievalArm
     case_count: int = Field(ge=1)
@@ -138,12 +142,43 @@ class LoadedWixQAFlatIndex:
         *,
         candidate_k: int,
     ) -> list[str]:
+        return [
+            item.article_id
+            for item in self.dense_article_candidates(
+                query_vector,
+                candidate_k=candidate_k,
+            )
+        ]
+
+    def dense_article_candidates(
+        self,
+        query_vector: np.ndarray,
+        *,
+        candidate_k: int,
+    ) -> list[WixQAArticleCandidate]:
         vector = _normalize_matrix(np.asarray(query_vector, dtype="float32"))
         if vector.shape != (1, self.manifest.embedding_dimension):
             raise ValueError("WixQA query embedding dimension mismatch")
-        _, indices = self.faiss_index.search(vector, candidate_k)
-        valid = [int(index) for index in indices[0] if int(index) >= 0]
-        return _unique_articles(valid, self.chunks)
+        scores, indices = self.faiss_index.search(vector, candidate_k)
+        candidates: list[WixQAArticleCandidate] = []
+        seen: set[str] = set()
+        for raw_score, raw_index in zip(scores[0], indices[0], strict=True):
+            index = int(raw_index)
+            if index < 0:
+                continue
+            chunk = self.chunks[index]
+            if chunk.article_id in seen:
+                continue
+            seen.add(chunk.article_id)
+            candidates.append(
+                WixQAArticleCandidate(
+                    article_id=chunk.article_id,
+                    chunk_id=chunk.chunk_id,
+                    text=chunk.text,
+                    dense_score=float(raw_score),
+                )
+            )
+        return candidates
 
 
 def build_flat_chunks(
@@ -292,9 +327,7 @@ def build_wixqa_flat_index(
 
 def verify_wixqa_flat_index(path: Path) -> WixQAFlatIndexManifest:
     root = Path(path).resolve()
-    manifest = WixQAFlatIndexManifest.model_validate_json(
-        (root / "manifest.json").read_bytes()
-    )
+    manifest = WixQAFlatIndexManifest.model_validate_json((root / "manifest.json").read_bytes())
     for artifact in manifest.artifacts:
         content = (root / artifact.path).read_bytes()
         if len(content) != artifact.byte_count:
@@ -359,6 +392,36 @@ def reciprocal_rank_fusion(
     )
 
 
+def merge_reranked_article_ids(
+    *,
+    dense_article_ids: Sequence[str],
+    reranked_article_ids: Sequence[str],
+    reranker_top_n: int,
+    dense_head_count: int,
+) -> list[str]:
+    dense = list(dense_article_ids)
+    reranked = list(reranked_article_ids)
+    if len(dense) != len(set(dense)):
+        raise ValueError("dense article IDs must be unique")
+    if len(reranked) != len(set(reranked)):
+        raise ValueError("reranked article IDs must be unique")
+    if not 1 <= reranker_top_n <= len(dense):
+        raise ValueError("reranker top-N must fit the dense candidate list")
+    if not 0 <= dense_head_count <= reranker_top_n:
+        raise ValueError("dense head count must be between zero and reranker top-N")
+
+    window = dense[:reranker_top_n]
+    unknown = set(reranked).difference(window)
+    if unknown:
+        raise ValueError("reranked article IDs contain unknown candidates")
+
+    head = window[:dense_head_count]
+    ordered = head + [item for item in reranked if item not in head]
+    ordered.extend(item for item in window if item not in ordered)
+    ordered.extend(dense[reranker_top_n:])
+    return ordered
+
+
 def score_wixqa_ranking(
     question: WixQAQuestion,
     *,
@@ -368,16 +431,9 @@ def score_wixqa_ranking(
 ) -> WixQACaseScore:
     top = list(ranked_article_ids[:5])
     gold = set(question.article_ids)
-    recalls = {
-        cutoff: len(gold.intersection(top[:cutoff])) / len(gold)
-        for cutoff in (1, 3, 5)
-    }
+    recalls = {cutoff: len(gold.intersection(top[:cutoff])) / len(gold) for cutoff in (1, 3, 5)}
     first = next((rank for rank, item in enumerate(top, start=1) if item in gold), None)
-    dcg = sum(
-        (1.0 / math.log2(rank + 1))
-        for rank, item in enumerate(top, start=1)
-        if item in gold
-    )
+    dcg = sum((1.0 / math.log2(rank + 1)) for rank, item in enumerate(top, start=1) if item in gold)
     ideal = sum(1.0 / math.log2(rank + 1) for rank in range(1, min(5, len(gold)) + 1))
     return WixQACaseScore(
         question_id=question.question_id,
@@ -406,7 +462,10 @@ def summarize_wixqa_scores(
         raise ValueError(f"WixQA summary has no {arm} rows")
     multi = [item.complete_at_5 for item in rows if item.complete_at_5 is not None]
     latencies = sorted(item.latency_ms for item in rows)
-    mean = lambda name: sum(float(getattr(item, name)) for item in rows) / len(rows)
+
+    def mean(name: str) -> float:
+        return sum(float(getattr(item, name)) for item in rows) / len(rows)
+
     return WixQARetrievalSummary(
         cohort=cohort,
         arm=arm,
@@ -418,9 +477,7 @@ def summarize_wixqa_scores(
         article_recall_at_5=mean("recall_at_5"),
         mrr_at_5=mean("reciprocal_rank_at_5"),
         ndcg_at_5=mean("ndcg_at_5"),
-        multi_article_completeness_at_5=(
-            sum(multi) / len(multi) if multi else None
-        ),
+        multi_article_completeness_at_5=(sum(multi) / len(multi) if multi else None),
         latency_ms_mean=sum(latencies) / len(latencies),
         latency_ms_p50=latencies[max(0, math.ceil(0.50 * len(latencies)) - 1)],
         latency_ms_p95=latencies[max(0, math.ceil(0.95 * len(latencies)) - 1)],
@@ -456,6 +513,7 @@ def _normalize_matrix(matrix: np.ndarray) -> np.ndarray:
 
 __all__ = [
     "LoadedWixQAFlatIndex",
+    "WixQAArticleCandidate",
     "WixQACaseScore",
     "WixQAFlatChunk",
     "WixQAFlatIndexManifest",
@@ -463,6 +521,7 @@ __all__ = [
     "build_flat_chunks",
     "build_wixqa_flat_index",
     "load_wixqa_flat_index",
+    "merge_reranked_article_ids",
     "reciprocal_rank_fusion",
     "score_wixqa_ranking",
     "summarize_wixqa_scores",
