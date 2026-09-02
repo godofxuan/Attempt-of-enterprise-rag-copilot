@@ -156,21 +156,45 @@ class LoadedWixQAFlatIndex:
         *,
         candidate_k: int,
     ) -> list[WixQAArticleCandidate]:
+        return self.dense_article_chunk_candidates(
+            query_vector,
+            candidate_k=candidate_k,
+            max_articles=candidate_k,
+            chunks_per_article=1,
+        )
+
+    def dense_article_chunk_candidates(
+        self,
+        query_vector: np.ndarray,
+        *,
+        candidate_k: int,
+        max_articles: int,
+        chunks_per_article: int,
+    ) -> list[WixQAArticleCandidate]:
+        if candidate_k < 1 or max_articles < 1:
+            raise ValueError("WixQA candidate limits must be positive")
+        if not 1 <= chunks_per_article <= 2:
+            raise ValueError("WixQA chunks per article must be one or two")
         vector = _normalize_matrix(np.asarray(query_vector, dtype="float32"))
         if vector.shape != (1, self.manifest.embedding_dimension):
             raise ValueError("WixQA query embedding dimension mismatch")
         scores, indices = self.faiss_index.search(vector, candidate_k)
-        candidates: list[WixQAArticleCandidate] = []
-        seen: set[str] = set()
+        selected_articles: list[str] = []
+        by_article: dict[str, list[WixQAArticleCandidate]] = {}
         for raw_score, raw_index in zip(scores[0], indices[0], strict=True):
             index = int(raw_index)
             if index < 0:
                 continue
             chunk = self.chunks[index]
-            if chunk.article_id in seen:
+            if chunk.article_id not in by_article:
+                if len(selected_articles) >= max_articles:
+                    continue
+                selected_articles.append(chunk.article_id)
+                by_article[chunk.article_id] = []
+            article_candidates = by_article[chunk.article_id]
+            if len(article_candidates) >= chunks_per_article:
                 continue
-            seen.add(chunk.article_id)
-            candidates.append(
+            article_candidates.append(
                 WixQAArticleCandidate(
                     article_id=chunk.article_id,
                     chunk_id=chunk.chunk_id,
@@ -178,7 +202,7 @@ class LoadedWixQAFlatIndex:
                     dense_score=float(raw_score),
                 )
             )
-        return candidates
+        return [item for article_id in selected_articles for item in by_article[article_id]]
 
 
 def build_flat_chunks(

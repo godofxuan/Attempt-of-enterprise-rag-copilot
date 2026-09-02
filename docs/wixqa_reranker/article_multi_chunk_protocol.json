@@ -1,0 +1,39 @@
+{
+  "schema_version": "wixqa_article_multi_chunk_protocol_v1",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION_AND_EXECUTION",
+  "frozen_at": "2026-09-02",
+  "baseline_git_sha": "5b7a7518b63993d1f21aed441966db5032435d4a",
+  "dataset": {
+    "name": "WixQA",
+    "cohort": "simulated",
+    "case_count": 200,
+    "role": "CONFIGURATION_SELECTION"
+  },
+  "candidate_k_chunks": 200,
+  "article_order": "FIRST_DENSE_CHUNK_OCCURRENCE",
+  "chunks_per_article": 2,
+  "chunk_selection": "FIRST_TWO_DENSE_CHUNKS_WITHIN_SELECTED_ARTICLES",
+  "chunk_concatenation": false,
+  "article_score_aggregation": "MAX_ADMITTED_CHUNK_SCORE",
+  "tie_break": "ORIGINAL_DENSE_ARTICLE_RANK",
+  "arms": [
+    {"reranker_top_n_articles": 10, "chunks_per_article": 1, "control": true},
+    {"reranker_top_n_articles": 10, "chunks_per_article": 2},
+    {"reranker_top_n_articles": 20, "chunks_per_article": 2},
+    {"reranker_top_n_articles": 50, "chunks_per_article": 2}
+  ],
+  "reranker": {
+    "model": "BAAI/bge-reranker-v2-m3",
+    "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+    "device": "cuda",
+    "dtype": "float16",
+    "batch_size": 10
+  },
+  "dense_head_count": 0,
+  "final_k": 5,
+  "quality_candidate_gate": {
+    "recall_at_5_delta_pp_min": 0.0,
+    "ndcg_at_5_delta_pp_min": 0.5
+  },
+  "expertwritten_policy": "ONE_RETROSPECTIVE_CONFIRMATION_AFTER_SELECTION_ONLY"
+}

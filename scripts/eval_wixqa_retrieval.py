@@ -9,7 +9,7 @@ from importlib import import_module
 from pathlib import Path
 
 from app.config import get_settings
-from app.domain.queries import SearchHit
+from app.evaluation.wixqa_article_chunk_reranker import WixQAArticleChunkReranker
 from app.external_datasets.wixqa import (
     DEFAULT_WIXQA_MANIFEST,
     DEFAULT_WIXQA_ROOT,
@@ -20,14 +20,12 @@ from app.external_datasets.wixqa import (
     verify_wixqa_source,
 )
 from app.external_datasets.wixqa_retrieval import (
-    WixQAArticleCandidate,
     load_wixqa_flat_index,
     merge_reranked_article_ids,
     reciprocal_rank_fusion,
     score_wixqa_ranking,
     summarize_wixqa_scores,
 )
-from app.retrieval.page_reranker import CrossEncoderPageReranker
 from app.runtime.ollama_embeddings import OllamaEmbeddingClient
 
 DEFAULT_INDEX_ROOT = Path(".private/external/wixqa/indexes")
@@ -66,6 +64,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--reranker-batch-size", type=int, default=16)
     parser.add_argument("--reranker-top-n", type=int, default=10)
+    parser.add_argument(
+        "--reranker-chunks-per-article",
+        type=int,
+        choices=(1, 2),
+        default=1,
+    )
     parser.add_argument("--reranker-dense-head-count", type=int, default=0)
     return parser
 
@@ -76,8 +80,8 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("ExpertWritten requires --consume-fixed-external after protocol freeze")
     if args.max_cases is not None and args.max_cases < 1:
         raise SystemExit("--max-cases must be positive")
-    if not 1 <= args.reranker_top_n <= 20:
-        raise SystemExit("--reranker-top-n must be between 1 and 20")
+    if not 1 <= args.reranker_top_n <= 50:
+        raise SystemExit("--reranker-top-n must be between 1 and 50")
     if not 0 <= args.reranker_dense_head_count <= args.reranker_top_n:
         raise SystemExit("--reranker-dense-head-count must fit reranker top-N")
     if args.reranker_batch_size < 1:
@@ -104,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
     ):
         raise ValueError("WixQA query and corpus embedding identities differ")
 
-    page_reranker = None
+    article_chunk_reranker = None
     reranker_load_ms = 0.0
     if args.article_reranker == "cross_encoder":
         cross_encoder_type = import_module("sentence_transformers").CrossEncoder
@@ -129,7 +133,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             return [float(item) for item in scores]
 
-        page_reranker = CrossEncoderPageReranker(
+        article_chunk_reranker = WixQAArticleChunkReranker(
             model_id=f"{args.reranker_model}@{args.reranker_revision}",
             score_fn=score_fn,
         )
@@ -172,24 +176,27 @@ def main(argv: list[str] | None = None) -> int:
                 ),
             ]
         )
-        if page_reranker is not None:
+        if article_chunk_reranker is not None:
             top_n = min(args.reranker_top_n, len(dense_candidates))
             reranker_started = time.perf_counter()
-            reranked = page_reranker.rerank(
+            article_chunk_candidates = index.dense_article_chunk_candidates(
+                query_vector,
+                candidate_k=args.candidate_k,
+                max_articles=top_n,
+                chunks_per_article=args.reranker_chunks_per_article,
+            )
+            reranked = article_chunk_reranker.rerank(
                 question=question.question,
-                candidates=[
-                    _candidate_hit(item, index_run_id=index.manifest.run_id, rank=rank)
-                    for rank, item in enumerate(dense_candidates[:top_n], start=1)
-                ],
+                candidates=article_chunk_candidates,
             )
             reranker_ms = (time.perf_counter() - reranker_started) * 1000
             reranker_calls += 1
-            reranker_admitted += reranked.admitted_count
-            reranker_quarantined += reranked.quarantined_count
+            reranker_admitted += reranked.admitted_chunk_count
+            reranker_quarantined += reranked.quarantined_chunk_count
             reranker_guard_rule_ids.update(reranked.guard_rule_ids)
             final = merge_reranked_article_ids(
                 dense_article_ids=dense,
-                reranked_article_ids=[item.doc_id for item in reranked.hits],
+                reranked_article_ids=list(reranked.ranked_article_ids),
                 reranker_top_n=top_n,
                 dense_head_count=min(args.reranker_dense_head_count, top_n),
             )
@@ -205,7 +212,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"evaluated {ordinal}/{len(questions)}", flush=True)
 
     arms = ["bm25", "dense", "hybrid_rrf"]
-    if page_reranker is not None:
+    if article_chunk_reranker is not None:
         arms.append("dense_cross_encoder")
     summaries = [summarize_wixqa_scores(details, cohort=args.cohort, arm=arm) for arm in arms]
     run_dir = args.output_root.resolve() / args.run_id
@@ -253,14 +260,22 @@ def main(argv: list[str] | None = None) -> int:
         "query_embedding_calls": len(questions),
         "reranker": {
             "type": args.article_reranker,
-            "model": args.reranker_model if page_reranker is not None else None,
-            "revision": args.reranker_revision if page_reranker is not None else None,
-            "device": args.reranker_device if page_reranker is not None else None,
-            "dtype": args.reranker_dtype if page_reranker is not None else None,
-            "batch_size": args.reranker_batch_size if page_reranker is not None else None,
-            "top_n": args.reranker_top_n if page_reranker is not None else None,
+            "model": args.reranker_model if article_chunk_reranker is not None else None,
+            "revision": (args.reranker_revision if article_chunk_reranker is not None else None),
+            "device": (args.reranker_device if article_chunk_reranker is not None else None),
+            "dtype": args.reranker_dtype if article_chunk_reranker is not None else None,
+            "batch_size": (
+                args.reranker_batch_size if article_chunk_reranker is not None else None
+            ),
+            "top_n": args.reranker_top_n if article_chunk_reranker is not None else None,
+            "chunks_per_article": (
+                args.reranker_chunks_per_article if article_chunk_reranker is not None else None
+            ),
+            "article_score_aggregation": (
+                "max_admitted_chunk_score" if article_chunk_reranker is not None else None
+            ),
             "dense_head_count": (
-                args.reranker_dense_head_count if page_reranker is not None else None
+                args.reranker_dense_head_count if article_chunk_reranker is not None else None
             ),
             "load_ms": reranker_load_ms,
             "calls": reranker_calls,
@@ -300,35 +315,6 @@ def _resolve_model_snapshot(cache_root: Path, *, model_id: str, revision: str) -
             f"pinned reranker snapshot is unavailable on D drive: {model_id}@{revision}"
         )
     return snapshot
-
-
-def _candidate_hit(
-    candidate: WixQAArticleCandidate,
-    *,
-    index_run_id: str,
-    rank: int,
-) -> SearchHit:
-    title = candidate.text.splitlines()[0].strip() or candidate.article_id
-    return SearchHit(
-        index_run_id=index_run_id,
-        chunk_id=candidate.chunk_id,
-        doc_id=candidate.article_id,
-        source_path=f"wixqa://article/{candidate.article_id}",
-        section_path=[title],
-        matched_text=candidate.text,
-        context_text=candidate.text,
-        tenant_id="wixqa-public",
-        region="global",
-        acl_groups=["public"],
-        version_id="wixqa-pinned",
-        version="wixqa-pinned",
-        status="active",
-        authority_level=1,
-        variant="wixqa-dense-candidate",
-        fused_score=candidate.dense_score,
-        dense_score=candidate.dense_score,
-        dense_rank=rank,
-    )
 
 
 if __name__ == "__main__":
