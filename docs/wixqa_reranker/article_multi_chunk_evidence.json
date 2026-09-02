@@ -1,0 +1,119 @@
+{
+  "schema_version": "wixqa_article_multi_chunk_evidence_v1",
+  "producer_git_sha": "ea60529372794e9fe50b7528277b71307773222e",
+  "protocol": {
+    "path": "docs/wixqa_reranker/article_multi_chunk_protocol.json",
+    "sha256": "777a28157848cc9f0f7311cb68f58116b2cac46ebb9be75cc5294ce99dd9f4db"
+  },
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 5060 8GB",
+    "torch": "2.7.0+cu128",
+    "reranker_dtype": "float16",
+    "batch_size": 10
+  },
+  "model": {
+    "embedding": "bge-m3",
+    "reranker": "BAAI/bge-reranker-v2-m3",
+    "reranker_revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+    "article_score_aggregation": "max_admitted_chunk_score"
+  },
+  "simulated_configuration_selection": {
+    "case_count": 200,
+    "control": {
+      "configuration": "top10_articles_one_chunk",
+      "summary_sha256": "8a0db87c250a0707cff139b08da815cf2e8dd8643b22bb846bd614ba7d12cbf4",
+      "recall_at_5": 0.6491666666666667,
+      "ndcg_at_5": 0.5024650994019478,
+      "mrr_at_5": 0.47441666666666665,
+      "multi_article_completeness_at_5": 0.3333333333333333,
+      "p95_ms": 480.6309000014153
+    },
+    "arms": [
+      {
+        "configuration": "top10_articles_two_chunks",
+        "summary_sha256": "c196f7b5f72408858e2f4efd2a863406d23076a653301d0d51a720e907deecdd",
+        "recall_at_5": 0.6566666666666667,
+        "ndcg_at_5": 0.5188319273724746,
+        "mrr_at_5": 0.4952499999999999,
+        "multi_article_completeness_at_5": 0.3333333333333333,
+        "p95_ms": 704.0620999978273,
+        "quality_gate": "PASS",
+        "decision": "SELECTED_INTERACTIVE_EXPERIMENTAL_MODE"
+      },
+      {
+        "configuration": "top20_articles_two_chunks",
+        "summary_sha256": "f0bf59d2ce0ef7b2ddd91836223d50f3777d755749cd3b20d3120db228851f3b",
+        "recall_at_5": 0.6516666666666667,
+        "ndcg_at_5": 0.5114952762658093,
+        "mrr_at_5": 0.4886666666666667,
+        "multi_article_completeness_at_5": 0.2222222222222222,
+        "p95_ms": 1309.1137000010349,
+        "decision": "REJECTED_DOMINATED_BY_TOP10_TWO_CHUNKS"
+      },
+      {
+        "configuration": "top50_articles_two_chunks",
+        "summary_sha256": "b91dff981bbdb176e89ae26c1be8c30c7cbca97ba648971797f06a95809291ef",
+        "recall_at_5": 0.6783333333333332,
+        "ndcg_at_5": 0.5241991572741805,
+        "mrr_at_5": 0.49683333333333324,
+        "multi_article_completeness_at_5": 0.2222222222222222,
+        "p95_ms": 2412.272199999279,
+        "decision": "OFFLINE_HIGH_RECALL_ONLY"
+      }
+    ]
+  },
+  "expertwritten_retrospective_confirmation": {
+    "case_count": 200,
+    "configuration": "top10_articles_two_chunks",
+    "summary_sha256": "1e03ab1b12ef2602b1e59e7d789da49d4096149d04034a130ae46bc3615c2668",
+    "dense": {
+      "recall_at_5": 0.6641666666666666,
+      "ndcg_at_5": 0.521583326944466,
+      "mrr_at_5": 0.49608333333333327,
+      "multi_article_completeness_at_5": 0.3076923076923077,
+      "p95_ms": 100.81970000101137
+    },
+    "candidate": {
+      "recall_at_5": 0.6958333333333333,
+      "ndcg_at_5": 0.56124474902199,
+      "mrr_at_5": 0.5510833333333334,
+      "multi_article_completeness_at_5": 0.3076923076923077,
+      "p95_ms": 693.730200000573
+    },
+    "paired_bootstrap_10000_seed_20260902": {
+      "recall_at_5_delta": 0.03166666666666666,
+      "recall_at_5_ci95": [-0.012500000000000004, 0.07666666666666666],
+      "ndcg_at_5_delta": 0.03966142207752428,
+      "ndcg_at_5_ci95": [-0.0007207052261564927, 0.08075829418857917],
+      "mrr_at_5_delta": 0.055,
+      "mrr_at_5_ci95": [0.0074145833333333355, 0.10458333333333333]
+    },
+    "versus_previous_single_chunk_point_estimate_pp": {
+      "recall_at_5": 1.0,
+      "ndcg_at_5": 2.036228936167233,
+      "mrr_at_5": 2.89166666666667,
+      "multi_article_completeness_at_5": -3.846153846153844
+    }
+  },
+  "guard_observation": {
+    "top10_two_chunk_simulated_admitted_chunks": 3172,
+    "top10_two_chunk_simulated_quarantined_chunks": 17,
+    "top50_two_chunk_simulated_admitted_chunks": 14501,
+    "top50_two_chunk_simulated_quarantined_chunks": 120
+  },
+  "decision": "TOP10_TWO_CHUNK_EXPERIMENTAL_MODE_SELECTED",
+  "claim_boundary": {
+    "allowed": [
+      "Report fixed-cohort retrieval point estimates and measured local latency",
+      "Report that two-chunk article representation improved simulated selection metrics",
+      "Report retrospective ExpertWritten MRR paired interval above zero versus Dense"
+    ],
+    "forbidden": [
+      "Answer accuracy improvement",
+      "Fresh blind-test generalization",
+      "Unconditional production default",
+      "Production latency SLO",
+      "Improvement on every retrieval or multi-document metric"
+    ]
+  }
+}

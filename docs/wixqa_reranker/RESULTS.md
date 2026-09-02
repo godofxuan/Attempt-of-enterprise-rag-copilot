@@ -86,12 +86,53 @@ statistically conclusive or blind-generalization claim. The configuration is
 therefore retained as an experimental GPU quality mode rather than made the
 unconditional default.
 
+## Two-chunk article representation follow-up
+
+The first BGE experiment represented each article with only its highest Dense
+chunk. The separately frozen multi-chunk protocol scanned the same Top-200
+chunks, ranked articles by first occurrence, retained at most two chunks for
+each selected article, scored chunks independently, and used the maximum
+admitted chunk score as the article score.
+
+| Configuration | Recall@5 | nDCG@5 | MRR@5 | Complete@5 | p95 |
+|---|---:|---:|---:|---:|---:|
+| Top-10, one chunk control | 64.92% | 50.25% | 47.44% | 33.33% | 480.63 ms |
+| Top-10, two chunks | 65.67% | 51.88% | 49.52% | 33.33% | 704.06 ms |
+| Top-20, two chunks | 65.17% | 51.15% | 48.87% | 22.22% | 1309.11 ms |
+| Top-50, two chunks | 67.83% | 52.42% | 49.68% | 22.22% | 2412.27 ms |
+
+Top-10/two-chunk passed the frozen quality gate and was selected as the
+interactive experimental mode. Top-20 was rejected because Top-10/two-chunk
+had better quality and lower latency. Top-50 produced the best Recall and nDCG
+but its 2.41-second p95 and lower multi-article completeness restrict it to an
+offline high-recall diagnostic mode.
+
+The one permitted ExpertWritten retrospective confirmation for the selected
+Top-10/two-chunk arm produced:
+
+| Metric | Dense | Two-chunk BGE | Delta | Paired bootstrap 95% CI |
+|---|---:|---:|---:|---:|
+| Recall@5 | 66.42% | 69.58% | +3.17pp | [-1.25pp, +7.67pp] |
+| nDCG@5 | 52.16% | 56.12% | +3.97pp | [-0.07pp, +8.08pp] |
+| MRR@5 | 49.61% | 55.11% | +5.50pp | [+0.74pp, +10.46pp] |
+
+Relative to the previous single-chunk BGE point estimate, the two-chunk arm
+added `+1.00pp` Recall, `+2.04pp` nDCG, and `+2.89pp` MRR. Multi-article
+completeness declined from `34.62%` to `30.77%`, so the result does not support
+an "improved every metric" claim. The current run measured p95 `693.73 ms`;
+that absolute value must not be compared with the prior day's `135.92 ms`
+because host load and Dense p95 also changed materially.
+
+Public aggregate evidence is recorded in
+[`article_multi_chunk_evidence.json`](article_multi_chunk_evidence.json).
+
 ## What was implemented
 
-- Dense candidates now retain the best matching chunk text and score per
-  article.
+- Dense candidates can retain the first two matching chunks for each selected
+  article without concatenating or truncating away the second chunk.
 - The existing retrieved-content Guard runs before Cross-Encoder scoring.
-- The reranker is restricted to a fixed Top-10/20 candidate window.
+- The production reranker safety limit is unchanged; the WixQA-only offline
+  evaluator supports frozen Top-10/20/50 article windows up to 100 chunks.
 - Dense-head preservation and deterministic candidate completion prevent the
   reranker from adding or silently dropping articles.
 - Runs bind the dataset, index, embedding, reranker revision, model weights,

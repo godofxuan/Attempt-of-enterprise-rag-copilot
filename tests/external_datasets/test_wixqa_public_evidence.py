@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -17,17 +18,12 @@ from scripts.reproduce_wixqa_retrieval import (
 )
 from scripts.verify_wixqa_clean_reproduction import compare_reproduction
 
-
 ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE = ROOT / "docs" / "enterprise_eval" / "evidence"
 
 
 def _protocol() -> dict:
-    return json.loads(
-        (EVIDENCE / "WIXQA_RETRIEVAL_PROTOCOL_V1.json").read_text(
-            encoding="utf-8"
-        )
-    )
+    return json.loads((EVIDENCE / "WIXQA_RETRIEVAL_PROTOCOL_V1.json").read_text(encoding="utf-8"))
 
 
 def _summary(cohort: str) -> dict:
@@ -36,9 +32,7 @@ def _summary(cohort: str) -> dict:
         "schema_version": "wixqa_retrieval_run_v1",
         "cohort": cohort,
         "case_count": protocol["cohorts"][cohort]["case_count"],
-        "question_ids_sha256": protocol["cohorts"][cohort][
-            "question_ids_sha256"
-        ],
+        "question_ids_sha256": protocol["cohorts"][cohort]["question_ids_sha256"],
         "dataset_manifest_sha256": protocol["dataset_manifest_sha256"],
         "index_manifest_sha256": "a" * 64,
         "embedding_model": "bge-m3",
@@ -61,9 +55,7 @@ def _summary(cohort: str) -> dict:
 
 def test_public_evidence_arms_exactly_match_protocol() -> None:
     payload = json.loads(
-        (EVIDENCE / "wixqa_retrieval_baseline_public_v2.json").read_text(
-            encoding="utf-8"
-        )
+        (EVIDENCE / "wixqa_retrieval_baseline_public_v2.json").read_text(encoding="utf-8")
     )
     assert tuple(payload["protocol_arms"]) == tuple(_protocol()["arms"])
     assert payload["protocol_sha256"] == (
@@ -87,10 +79,7 @@ def test_publisher_rejects_missing_protocol_arm() -> None:
 
 
 def test_publisher_rejects_dataset_manifest_drift() -> None:
-    runs = {
-        cohort: _summary(cohort)
-        for cohort in ("synthetic", "simulated", "expertwritten")
-    }
+    runs = {cohort: _summary(cohort) for cohort in ("synthetic", "simulated", "expertwritten")}
     runs["expertwritten"]["dataset_manifest_sha256"] = "e" * 64
     with pytest.raises(ValueError, match="dataset manifest"):
         build_public_evidence(
@@ -114,13 +103,9 @@ def test_reproduction_plan_freezes_all_three_cohorts_and_fixed_replay_label() ->
     assert len(eval_commands) == 3
     expert = next(command for command in eval_commands if "expertwritten" in command)
     assert "--consume-fixed-external" in expert
-    assert plan[-1][plan[-1].index("--reproduction-metadata") + 1].endswith(
-        "repro-v1-machine.json"
-    )
+    assert plan[-1][plan[-1].index("--reproduction-metadata") + 1].endswith("repro-v1-machine.json")
     build = next(command for command in plan if "scripts.build_wixqa_index" in command)
-    assert Path(build[build.index("--embedding-cache") + 1]) == Path(
-        ".private/repro-v1/cache"
-    )
+    assert Path(build[build.index("--embedding-cache") + 1]) == Path(".private/repro-v1/cache")
     assert "--manifest" in build
 
 
@@ -156,9 +141,7 @@ def test_clean_root_preflight_rejects_existing_input(tmp_path: Path) -> None:
 
 def test_clean_reproduction_comparison_requires_exact_quality_and_clean_roots() -> None:
     historical = json.loads(
-        (EVIDENCE / "wixqa_retrieval_baseline_public_v2.json").read_text(
-            encoding="utf-8"
-        )
+        (EVIDENCE / "wixqa_retrieval_baseline_public_v2.json").read_text(encoding="utf-8")
     )
     candidate = json.loads(json.dumps(historical))
     candidate["reproduction_metadata"] = {
@@ -173,17 +156,15 @@ def test_clean_reproduction_comparison_requires_exact_quality_and_clean_roots() 
         {"quality_absolute_tolerance": 0.0},
     )
     assert result["status"] == "VERIFIED"
-    dense = result["quality_observation"]["expertwritten_fixed_external"][
-        "dense"
-    ]["article_recall_at_5"]
+    dense = result["quality_observation"]["expertwritten_fixed_external"]["dense"][
+        "article_recall_at_5"
+    ]
     assert dense == {
         "historical": 0.6641666666666666,
         "candidate": 0.6641666666666666,
         "delta": 0.0,
     }
-    public_metadata = json.dumps(
-        result["candidate_reproduction_metadata"], sort_keys=True
-    )
+    public_metadata = json.dumps(result["candidate_reproduction_metadata"], sort_keys=True)
     assert '"source_root":' not in public_metadata
     assert '"embedding_cache":' not in public_metadata
     assert "C:/Users/" not in public_metadata
@@ -199,9 +180,9 @@ def test_clean_reproduction_comparison_requires_exact_quality_and_clean_roots() 
     )
     assert result["status"] == "REPRODUCTION_GAP"
     assert result["quality_difference_count"] == 1
-    assert result["quality_observation"]["expertwritten_fixed_external"][
-        "dense"
-    ]["article_recall_at_5"]["delta"] == pytest.approx(-0.001)
+    assert result["quality_observation"]["expertwritten_fixed_external"]["dense"][
+        "article_recall_at_5"
+    ]["delta"] == pytest.approx(-0.001)
 
 
 def test_transport_corrected_protocol_keeps_zero_quality_tolerance() -> None:
@@ -225,8 +206,26 @@ def test_transport_corrected_protocol_keeps_zero_quality_tolerance() -> None:
     )
 
     assert contract["quality_absolute_tolerance"] == 0.0
-    assert contract["source_transport_boundary"][
-        "official_raw_manifest_sha256"
-    ] == "d325412340c110d3f76b832080c702978643d517e296c97bba1abc088ec65b1f"
+    assert (
+        contract["source_transport_boundary"]["official_raw_manifest_sha256"]
+        == "d325412340c110d3f76b832080c702978643d517e296c97bba1abc088ec65b1f"
+    )
     assert equivalence["canonical_equivalence"] is True
     assert all(item["canonical_rows_equal"] for item in equivalence["files"])
+
+
+def test_article_multi_chunk_evidence_is_protocol_bound_and_claim_bounded() -> None:
+    evidence_path = ROOT / "docs" / "wixqa_reranker" / "article_multi_chunk_evidence.json"
+    protocol_path = ROOT / "docs" / "wixqa_reranker" / "article_multi_chunk_protocol.json"
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+
+    assert evidence["protocol"]["sha256"] == hashlib.sha256(protocol_path.read_bytes()).hexdigest()
+    expert = evidence["expertwritten_retrospective_confirmation"]
+    assert expert["candidate"]["recall_at_5"] == pytest.approx(0.6958333333333333)
+    assert expert["candidate"]["ndcg_at_5"] == pytest.approx(0.56124474902199)
+    assert expert["candidate"]["mrr_at_5"] == pytest.approx(0.5510833333333334)
+    assert expert["paired_bootstrap_10000_seed_20260902"]["mrr_at_5_ci95"][0] > 0
+    serialized = json.dumps(evidence, ensure_ascii=False)
+    assert "Answer accuracy improvement" in serialized
+    assert "C:\\" not in serialized
+    assert "D:\\" not in serialized
