@@ -7,6 +7,7 @@ import subprocess
 import time
 from pathlib import Path
 
+import torch
 from sentence_transformers import CrossEncoder
 
 from app.config import get_settings
@@ -60,6 +61,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--reranker-revision", default=DEFAULT_RERANKER_REVISION)
     parser.add_argument("--reranker-cache-root", type=Path, default=DEFAULT_RERANKER_CACHE_ROOT)
     parser.add_argument("--reranker-device", default="cpu")
+    parser.add_argument(
+        "--reranker-dtype",
+        choices=("auto", "float32", "float16", "bfloat16"),
+        default="auto",
+    )
     parser.add_argument("--reranker-batch-size", type=int, default=16)
     parser.add_argument("--reranker-top-n", type=int, default=10)
     parser.add_argument("--reranker-dense-head-count", type=int, default=0)
@@ -109,7 +115,11 @@ def main(argv: list[str] | None = None) -> int:
             revision=args.reranker_revision,
         )
         load_started = time.perf_counter()
-        model = CrossEncoder(str(snapshot), device=args.reranker_device)
+        model = CrossEncoder(
+            str(snapshot),
+            device=args.reranker_device,
+            model_kwargs=_model_kwargs_for_dtype(args.reranker_dtype),
+        )
         reranker_load_ms = (time.perf_counter() - load_started) * 1000
 
         def score_fn(question: str, texts: list[str]) -> list[float]:
@@ -247,6 +257,7 @@ def main(argv: list[str] | None = None) -> int:
             "model": args.reranker_model if page_reranker is not None else None,
             "revision": args.reranker_revision if page_reranker is not None else None,
             "device": args.reranker_device if page_reranker is not None else None,
+            "dtype": args.reranker_dtype if page_reranker is not None else None,
             "batch_size": args.reranker_batch_size if page_reranker is not None else None,
             "top_n": args.reranker_top_n if page_reranker is not None else None,
             "dense_head_count": (
@@ -267,6 +278,18 @@ def main(argv: list[str] | None = None) -> int:
     (run_dir / "summary.json").write_bytes(summary_bytes)
     print(summary_bytes.decode("utf-8"))
     return 0
+
+
+def _model_kwargs_for_dtype(dtype: str) -> dict[str, torch.dtype]:
+    if dtype == "auto":
+        return {}
+    return {
+        "torch_dtype": {
+            "float32": torch.float32,
+            "float16": torch.float16,
+            "bfloat16": torch.bfloat16,
+        }[dtype]
+    }
 
 
 def _resolve_model_snapshot(cache_root: Path, *, model_id: str, revision: str) -> Path:
