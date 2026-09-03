@@ -39,3 +39,17 @@
 - **Verification:** Two seeded reruns each assessed all 17 baseline failures. For every assessed case, the two runs had identical input hash, seed, raw JSON response, parsed proposal, and recovery outcome: `17 / 17` on every comparison. The detailed question text and raw outputs stay under `.private`; the public aggregate is `evidence/seeded_reproducibility_v1.json`.
 - **Final result:** The stable result is only 2 fully recovered cases out of 17 baseline failures (`11.76%`). It satisfies the percentage condition but fails the predeclared absolute condition of at least 3. `ADAPTIVE_RETRIEVAL_NOT_YET_JUSTIFIED` remains the final decision.
 - **Engineering conclusion:** The reproducibility defect is fixed. The product hypothesis is not validated: the dominant next bottleneck is initial candidate retrieval and Top-5 selection, not safe bounded LLM query rewriting.
+
+## G0: Post-082b15b Reproducibility Closure
+
+- **Hypothesis:** Same-environment, fixed-seed requests reproduce exactly.
+- **Exact Git SHA:** `b159a98eae87ad204be8de064695cb9b1867830c`; both diagnostics recorded `git_dirty: false`.
+- **Files changed:** Diagnostic provenance and a public-only repeat-comparison verifier. No serving files changed.
+- **Dataset:** Consumed WixQA ExpertWritten 20-case multi-document cohort; 17 baseline failures evaluated by the assessor.
+- **Arms:** Two identical local executions using `qwen3:8b` digest `a3de86...e686f`, Q4_K_M, Ollama 0.33.2, RTX 5060, fixed per-question seed, and identical request hashes.
+- **Primary metric:** Exact equality of raw-output hash, parsed-proposal hash, and recovery classification.
+- **Frozen success gate:** All 17 assessor-evaluated failures match across both executions.
+- **Observed result:** Input request and seed each matched `17/17`; raw output matched `12/17`, parsed proposal `13/17`, and recovery classification `16/17`.
+- **Decision:** `REPRODUCIBILITY_NOT_CLOSED_ADAPTIVE_EVALUATION_BLOCKED`.
+- **Known limitation:** This establishes neither cross-hardware behavior nor a root cause inside the local inference backend. It does establish that the tested model/runtime combination cannot support an exact-repeat promotion gate.
+- **Next action:** Run deterministic G1 failure attribution only. Do not conduct G2 adaptive-retry causality experiments or prompt tuning on the consumed cohort.
