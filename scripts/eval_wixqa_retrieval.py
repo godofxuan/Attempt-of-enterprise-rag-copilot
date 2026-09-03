@@ -9,7 +9,10 @@ from importlib import import_module
 from pathlib import Path
 
 from app.config import get_settings
-from app.evaluation.wixqa_article_chunk_reranker import WixQAArticleChunkReranker
+from app.evaluation.wixqa_article_chunk_reranker import (
+    WixQAArticleChunkReranker,
+    WixQARawChunkReranker,
+)
 from app.external_datasets.wixqa import (
     DEFAULT_WIXQA_MANIFEST,
     DEFAULT_WIXQA_ROOT,
@@ -64,6 +67,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--reranker-batch-size", type=int, default=16)
     parser.add_argument("--reranker-top-n", type=int, default=10)
+    parser.add_argument(
+        "--reranker-candidate-unit",
+        choices=("article", "chunk"),
+        default="article",
+    )
     parser.add_argument(
         "--reranker-chunks-per-article",
         type=int,
@@ -133,7 +141,12 @@ def main(argv: list[str] | None = None) -> int:
             )
             return [float(item) for item in scores]
 
-        article_chunk_reranker = WixQAArticleChunkReranker(
+        reranker_type = (
+            WixQARawChunkReranker
+            if args.reranker_candidate_unit == "chunk"
+            else WixQAArticleChunkReranker
+        )
+        article_chunk_reranker = reranker_type(
             model_id=f"{args.reranker_model}@{args.reranker_revision}",
             score_fn=score_fn,
         )
@@ -179,12 +192,19 @@ def main(argv: list[str] | None = None) -> int:
         if article_chunk_reranker is not None:
             top_n = min(args.reranker_top_n, len(dense_candidates))
             reranker_started = time.perf_counter()
-            article_chunk_candidates = index.dense_article_chunk_candidates(
-                query_vector,
-                candidate_k=args.candidate_k,
-                max_articles=top_n,
-                chunks_per_article=args.reranker_chunks_per_article,
-            )
+            if args.reranker_candidate_unit == "chunk":
+                article_chunk_candidates = index.dense_raw_chunk_candidates(
+                    query_vector,
+                    candidate_k=args.candidate_k,
+                    max_chunks=top_n,
+                )
+            else:
+                article_chunk_candidates = index.dense_article_chunk_candidates(
+                    query_vector,
+                    candidate_k=args.candidate_k,
+                    max_articles=top_n,
+                    chunks_per_article=args.reranker_chunks_per_article,
+                )
             reranked = article_chunk_reranker.rerank(
                 question=question.question,
                 candidates=article_chunk_candidates,
@@ -268,11 +288,20 @@ def main(argv: list[str] | None = None) -> int:
                 args.reranker_batch_size if article_chunk_reranker is not None else None
             ),
             "top_n": args.reranker_top_n if article_chunk_reranker is not None else None,
+            "candidate_unit": (
+                args.reranker_candidate_unit if article_chunk_reranker is not None else None
+            ),
             "chunks_per_article": (
-                args.reranker_chunks_per_article if article_chunk_reranker is not None else None
+                args.reranker_chunks_per_article
+                if article_chunk_reranker is not None and args.reranker_candidate_unit == "article"
+                else None
             ),
             "article_score_aggregation": (
-                "max_admitted_chunk_score" if article_chunk_reranker is not None else None
+                "best_admitted_chunk_score_after_rerank"
+                if article_chunk_reranker is not None and args.reranker_candidate_unit == "chunk"
+                else "max_admitted_chunk_score"
+                if article_chunk_reranker is not None
+                else None
             ),
             "dense_head_count": (
                 args.reranker_dense_head_count if article_chunk_reranker is not None else None

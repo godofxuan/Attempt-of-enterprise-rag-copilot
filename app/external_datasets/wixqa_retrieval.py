@@ -204,6 +204,37 @@ class LoadedWixQAFlatIndex:
             )
         return [item for article_id in selected_articles for item in by_article[article_id]]
 
+    def dense_raw_chunk_candidates(
+        self,
+        query_vector: np.ndarray,
+        *,
+        candidate_k: int,
+        max_chunks: int,
+    ) -> list[WixQAArticleCandidate]:
+        if candidate_k < 1 or max_chunks < 1 or max_chunks > candidate_k:
+            raise ValueError("WixQA raw chunk limits must be positive and bounded")
+        vector = _normalize_matrix(np.asarray(query_vector, dtype="float32"))
+        if vector.shape != (1, self.manifest.embedding_dimension):
+            raise ValueError("WixQA query embedding dimension mismatch")
+        scores, indices = self.faiss_index.search(vector, candidate_k)
+        candidates: list[WixQAArticleCandidate] = []
+        for raw_score, raw_index in zip(scores[0], indices[0], strict=True):
+            index = int(raw_index)
+            if index < 0:
+                continue
+            chunk = self.chunks[index]
+            candidates.append(
+                WixQAArticleCandidate(
+                    article_id=chunk.article_id,
+                    chunk_id=chunk.chunk_id,
+                    text=chunk.text,
+                    dense_score=float(raw_score),
+                )
+            )
+            if len(candidates) == max_chunks:
+                break
+        return candidates
+
 
 def build_flat_chunks(
     articles: Sequence[EnterpriseDocument],
