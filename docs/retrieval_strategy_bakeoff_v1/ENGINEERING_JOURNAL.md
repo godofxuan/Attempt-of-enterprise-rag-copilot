@@ -36,3 +36,22 @@
   was measured against a Dense baseline, not this new hybrid S0 baseline, so it
   cannot be used to claim a direct S0-to-S3 delta. Its source evidence SHA-256
   is `0dac98555d39e212e00a6d56dc3b1e4adff17e87738612033f7e4ea24fec93b9`.
+
+## P9-P18: Bounded LLM Arms
+
+- S4 uses `qwen3:8b` only to propose exactly two retrieval alternatives. The
+  host validates JSON shape, length, duplicates, control characters, and
+  protected capitalized entities/dates/numbers; rejection falls back to the
+  original query. The model never receives tool authority or a path into the
+  serving runtime.
+- Three 200-case S4 runs had 110 accepted expansions and 90 safe fallbacks per
+  run, with zero transport errors or retries. The first two runs had 198/200
+  identical final rankings; run one and three had 195/200. This is measurable
+  same-environment stability, not universal determinism.
+- S5 re-ran the unchanged consumed 20-case recovery diagnostic three times.
+  Every run had 17 baseline failures, 11 retry-attemptable cases, 2 improved / 2
+  fully recovered cases, and did not meet the frozen at-least-three recovery
+  gate. The stricter verifier found only 15/17 matching full outcome tuples and
+  therefore blocks causal promotion.
+- Neither S4 nor S5 is wired into serving. S4's latency cost makes end-to-end
+  answer/citation evaluation and runtime integration premature; S5 is rejected.
