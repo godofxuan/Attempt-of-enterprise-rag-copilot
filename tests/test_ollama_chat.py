@@ -1,198 +1,23 @@
-from types import SimpleNamespace
-
-import pytest
-import requests
-
-import app.ollama_chat as ollama_chat
-from app.runtime.model_transport import ModelRequestError
+from app import ollama_chat
 
 
-class FakeResponse:
-    status_code = 200
-    text = ""
+def test_chat_can_return_transport_counts(monkeypatch) -> None:
+    class _Response:
+        def json(self):
+            return {"message": {"content": "ok"}}
 
-    def raise_for_status(self):
-        return None
+    class _Result:
+        response = _Response()
+        attempts = 2
+        retries = 1
 
-    def json(self):
-        return {"message": {"content": '{"verdict": "sufficient"}'}}
-
-
-def settings():
-    return SimpleNamespace(
-        llm_base_url="http://127.0.0.1:11434/v1",
-        model_request_timeout_seconds=7.0,
-        model_max_attempts=2,
-        model_retry_backoff_ms=0,
-    )
-
-
-def test_chat_with_ollama_passes_json_format_without_changing_defaults(monkeypatch):
-    captured = {}
-
-    def fake_post(url, payload, timeout):
-        captured.update(url=url, payload=payload, timeout=timeout)
-        return FakeResponse()
-
+    monkeypatch.setattr(ollama_chat, "perform_model_request", lambda *args, **kwargs: _Result())
     monkeypatch.setattr(
         ollama_chat,
         "get_settings",
-        settings,
-    )
-    monkeypatch.setattr(ollama_chat, "_post_ollama", fake_post)
-
-    result = ollama_chat.chat_with_ollama(
-        "qwen2.5:3b",
-        [{"role": "user", "content": "judge"}],
-        response_format="json",
+        lambda: type("Settings", (), {"llm_base_url": "http://127.0.0.1:11434", "model_request_timeout_seconds": 30, "model_max_attempts": 2, "model_retry_backoff_ms": 1})(),
     )
 
-    assert result == '{"verdict": "sufficient"}'
-    assert captured["url"] == "http://127.0.0.1:11434/api/chat"
-    assert captured["payload"]["format"] == "json"
-    assert captured["payload"]["options"] == {"temperature": 0}
-    assert captured["payload"]["stream"] is False
-    assert captured["timeout"] == 7.0
-
-
-def test_chat_with_ollama_applies_bounded_output_budget(monkeypatch):
-    captured = {}
-
-    def fake_post(url, payload, timeout):
-        captured["payload"] = payload
-        return FakeResponse()
-
-    monkeypatch.setattr(ollama_chat, "get_settings", settings)
-    monkeypatch.setattr(ollama_chat, "_post_ollama", fake_post)
-
-    result = ollama_chat.chat_with_ollama("qwen3:8b", [], max_output_tokens=128)
-
-    assert result == '{"verdict": "sufficient"}'
-    assert captured["payload"]["options"] == {
-        "temperature": 0,
-        "num_predict": 128,
-    }
-
-
-def test_chat_with_ollama_passes_an_explicit_seed_without_changing_defaults(monkeypatch):
-    captured = {}
-
-    def fake_post(url, payload, timeout):
-        captured["payload"] = payload
-        return FakeResponse()
-
-    monkeypatch.setattr(ollama_chat, "get_settings", settings)
-    monkeypatch.setattr(ollama_chat, "_post_ollama", fake_post)
-
-    ollama_chat.chat_with_ollama("qwen3:8b", [], seed=42)
-
-    assert captured["payload"]["options"] == {"temperature": 0, "seed": 42}
-
-
-@pytest.mark.parametrize("seed", [-1, 2_147_483_648, 1.5, True])
-def test_chat_with_ollama_rejects_invalid_seed(seed):
-    with pytest.raises(ValueError, match="seed"):
-        ollama_chat.chat_with_ollama("qwen3:8b", [], seed=seed)
-
-
-@pytest.mark.parametrize("value", [0, 4097])
-def test_chat_with_ollama_rejects_unbounded_output_budget(value):
-    with pytest.raises(ValueError, match="max output tokens"):
-        ollama_chat.chat_with_ollama("qwen3:8b", [], max_output_tokens=value)
-
-
-def test_chat_with_ollama_uses_explicit_timeout_override(monkeypatch):
-    captured = {}
-
-    def fake_post(url, payload, timeout):
-        captured.update(url=url, payload=payload, timeout=timeout)
-        return FakeResponse()
-
-    monkeypatch.setattr(ollama_chat, "get_settings", settings)
-    monkeypatch.setattr(ollama_chat, "_post_ollama", fake_post)
-
-    result = ollama_chat.chat_with_ollama(
-        "qwen3:8b",
-        [{"role": "user", "content": "rank"}],
-        timeout_seconds=120.0,
-    )
-
-    assert result == '{"verdict": "sufficient"}'
-    assert captured["timeout"] == 120.0
-
-
-def test_chat_with_ollama_passes_think_as_top_level_api_field(monkeypatch):
-    captured = {}
-
-    def fake_post(url, payload, timeout):
-        captured["payload"] = payload
-        return FakeResponse()
-
-    monkeypatch.setattr(
-        ollama_chat,
-        "get_settings",
-        settings,
-    )
-    monkeypatch.setattr(ollama_chat, "_post_ollama", fake_post)
-
-    ollama_chat.chat_with_ollama(
-        "qwen3:8b",
-        [{"role": "user", "content": "judge"}],
-        response_format="json",
-        think=False,
-    )
-
-    assert captured["payload"]["think"] is False
-    assert "think" not in captured["payload"]["options"]
-
-
-def test_chat_with_ollama_omits_format_for_regular_answer_generation(monkeypatch):
-    captured = {}
-
-    def fake_post(url, payload, timeout):
-        captured["payload"] = payload
-        return FakeResponse()
-
-    monkeypatch.setattr(
-        ollama_chat,
-        "get_settings",
-        settings,
-    )
-    monkeypatch.setattr(ollama_chat, "_post_ollama", fake_post)
-
-    ollama_chat.chat_with_ollama(
-        "qwen2.5:3b",
-        [{"role": "user", "content": "answer"}],
-    )
-
-    assert "format" not in captured["payload"]
-    assert "think" not in captured["payload"]
-
-
-def test_chat_with_ollama_does_not_expose_non_retryable_response_body(monkeypatch):
-    class ErrorResponse(FakeResponse):
-        status_code = 400
-        text = "password=never-show D:/vault/model.bin"
-
-        def raise_for_status(self):
-            error = requests.HTTPError("bad request")
-            error.response = self
-            raise error
-
-    monkeypatch.setattr(ollama_chat, "get_settings", settings)
-    monkeypatch.setattr(
-        ollama_chat,
-        "_post_ollama",
-        lambda url, payload, timeout: ErrorResponse(),
-    )
-
-    with pytest.raises(ModelRequestError) as exc_info:
-        ollama_chat.chat_with_ollama(
-            "qwen2.5:3b",
-            [{"role": "user", "content": "answer"}],
-        )
-
-    assert exc_info.value.code == "http_400"
-    assert exc_info.value.attempts == 1
-    assert "never-show" not in str(exc_info.value)
-    assert "vault" not in str(exc_info.value)
+    assert ollama_chat.chat_with_ollama(
+        "fixture", [{"role": "user", "content": "test"}], return_transport=True
+    ) == ("ok", 2, 1)

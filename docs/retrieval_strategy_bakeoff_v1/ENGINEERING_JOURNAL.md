@@ -22,3 +22,17 @@
   details separately from public aggregate evidence.
 - S0, S1, and S2 are implemented but no metric claim is made until their runs
   complete and the resulting JSON evidence is reviewed against this protocol.
+
+## P3-P8: Deterministic Results and Historical Reranker Import
+
+- S0 ran at `b158a69` with a clean worktree. S1 and S2 ran at `a296d32` with
+  clean worktrees and the same corpus/index/question hashes. A first S1 export
+  was retained as an audit record, then superseded by the clean-worktree run;
+  its rankings and metrics were identical.
+- S1 lowered Recall@5 by 0.50pp, nDCG@5 by 0.24pp, and MRR@5 by 0.15pp. S2
+  produced exactly the same quality metrics as S1 and was slightly slower.
+  Both are rejected rather than tuned on the consumed cohort.
+- Existing guarded raw-chunk BGE reranking is imported as S3 evidence only. It
+  was measured against a Dense baseline, not this new hybrid S0 baseline, so it
+  cannot be used to claim a direct S0-to-S3 delta. Its source evidence SHA-256
+  is `0dac98555d39e212e00a6d56dc3b1e4adff17e87738612033f7e4ea24fec93b9`.

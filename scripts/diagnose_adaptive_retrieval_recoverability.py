@@ -40,6 +40,7 @@ from app.external_datasets.wixqa_retrieval import (
     reciprocal_rank_fusion,
 )
 from app.ollama_chat import chat_with_ollama
+from app.runtime.model_transport import ModelRequestError
 from app.runtime.ollama_embeddings import OllamaEmbeddingClient
 
 
@@ -186,6 +187,9 @@ def main(argv: list[str] | None = None) -> int:
             "retry_no_change": False,
             "retry_worse": False,
             "validator_rejected": False,
+            "model_transport_attempts": 0,
+            "model_transport_retries": 0,
+            "model_transport_error_code": None,
         }
         private_row: dict[str, object] = {
             "question_id": frozen.question_id,
@@ -212,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
             if capture.analysis is None:
                 raise RuntimeError("baseline capture did not record query analysis")
             evidence = _admitted_evidence(capture.executions, articles_by_id)
-            assessment, raw_response, latency_ms, fingerprints = _assess(
+            assessment, raw_response, latency_ms, fingerprints, transport = _assess(
                 original_question=question.question,
                 retrieval_query=question.question,
                 intent=capture.analysis.intent,
@@ -230,6 +234,9 @@ def main(argv: list[str] | None = None) -> int:
             row["assessor_request_sha256"] = fingerprints["request_sha256"]
             row["assessor_schema_sha256"] = fingerprints["schema_sha256"]
             row["assessor_seed"] = _assessor_seed(frozen.question_id)
+            row["model_transport_attempts"] = transport["attempts"]
+            row["model_transport_retries"] = transport["retries"]
+            row["model_transport_error_code"] = transport["error_code"]
             row["proposal_sha256"] = assessment.proposal_sha256
             row["raw_output_sha256"] = (
                 _sha256_text(raw_response) if raw_response is not None else None
@@ -348,7 +355,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _assess(
     **kwargs,
-) -> tuple[RecoverabilityAssessment, str | None, float, dict[str, str]]:
+) -> tuple[RecoverabilityAssessment, str | None, float, dict[str, str], dict[str, object]]:
     model = kwargs.pop("model")
     model_digest = kwargs.pop("model_digest")
     seed = kwargs.pop("seed")
@@ -366,7 +373,7 @@ def _assess(
     )
     started = time.perf_counter()
     try:
-        raw = chat_with_ollama(
+        response = chat_with_ollama(
             model,
             messages,
             response_format="json",
@@ -374,11 +381,34 @@ def _assess(
             timeout_seconds=ASSESSOR_TIMEOUT_SECONDS,
             max_output_tokens=ASSESSOR_MAX_OUTPUT_TOKENS,
             seed=seed,
+            return_transport=True,
+        )
+        raw, attempts, retries = response
+    except ModelRequestError as error:
+        status = "timeout" if error.code in {"transport_timeout", "deadline_exhausted"} else "model_error"
+        return (
+            RecoverabilityAssessment(status=status),
+            None,
+            _elapsed_ms(started),
+            fingerprints,
+            {"attempts": error.attempts, "retries": max(0, error.attempts - 1), "error_code": error.code},
         )
     except Exception as error:
         status = "timeout" if "timeout" in str(error).casefold() else "model_error"
-        return RecoverabilityAssessment(status=status), None, _elapsed_ms(started), fingerprints
-    return parse_assessor_response(raw), raw, _elapsed_ms(started), fingerprints
+        return (
+            RecoverabilityAssessment(status=status),
+            None,
+            _elapsed_ms(started),
+            fingerprints,
+            {"attempts": 0, "retries": 0, "error_code": "unexpected_error"},
+        )
+    return (
+        parse_assessor_response(raw),
+        raw,
+        _elapsed_ms(started),
+        fingerprints,
+        {"attempts": attempts, "retries": retries, "error_code": None},
+    )
 
 
 def _admitted_evidence(executions, articles_by_id) -> list[dict[str, str]]:

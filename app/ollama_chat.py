@@ -20,7 +20,8 @@ def chat_with_ollama(
     timeout_seconds: float | None = None,
     max_output_tokens: int | None = None,
     seed: int | None = None,
-) -> str:
+    return_transport: bool = False,
+) -> str | tuple[str, int, int]:
     if max_output_tokens is not None and not 1 <= max_output_tokens <= 4096:
         raise ValueError("Ollama max output tokens must be between 1 and 4096")
     if seed is not None and (type(seed) is not int or not 0 <= seed <= 2_147_483_647):
@@ -55,4 +56,7 @@ def chat_with_ollama(
         backoff_seconds=settings.model_retry_backoff_ms / 1000.0,
     )
     data = result.response.json()
-    return data["message"]["content"]
+    content = data["message"]["content"]
+    if return_transport:
+        return content, result.attempts, result.retries
+    return content

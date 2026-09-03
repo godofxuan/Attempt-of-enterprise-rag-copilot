@@ -11,7 +11,14 @@ def _row(question_id: str, *, raw_output_sha256: str = "a" * 64) -> dict:
             "assessor_seed": 42,
             "raw_output_sha256": raw_output_sha256,
             "proposal_sha256": "d" * 64,
+            "model_transport_attempts": 1,
+            "model_transport_retries": 0,
+            "retry_improved": False,
             "retry_fully_recovered": False,
+            "retry_no_change": True,
+            "retry_worse": False,
+            "rewrite_status": "accepted",
+            "rejection_reason": None,
         },
     }
 
@@ -54,3 +61,19 @@ def test_reproducibility_closure_fails_when_raw_output_changes() -> None:
 
     assert result["same_environment_repeatability"] == "FAIL"
     assert result["same_raw_output_sha256_count"] == 0
+
+
+def test_reproducibility_closure_fails_when_any_outcome_field_changes() -> None:
+    first = _row("question-a")
+    second = _row("question-a")
+    second["public_row"]["retry_no_change"] = False
+
+    result = compare_runs(
+        first_summary=_summary(),
+        second_summary=_summary(),
+        first_rows=[first],
+        second_rows=[second],
+    )
+
+    assert result["same_environment_repeatability"] == "FAIL"
+    assert result["same_outcome_tuple_count"] == 0

@@ -23,6 +23,14 @@ _PUBLIC_CONFIG_FIELDS = (
     "assessor_generation_options",
     "critical_file_sha256",
 )
+_OUTCOME_FIELDS = (
+    "retry_improved",
+    "retry_fully_recovered",
+    "retry_no_change",
+    "retry_worse",
+    "rewrite_status",
+    "rejection_reason",
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -61,9 +69,15 @@ def compare_runs(
             "assessor_seed",
             "raw_output_sha256",
             "proposal_sha256",
-            "retry_fully_recovered",
+            "model_transport_attempts",
+            "model_transport_retries",
         )
     }
+    outcome_tuple_matches = sum(
+        _outcome_tuple(first_by_id[question_id]["public_row"])
+        == _outcome_tuple(second_by_id[question_id]["public_row"])
+        for question_id in first_by_id
+    )
     case_count = len(first_by_id)
     provenance_matches = {
         field: first_summary.get(field) == second_summary.get(field)
@@ -71,7 +85,7 @@ def compare_runs(
     }
     repeatability_passed = all(provenance_matches.values()) and all(
         count == case_count for count in field_counts.values()
-    )
+    ) and outcome_tuple_matches == case_count
     result = {
         "schema_version": SCHEMA_VERSION,
         "mode": "RETROSPECTIVE_DEVELOPMENT_ONLY_CONSUMED",
@@ -86,9 +100,7 @@ def compare_runs(
         "same_seed_count": field_counts["assessor_seed"],
         "same_raw_output_sha256_count": field_counts["raw_output_sha256"],
         "same_parsed_proposal_sha256_count": field_counts["proposal_sha256"],
-        "same_recovery_classification_count": field_counts[
-            "retry_fully_recovered"
-        ],
+        "same_outcome_tuple_count": outcome_tuple_matches,
         "same_environment_repeatability": "PASS" if repeatability_passed else "FAIL",
         "decision": (
             "REPRODUCIBILITY_CLOSED"
@@ -135,6 +147,10 @@ def _failed_rows_by_question_id(rows: list[dict[str, Any]]) -> dict[str, dict[st
                 raise ValueError("private rows contain invalid or duplicate question IDs")
             result[question_id] = row
     return result
+
+
+def _outcome_tuple(row: dict[str, Any]) -> tuple[object, ...]:
+    return tuple(row.get(field) for field in _OUTCOME_FIELDS)
 
 
 def _load_json(path: Path) -> dict[str, Any]:
