@@ -1,25 +1,37 @@
 # Adaptive Retrieval V3 Rewrite Results
 
-## G2 Decision: `REJECTED`
+## Superseded G2 Artifact
 
-G2 fixed an Oracle subset of 88 consumed WixQA ExpertWritten questions whose
-historical first-pass hybrid Top-5 did not cover all gold articles. It compares
-the following fixed-final-five arms across the three existing, hash-bound S4
-runs:
+`evidence/g2-oracle-historical-v4.json` is retained for audit but is invalid
+for system selection. It selected its Oracle subset from historical S4 fused
+results, which is post-treatment selection bias. It must not be cited as a
+corrective-rewrite result.
 
-| Arm | Recall@5 | nDCG@5 | MRR@5 | Multi-doc complete@5 | Decision |
-|---|---:|---:|---:|---:|---|
-| R0 original hybrid Top-5 | 15.91% | 12.75% | 17.41% | 0.00% | reference |
-| R1 original query, Top-10 candidate depth, final Top-5 | 15.91% | 12.75% | 17.41% | 0.00% | no effect |
-| R2 historical validated two-query fusion, run 1/2 | 15.34% | 11.96% | 15.83% | 0.00% | worse |
-| R2 historical validated two-query fusion, run 3 | 15.91% | 12.23% | 15.83% | 2.44% | mixed, lower rank quality |
+## F1/F2 Corrected G2: `CORRECTIVE_REWRITE_POSITIVE`
 
-R1 exactly equals R0 because candidate depth alone cannot alter a fixed,
-unchanged RRF Top-5. R2 does not give a stable improvement on the difficult
-Oracle-selected slice; it lowers nDCG and MRR in all three runs. Therefore the
-historical S4 expansion is `REJECTED` as a V3 corrective-retrieval candidate.
-No validator tuning is justified on this consumed slice, so G3 has no eligible
-positive candidate to modify.
+The corrected cohort is selected exclusively from frozen G1 first-pass,
+post-Guard evidence: a question is included if its gold document set is not a
+subset of its `post_guard_document_ids`. S4 output, rewrite output, and
+corrective outcome are absent from the selector. This yields 95 baseline-
+incomplete and 105 baseline-complete questions.
 
-Evidence: [G2 public result](evidence/g2-oracle-historical-v4.json). The
-historical S4 raw expansions remain private and are not republished.
+| Arm | Recall@5 | nDCG@5 | MRR@5 | Multi-doc complete@5 |
+|---|---:|---:|---:|---:|
+| R0 G1 first-pass post-Guard Top-5 | 14.21% | 12.00% | 16.91% | 0.00% |
+| R2 S4 corrective, run 1/2 | 22.63% | 15.44% | 17.65% | 2.38% |
+| R2 S4 corrective, run 3 | 23.16% | 15.69% | 17.65% | 4.76% |
+
+R2 produces 8/8/9 full recoveries, 5 partial improvements, 77-78 no-change
+cases, and 4 harms across the three frozen S4 repeats. It uses 95 rewrite calls
+and 201 search queries for this 95-case Oracle slice; 53 expansions are
+accepted and 42 safely fall back. The effect is positive and repeatable on
+consumed development data, but it does not justify a default runtime router:
+G1's independent assessor still over-triggers at 72.38% false retries.
+
+F5 is not run. The corrected result does not show the prescribed evidence for
+original-biased fusion, and changing the validator or fusion now would turn
+final closure into label-driven tuning.
+
+Evidence: [corrected cohort](evidence/g2-corrected-oracle-cohort-v1.json) and
+[corrected comparison](evidence/g2-corrected-baseline-eedce3b.json). Raw G1
+and S4 contents remain private.

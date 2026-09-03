@@ -1,11 +1,11 @@
-# Enterprise Agentic RAG Copilot
+# Enterprise Agentic RAG Copilot - Evidence-Governed Retrieval, Tool Security, and Reliability Evaluation
 
 [![CI](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml?query=branch%3Amain)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB)](https://www.python.org/)
 [![Portfolio status](https://img.shields.io/badge/status-portfolio--ready-2F7D4A)](PROJECT_STATUS.md)
 
 > Recruiter or reviewer: `main` is the canonical public entry. Use the
-> [`portfolio-v1.0.0`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/tree/portfolio-v1.0.0)
+> [`portfolio-v1.1.0-final-closure`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/tree/portfolio-v1.1.0-final-closure)
 > tag for a stable portfolio snapshot and the
 > [public review packet](docs/review/FINAL_REVIEW_PACKET.md) for exact historical
 > evidence. Legacy `codex/*` refs remain available only so submitted resumes and
@@ -55,9 +55,22 @@ run can also emit a verifiable trajectory for replay and evaluation.
 A pinned generic MiniLM WixQA reranker was rejected after all registered arms
 reduced validation quality. A separately frozen BGE follow-up recovered positive
 point estimates; FP16 batching reduced single-chunk p95 from `624.67 ms` to
-`133.04 ms`. A later two-chunk article representation improved the selected
+ `133.04 ms`. A later two-chunk article representation improved the selected
 Top-10 arm and produced a positive ExpertWritten MRR interval, while Recall,
 nDCG, and multi-document evidence still limit the claim. [Protocols and results](docs/wixqa_reranker/RESULTS.md).
+
+## Final Retrieval Selection
+
+`FINAL_DEFAULT` remains the bounded Hybrid RRF runtime: it is the existing
+server-controlled path paired with ACL filtering, retrieved-content admission,
+tool budgets, Evidence Ledger tracking, and citation/grounding publication
+gates. A final same-harness WixQA comparison identifies BGE-M3 Dense as the
+strongest **simple experimental** retrieval arm (`66.42%` Recall@5, `52.16%`
+nDCG@5, `50.06 ms` local p95), but this already-consumed cohort is not evidence
+for a silent global default change. Always-on multi-query is an offline quality
+profile with a substantial latency trade-off. A corrected Oracle study shows
+that multi-query correction can recover first-pass misses, while its LLM retry
+assessor over-triggers and is therefore not enabled. See the [final decision](docs/FINAL_PROJECT_DECISION.md), [evaluation summary](docs/FINAL_EVALUATION_SUMMARY.md), and [claim boundary](docs/RESUME_CLAIM_BOUNDARY.md).
 
 This repository is an engineering portfolio, not a framework showcase. MCP is
 an in-process protocol adapter rather than a network deployment; LangGraph is
@@ -245,7 +258,7 @@ multi-document questions, and safe refusal without exposing private enterprise
 data. External WixQA, EnterpriseRAG-Bench, and garak evidence is reported
 separately with dataset, denominator, execution revision, and limitation.
 
-Current public state: `main` is canonical, `portfolio-v1.0.0` is the stable
+Current public state: `main` is canonical, `portfolio-v1.1.0-final-closure` is the stable
 snapshot, and legacy `codex/*` refs are retained only for external-link
 compatibility. This remains a portfolio system, not a production-readiness
 claim. `RAG_VNEXT_CLOSED` is retained as a historical milestone marker, not as
@@ -257,6 +270,10 @@ the name of the current branch.
 - [Claim-to-evidence map](docs/handoffs/PROJECT_EVIDENCE_MAP.md)
 - [Resume metric ledger](docs/handoffs/RESUME_METRIC_LEDGER.md)
 - [Evaluation methodology](docs/evaluation.md)
+- [Final project decision](docs/FINAL_PROJECT_DECISION.md)
+- [Final evaluation summary](docs/FINAL_EVALUATION_SUMMARY.md)
+- [Resume claim boundary](docs/RESUME_CLAIM_BOUNDARY.md)
+- [Final interview guide](docs/INTERVIEW_GUIDE.md)
 - [Architecture and trust boundaries](docs/architecture.md)
 - [Known limitations](docs/known_limitations.md)
 - [Full project evolution](docs/history/00_PROJECT_EVOLUTION.md)

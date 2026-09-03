@@ -40,22 +40,36 @@
 
 ## G2: Oracle-Triggered Corrective Retrieval
 
-- **Stage:** Offline retrieval-only causal comparison over 88 historical
-  first-pass failures.
-- **Arms:** R0 original Top-5, R1 original-query Top-10 then fixed Top-5, and
-  R2 historical validated two-query fusion from each S4 repeat.
-- **Result:** R1 exactly equals R0. R2 Recall@5 is 15.34%, 15.34%, and 15.91%
-  versus R0 15.91%; nDCG and MRR are lower in every run.
-- **Decision:** `REJECTED`. Do not tune the validator or route this strategy
-  into the default Agent. G3 and G4 have no eligible expansion candidate.
+- **Stage:** The original historical G2 artifact selected 88 cases from S4
+  fused outcomes.
+- **Result:** It was later found to have post-treatment selection bias.
+- **Decision:** Preserve `g2-oracle-historical-v4.json` for audit, but mark it
+  `SUPERSEDED_INVALID_POST_TREATMENT_SELECTION`. It cannot answer the causal
+  question and cannot support the default decision.
 
-## G3-G9: Final Closure
+## F0-F10: Final Evidence Repair and Closure
 
-- **G3:** Not run; no G2-positive candidate exists for a bounded repair.
-- **G4/G5:** `REJECTED`; no conditional policy is assembled from a rejected
-  trigger and rejected corrective action.
-- **G6:** Existing deterministic S0-S2 controls remain the reference evidence.
-- **G7:** Not run; no verified unused compatible cohort is available.
-- **G8:** Not run; no `FINALIST` retrieval strategy exists to validate
-  end-to-end.
-- **G9:** `REJECTED`; V3 makes no runtime or default-policy change.
+- **Stage:** Final closure at repair SHA `eedce3b843f5b1bc26d32d0c3d9f9b0afee15c24`.
+- **Dataset:** WixQA ExpertWritten, 200 questions, `CONSUMED_DEVELOPMENT`.
+- **Question:** Does frozen S4-style corrective retrieval improve evidence when
+  a frozen G1 first-pass post-Guard retrieval is actually incomplete?
+- **Code changed:** Evaluation-only Oracle selection now uses only
+  `gold_document_ids` and `post_guard_document_ids`; tests prohibit a corrective
+  arm input to the selector.
+- **Arms:** R0 frozen first pass; R2 frozen S4 multi-query corrective retrieval.
+- **Metrics:** Recall@5, nDCG@5, MRR@5, multi-document completeness, recovery
+  counts, expansion calls, and search calls.
+- **Result:** The corrected Oracle slice contains 95 incomplete and 105 complete
+  cases. R2 improved Recall@5 from 14.21% to 22.63%/23.16% across the three
+  frozen repeats, with 8/8/9 full recoveries and four harms per repeat.
+- **Decision:** `CORRECTIVE_REWRITE_POSITIVE`, but `REJECTED_AS_DEFAULT_ROUTER`:
+  G1's executable assessor still over-triggers at 72.38% false retries.
+- **F3:** Same-harness simple baselines identify BGE-M3 Dense as
+  `BEST_SIMPLE_BASELINE` (66.42% Recall@5; 52.16% nDCG@5; 50.06 ms p95 local).
+- **F5:** Not run. The evidence does not justify changing a frozen validator or
+  fusion rule on consumed labels.
+- **F6-F8:** No compatible unused question-label cohort is verified, so no V3
+  `FINALIST` or candidate-specific answer/citation evaluation is claimed.
+- **F9:** Bounded Hybrid RRF remains `FINAL_DEFAULT`; Dense and S4 are scoped
+  experimental profiles.
+- **Next:** `PROJECT_FEATURE_SCOPE_FROZEN` after release verification.

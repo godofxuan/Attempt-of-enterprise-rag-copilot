@@ -4,14 +4,26 @@
 
 `NO_RUNTIME_CHANGE`
 
-The V2 default remains unchanged. S4 remains historical `EXPERIMENTAL_KEEP`
-evidence under its own bake-off status, while S5 remains historically rejected.
-V3 will use its separate maturity labels only after the corresponding gates.
+The V2 bounded Hybrid RRF runtime remains the default. The repaired G2 result
+changes the interpretation of corrective rewrite capacity, but does not change
+the serving policy.
 
-## G1/G2 Outcome
+## Final V3 Outcome
 
-Both available V3 adaptive mechanisms are `REJECTED`: G1's separated LLM
-assessor is stable but over-triggers (72.38% false-retry rate), while G2's
-Oracle-triggered historical two-query corrective retrieval does not improve the
-fixed Top-5 retrieval result. Default routing, ACL, Guard, evidence ledger,
-grounding, and response behavior remain unchanged.
+- G1 separated LLM evidence assessor: `REJECTED_AS_DEFAULT_ROUTER`. Its retry
+  recall was high, but it falsely requested retry for 72.38% of baseline-complete
+  cases on the consumed WixQA cohort.
+- Historical G2 Oracle artifact: `SUPERSEDED_INVALID_POST_TREATMENT_SELECTION`.
+  It is retained for audit and cannot support a system decision.
+- Corrected G2 Oracle evaluation: `CORRECTIVE_REWRITE_POSITIVE`. Starting from
+  baseline first-pass misses, frozen S4 corrective retrieval improved Recall@5,
+  nDCG@5, MRR@5, and multi-document completeness across its three recorded
+  repeats.
+- Adaptive runtime: `REJECTED_FOR_DEFAULT`. The project has evidence that a
+  correction can help when needed, but not evidence for a sufficiently precise
+  executable trigger.
+
+Default routing, identity/ACL authority, Guard admission, tool budgets,
+Evidence Ledger, grounding, and response behavior remain unchanged. This is a
+deliberate evidence boundary, not a conclusion that LLM evidence assessment or
+query rewriting can never be useful.

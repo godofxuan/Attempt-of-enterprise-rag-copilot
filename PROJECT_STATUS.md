@@ -1,5 +1,30 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-09-04 Final evidence repair and portfolio release
+
+```text
+canonical public branch            main
+release candidate                  portfolio-v1.1.0-final-closure
+portfolio                          PORTFOLIO_READY
+production                         PRODUCTION_NOT_VERIFIED
+retrieval default                  BOUNDED HYBRID RRF / UNCHANGED
+best simple benchmark arm          BGE-M3 DENSE / CONSUMED WIXQA ONLY
+adaptive retry                     NOT DEFAULT / ROUTER OVER-TRIGGERS
+fresh V3 validation                NO_FRESH_VALIDATION_AVAILABLE
+feature scope                      PROJECT_FEATURE_SCOPE_FROZEN
+```
+
+Final closure repaired a V3 Oracle experiment that had selected cases using a
+corrective arm's S4 outcome. The corrected cohort selects only frozen first-pass
+post-Guard misses. It demonstrates positive corrective-rewrite capacity under
+an evaluation Oracle, but the executable LLM assessor over-triggered retries;
+therefore serving behavior remains unchanged. The final simple-baseline comparison
+identifies BGE-M3 Dense as strongest on the consumed 200-question WixQA harness,
+without silently promoting it to a global default. See
+[`docs/FINAL_PROJECT_DECISION.md`](docs/FINAL_PROJECT_DECISION.md),
+[`docs/FINAL_EVALUATION_SUMMARY.md`](docs/FINAL_EVALUATION_SUMMARY.md), and
+[`docs/RESUME_CLAIM_BOUNDARY.md`](docs/RESUME_CLAIM_BOUNDARY.md).
+
 ## 2026-09-01 Public entry and compatibility policy
 
 ```text

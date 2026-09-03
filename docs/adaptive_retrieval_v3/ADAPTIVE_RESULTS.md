@@ -1,22 +1,25 @@
 # Adaptive Retrieval V3 Adaptive Policy Results
 
-## G3-G5 Decision: `REJECTED`
+## F4-F5 Decision: `NO_RUNTIME_CHANGE`
 
-G3 is intentionally not executed: its precondition is a useful G2 corrective
-candidate. G2 rejected the only available two-query candidate on the Oracle
-slice, so changing validation rules or fusion weights now would be unbounded
-tuning on consumed labels.
+The corrected G2 Oracle study is `CORRECTIVE_REWRITE_POSITIVE`: frozen
+two-query correction can repair a subset of true first-pass evidence misses.
+That does not make an adaptive runtime ready. The independently measured G1
+assessor has a poor default operating point, retrying 72.38% of already-complete
+cases on the consumed cohort.
 
-G4 conditional composition is also not executed. A conditional policy can only
-improve on its components if at least one corrective arm can recover evidence;
-G1 rejects the trigger's operating point and G2 rejects the corrective arm.
-Composing two rejected components is not an additional experiment.
+F5 is intentionally not executed. The final closure allows one refinement only
+when the recorded forensics support one specific change. The corrected evidence
+does not establish that original-query dilution or pair-level validation failure
+is the causal bottleneck, and changing either mechanism on consumed labels would
+be a new tuning cycle rather than evidence repair.
 
-G5 deterministic routing versus LLM routing is not executed for the same
-reason. The existing deterministic baseline remains ordinary hybrid RRF Top-5;
-there is no qualifying retry action for either router to invoke.
+No G4 conditional policy is assembled. A real adaptive policy needs both a
+helpful correction action and a sufficiently precise executable trigger. This
+project demonstrates the former only with an evaluation Oracle, not the latter.
+The V2 bounded Hybrid RRF default remains unchanged.
 
-This is a `REJECTED` adaptive-policy decision, not a claim that bounded
-retrieval policies can never work. It means this repository has no evidence to
-enable one on the current consumed cohort, model, index, and latency profile.
-The V2 runtime remains unchanged.
+This is a `REJECTED_AS_DEFAULT_ROUTER` decision, not a claim that bounded
+retrieval policies or LLM evidence assessment can never work. The evidence
+supports an offline diagnostic profile and a clear next prerequisite: an unused
+cohort or real failure stream to evaluate a conservative trigger.
