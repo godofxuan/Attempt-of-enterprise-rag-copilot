@@ -1,5 +1,6 @@
 from app.evaluation.adaptive_retrieval_recoverability import (
     RecoverabilityProposal,
+    build_assessor_messages,
     build_assessor_request_fingerprints,
     classify_recovery,
     parse_assessor_response,
@@ -86,6 +87,19 @@ def test_question_seed_is_stable_and_independent_of_python_hash_randomization() 
     assert _assessor_seed("wixqa:expertwritten:a") != _assessor_seed(
         "wixqa:expertwritten:b"
     )
+
+
+def test_assessor_message_builder_returns_the_complete_structured_request() -> None:
+    messages = build_assessor_messages(
+        original_question="What changed?",
+        retrieval_query="What changed?",
+        intent="fact",
+        required_aspects=["answer"],
+        evidence=[{"document_id": "doc-1", "title": "Title", "text": "Body"}],
+    )
+
+    assert [item["role"] for item in messages] == ["system", "user"]
+    assert "assessment_input" in messages[1]["content"]
 
 
 def test_request_fingerprint_changes_when_material_request_configuration_changes() -> None:
