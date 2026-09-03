@@ -193,6 +193,32 @@ def gold_retrieval_sufficient(
     return set(gold_document_ids).issubset(set(observed_document_ids))
 
 
+def select_oracle_case_ids(
+    first_pass_rows: Sequence[Mapping[str, object]],
+) -> tuple[str, ...]:
+    """Select baseline failures without accepting corrective-arm information."""
+    selected = []
+    for row in first_pass_rows:
+        question_id = row.get("question_id")
+        gold = row.get("gold_document_ids")
+        observed = row.get("post_guard_document_ids")
+        if (
+            not isinstance(question_id, str)
+            or not isinstance(gold, list)
+            or not isinstance(observed, list)
+        ):
+            raise ValueError("first-pass oracle row is incomplete")
+        if not all(isinstance(item, str) for item in [*gold, *observed]):
+            raise ValueError("first-pass oracle IDs must be strings")
+        if not gold:
+            raise ValueError("first-pass oracle gold document IDs are empty")
+        if not gold_retrieval_sufficient(gold, observed):
+            selected.append(question_id)
+    if len(selected) != len(set(selected)):
+        raise ValueError("first-pass oracle rows contain duplicate question IDs")
+    return tuple(selected)
+
+
 def assessor_metrics(rows: Sequence[Mapping[str, object]]) -> dict[str, object]:
     """Evaluate a retry trigger without treating an unavailable model as a label."""
     available = [row for row in rows if row.get("prediction") in {True, False}]
@@ -249,4 +275,5 @@ __all__ = [
     "canonical_sha256",
     "gold_retrieval_sufficient",
     "parse_evidence_sufficiency_response",
+    "select_oracle_case_ids",
 ]
