@@ -237,6 +237,7 @@ def main(argv: list[str] | None = None) -> int:
         "question_ids_sha256": canonical_sha256([item.question_id for item in questions]),
         "case_count": len(rows),
         "git": _git_provenance(),
+        "critical_file_sha256": _critical_file_sha256(),
         "index_run_id": index.manifest.run_id,
         "index_manifest_sha256": _sha256_file(index_manifest_path),
         "embedding_model": embedding.model_identifier,
@@ -436,6 +437,15 @@ def _git_provenance() -> dict[str, object]:
 
 def _index_manifest_path(index_root: Path, run_id: str) -> Path:
     return index_root.resolve() / "versions" / run_id / "manifest.json"
+
+
+def _critical_file_sha256() -> dict[str, str]:
+    paths = (
+        "app/evaluation/adaptive_retrieval_v3.py",
+        "scripts/eval_adaptive_retrieval_v3_assessor.py",
+        "app/ollama_chat.py",
+    )
+    return {path: _sha256_file(Path(path)) for path in paths}
 
 
 def _ollama_model_identity(model: str) -> dict[str, str | None]:
