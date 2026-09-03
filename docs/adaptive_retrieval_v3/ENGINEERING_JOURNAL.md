@@ -37,3 +37,14 @@
 - **Next:** G2 Oracle-triggered causal retrieval comparison: distinguish the
   benefit of a corrective query from merely retrieving deeper with the same
   query.
+
+## G2: Oracle-Triggered Corrective Retrieval
+
+- **Stage:** Offline retrieval-only causal comparison over 88 historical
+  first-pass failures.
+- **Arms:** R0 original Top-5, R1 original-query Top-10 then fixed Top-5, and
+  R2 historical validated two-query fusion from each S4 repeat.
+- **Result:** R1 exactly equals R0. R2 Recall@5 is 15.34%, 15.34%, and 15.91%
+  versus R0 15.91%; nDCG and MRR are lower in every run.
+- **Decision:** `REJECTED`. Do not tune the validator or route this strategy
+  into the default Agent. G3 and G4 have no eligible expansion candidate.
