@@ -1,0 +1,17 @@
+{
+  "baseline_revision": "e904616c9860c19f77fd2cb2ac7decc73dc8f4dd",
+  "case_count": 20,
+  "dataset": "WixQA ExpertWritten frozen 20-case multi-document cohort",
+  "dataset_manifest_sha256": "e40972d70a8c80685b3730733efd90ac82a01fd52a949a0d27e122809bc290dd",
+  "index_manifest_sha256": "d21b3aa78bc578a86d421c4db724b6441d404e13ed628bd8c22fdaff002daa09",
+  "first_loss_distribution": {
+    "RESPONSE_BUILDER_CITATION_OMISSION": 3,
+    "RETRIEVAL_TOP20_MISS": 7,
+    "RETRIEVAL_TOP5_MISS": 10
+  },
+  "ledger_false_completeness_count": 17,
+  "guard_filtered_case_count": 0,
+  "permission_related_failure_count": 0,
+  "case_matrix_sha256": "276f4bdd9fe76048066ea16c87f7dc11ab48b8e511fe98f86262c48a09743a15",
+  "claim_boundary": "Current-SHA reproduction on a consumed development cohort. No serving behavior changed."
+}
