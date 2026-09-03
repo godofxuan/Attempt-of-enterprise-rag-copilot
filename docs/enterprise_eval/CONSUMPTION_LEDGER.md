@@ -25,8 +25,8 @@ Allowed status vocabulary:
 | Synthetic enterprise corpus dev/test | DEVELOPMENT / REGRESSION_ONLY per v2 manifests | system contract regression, not external claims |
 | garak initial, holdout, and recombined stress fixtures | FIXED_CONSUMED | Guard regression only |
 | WixQA Synthetic | DEVELOPMENT; 6,221-case B0/B1/B2 baseline consumed at `2347346` | failure analysis and candidate development only |
-| WixQA Simulated | VALIDATION; 200-case baseline observed at `2347346` | no longer an untouched candidate holdout |
-| WixQA ExpertWritten | FIXED_CONSUMED; 200-case B0/B1/B2 baseline observed once at `2347346`; 20-case retrospective candidate rejected at `d29639c` | reporting, regression, and disclosed retrospective diagnosis only; no further candidate tuning or promotion claim |
+| WixQA Simulated | VALIDATION; baseline and multiple BGE candidate profiles observed through raw-chunk Top-20 at `ccf90af` | consumed-validation regression and disclosed reporting only; no further candidate selection or untouched-holdout claim |
+| WixQA ExpertWritten | FIXED_CONSUMED; baseline and disclosed retrospective candidates observed through raw-chunk Top-20 at `ccf90af` | reporting, regression, and disclosed retrospective diagnosis only; no further candidate tuning or fresh-generalization claim |
 | EnterpriseRAG-Bench official questions | FIXED_CONSUMED; public labels and `qst_0413` anomaly inspected before B0 | fixed baseline/reporting only; no parameter or candidate selection |
 | HERB official tasks | UNTOUCHED | remain untouched until license/resource qualification passes |
 

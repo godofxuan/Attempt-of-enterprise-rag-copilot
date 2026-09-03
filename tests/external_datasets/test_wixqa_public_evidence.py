@@ -229,3 +229,28 @@ def test_article_multi_chunk_evidence_is_protocol_bound_and_claim_bounded() -> N
     assert "Answer accuracy improvement" in serialized
     assert "C:\\" not in serialized
     assert "D:\\" not in serialized
+
+
+def test_guarded_raw_chunk_evidence_keeps_quality_cost_and_limits_visible() -> None:
+    evidence = json.loads(
+        (ROOT / "docs" / "wixqa_reranker" / "raw_chunk_bge_evidence.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert evidence["producer_git_sha"] == "ccf90af12ef39f024e128657adf5e81f0c9cf652"
+    simulated = evidence["simulated"]
+    assert simulated["paired_bootstrap_10000_seed_20260903"]["recall_at_5_ci95"][0] > 0
+    assert simulated["paired_bootstrap_10000_seed_20260903"]["ndcg_at_5_ci95"][0] > 0
+    assert simulated["candidate"]["p95_ms"] > simulated["dense"]["p95_ms"]
+    expert = evidence["expertwritten"]
+    assert (
+        expert["candidate"]["multi_article_completeness_at_5"]
+        < expert["dense"]["multi_article_completeness_at_5"]
+    )
+    assert expert["paired_bootstrap_10000_seed_20260903"]["recall_at_5_ci95"][0] < 0
+    serialized = json.dumps(evidence, ensure_ascii=False)
+    assert "fresh blind" in serialized
+    assert "answer accuracy" in serialized
+    assert "C:\\" not in serialized
+    assert "D:\\" not in serialized

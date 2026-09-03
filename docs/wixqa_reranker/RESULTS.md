@@ -138,6 +138,40 @@ Public aggregate evidence is recorded in
 - Runs bind the dataset, index, embedding, reranker revision, model weights,
   Git revision, complete latency, Guard counts, and private artifact hashes.
 
+## Raw-chunk-first collaborator follow-up
+
+An external collaborator proposed reranking raw Dense chunks before article
+deduplication. The collaborator branch was 16 mainline commits behind and
+bypassed the current retrieved-content Guard, so it was reviewed in an isolated
+worktree rather than merged. Its central candidate-ordering idea was then
+reimplemented behind the repository's Guard and evaluated at exact code commit
+`ccf90af`.
+
+The selected interactive candidate reranks the first 20 raw chunks, after Guard
+admission, with pinned `BAAI/bge-reranker-v2-m3` FP16 on an RTX 5060. Only after
+scoring does it retain the best-ranked chunk for each article.
+
+| Cohort | Metric | Dense | Guarded raw-chunk Top-20 | Delta | Paired 95% CI |
+|---|---|---:|---:|---:|---:|
+| Simulated 200 | Recall@5 | 61.42% | 66.92% | +5.50pp | [+0.25pp, +11.00pp] |
+| Simulated 200 | nDCG@5 | 47.78% | 52.54% | +4.76pp | [+0.59pp, +9.03pp] |
+| Simulated 200 | MRR@5 | 45.12% | 49.96% | +4.84pp | [+0.19pp, +9.55pp] |
+| ExpertWritten 200 | Recall@5 | 66.42% | 70.83% | +4.42pp | [-0.25pp, +9.25pp] |
+| ExpertWritten 200 | nDCG@5 | 52.16% | 57.18% | +5.02pp | [+0.73pp, +9.33pp] |
+| ExpertWritten 200 | MRR@5 | 49.61% | 55.91% | +6.30pp | [+1.19pp, +11.36pp] |
+
+Simulated p95 increased from `44.17 ms` to `226.16 ms`; ExpertWritten p95
+increased from `44.56 ms` to `224.34 ms`. Simulated multi-article completeness
+improved from `14.81%` to `29.63%`, but ExpertWritten completeness declined from
+`30.77%` to `26.92%`. Therefore the profile is an explicit GPU quality mode,
+not an unconditional default and not an "improved every metric" claim.
+
+Top-50 raw chunks reached simulated Recall@5 `68.50%` and nDCG@5 `53.05%`, but
+its roughly `572 ms` p95 made Top-20 the better interactive tradeoff. Both
+cohorts were already consumed, so this is disclosed hypothesis-driven validation
+and retrospective evidence, not a fresh blind test. Public aggregate evidence
+is in [`raw_chunk_bge_evidence.json`](raw_chunk_bge_evidence.json).
+
 ## Interpretation
 
 The negative result does not show that reranking is useless. It shows that a

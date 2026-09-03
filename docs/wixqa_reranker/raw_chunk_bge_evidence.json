@@ -1,0 +1,104 @@
+{
+  "schema_version": "wixqa_guarded_raw_chunk_reranker_evidence_v1",
+  "producer_git_sha": "ccf90af12ef39f024e128657adf5e81f0c9cf652",
+  "hypothesis_source": "External collaborator branch feat/wixqa-bge-reranker-v2-m3; independently reviewed and reimplemented behind the repository Guard boundary",
+  "configuration": {
+    "candidate_generation": "BGE-M3 dense Top-200 chunks",
+    "candidate_unit": "first 20 raw chunks before article deduplication",
+    "security_order": "retrieve -> retrieved-content Guard -> cross-encoder -> article deduplication -> Top-5",
+    "embedding_model": "bge-m3",
+    "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+    "reranker_model": "BAAI/bge-reranker-v2-m3",
+    "reranker_revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+    "reranker_weights_sha256": "d9e3e081faff1eefb84019509b2f5558fd74c1a05a2c7db22f74174fcedb5286",
+    "dtype": "float16",
+    "batch_size": 16,
+    "hardware": "NVIDIA GeForce RTX 5060 8GB; torch 2.7.0+cu128"
+  },
+  "simulated": {
+    "consumption": "CONSUMED_VALIDATION_NOT_BLIND",
+    "case_count": 200,
+    "run_id": "wixqa-raw-chunk-top20-bge-v2m3-simulated-ccf90af-v1",
+    "run_summary_sha256": "91429f25b608ceb3e942e605a26117085360053a1c1d308c87227a297deb5a4b",
+    "paired_summary_sha256": "be987d2aadc7fd78f30d0a2d02b47d983e4ac1e58c92caee2fcb9763cdf1c833",
+    "guard": {
+      "admitted_chunks": 3982,
+      "quarantined_chunks": 18
+    },
+    "dense": {
+      "recall_at_5": 0.6141666666666667,
+      "ndcg_at_5": 0.47779195278017633,
+      "mrr_at_5": 0.4511666666666667,
+      "multi_article_completeness_at_5": 0.14814814814814814,
+      "p95_ms": 44.16930000297725
+    },
+    "candidate": {
+      "recall_at_5": 0.6691666666666667,
+      "ndcg_at_5": 0.5253679938217255,
+      "mrr_at_5": 0.4995833333333332,
+      "multi_article_completeness_at_5": 0.2962962962962963,
+      "p95_ms": 226.15579998819157
+    },
+    "paired_bootstrap_10000_seed_20260903": {
+      "recall_at_5_delta": 0.055,
+      "recall_at_5_ci95": [0.0025, 0.11],
+      "ndcg_at_5_delta": 0.04757604104154917,
+      "ndcg_at_5_ci95": [0.005947940720137056, 0.09029823061061044],
+      "mrr_at_5_delta": 0.04841666666666667,
+      "mrr_at_5_ci95": [0.0019166666666666696, 0.0955]
+    }
+  },
+  "expertwritten": {
+    "consumption": "FIXED_CONSUMED_RETROSPECTIVE",
+    "case_count": 200,
+    "run_id": "wixqa-raw-chunk-top20-bge-v2m3-expertwritten-ccf90af-v1",
+    "run_summary_sha256": "e1d48937819d40cebb846cc842b8ace521b1741a7a03029552c79e47a08605b1",
+    "paired_summary_sha256": "1616656bb9eccaae70c83187f9b8f37a6ad0bb52977ba034768074a3381a8870",
+    "guard": {
+      "admitted_chunks": 3965,
+      "quarantined_chunks": 35
+    },
+    "dense": {
+      "recall_at_5": 0.6641666666666666,
+      "ndcg_at_5": 0.521583326944466,
+      "mrr_at_5": 0.49608333333333327,
+      "multi_article_completeness_at_5": 0.3076923076923077,
+      "p95_ms": 44.56130000471603
+    },
+    "candidate": {
+      "recall_at_5": 0.7083333333333333,
+      "ndcg_at_5": 0.571827829628833,
+      "mrr_at_5": 0.5590833333333332,
+      "multi_article_completeness_at_5": 0.2692307692307692,
+      "p95_ms": 224.34280000743456
+    },
+    "paired_bootstrap_10000_seed_20260903": {
+      "recall_at_5_delta": 0.04416666666666666,
+      "recall_at_5_ci95": [-0.0025000000000000022, 0.0925],
+      "ndcg_at_5_delta": 0.05024450268436727,
+      "ndcg_at_5_ci95": [0.007274267969593701, 0.09331931756509923],
+      "mrr_at_5_delta": 0.063,
+      "mrr_at_5_ci95": [0.011914583333333333, 0.11358541666666665]
+    }
+  },
+  "decision": "TOP20_RAW_CHUNK_SELECTED_AS_EXPERIMENTAL_GPU_PROFILE",
+  "negative_results": [
+    "ExpertWritten multi-article completeness decreased by 3.85 percentage points.",
+    "The selected profile increased local retrieval p95 by about 180 milliseconds in both exact-SHA runs.",
+    "Top-50 improved simulated Recall@5 further to 68.50% but raised p95 to about 572 milliseconds, so it is not the interactive profile.",
+    "The experiment does not provide a fresh blind or third-party test because both WixQA cohorts were already consumed."
+  ],
+  "claim_boundary": {
+    "allowed": [
+      "Report the disclosed 200-case WixQA retrieval improvements, paired intervals, Guard counts, and local latency cost.",
+      "Describe raw-chunk reranking as an experimental GPU profile selected on consumed validation evidence.",
+      "Explain that Guard executes before cross-encoder scoring and article deduplication."
+    ],
+    "forbidden": [
+      "Call any retrieval metric answer accuracy.",
+      "Describe the result as blind, independent, or third-party validation.",
+      "Claim improvement on every metric or an unconditional production default.",
+      "Present the measured desktop latency as a production SLA."
+    ]
+  }
+}
