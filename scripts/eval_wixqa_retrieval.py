@@ -23,8 +23,8 @@ from app.external_datasets.wixqa_retrieval import (
     score_wixqa_ranking,
     summarize_wixqa_scores,
 )
+from app.runtime.model_transport import ModelRequestError
 from app.runtime.ollama_embeddings import OllamaEmbeddingClient
-
 
 DEFAULT_INDEX_ROOT = Path(".private/external/wixqa/indexes")
 DEFAULT_RUN_ROOT = Path(".private/external/wixqa/eval_runs")
@@ -32,7 +32,9 @@ DEFAULT_RUN_ROOT = Path(".private/external/wixqa/eval_runs")
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Evaluate WixQA article retrieval.")
-    parser.add_argument("--cohort", choices=("synthetic", "simulated", "expertwritten"), required=True)
+    parser.add_argument(
+        "--cohort", choices=("synthetic", "simulated", "expertwritten"), required=True
+    )
     parser.add_argument("--source-root", type=Path, default=DEFAULT_WIXQA_ROOT)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_WIXQA_MANIFEST)
     parser.add_argument("--index-root", type=Path, default=DEFAULT_INDEX_ROOT)
@@ -41,6 +43,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--candidate-k", type=int, default=200)
     parser.add_argument("--max-cases", type=int)
     parser.add_argument("--consume-fixed-external", action="store_true")
+    parser.add_argument(
+        "--embedding-http-500-fallback-url",
+        help=(
+            "Pinned local identity-matched Ollama base URL used only when the "
+            "primary query embedding backend returns HTTP 500."
+        ),
+    )
     return parser
 
 
@@ -66,6 +75,19 @@ def main(argv: list[str] | None = None) -> int:
         probe_text="WixQA query embedding dimension probe",
         endpoint_context="WixQA retrieval evaluation",
     )
+    fallback_client = None
+    if args.embedding_http_500_fallback_url:
+        fallback_client = OllamaEmbeddingClient.from_settings(
+            settings.model_copy(update={"llm_base_url": args.embedding_http_500_fallback_url}),
+            probe_text="WixQA query embedding fallback dimension probe",
+            endpoint_context="WixQA retrieval evaluation fallback",
+        )
+        if (
+            fallback_client.model_identifier != client.model_identifier
+            or fallback_client.model_sha256 != client.model_sha256
+            or fallback_client.dimension != client.dimension
+        ):
+            raise ValueError("WixQA query embedding fallback identity differs")
     if (
         client.model_identifier != index.manifest.embedding_model
         or client.model_sha256 != index.manifest.embedding_model_sha256
@@ -73,13 +95,25 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("WixQA query and corpus embedding identities differ")
 
     details = []
+    embedding_http_500_fallback_count = 0
     for ordinal, question in enumerate(questions, start=1):
         bm25_started = time.perf_counter()
         bm25 = index.bm25_article_ranking(question.question, candidate_k=args.candidate_k)
         bm25_ms = (time.perf_counter() - bm25_started) * 1000
 
         dense_started = time.perf_counter()
-        query_vector = client.embed_batch([question.question])
+        try:
+            query_vector = client.embed_batch([question.question])
+        except ModelRequestError as exc:
+            if exc.status_code != 500 or fallback_client is None:
+                raise
+            embedding_http_500_fallback_count += 1
+            print(
+                f"query {ordinal} primary embedding HTTP 500; "
+                "using identity-matched pinned local fallback",
+                flush=True,
+            )
+            query_vector = fallback_client.embed_batch([question.question])
         dense = index.dense_article_ranking(query_vector, candidate_k=args.candidate_k)
         dense_ms = (time.perf_counter() - dense_started) * 1000
 
@@ -88,8 +122,12 @@ def main(argv: list[str] | None = None) -> int:
         fusion_ms = (time.perf_counter() - fusion_started) * 1000
         details.extend(
             [
-                score_wixqa_ranking(question, arm="bm25", ranked_article_ids=bm25, latency_ms=bm25_ms),
-                score_wixqa_ranking(question, arm="dense", ranked_article_ids=dense, latency_ms=dense_ms),
+                score_wixqa_ranking(
+                    question, arm="bm25", ranked_article_ids=bm25, latency_ms=bm25_ms
+                ),
+                score_wixqa_ranking(
+                    question, arm="dense", ranked_article_ids=dense, latency_ms=dense_ms
+                ),
                 score_wixqa_ranking(
                     question,
                     arm="hybrid_rrf",
@@ -108,7 +146,15 @@ def main(argv: list[str] | None = None) -> int:
     run_dir = args.output_root.resolve() / args.run_id
     run_dir.mkdir(parents=True, exist_ok=False)
     detail_bytes = b"".join(
-        (json.dumps(row.model_dump(mode="json"), ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n").encode("utf-8")
+        (
+            json.dumps(
+                row.model_dump(mode="json"),
+                ensure_ascii=True,
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode("utf-8")
         for row in details
     )
     (run_dir / "details.jsonl").write_bytes(detail_bytes)
@@ -121,20 +167,26 @@ def main(argv: list[str] | None = None) -> int:
         "code_revision": code_revision,
         "cohort": args.cohort,
         "consumption": (
-            "FIXED_CONSUMED" if args.cohort == "expertwritten" else
-            "VALIDATION" if args.cohort == "simulated" else "DEVELOPMENT"
+            "FIXED_CONSUMED"
+            if args.cohort == "expertwritten"
+            else "VALIDATION"
+            if args.cohort == "simulated"
+            else "DEVELOPMENT"
         ),
         "case_count": len(questions),
         "question_ids_sha256": question_ids_sha256(questions),
         "dataset_manifest_sha256": dataset_manifest_sha256,
         "index_run_id": index.manifest.run_id,
         "index_manifest_sha256": hashlib.sha256(
-            (args.index_root.resolve() / "versions" / index.manifest.run_id / "manifest.json").read_bytes()
+            (
+                args.index_root.resolve() / "versions" / index.manifest.run_id / "manifest.json"
+            ).read_bytes()
         ).hexdigest(),
         "embedding_model": client.model_identifier,
         "embedding_model_sha256": client.model_sha256,
         "candidate_k": args.candidate_k,
         "query_embedding_calls": len(questions),
+        "embedding_http_500_fallback_count": (embedding_http_500_fallback_count),
         "details_sha256": hashlib.sha256(detail_bytes).hexdigest(),
         "summaries": [row.model_dump(mode="json") for row in summaries],
     }
@@ -148,4 +200,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
