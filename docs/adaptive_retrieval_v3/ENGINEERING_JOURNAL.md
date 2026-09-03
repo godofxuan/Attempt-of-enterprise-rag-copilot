@@ -19,3 +19,21 @@
   change `controller_v2.py`, `runner_v2.py`, `ToolGateway`, or serving policy.
 - **Decision:** G0 complete. Proceed to G1 assessor quality only.
 - **Next:** Freeze the assessor contract and three-run quality protocol.
+
+## G1: Separated Evidence-Sufficiency Assessor
+
+- **Stage:** G1 assessment-only evaluation; no rewrite or retry execution.
+- **Dataset:** WixQA ExpertWritten 200, `CONSUMED_DEVELOPMENT`.
+- **Arms:** Identical local `qwen3:8b` assessor run three times.
+- **Result:** 200/200 per-case retry predictions agreed across all three runs.
+  On each run: TP 85, FP 76, FN 9, TN 29; retry recall 90.43%, retry
+  precision 52.80%, and false-retry rate 72.38%. One response was a parse
+  error in every run and was recorded as unavailable.
+- **Interpretation:** The assessor consistently catches most first-pass
+  insufficiency but would impose a corrective retrieval on most already
+  sufficient cases. Stability is necessary but does not make its operating
+  point useful for the default interactive path.
+- **Decision:** `REJECTED` as a default retry router. No serving code changes.
+- **Next:** G2 Oracle-triggered causal retrieval comparison: distinguish the
+  benefit of a corrective query from merely retrieving deeper with the same
+  query.
