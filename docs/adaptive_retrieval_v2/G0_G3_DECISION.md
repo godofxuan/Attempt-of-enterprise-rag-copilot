@@ -33,3 +33,17 @@ The next future experiment, if explicitly authorized, must be deterministic:
 one fixed-budget Top-5 selection intervention against the unchanged baseline.
 It must be separately pre-registered and cannot rely on the consumed G0 model
 proposals.
+
+## G4 Readiness Check
+
+`KEEP_CURRENT_DEFAULT`
+
+G1 makes deterministic Top-5 selection the next hypothesis. The repository
+already contains earlier, consumed-cohort BGE raw-chunk reranker evidence: it
+improved some Recall/nDCG/MRR measurements but reduced ExpertWritten
+multi-document completeness, so it is only an experimental GPU quality mode.
+The current project environment reports `torch 2.13.0+cpu` and no CUDA device;
+the pinned BGE weights remain available, but the prior CUDA runtime is not a
+reproducible project dependency. This program does not replace dependencies or
+rerun a consumed cohort merely to obtain a new result. No G4 selector is
+promoted.

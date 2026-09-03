@@ -67,3 +67,17 @@
 - **Decision:** `ATTRIBUTION_COMPLETE_NO_OPTIMIZATION`; Top-5 selection is the next deterministic hypothesis, not an LLM rewrite.
 - **Known limitation:** This is a consumed cohort and cannot select a production default.
 - **Next action:** `GLOBAL_ADAPTIVE_STOPPED` because G0 blocks the required fair-budget G2 experiment. A future deterministic fixed-budget selector must use a separately frozen protocol.
+
+## G4: Deterministic Selection Readiness
+
+- **Hypothesis:** A deterministic Top-5 selection intervention is the next experiment after G1.
+- **Exact Git SHA:** `00454ef`; `git_dirty: false` before the environment capability check.
+- **Files changed:** Decision record only; no selector, retrieval, or serving code changed.
+- **Dataset:** None newly evaluated.
+- **Arms:** Not run. The current project virtual environment is `torch 2.13.0+cpu` with CUDA unavailable.
+- **Primary metric:** Not applicable; a GPU reranker run would not be reproducible from the project environment.
+- **Frozen success gate:** Not applicable because no new protocol-valid arm could run.
+- **Observed result:** Earlier raw-chunk BGE evidence is retained as consumed experimental evidence and has a multi-document completeness tradeoff; it cannot justify a default.
+- **Decision:** `KEEP_CURRENT_DEFAULT`.
+- **Known limitation:** A separately pinned CUDA environment and a fresh, pre-registered cohort are needed before another BGE reranker promotion decision.
+- **Next action:** Stop this program at its evidence boundary. Do not modify dependencies, tune consumed data, or enable global adaptive rewrite.
