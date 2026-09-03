@@ -53,3 +53,17 @@
 - **Decision:** `REPRODUCIBILITY_NOT_CLOSED_ADAPTIVE_EVALUATION_BLOCKED`.
 - **Known limitation:** This establishes neither cross-hardware behavior nor a root cause inside the local inference backend. It does establish that the tested model/runtime combination cannot support an exact-repeat promotion gate.
 - **Next action:** Run deterministic G1 failure attribution only. Do not conduct G2 adaptive-retry causality experiments or prompt tuning on the consumed cohort.
+
+## G1: Current Failure Attribution
+
+- **Hypothesis:** Earliest-loss attribution identifies the actual priority without introducing an LLM intervention.
+- **Exact Git SHA:** `b3fd3dda997d8a1d3bc96926ffabce6d45d61533`; `git_dirty: false`.
+- **Files changed:** Public evidence package only; serving is unchanged.
+- **Dataset:** Consumed WixQA ExpertWritten 20-case multi-document cohort.
+- **Arms:** Current BM25 + BGE-M3 dense + RRF Top-5 replay.
+- **Primary metric:** Earliest loss category per case.
+- **Frozen success gate:** 20 cases with zero unknown attribution rows.
+- **Observed result:** `TOP5_SELECTION_MISS: 10`, `CANDIDATE_TOP20_MISS: 7`, `RESPONSE_SELECTION_LOSS: 3`, all other earliest-loss classes `0`. The replay also observed 17 ledger false-completeness signals, but each has an earlier retrieval loss.
+- **Decision:** `ATTRIBUTION_COMPLETE_NO_OPTIMIZATION`; Top-5 selection is the next deterministic hypothesis, not an LLM rewrite.
+- **Known limitation:** This is a consumed cohort and cannot select a production default.
+- **Next action:** `GLOBAL_ADAPTIVE_STOPPED` because G0 blocks the required fair-budget G2 experiment. A future deterministic fixed-budget selector must use a separately frozen protocol.
