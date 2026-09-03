@@ -1,0 +1,41 @@
+{
+  "schema_version": "adaptive_retrieval_seeded_reproducibility_v1",
+  "mode": "RETROSPECTIVE_DEVELOPMENT_ONLY_CONSUMED",
+  "baseline_revision": "4f0c0968097c4dd1001a6b58236c82d76f43de46",
+  "dataset": "WixQA ExpertWritten frozen 20-case multi-document cohort",
+  "baseline_failures_assessed": 17,
+  "assessor": {
+    "model": "qwen3:8b",
+    "model_locator": "500a1f067a9f",
+    "temperature": 0,
+    "thinking": false,
+    "max_output_tokens": 160,
+    "timeout_seconds": 30,
+    "seed_policy": "sha256(question_id) first 4 bytes modulo 2147483648"
+  },
+  "reruns": [
+    "wixqa-adaptive-recoverability-seeded-r3",
+    "wixqa-adaptive-recoverability-seeded-r4"
+  ],
+  "paired_reproducibility": {
+    "same_assessor_input_sha256": 17,
+    "same_assessor_seed": 17,
+    "same_raw_json_response": 17,
+    "same_parsed_proposal_sha256": 17,
+    "same_recovery_outcome": 17
+  },
+  "stable_recovery_result": {
+    "retry_attemptable": 10,
+    "retry_improved": 2,
+    "retry_fully_recovered": 2,
+    "retry_no_change": 8,
+    "retry_worse": 0,
+    "validator_rejected": 6,
+    "fully_recovered_rate_among_baseline_failures": 0.11764705882352941
+  },
+  "predeclared_go_condition": "retry_fully_recovered >= 3 and retry_fully_recovered / baseline_failures >= 0.10",
+  "go_condition_met": false,
+  "decision": "ADAPTIVE_RETRIEVAL_NOT_YET_JUSTIFIED",
+  "serving_behavior_changed": false,
+  "claim_boundary": "This establishes reproducibility of a consumed development-only diagnostic, not a production or generalization claim."
+}

@@ -19,7 +19,7 @@ and retry_fully_recovered / baseline_failures >= 0.10
 
 ## Why Serving Was Not Added
 
-The first run had 3 fully recovered cases out of 17 baseline failures. A repeat with the same model and corpus had only 2 fully recovered cases out of 17. The absolute threshold therefore did not reproduce. Temperature zero did not make the local model outcome stable enough to establish a clear GO decision.
+The first run had 3 fully recovered cases out of 17 baseline failures. A repeat with the same model and corpus had only 2 fully recovered cases out of 17. The absolute threshold therefore did not reproduce. The original diagnostic set temperature zero but did not pin an Ollama generation seed, and used a 12-second per-case timeout. A follow-up diagnostic pins a stable per-case seed, records an input hash for every assessor request, and uses a 30-second timeout. The result remains a no-go unless that protocol produces a stable, predeclared pass and then passes an unconsumed confirmation cohort.
 
 The dominant observed bottlenecks remain initial Top-20/Top-5 retrieval misses and false ledger completeness, rather than a demonstrated, stable query-rewrite recovery path.
 

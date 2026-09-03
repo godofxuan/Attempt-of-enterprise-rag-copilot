@@ -28,5 +28,14 @@
 - **Behavior changed:** None. The V2 serving path is unchanged by this work.
 - **Security contracts preserved:** No assessor call, retry, configuration switch, trace event, or ToolGateway behavior was merged into serving.
 - **Tests run/passed:** The diagnostic unit tests pass. The restored Agent V2, runtime, and security suites are re-run as the final verification gate.
-- **Known limit:** The diagnostic uses a consumed cohort and local-model output is not sufficiently stable for a GO decision.
-- **Next Gate:** Freeze assessor outputs or use a deterministic alternate-query policy before reconsidering implementation.
+- **Known limit:** The diagnostic uses a consumed cohort and, at this point, the original local-model protocol did not establish a reproducible GO decision.
+- **Next Gate:** Repair the assessor experiment before reconsidering implementation.
+
+## Stage D: Assessor Reproducibility Repair
+
+- **Files changed:** `app/ollama_chat.py`, `scripts/diagnose_adaptive_retrieval_recoverability.py`, `tests/test_ollama_chat.py`, and public evidence below. No V2 serving files changed.
+- **Problem found:** The original diagnostic used `temperature=0`, but did not send an Ollama `seed`; its 12-second per-case timeout also mixed local-service latency into an assessor decision. The first two unseeded runs therefore differed: 3 then 2 fully recovered cases.
+- **Change:** The diagnostic derives one stable integer seed from each question ID, sends it to the Ollama chat API, records the hash of every exact assessor input, and allows a 30-second diagnostic-only timeout. The shared chat wrapper accepts an optional seed; callers that do not pass one retain exactly the previous request payload and serving behavior.
+- **Verification:** Two seeded reruns each assessed all 17 baseline failures. For every assessed case, the two runs had identical input hash, seed, raw JSON response, parsed proposal, and recovery outcome: `17 / 17` on every comparison. The detailed question text and raw outputs stay under `.private`; the public aggregate is `evidence/seeded_reproducibility_v1.json`.
+- **Final result:** The stable result is only 2 fully recovered cases out of 17 baseline failures (`11.76%`). It satisfies the percentage condition but fails the predeclared absolute condition of at least 3. `ADAPTIVE_RETRIEVAL_NOT_YET_JUSTIFIED` remains the final decision.
+- **Engineering conclusion:** The reproducibility defect is fixed. The product hypothesis is not validated: the dominant next bottleneck is initial candidate retrieval and Top-5 selection, not safe bounded LLM query rewriting.

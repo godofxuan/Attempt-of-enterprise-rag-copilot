@@ -19,9 +19,12 @@ def chat_with_ollama(
     think: bool | str | None = None,
     timeout_seconds: float | None = None,
     max_output_tokens: int | None = None,
+    seed: int | None = None,
 ) -> str:
     if max_output_tokens is not None and not 1 <= max_output_tokens <= 4096:
         raise ValueError("Ollama max output tokens must be between 1 and 4096")
+    if seed is not None and (type(seed) is not int or not 0 <= seed <= 2_147_483_647):
+        raise ValueError("Ollama seed must be an integer between 0 and 2147483647")
     settings = get_settings()
     endpoint = parse_pinned_model_endpoint(settings.llm_base_url)
     url = f"{endpoint.origin}/api/chat"
@@ -37,6 +40,8 @@ def chat_with_ollama(
         payload["think"] = think
     if max_output_tokens is not None:
         payload["options"]["num_predict"] = max_output_tokens
+    if seed is not None:
+        payload["options"]["seed"] = seed
 
     result = perform_model_request(
         lambda timeout: _post_ollama(url, payload, timeout),

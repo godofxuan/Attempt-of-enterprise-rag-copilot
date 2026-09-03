@@ -200,16 +200,19 @@ def main(argv: list[str] | None = None) -> int:
             if capture.analysis is None:
                 raise RuntimeError("baseline capture did not record query analysis")
             evidence = _admitted_evidence(capture.executions, articles_by_id)
-            assessment, raw_response, latency_ms = _assess(
+            assessment, raw_response, latency_ms, assessor_input_sha256 = _assess(
                 original_question=question.question,
                 retrieval_query=question.question,
                 intent=capture.analysis.intent,
                 required_aspects=capture.analysis.required_aspects,
                 evidence=evidence,
                 model=settings.evidence_model,
+                seed=_assessor_seed(frozen.question_id),
             )
             row["assessment_status"] = assessment.status
             row["assessment_latency_ms"] = latency_ms
+            row["assessor_input_sha256"] = assessor_input_sha256
+            row["assessor_seed"] = _assessor_seed(frozen.question_id)
             row["proposal_sha256"] = assessment.proposal_sha256
             private_row["admitted_evidence"] = evidence
             private_row["raw_assessor_response"] = raw_response
@@ -280,6 +283,7 @@ def main(argv: list[str] | None = None) -> int:
             "assessor_model_locator": _ollama_model_locator(settings.evidence_model),
             "assessor_prompt_version": "adaptive_retrieval_recoverability_v1",
             "assessor_temperature": 0,
+            "assessor_seed_policy": "sha256(question_id) first 4 bytes modulo 2147483648",
             "assessor_thinking": False,
             "assessor_max_output_tokens": 160,
             "budget": budget.model_dump(mode="json"),
@@ -307,9 +311,15 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _assess(**kwargs) -> tuple[RecoverabilityAssessment, str | None, float]:
+def _assess(**kwargs) -> tuple[RecoverabilityAssessment, str | None, float, str]:
     model = kwargs.pop("model")
+    seed = kwargs.pop("seed")
     messages = build_assessor_messages(**kwargs)
+    input_sha256 = _sha256_bytes(
+        json.dumps(messages, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode(
+            "utf-8"
+        )
+    )
     started = time.perf_counter()
     try:
         raw = chat_with_ollama(
@@ -317,13 +327,14 @@ def _assess(**kwargs) -> tuple[RecoverabilityAssessment, str | None, float]:
             messages,
             response_format="json",
             think=False,
-            timeout_seconds=12.0,
+            timeout_seconds=30.0,
             max_output_tokens=160,
+            seed=seed,
         )
     except Exception as error:
         status = "timeout" if "timeout" in str(error).casefold() else "model_error"
-        return RecoverabilityAssessment(status=status), None, _elapsed_ms(started)
-    return parse_assessor_response(raw), raw, _elapsed_ms(started)
+        return RecoverabilityAssessment(status=status), None, _elapsed_ms(started), input_sha256
+    return parse_assessor_response(raw), raw, _elapsed_ms(started), input_sha256
 
 
 def _admitted_evidence(executions, articles_by_id) -> list[dict[str, str]]:
@@ -417,6 +428,12 @@ def _sha256_file(path: Path) -> str:
 
 def _sha256_text(value: str) -> str:
     return _sha256_bytes(value.encode("utf-8"))
+
+
+def _assessor_seed(question_id: str) -> int:
+    """Stable per-case seed; keeps a repeat independent of case order."""
+    digest = hashlib.sha256(question_id.encode("utf-8")).digest()
+    return int.from_bytes(digest[:4], "big") % 2_147_483_648
 
 
 def _sha256_bytes(value: bytes) -> str:

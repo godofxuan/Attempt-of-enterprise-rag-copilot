@@ -74,6 +74,27 @@ def test_chat_with_ollama_applies_bounded_output_budget(monkeypatch):
     }
 
 
+def test_chat_with_ollama_passes_an_explicit_seed_without_changing_defaults(monkeypatch):
+    captured = {}
+
+    def fake_post(url, payload, timeout):
+        captured["payload"] = payload
+        return FakeResponse()
+
+    monkeypatch.setattr(ollama_chat, "get_settings", settings)
+    monkeypatch.setattr(ollama_chat, "_post_ollama", fake_post)
+
+    ollama_chat.chat_with_ollama("qwen3:8b", [], seed=42)
+
+    assert captured["payload"]["options"] == {"temperature": 0, "seed": 42}
+
+
+@pytest.mark.parametrize("seed", [-1, 2_147_483_648, 1.5, True])
+def test_chat_with_ollama_rejects_invalid_seed(seed):
+    with pytest.raises(ValueError, match="seed"):
+        ollama_chat.chat_with_ollama("qwen3:8b", [], seed=seed)
+
+
 @pytest.mark.parametrize("value", [0, 4097])
 def test_chat_with_ollama_rejects_unbounded_output_budget(value):
     with pytest.raises(ValueError, match="max output tokens"):
