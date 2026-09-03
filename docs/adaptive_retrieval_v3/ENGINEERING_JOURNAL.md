@@ -48,3 +48,14 @@
   versus R0 15.91%; nDCG and MRR are lower in every run.
 - **Decision:** `REJECTED`. Do not tune the validator or route this strategy
   into the default Agent. G3 and G4 have no eligible expansion candidate.
+
+## G3-G9: Final Closure
+
+- **G3:** Not run; no G2-positive candidate exists for a bounded repair.
+- **G4/G5:** `REJECTED`; no conditional policy is assembled from a rejected
+  trigger and rejected corrective action.
+- **G6:** Existing deterministic S0-S2 controls remain the reference evidence.
+- **G7:** Not run; no verified unused compatible cohort is available.
+- **G8:** Not run; no `FINALIST` retrieval strategy exists to validate
+  end-to-end.
+- **G9:** `REJECTED`; V3 makes no runtime or default-policy change.
