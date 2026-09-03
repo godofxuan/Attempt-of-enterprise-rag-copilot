@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from app.evaluation.retrieval_strategy_bakeoff import (
+    fuse_ranked_lists,
     reciprocal_rank_fusion_scores,
     select_diverse_articles,
 )
@@ -15,6 +16,10 @@ def test_scored_rrf_preserves_existing_rrf_order() -> None:
     scored = reciprocal_rank_fusion_scores(bm25, dense)
     assert [article_id for article_id, _score in scored] == reciprocal_rank_fusion(bm25, dense)
     assert all(score > 0 for _article_id, score in scored)
+
+
+def test_multi_query_fusion_rewards_cross_query_agreement() -> None:
+    assert fuse_ranked_lists([["a", "b"], ["b", "c"]])[:2] == ["b", "a"]
 
 
 def test_diversity_selector_prefers_a_nonredundant_second_item() -> None:
@@ -47,6 +52,7 @@ def test_diversity_selector_has_stable_article_id_ties() -> None:
         ("S0_BASELINE_HYBRID", 5),
         ("S1_DIVERSITY_TOP5", 20),
         ("S2_DEEPER_CANDIDATE_DIVERSITY", 40),
+        ("S4_MULTI_QUERY_EXPANSION", 5),
     ],
 )
 def test_strategy_windows_are_frozen(strategy: str, expected: int) -> None:

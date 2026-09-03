@@ -47,6 +47,22 @@ def reciprocal_rank_fusion_scores(
     ]
 
 
+def fuse_ranked_lists(rankings: Sequence[Sequence[str]], *, rrf_k: int = 60) -> list[str]:
+    """Fuse two or more complete rankings with deterministic multi-query RRF."""
+    if len(rankings) < 1 or rrf_k < 1:
+        raise ValueError("rankings and rrf_k must be positive")
+    scores: dict[str, float] = {}
+    first_positions: dict[str, tuple[int, int]] = {}
+    for list_index, ranking in enumerate(rankings):
+        for rank, article_id in enumerate(ranking, start=1):
+            scores[article_id] = scores.get(article_id, 0.0) + 1.0 / (rrf_k + rank)
+            first_positions.setdefault(article_id, (list_index, rank))
+    return sorted(
+        scores,
+        key=lambda article_id: (-scores[article_id], first_positions[article_id], article_id),
+    )
+
+
 def representative_article_vectors(
     index: LoadedWixQAFlatIndex,
     *,
@@ -149,6 +165,7 @@ def _normalized_rows(matrix: np.ndarray) -> np.ndarray:
 
 __all__ = [
     "DIVERSITY_ALPHA",
+    "fuse_ranked_lists",
     "reciprocal_rank_fusion_scores",
     "representative_article_vectors",
     "select_diverse_articles",

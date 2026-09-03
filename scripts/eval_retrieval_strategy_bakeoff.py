@@ -13,9 +13,14 @@ from typing import Literal
 from app.config import get_settings
 from app.evaluation.retrieval_strategy_bakeoff import (
     DIVERSITY_ALPHA,
+    fuse_ranked_lists,
     reciprocal_rank_fusion_scores,
     representative_article_vectors,
     select_diverse_articles,
+)
+from app.evaluation.query_expansion import (
+    build_query_expansion_messages,
+    validate_query_expansion,
 )
 from app.external_datasets.wixqa import (
     DEFAULT_WIXQA_MANIFEST,
@@ -33,9 +38,16 @@ from app.external_datasets.wixqa_retrieval import (
     summarize_wixqa_scores,
 )
 from app.runtime.ollama_embeddings import OllamaEmbeddingClient
+from app.ollama_chat import chat_with_ollama
+from app.runtime.model_transport import ModelRequestError
 
 
-Strategy = Literal["S0_BASELINE_HYBRID", "S1_DIVERSITY_TOP5", "S2_DEEPER_CANDIDATE_DIVERSITY"]
+Strategy = Literal[
+    "S0_BASELINE_HYBRID",
+    "S1_DIVERSITY_TOP5",
+    "S2_DEEPER_CANDIDATE_DIVERSITY",
+    "S4_MULTI_QUERY_EXPANSION",
+]
 DEFAULT_INDEX_ROOT = Path(".private/external/wixqa/indexes")
 DEFAULT_PRIVATE_ROOT = Path(".private/external/wixqa/retrieval_strategy_bakeoff")
 DEFAULT_PUBLIC_ROOT = Path("docs/retrieval_strategy_bakeoff_v1/evidence")
@@ -53,11 +65,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--public-root", type=Path, default=DEFAULT_PUBLIC_ROOT)
     parser.add_argument("--max-cases", type=int)
     parser.add_argument("--consume-fixed-external", action="store_true")
+    parser.add_argument("--expansion-model", default="qwen3:8b")
     return parser
 
 
 def strategy_window(strategy: Strategy) -> int:
-    return {"S0_BASELINE_HYBRID": 5, "S1_DIVERSITY_TOP5": 20, "S2_DEEPER_CANDIDATE_DIVERSITY": 40}[strategy]
+    return {
+        "S0_BASELINE_HYBRID": 5,
+        "S1_DIVERSITY_TOP5": 20,
+        "S2_DEEPER_CANDIDATE_DIVERSITY": 40,
+        "S4_MULTI_QUERY_EXPANSION": 5,
+    }[strategy]
 
 
 def select_strategy_ranking(
@@ -68,7 +86,7 @@ def select_strategy_ranking(
     query_vector,
 ) -> list[str]:
     window = strategy_window(strategy)
-    if strategy == "S0_BASELINE_HYBRID":
+    if strategy in {"S0_BASELINE_HYBRID", "S4_MULTI_QUERY_EXPANSION"}:
         return rrf_article_ids[:window]
     candidates = rrf_article_ids[:window]
     vectors = representative_article_vectors(
@@ -115,19 +133,76 @@ def main(argv: list[str] | None = None) -> int:
     private_dir.mkdir(parents=True)
     started = time.perf_counter()
     cases: list[dict[str, object]] = []
+    private_cases: list[dict[str, object]] = []
     scores = []
+    expansion_counters = {"attempts": 0, "accepted": 0, "fallbacks": 0, "transport_retries": 0, "transport_errors": 0}
     for ordinal, question in enumerate(questions, start=1):
         case_started = time.perf_counter()
-        bm25 = index.bm25_article_ranking(question.question, candidate_k=200)
-        query_vector = embedding.embed_batch([question.question])
-        dense = index.dense_article_ranking(query_vector, candidate_k=200)
-        rrf_pairs = reciprocal_rank_fusion_scores(bm25, dense, rrf_k=index.manifest.rrf_k)
-        rrf = [article_id for article_id, _score in rrf_pairs]
+        variants = [question.question]
+        expansion_public: dict[str, object] = {"status": "not_applicable"}
+        expansion_private: dict[str, object] = {}
+        if args.strategy == "S4_MULTI_QUERY_EXPANSION":
+            expansion_counters["attempts"] += 1
+            try:
+                response = chat_with_ollama(
+                    args.expansion_model,
+                    build_query_expansion_messages(question.question),
+                    response_format="json",
+                    think=False,
+                    timeout_seconds=30.0,
+                    max_output_tokens=160,
+                    seed=_question_seed(question.question_id),
+                    return_transport=True,
+                )
+                raw_output, attempts, retries = response
+                expansion_counters["transport_retries"] += retries
+                expansion = validate_query_expansion(
+                    original_query=question.question,
+                    raw_output=raw_output,
+                )
+                expansion_public = {
+                    "status": "accepted" if expansion.accepted else "fallback",
+                    "rejection_reason": expansion.rejection_reason,
+                    "raw_output_sha256": expansion.raw_output_sha256,
+                    "transport_attempts": attempts,
+                    "transport_retries": retries,
+                }
+                expansion_private = {"raw_output": raw_output, "accepted_queries": list(expansion.queries)}
+                if expansion.accepted:
+                    variants.extend(expansion.queries)
+                    expansion_counters["accepted"] += 1
+                else:
+                    expansion_counters["fallbacks"] += 1
+            except ModelRequestError as error:
+                expansion_counters["transport_errors"] += 1
+                expansion_counters["fallbacks"] += 1
+                expansion_public = {
+                    "status": "fallback",
+                    "rejection_reason": error.code,
+                    "raw_output_sha256": None,
+                    "transport_attempts": error.attempts,
+                    "transport_retries": max(0, error.attempts - 1),
+                }
+            except Exception:
+                expansion_counters["transport_errors"] += 1
+                expansion_counters["fallbacks"] += 1
+                expansion_public = {"status": "fallback", "rejection_reason": "unexpected_error", "raw_output_sha256": None, "transport_attempts": 0, "transport_retries": 0}
+
+        query_vectors = []
+        per_query_rankings = []
+        for variant in variants:
+            bm25 = index.bm25_article_ranking(variant, candidate_k=200)
+            query_vector = embedding.embed_batch([variant])
+            dense = index.dense_article_ranking(query_vector, candidate_k=200)
+            rrf_pairs = reciprocal_rank_fusion_scores(bm25, dense, rrf_k=index.manifest.rrf_k)
+            per_query_rankings.append([article_id for article_id, _score in rrf_pairs])
+            query_vectors.append(query_vector)
+        rrf = fuse_ranked_lists(per_query_rankings, rrf_k=index.manifest.rrf_k)
         ranking = select_strategy_ranking(
             strategy=args.strategy,
             rrf_article_ids=rrf,
             index=index,
-            query_vector=query_vector,
+            query_vector=query_vectors[0],
         )
         latency_ms = (time.perf_counter() - case_started) * 1000.0
         score = score_wixqa_ranking(
@@ -145,14 +220,20 @@ def main(argv: list[str] | None = None) -> int:
                 ).hexdigest(),
                 "rrf_candidate_window": strategy_window(args.strategy),
                 "rrf_candidate_gold_recall": len(set(rrf[: strategy_window(args.strategy)]).intersection(question.article_ids)) / len(question.article_ids),
+                "query_variant_count": len(variants),
+                "query_expansion": expansion_public,
                 "score": score.model_dump(mode="json"),
             }
         )
+        private_cases.append({"question_id": question.question_id, "question": question.question, "query_variants": variants, "query_expansion": expansion_private})
         print(f"evaluated {ordinal}/{len(questions)}", flush=True)
 
     summary = summarize_wixqa_scores(scores, cohort=args.cohort, arm="hybrid_rrf")
     config = {
         "strategy": args.strategy,
+        "query_expansion_model": args.expansion_model if args.strategy == "S4_MULTI_QUERY_EXPANSION" else None,
+        "query_expansion_generation": ({"temperature": 0.0, "think": False, "num_predict": 160, "seed_policy": "sha256(question_id)"} if args.strategy == "S4_MULTI_QUERY_EXPANSION" else None),
+        "query_expansion_transport": expansion_counters if args.strategy == "S4_MULTI_QUERY_EXPANSION" else None,
         "final_top_k": 5,
         "source_candidate_depth_per_retriever": 200,
         "rrf_window": strategy_window(args.strategy),
@@ -171,7 +252,7 @@ def main(argv: list[str] | None = None) -> int:
         "git_dirty": bool(_git("status", "--porcelain")),
         "duration_ms": (time.perf_counter() - started) * 1000.0,
     }
-    private_payload = {"schema_version": "retrieval_strategy_bakeoff_private_v1", "config": config, "cases": cases}
+    private_payload = {"schema_version": "retrieval_strategy_bakeoff_private_v1", "config": config, "cases": cases, "private_query_expansion": private_cases}
     private_bytes = canonical_json_bytes(private_payload)
     (private_dir / "details.json").write_bytes(private_bytes)
     public_payload = {
@@ -197,6 +278,10 @@ def _git(*args: str) -> str:
 
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _question_seed(question_id: str) -> int:
+    return int.from_bytes(hashlib.sha256(question_id.encode("utf-8")).digest()[:4], "big") % 2_147_483_648
 
 
 if __name__ == "__main__":
