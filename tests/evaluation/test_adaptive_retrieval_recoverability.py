@@ -1,9 +1,11 @@
 from app.evaluation.adaptive_retrieval_recoverability import (
     RecoverabilityProposal,
+    build_assessor_request_fingerprints,
     classify_recovery,
     parse_assessor_response,
     validate_query_addendum,
 )
+from scripts.diagnose_adaptive_retrieval_recoverability import _assessor_seed
 
 
 def test_sufficient_proposal_cannot_request_retry() -> None:
@@ -75,3 +77,32 @@ def test_recovery_metrics_keep_union_gain_separate_from_rank_churn() -> None:
         "retry_no_change": True,
         "retry_worse": True,
     }
+
+
+def test_question_seed_is_stable_and_independent_of_python_hash_randomization() -> None:
+    assert _assessor_seed("wixqa:expertwritten:a") == _assessor_seed(
+        "wixqa:expertwritten:a"
+    )
+    assert _assessor_seed("wixqa:expertwritten:a") != _assessor_seed(
+        "wixqa:expertwritten:b"
+    )
+
+
+def test_request_fingerprint_changes_when_material_request_configuration_changes() -> None:
+    common = {
+        "model_name": "qwen3:8b",
+        "model_digest": "a" * 64,
+        "messages": [{"role": "user", "content": "test"}],
+        "schema": {"type": "object"},
+        "temperature": 0.0,
+        "think": False,
+        "max_output_tokens": 160,
+        "timeout_seconds": 30.0,
+    }
+    first = build_assessor_request_fingerprints(seed=1, **common)
+    same = build_assessor_request_fingerprints(seed=1, **common)
+    changed = build_assessor_request_fingerprints(seed=2, **common)
+
+    assert first == same
+    assert first["request_sha256"] != changed["request_sha256"]
+    assert first["input_messages_sha256"] == changed["input_messages_sha256"]

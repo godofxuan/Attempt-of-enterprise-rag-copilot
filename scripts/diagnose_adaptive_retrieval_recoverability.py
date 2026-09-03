@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import platform
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -14,7 +16,9 @@ from app.domain.queries import UserContext
 from app.domain.retrieved_security import GuardedSearchResult
 from app.evaluation.adaptive_retrieval_recoverability import (
     RecoverabilityAssessment,
+    RecoverabilityProposal,
     build_assessor_messages,
+    build_assessor_request_fingerprints,
     classify_recovery,
     parse_assessor_response,
     validate_query_addendum,
@@ -39,7 +43,11 @@ from app.ollama_chat import chat_with_ollama
 from app.runtime.ollama_embeddings import OllamaEmbeddingClient
 
 
-SCHEMA_VERSION = "adaptive_retrieval_recoverability_v1"
+SCHEMA_VERSION = "adaptive_retrieval_recoverability_v2"
+ASSESSOR_TEMPERATURE = 0.0
+ASSESSOR_THINK = False
+ASSESSOR_MAX_OUTPUT_TOKENS = 160
+ASSESSOR_TIMEOUT_SECONDS = 30.0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -90,7 +98,11 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     started = time.perf_counter()
     settings = get_settings()
-    baseline_revision = _git_revision()
+    git_provenance = _git_provenance()
+    baseline_revision = git_provenance["git_sha"]
+    critical_file_sha256 = _critical_file_sha256()
+    model_identity = _ollama_model_identity(settings.evidence_model)
+    runtime_identity = _runtime_identity()
     verify_wixqa_source(args.source_root, args.dataset_manifest)
     protocol_bytes = args.frozen_protocol.read_bytes()
     protocol = json.loads(protocol_bytes)
@@ -200,20 +212,28 @@ def main(argv: list[str] | None = None) -> int:
             if capture.analysis is None:
                 raise RuntimeError("baseline capture did not record query analysis")
             evidence = _admitted_evidence(capture.executions, articles_by_id)
-            assessment, raw_response, latency_ms, assessor_input_sha256 = _assess(
+            assessment, raw_response, latency_ms, fingerprints = _assess(
                 original_question=question.question,
                 retrieval_query=question.question,
                 intent=capture.analysis.intent,
                 required_aspects=capture.analysis.required_aspects,
                 evidence=evidence,
                 model=settings.evidence_model,
+                model_digest=model_identity["full_model_digest"],
                 seed=_assessor_seed(frozen.question_id),
             )
             row["assessment_status"] = assessment.status
             row["assessment_latency_ms"] = latency_ms
-            row["assessor_input_sha256"] = assessor_input_sha256
+            row["assessor_input_messages_sha256"] = fingerprints[
+                "input_messages_sha256"
+            ]
+            row["assessor_request_sha256"] = fingerprints["request_sha256"]
+            row["assessor_schema_sha256"] = fingerprints["schema_sha256"]
             row["assessor_seed"] = _assessor_seed(frozen.question_id)
             row["proposal_sha256"] = assessment.proposal_sha256
+            row["raw_output_sha256"] = (
+                _sha256_text(raw_response) if raw_response is not None else None
+            )
             private_row["admitted_evidence"] = evidence
             private_row["raw_assessor_response"] = raw_response
             private_row["assessment"] = assessment.model_dump(mode="json")
@@ -270,22 +290,37 @@ def main(argv: list[str] | None = None) -> int:
             "schema_version": SCHEMA_VERSION,
             "run_id": args.run_id,
             "mode": "RETROSPECTIVE_DEVELOPMENT_ONLY_CONSUMED",
+            **git_provenance,
             "baseline_revision": baseline_revision,
             "normal_serving_behavior_changed": False,
             "dataset": "WixQA ExpertWritten frozen 20-case multi-document cohort",
             "dataset_manifest_sha256": _sha256_file(args.dataset_manifest),
+            "question_ids_sha256": _sha256_bytes(
+                canonical_json_bytes([item.question_id for item in frozen_cases])
+            ),
             "frozen_protocol_sha256": _sha256_bytes(protocol_bytes),
+            "critical_file_sha256": critical_file_sha256,
             "index_run_id": index.manifest.run_id,
             "index_manifest_sha256": _sha256_file(index_manifest_path),
             "embedding_model": embedding.model_identifier,
             "embedding_model_sha256": embedding.model_sha256,
-            "assessor_model": settings.evidence_model,
-            "assessor_model_locator": _ollama_model_locator(settings.evidence_model),
+            "assessor_model": model_identity,
+            "ollama_runtime": runtime_identity,
             "assessor_prompt_version": "adaptive_retrieval_recoverability_v1",
-            "assessor_temperature": 0,
+            "assessor_temperature": ASSESSOR_TEMPERATURE,
             "assessor_seed_policy": "sha256(question_id) first 4 bytes modulo 2147483648",
-            "assessor_thinking": False,
-            "assessor_max_output_tokens": 160,
+            "assessor_thinking": ASSESSOR_THINK,
+            "assessor_max_output_tokens": ASSESSOR_MAX_OUTPUT_TOKENS,
+            "assessor_timeout_seconds": ASSESSOR_TIMEOUT_SECONDS,
+            "assessor_generation_options": {
+                "temperature": ASSESSOR_TEMPERATURE,
+                "think": ASSESSOR_THINK,
+                "num_predict": ASSESSOR_MAX_OUTPUT_TOKENS,
+                "num_ctx": None,
+                "top_k": None,
+                "top_p": None,
+                "repeat_penalty": None,
+            },
             "budget": budget.model_dump(mode="json"),
             "ranking_query_count": len(ranking_cache),
             "go_condition": (
@@ -311,14 +346,23 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _assess(**kwargs) -> tuple[RecoverabilityAssessment, str | None, float, str]:
+def _assess(
+    **kwargs,
+) -> tuple[RecoverabilityAssessment, str | None, float, dict[str, str]]:
     model = kwargs.pop("model")
+    model_digest = kwargs.pop("model_digest")
     seed = kwargs.pop("seed")
     messages = build_assessor_messages(**kwargs)
-    input_sha256 = _sha256_bytes(
-        json.dumps(messages, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode(
-            "utf-8"
-        )
+    fingerprints = build_assessor_request_fingerprints(
+        model_name=model,
+        model_digest=model_digest,
+        messages=messages,
+        schema=RecoverabilityProposal.model_json_schema(),
+        seed=seed,
+        temperature=ASSESSOR_TEMPERATURE,
+        think=ASSESSOR_THINK,
+        max_output_tokens=ASSESSOR_MAX_OUTPUT_TOKENS,
+        timeout_seconds=ASSESSOR_TIMEOUT_SECONDS,
     )
     started = time.perf_counter()
     try:
@@ -326,15 +370,15 @@ def _assess(**kwargs) -> tuple[RecoverabilityAssessment, str | None, float, str]
             model,
             messages,
             response_format="json",
-            think=False,
-            timeout_seconds=30.0,
-            max_output_tokens=160,
+            think=ASSESSOR_THINK,
+            timeout_seconds=ASSESSOR_TIMEOUT_SECONDS,
+            max_output_tokens=ASSESSOR_MAX_OUTPUT_TOKENS,
             seed=seed,
         )
     except Exception as error:
         status = "timeout" if "timeout" in str(error).casefold() else "model_error"
-        return RecoverabilityAssessment(status=status), None, _elapsed_ms(started), input_sha256
-    return parse_assessor_response(raw), raw, _elapsed_ms(started), input_sha256
+        return RecoverabilityAssessment(status=status), None, _elapsed_ms(started), fingerprints
+    return parse_assessor_response(raw), raw, _elapsed_ms(started), fingerprints
 
 
 def _admitted_evidence(executions, articles_by_id) -> list[dict[str, str]]:
@@ -396,18 +440,63 @@ def _write_outputs(args, *, summary, rows, private_rows) -> None:
     private_bytes = canonical_json_bytes({"rows": private_rows})
     summary["case_rows_sha256"] = _sha256_bytes(case_bytes)
     summary["private_rows_sha256"] = _sha256_bytes(private_bytes)
+    summary["artifact_payload_sha256"] = _sha256_bytes(
+        canonical_json_bytes(summary)
+    )
     summary_bytes = canonical_json_bytes(summary)
-    (public_dir / "recoverability_summary_v1.json").write_bytes(summary_bytes)
-    (public_dir / "recoverability_cases_v1.json").write_bytes(case_bytes)
-    (private_dir / "private_details_v1.json").write_bytes(private_bytes)
+    (public_dir / "recoverability_summary_v2.json").write_bytes(summary_bytes)
+    (public_dir / "recoverability_cases_v2.json").write_bytes(case_bytes)
+    (private_dir / "private_details_v2.json").write_bytes(private_bytes)
 
 
 def _gold_recall(gold_ids, observed_ids) -> float:
     return len(set(gold_ids).intersection(observed_ids)) / len(set(gold_ids))
 
 
-def _git_revision() -> str:
-    return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+def _git_provenance() -> dict[str, object]:
+    return {
+        "git_sha": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], text=True
+        ).strip(),
+        "git_dirty": bool(
+            subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
+        ),
+        "branch": subprocess.check_output(
+            ["git", "branch", "--show-current"], text=True
+        ).strip(),
+    }
+
+
+def _ollama_model_identity(model: str) -> dict[str, str | None]:
+    identity = {
+        "model_name": model,
+        "short_locator": _ollama_model_locator(model),
+        "full_model_digest": None,
+        "format": None,
+        "parameter_size": None,
+        "quantization_level": None,
+    }
+    try:
+        modelfile = subprocess.check_output(
+            ["ollama", "show", model, "--modelfile"], text=True
+        )
+        match = re.search(r"sha256-([0-9a-f]{64})", modelfile)
+        if match:
+            identity["full_model_digest"] = match.group(1)
+        verbose = subprocess.check_output(
+            ["ollama", "show", model, "--verbose"], text=True
+        )
+        for field, label in (
+            ("format", "architecture"),
+            ("parameter_size", "parameters"),
+            ("quantization_level", "quantization"),
+        ):
+            match = re.search(rf"^\s+{label}\s+(.+?)\s*$", verbose, re.MULTILINE)
+            if match:
+                identity[field] = match.group(1)
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    return identity
 
 
 def _ollama_model_locator(model: str) -> str | None:
@@ -420,6 +509,41 @@ def _ollama_model_locator(model: str) -> str | None:
         if len(fields) >= 2 and fields[0] == model:
             return fields[1]
     return None
+
+
+def _runtime_identity() -> dict[str, object]:
+    try:
+        ollama_version = subprocess.check_output(
+            ["ollama", "--version"], text=True
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        ollama_version = None
+    try:
+        gpu_rows = subprocess.check_output(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,driver_version",
+                "--format=csv,noheader",
+            ],
+            text=True,
+        ).splitlines()
+    except (OSError, subprocess.CalledProcessError):
+        gpu_rows = []
+    return {
+        "ollama_version": ollama_version,
+        "os": platform.platform(),
+        "architecture": platform.machine(),
+        "gpu": gpu_rows or None,
+    }
+
+
+def _critical_file_sha256() -> dict[str, str]:
+    paths = (
+        "scripts/diagnose_adaptive_retrieval_recoverability.py",
+        "app/evaluation/adaptive_retrieval_recoverability.py",
+        "app/ollama_chat.py",
+    )
+    return {path: _sha256_file(Path(path)) for path in paths}
 
 
 def _sha256_file(path: Path) -> str:

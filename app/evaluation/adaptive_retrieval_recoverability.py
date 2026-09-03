@@ -117,6 +117,58 @@ def build_assessor_messages(
         }
         for item in evidence[:6]
     ]
+
+
+def canonical_sha256(value: object) -> str:
+    """Hash structured evaluation inputs without relying on dict insertion order."""
+    encoded = json.dumps(
+        value,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return sha256(encoded).hexdigest()
+
+
+def build_assessor_request_fingerprints(
+    *,
+    model_name: str,
+    model_digest: str | None,
+    messages: Sequence[dict[str, str]],
+    schema: dict[str, object],
+    seed: int,
+    temperature: float,
+    think: bool,
+    max_output_tokens: int,
+    timeout_seconds: float,
+) -> dict[str, str]:
+    """Return hashes for the full model request and its stable subcomponents."""
+    input_messages_sha256 = canonical_sha256(list(messages))
+    schema_sha256 = canonical_sha256(schema)
+    request_sha256 = canonical_sha256(
+        {
+            "model_name": model_name,
+            "model_digest": model_digest,
+            "messages": list(messages),
+            "schema": schema,
+            "generation_options": {
+                "seed": seed,
+                "temperature": temperature,
+                "think": think,
+                "num_predict": max_output_tokens,
+                "timeout_seconds": timeout_seconds,
+                "num_ctx": None,
+                "top_k": None,
+                "top_p": None,
+                "repeat_penalty": None,
+            },
+        }
+    )
+    return {
+        "input_messages_sha256": input_messages_sha256,
+        "schema_sha256": schema_sha256,
+        "request_sha256": request_sha256,
+    }
     payload = {
         "original_question": original_question,
         "retrieval_query": retrieval_query,
@@ -177,6 +229,8 @@ __all__ = [
     "RecoverabilityAssessment",
     "RecoverabilityProposal",
     "build_assessor_messages",
+    "build_assessor_request_fingerprints",
+    "canonical_sha256",
     "classify_recovery",
     "parse_assessor_response",
     "validate_query_addendum",
