@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import inspect
 from pathlib import Path
+
+import pytest
 
 from scripts.eval_wixqa_raw_chunk_guard_ablation import (
     _rank_after_score,
@@ -11,6 +14,7 @@ from scripts.eval_wixqa_raw_chunk_guard_ablation import (
 from app.evaluation.wixqa_article_chunk_reranker import WixQARawChunkReranker
 from app.external_datasets.wixqa_retrieval import WixQAArticleCandidate
 from app.security.retrieved_content import RetrievedContentGuard
+from scripts.measure_wixqa_raw_chunk_online_latency import _assert_candidate_identity
 
 
 def _case() -> dict:
@@ -144,3 +148,16 @@ def test_final_public_evidence_preserves_security_and_privacy_boundaries() -> No
     assert payload["arms"]["A4_RAW50_GUARD_ON"]["guard"]["scored_quarantined_chunks"] == 0
     for forbidden in ('"question"', '"text"', "gold_article_ids", "private_rank_signatures"):
         assert forbidden not in content
+
+
+def test_online_latency_path_rejects_changed_frozen_candidate_ids() -> None:
+    frozen = [{"dense_rank": 1, "chunk_id": "chunk-a"}]
+    _assert_candidate_identity(frozen=frozen, live=[{"dense_rank": 1, "chunk_id": "chunk-a"}])
+
+    with pytest.raises(RuntimeError, match="CANDIDATE_IDENTITY_MISMATCH"):
+        _assert_candidate_identity(frozen=frozen, live=[{"dense_rank": 1, "chunk_id": "chunk-b"}])
+
+
+def test_online_latency_script_never_requests_article_level_dense_candidates() -> None:
+    source = inspect.getsource(__import__("scripts.measure_wixqa_raw_chunk_online_latency", fromlist=["*"]))
+    assert "dense_article_candidates(" not in source
