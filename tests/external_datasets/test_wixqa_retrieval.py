@@ -335,6 +335,31 @@ def test_raw_chunk_reranker_guards_untrusted_text_before_model_scoring() -> None
     assert result.guard_rule_ids
 
 
+def test_raw_chunk_reranker_passes_full_admitted_text_to_scorer() -> None:
+    received: list[str] = []
+    full_text = "evidence " * 300
+    reranker = WixQARawChunkReranker(
+        model_id="fixture",
+        score_fn=lambda _question, texts: (received.extend(texts) or [0.5 for _ in texts]),
+    )
+
+    reranker.rerank(
+        question="question",
+        candidates=[
+            WixQAArticleCandidate(
+                article_id="article",
+                chunk_id="chunk",
+                text=full_text,
+                dense_score=1.0,
+            )
+        ],
+    )
+
+    # Candidate validation strips boundary whitespace, but the reranker must
+    # receive every retained content character rather than the old 1200-char cut.
+    assert received == [full_text.strip()]
+
+
 def test_reranked_articles_preserve_dense_head_and_candidate_set() -> None:
     merged = merge_reranked_article_ids(
         dense_article_ids=["a", "b", "c", "d", "e"],

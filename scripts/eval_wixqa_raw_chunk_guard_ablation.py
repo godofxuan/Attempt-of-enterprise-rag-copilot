@@ -44,6 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=20260904)
     parser.add_argument("--quality-repeats", type=int, default=2)
     parser.add_argument("--latency-repeats", type=int, default=3)
+    parser.add_argument("--replace-public-output", action="store_true")
     return parser
 
 
@@ -162,7 +163,14 @@ def _run_rerank_arm(
 ) -> dict[str, Any]:
     metrics: list[dict[str, float | None]] = []
     signatures: dict[str, dict[str, list[str]]] = {}
-    timings = {"guard_ms": [], "shadow_guard_ms": [], "reranker_ms": [], "dedup_ms": [], "total_ms": []}
+    timings = {
+        "candidate_generation_ms": [],
+        "guard_ms": [],
+        "shadow_guard_ms": [],
+        "reranker_ms": [],
+        "dedup_ms": [],
+        "total_ms": [],
+    }
     aggregate = Counter()
     rule_ids: Counter[str] = Counter()
     affected_questions: set[str] = set()
@@ -207,11 +215,16 @@ def _run_rerank_arm(
             short_result_count += 1
         metrics.append(_score_ranking(gold_ids, article_ids))
         signatures[question_id] = {"article_ids": article_ids, "chunk_ids": chunk_ids}
+        candidate_elapsed = float(case["candidate_generation_ms"])
+        timings["candidate_generation_ms"].append(candidate_elapsed)
         timings["guard_ms" if guard_mode == "enforced" else "shadow_guard_ms"].append(guard_elapsed)
         timings["reranker_ms"].append(reranker_elapsed)
         timings["dedup_ms"].append(dedup_elapsed)
         timings["total_ms"].append(
-            (guard_elapsed if guard_mode == "enforced" else 0.0) + reranker_elapsed + dedup_elapsed
+            candidate_elapsed
+            + (guard_elapsed if guard_mode == "enforced" else 0.0)
+            + reranker_elapsed
+            + dedup_elapsed
         )
 
     if guard_mode == "enforced" and aggregate["admitted_chunks"] + aggregate["quarantined_chunks"] != aggregate["input_chunks"]:
@@ -273,7 +286,9 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("the frozen protocol requires --batch-size 16 and --max-length 512")
     if args.quality_repeats < 2 or args.latency_repeats != 3:
         raise SystemExit("the frozen protocol requires at least two quality repeats and exactly three latency repeats")
-    if args.output.resolve().exists() or args.public_output.resolve().exists():
+    if args.output.resolve().exists() or (
+        args.public_output.resolve().exists() and not args.replace_public_output
+    ):
         raise FileExistsError("final output paths must not already exist")
 
     candidate_bytes = args.candidates.resolve().read_bytes()
@@ -345,11 +360,15 @@ def main(argv: list[str] | None = None) -> int:
         quality_signatures = first["signatures"]
         if any(run["signatures"] != quality_signatures for run in runs[1:args.quality_repeats]):
             raise RuntimeError(f"{arm_name} ranking changed across quality repeats")
-        latency_keys = ("guard_ms", "shadow_guard_ms", "reranker_ms", "dedup_ms", "total_ms")
+        latency_keys = (
+            "candidate_generation_ms",
+            "guard_ms",
+            "shadow_guard_ms",
+            "reranker_ms",
+            "dedup_ms",
+            "total_ms",
+        )
         latency = {key: _median_summary([run["latency_ms"][key] for run in runs]) for key in latency_keys}
-        latency["candidate_generation_ms"] = _summary(dense_latency)
-        for key in ("mean", "p50", "p95"):
-            latency["total_ms"][key] += latency["candidate_generation_ms"][key]
         arms[arm_name] = {
             "metrics": first["metrics"],
             "latency_ms": latency,
@@ -439,7 +458,10 @@ def main(argv: list[str] | None = None) -> int:
     args.output.resolve().parent.mkdir(parents=True, exist_ok=True)
     args.public_output.resolve().parent.mkdir(parents=True, exist_ok=True)
     args.output.resolve().write_bytes(private_bytes)
-    args.public_output.resolve().write_bytes(public_bytes)
+    public_path = args.public_output.resolve()
+    public_stage = public_path.with_suffix(public_path.suffix + ".tmp")
+    public_stage.write_bytes(public_bytes)
+    public_stage.replace(public_path)
     print(json.dumps({"output": str(args.output.resolve()), "public_output": str(args.public_output.resolve()), "public_sha256": _sha256_bytes(public_bytes), "promotion": base["promotion"]}, indent=2))
     return 0
 

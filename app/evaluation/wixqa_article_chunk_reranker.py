@@ -157,7 +157,10 @@ class WixQARawChunkReranker:
 
         raw_scores = self.score_fn(
             normalized_question,
-            [item.text[:MAX_WIXQA_RERANK_TEXT_CHARS] for item in admitted],
+            # Raw chunks are Guard-scanned in full. The pinned cross-encoder
+            # tokenizer, rather than an unrelated character limit, owns
+            # truncation for the selected GPU quality profile.
+            [item.text for item in admitted],
         )
         scores = [float(item) for item in raw_scores]
         if len(scores) != len(admitted):
