@@ -18,6 +18,17 @@ and do not measure answer correctness.
 `BEST_SIMPLE_BASELINE = BGE-M3 Dense`. The aggregate artifact binds cohort,
 index, model, exact revision, and metrics: [F3 evidence](adaptive_retrieval_v3/evidence/f3-simple-baselines-7d08d84.json).
 
+## Isolated Peer Reranker Reproduction
+
+An isolated reproduction of peer branch `79ba431` ran
+`BAAI/bge-reranker-v2-m3` over the same consumed 200-question article-level
+candidate protocol. Its best Article Top-20 arm reached Recall@5 `71.25%`,
+nDCG@5 `56.82%`, MRR@5 `54.50%`, and multi-document completeness `38.46%`;
+the result exactly repeated in a second run. It is not the claimed `75%` under
+this protocol. The branch bypasses the main runtime's retrieved-content Guard,
+so it is recorded as offline evidence and does not alter `FINAL_DEFAULT`.
+Evidence: [peer reproduction aggregate](wixqa_reranker/peer_branch_article_reproduction_v1.json).
+
 ## Corrected Adaptive-Retrieval Result
 
 The old G2 cohort used S4 outcomes and was invalid. The repaired Oracle cohort

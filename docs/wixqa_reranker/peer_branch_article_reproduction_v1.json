@@ -1,0 +1,77 @@
+{
+  "schema_version": "wixqa_peer_branch_article_reranker_reproduction_v1",
+  "claim_boundary": "Consumed WixQA ExpertWritten retrieval-only reproduction of an isolated peer branch. It is not answer quality, fresh validation, a production latency result, or a default-runtime promotion.",
+  "evaluated_branch": "feat/wixqa-bge-reranker-v2-m3",
+  "evaluated_commit": "79ba431523562e53e1ace8d74a55bc604d72705c",
+  "dataset": {
+    "cohort": "expertwritten",
+    "case_count": 200,
+    "dataset_manifest_sha256": "e40972d70a8c80685b3730733efd90ac82a01fd52a949a0d27e122809bc290dd",
+    "question_ids_sha256": "ec11e3e4733bd6701441b127952fa98b0973f9961a0aacabfae570da45976110",
+    "consumption": "FIXED_CONSUMED"
+  },
+  "retrieval": {
+    "index_run_id": "wixqa-flat-bge-m3-v1",
+    "embedding_model": "bge-m3",
+    "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+    "dense_candidate_k": 200,
+    "article_depth": 50,
+    "article_deduplication": "dense-order first chunk per article before reranking",
+    "final_k": 5,
+    "candidate_artifact_sha256": "93428c5835aa93b42666e56edcf707392c0b05545d1ab21acf0d8c5c30ef23e5"
+  },
+  "reranker": {
+    "model_id": "BAAI/bge-reranker-v2-m3",
+    "model_revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+    "model_safetensors_sha256": "d9e3e081faff1eefb84019509b2f5558fd74c1a05a2c7db22f74174fcedb5286",
+    "dtype": "float16",
+    "device": "cuda:0",
+    "gpu": "NVIDIA GeForce RTX 5060",
+    "torch": "2.11.0+cu128",
+    "batch_size": 16,
+    "max_length": 512
+  },
+  "runs": {
+    "run_1_sha256": "cdc3fc06bb739f4b01dbf018bb1bdb9db083bd09d5d83405e24817d2782319ae",
+    "run_2_top20_sha256": "063aec5f620d5ed321eed4444b5d3d9847a16dfab74959d3a4e477c618c756fe",
+    "top20_quality_exactly_repeated": true
+  },
+  "arms": {
+    "dense": {
+      "article_hit_at_1": 0.35,
+      "article_recall_at_5": 0.6641666666666666,
+      "ndcg_at_5": 0.521583326944466,
+      "mrr_at_5": 0.49608333333333327,
+      "multi_article_completeness_at_5": 0.3076923076923077
+    },
+    "reranker_article_top_10": {
+      "article_recall_at_5": 0.6991666666666666,
+      "ndcg_at_5": 0.5642425635323681,
+      "mrr_at_5": 0.54775,
+      "multi_article_completeness_at_5": 0.34615384615384615,
+      "recall_gain_case_count": 18,
+      "recall_regression_case_count": 9,
+      "local_reranker_p95_ms": 118.61529998714104
+    },
+    "reranker_article_top_20": {
+      "article_recall_at_5": 0.7124999999999999,
+      "ndcg_at_5": 0.5682356550911111,
+      "mrr_at_5": 0.5449999999999999,
+      "multi_article_completeness_at_5": 0.38461538461538464,
+      "recall_gain_case_count": 28,
+      "recall_regression_case_count": 16,
+      "local_reranker_p95_ms": 240.8990999974776
+    },
+    "reranker_article_top_50": {
+      "article_recall_at_5": 0.7100000000000002,
+      "ndcg_at_5": 0.565423171840882,
+      "mrr_at_5": 0.54275,
+      "multi_article_completeness_at_5": 0.38461538461538464,
+      "recall_gain_case_count": 28,
+      "recall_regression_case_count": 18,
+      "local_reranker_p95_ms": 596.194400000968
+    }
+  },
+  "decision": "TOP20_REPRODUCED_ON_CONSUMED_COHORT_NOT_PROMOTED_TO_RUNTIME",
+  "runtime_boundary": "The evaluated peer branch is offline evaluation code and does not run the main repository's retrieved-content Guard before cross-encoder scoring. It was not merged or promoted."
+}

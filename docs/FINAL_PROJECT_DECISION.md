@@ -52,6 +52,16 @@ grounding, Guard, ACL, evidence tracking, and terminal safety.
 Further retrieval or Agent capabilities require a new explicit project phase
 with an unused evaluation protocol or a real operational failure signal.
 
+## Post-Closure Peer Reproduction
+
+An explicit user-requested isolated reproduction of peer branch `79ba431`
+confirmed an article-level BGE reranker peak of 71.25% Recall@5 on the consumed
+WixQA cohort. It did not reproduce a 75% result and was not merged because that
+offline branch bypasses the current retrieved-content Guard. This is additional
+evaluation evidence, not a reopened feature-development phase or a change to
+the final default. See
+[peer reproduction aggregate](wixqa_reranker/peer_branch_article_reproduction_v1.json).
+
 Related evidence: [final V3 comparison](adaptive_retrieval_v3/FINAL_COMPARISON.md),
 [dataset ledger](adaptive_retrieval_v3/DATASET_LEDGER.md), and
 [resume metric ledger](handoffs/RESUME_METRIC_LEDGER.md).

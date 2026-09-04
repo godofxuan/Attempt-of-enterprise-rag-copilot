@@ -172,6 +172,34 @@ cohorts were already consumed, so this is disclosed hypothesis-driven validation
 and retrospective evidence, not a fresh blind test. Public aggregate evidence
 is in [`raw_chunk_bge_evidence.json`](raw_chunk_bge_evidence.json).
 
+## Peer Article-Reranker Reproduction
+
+The collaborator's exact branch `feat/wixqa-bge-reranker-v2-m3` at
+`79ba431` was reproduced in an isolated worktree instead of being merged. It
+retrieves 200 Dense chunks, keeps the first Dense-ranked chunk for each article,
+retains 50 articles, reranks article representatives, and returns five articles.
+The fixed BGE-M3 index, question IDs, gold labels, final `K=5`, model revision,
+and article-level metric function match the Dense baseline.
+
+| Configuration | Recall@5 | nDCG@5 | MRR@5 | Complete@5 | Local reranker p95 |
+|---|---:|---:|---:|---:|---:|
+| Dense | 66.42% | 52.16% | 49.61% | 30.77% | not separately measured in this reranker pass |
+| Article Top-10 | 69.92% | 56.42% | 54.78% | 34.62% | 118.62 ms |
+| Article Top-20 | **71.25%** | **56.82%** | **54.50%** | **38.46%** | 240.90 ms |
+| Article Top-50 | 71.00% | 56.54% | 54.28% | 38.46% | 596.19 ms |
+
+Top-20 is the best reproduced arm. It improves Recall@5 by `4.83pp` over the
+same candidate artifact's Dense result; 28 cases gain recall and 16 regress.
+A separate Top-20 repetition produced exactly the same quality metrics. This
+does **not** reproduce a `75%` Recall@5 claim under this exact protocol.
+
+The branch remains offline evidence only. It did not run the current
+retrieved-content Guard before cross-encoder scoring, so it is neither merged
+nor promoted to the runtime. The Guard-integrated raw-chunk experiment above is
+the current implementation-aligned BGE profile. Aggregate evidence without
+questions, document text, or gold IDs is in
+[`peer_branch_article_reproduction_v1.json`](peer_branch_article_reproduction_v1.json).
+
 ## Interpretation
 
 The negative result does not show that reranking is useless. It shows that a
