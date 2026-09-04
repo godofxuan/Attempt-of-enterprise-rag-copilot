@@ -49,6 +49,11 @@ run can also emit a verifiable trajectory for replay and evaluation.
 | UDA R4 scoped canary | On 64 company-disjoint validation questions, page fusion moved Hit@5 `76.56% -> 81.25%` and nDCG@5 `64.41% -> 72.61%` at `1.066x` p95; misses fell `15 -> 12` | The original 5pp Hit gate still failed and test stayed unrun. A later paired review approved explicit opt-in known-report canary only, not the global default. [Evidence](docs/r4/evidence/uda_finance_r4_canary_review_v1.json) |
 | UDA R5 fresh confirmation | On all 192 questions from the 41 remaining previously unused UDA companies, page fusion moved Hit@5 `80.21% -> 88.02%` and nDCG@5 `70.95% -> 77.60%`; it rescued `15` cases, regressed `0`, and reduced misses `38 -> 23` at `1.058x` p95 | One-shot public-label, company-disjoint known-report page localization. Company-cluster 95% lower bounds were `+4.10pp` Hit and `+3.32pp` nDCG. Promoted only for server-classified finance known reports. [Evidence](docs/r5/evidence/uda_finance_r5_public_v1.json) |
 
+An additional branch-local WixQA reranker result is awaiting independent
+reproduction. Its exact raw-chunk-first pipeline, identities, commands,
+environment, metrics, and divergence checklist are recorded in
+[the BGE reranker experiment record](docs/reproduction/WIXQA_BGE_RERANKER_V2_M3_EXPERIMENT.md).
+
 This repository is an engineering portfolio, not a framework showcase. MCP is
 an in-process protocol adapter rather than a network deployment; LangGraph is
 an alternative orchestrator rather than a claimed quality improvement.

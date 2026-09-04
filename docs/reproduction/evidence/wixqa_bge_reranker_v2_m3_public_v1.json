@@ -1,0 +1,171 @@
+{
+  "artifacts": {
+    "dense_candidates": {
+      "byte_count": 82176293,
+      "committed": false,
+      "name": "wixqa-dense-top200-chunks-20260902.json",
+      "sha256": "7e7a7c9705155e68cf42834f190110ebab9dd66ccfe75ff8776d95692b994e5e"
+    },
+    "reranker_article_control": {
+      "byte_count": 481914,
+      "committed": false,
+      "name": "wixqa-bge-reranker-v2-m3-20260902.json",
+      "sha256": "591d774070089fbacc37d968a5b3446f3841edf378c16339babd5257b768d204"
+    },
+    "reranker_chunk_result": {
+      "byte_count": 1194923,
+      "committed": false,
+      "name": "wixqa-bge-reranker-v2-m3-chunks-20260902.json",
+      "sha256": "3549654cbf7f969a5fddd38897cb704860eed9dc56275bc3760aaaf9b57bdc47"
+    }
+  },
+  "claim_boundary": {
+    "answer_quality": "NOT_RUN",
+    "fixed_public_labels_replayed": true,
+    "independent_third_party_reproduction": false,
+    "runtime_integration": "OFFLINE_EVALUATION_ONLY"
+  },
+  "code": {
+    "base_revision": "bd71cb3ca8de4e1899a4ea0e09d3c1c677c77a7e",
+    "experiment_implementation_revision": "79ba431523562e53e1ace8d74a55bc604d72705c"
+  },
+  "dataset": {
+    "article_count": 6221,
+    "case_count": 200,
+    "cohort": "expertwritten",
+    "gold_article_count_distribution": {
+      "1": 148,
+      "2": 46,
+      "3": 6
+    },
+    "manifest": "data_manifests/WIXQA_OFFICIAL_RAW_MANIFEST.json",
+    "manifest_sha256": "d325412340c110d3f76b832080c702978643d517e296c97bba1abc088ec65b1f",
+    "question_ids_sha256": "ec11e3e4733bd6701441b127952fa98b0973f9961a0aacabfae570da45976110",
+    "source_revision": "d662dc42479c14e202eccd832f8c4b66a035c4cc",
+    "total_question_gold_article_labels": 258
+  },
+  "dense": {
+    "candidate_k_raw_chunks": 200,
+    "candidate_metrics": {
+      "article_recall_at_10": 0.7825,
+      "article_recall_at_20": 0.8616666666666667,
+      "article_recall_at_5": 0.6658333333333333,
+      "article_recall_at_50": 0.9391666666666667
+    },
+    "chunk_count": 11975,
+    "chunking": {
+      "body_size_characters": 1800,
+      "overlap_characters": 150,
+      "title_repeated_per_chunk": true
+    },
+    "embedding_dimension": 1024,
+    "embedding_model": "bge-m3",
+    "embedding_model_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+    "index": "faiss.IndexFlatIP_over_l2_normalized_float32_vectors",
+    "index_manifest_sha256": "e74631aae61f6f15c50f0ce48ee5fba19e5c08bab894b6615dc4903160689796",
+    "index_run_id": "wixqa-bge-m3-reproduction-20260902",
+    "query_embedding_http_500_identity_matched_fallback_count": 9,
+    "raw_chunk_candidate_metrics": {
+      "article_recall_at_10": 0.7533333333333333,
+      "article_recall_at_100": 0.9591666666666667,
+      "article_recall_at_20": 0.8341666666666667,
+      "article_recall_at_200": 0.9783333333333333,
+      "article_recall_at_5": 0.6433333333333333,
+      "article_recall_at_50": 0.9241666666666667
+    },
+    "raw_chunk_unique_article_counts": {
+      "10": {"max": 10, "mean": 7.885, "min": 2, "p50": 8, "p95": 10},
+      "100": {"max": 95, "mean": 73.225, "min": 42, "p50": 74, "p95": 89},
+      "20": {"max": 20, "mean": 15.18, "min": 5, "p50": 16, "p95": 19},
+      "200": {"max": 184, "mean": 142.715, "min": 70, "p50": 145, "p95": 171},
+      "5": {"max": 5, "mean": 4.2, "min": 2, "p50": 4, "p95": 5},
+      "50": {"max": 50, "mean": 37.185, "min": 23, "p50": 38, "p95": 46}
+    }
+  },
+  "environment": {
+    "dense_faiss": "1.13.2",
+    "dense_numpy": "2.4.4",
+    "dense_python": "3.13.13",
+    "gpu": "NVIDIA A100-SXM4-40GB 40960 MiB",
+    "nvidia_driver": "545.23.08",
+    "ollama": "0.17.5",
+    "os": "Ubuntu 20.04.6 LTS Linux 5.4.0-169-generic x86_64",
+    "reranker_cuda_runtime": "12.8",
+    "reranker_python": "3.12.13",
+    "reranker_pytorch": "2.10.0+cu128",
+    "reranker_tokenizers": "0.22.2",
+    "reranker_transformers": "5.8.0"
+  },
+  "evaluation_date": "2026-09-02",
+  "metric_semantics": {
+    "article_recall_at_5": "macro_mean_i(|gold_article_ids_i intersect returned_unique_article_ids_i[:5]| / |gold_article_ids_i|)",
+    "deduplication": "after_descending_reranker_logit_keep_first_chunk_per_article_id",
+    "relevance": "binary_article_id",
+    "unreranked_backfill": false
+  },
+  "reranker": {
+    "batch_size": 16,
+    "candidate_unit": "raw_chunk",
+    "dtype": "float16",
+    "max_length_tokens": 512,
+    "model_id": "BAAI/bge-reranker-v2-m3",
+    "model_revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+    "model_safetensors_sha256": "d9e3e081faff1eefb84019509b2f5558fd74c1a05a2c7db22f74174fcedb5286",
+    "pair": "question_and_title_newline_body_chunk",
+    "score": "raw_scalar_classification_logit_descending",
+    "tie_break": "original_dense_chunk_order"
+  },
+  "results": {
+    "article_representative_control": {
+      "10": {"article_recall_at_5": 0.6991666666666667, "ndcg_at_5": 0.5644616822865628},
+      "20": {"article_recall_at_5": 0.715, "ndcg_at_5": 0.5701699191272841},
+      "50": {"article_recall_at_5": 0.71, "ndcg_at_5": 0.5654231718408824}
+    },
+    "dense": {
+      "article_hit_at_1": 0.35,
+      "article_recall_at_5": 0.6658333333333333,
+      "mrr_at_5": 0.4956666666666667,
+      "ndcg_at_5": 0.5214305393930317
+    },
+    "raw_chunk_reranker": {
+      "10": {
+        "article_hit_at_1": 0.445,
+        "article_recall_at_5": 0.7191666666666667,
+        "mrr_at_5": 0.5784166666666667,
+        "ndcg_at_5": 0.588698930099511,
+        "p95_reranker_latency_ms": 43.27870812267065
+      },
+      "100": {
+        "article_hit_at_1": 0.45,
+        "article_recall_at_5": 0.7475,
+        "mrr_at_5": 0.5902499999999999,
+        "ndcg_at_5": 0.6048422664352782,
+        "p95_reranker_latency_ms": 366.1068184301257
+      },
+      "20": {
+        "article_hit_at_1": 0.45,
+        "article_recall_at_5": 0.7275,
+        "mrr_at_5": 0.5820000000000001,
+        "ndcg_at_5": 0.5957904136609329,
+        "p95_reranker_latency_ms": 93.18377170711756
+      },
+      "200": {
+        "article_hit_at_1": 0.45,
+        "article_recall_at_5": 0.755,
+        "mrr_at_5": 0.5945,
+        "ndcg_at_5": 0.6080600296301845,
+        "p95_reranker_latency_ms": 709.3170946463943
+      },
+      "50": {
+        "article_hit_at_1": 0.45,
+        "article_recall_at_5": 0.75,
+        "mrr_at_5": 0.5894166666666667,
+        "ndcg_at_5": 0.6059877918630113,
+        "p95_reranker_latency_ms": 190.61244279146194,
+        "recall_gain_case_count": 31,
+        "recall_regression_case_count": 12
+      }
+    }
+  },
+  "schema_version": "wixqa_bge_reranker_v2_m3_public_v1"
+}
