@@ -35,9 +35,9 @@ The final closure removes the prior comparability gaps: all arms consume one
 official-LF index and one frozen raw candidate artifact; Guard ON/OFF uses the
 same scorer and candidate prefixes; Guard ON has no Dense backfill. On the
 consumed 200-question replay, Guarded Raw Top-20 achieved Recall@5 `72.50%`,
-nDCG@5 `59.35%`, MRR@5 `57.92%`, and `296.48 ms` total local p95, compared
+nDCG@5 `59.35%`, MRR@5 `57.92%`, and corrected `302.75 ms` total local p95, compared
 with Dense `66.42%`, `52.16%`, `49.61%`, and `44.41 ms`. Guarded Raw Top-50
-reached `74.50%` Recall@5 but failed its fixed `650 ms` p95 gate at `677.93
+reached `74.50%` Recall@5 but failed its fixed `650 ms` p95 gate at corrected `680.86
 ms`; Top-20 is the selected optional GPU profile. This remains retrospective
 retrieval-only evidence. [Final protocol and results](wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md).
 

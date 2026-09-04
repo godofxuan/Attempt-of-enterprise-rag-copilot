@@ -161,3 +161,20 @@ def test_online_latency_path_rejects_changed_frozen_candidate_ids() -> None:
 def test_online_latency_script_never_requests_article_level_dense_candidates() -> None:
     source = inspect.getsource(__import__("scripts.measure_wixqa_raw_chunk_online_latency", fromlist=["*"]))
     assert "dense_article_candidates(" not in source
+
+
+def test_final_online_latency_evidence_preserves_identity_and_privacy() -> None:
+    root = Path(__file__).resolve().parents[2]
+    path = root / "docs" / "wixqa_reranker" / "raw_chunk_guard_final_latency_evidence.json"
+    content = path.read_text(encoding="utf-8")
+    payload = json.loads(content)
+
+    assert payload["artifact_type"] == "LATENCY_ACCOUNTING_ERRATUM"
+    assert payload["candidate_identity_match"] is True
+    assert payload["final_gpu_profile"] == "GUARDED_RAW_CHUNK_TOP20"
+    assert payload["top50_passes_absolute_gate"] is False
+    assert payload["top50_passes_relative_gate"] is True
+    assert payload["profiles"]["top20"]["headline"]["total_ms"]["p95"] == pytest.approx(302.7478)
+    assert payload["profiles"]["top50"]["headline"]["total_ms"]["p95"] == pytest.approx(680.8579)
+    for forbidden in ('"question"', '"text"', "gold_article_ids", "private_rank_signatures"):
+        assert forbidden not in content

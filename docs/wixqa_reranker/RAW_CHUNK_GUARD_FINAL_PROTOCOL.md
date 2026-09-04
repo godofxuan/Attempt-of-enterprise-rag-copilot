@@ -101,3 +101,11 @@ The final documentation may report the paired, consumed retrospective
 retrieval replay and its security diagnostics. It must not call Recall@5
 answer accuracy, a blind test, independent validation, a production SLA, or a
 safe runtime result when it comes from a Guard-off arm.
+
+## Latency Erratum
+
+The original quality protocol remains frozen. Its former reconstructed latency
+accounting was corrected separately because it included an article-level Dense
+view absent from the online raw-chunk path. The replacement uses the exact
+continuous online timer and the unchanged Top-50 gates; see
+[RAW_CHUNK_GUARD_FINAL_LATENCY_ERRATUM.md](RAW_CHUNK_GUARD_FINAL_LATENCY_ERRATUM.md).

@@ -240,7 +240,8 @@ def main(argv: list[str] | None = None) -> int:
         "git_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, encoding="utf-8").strip(),
         "git_dirty": False,
         "erratum_protocol_git_sha": args.erratum_protocol_git_sha,
-        "argv": sys.argv,
+        # Public evidence must be reproducible without publishing this machine's path.
+        "argv": [Path(sys.argv[0]).name, *sys.argv[1:]],
         "quality_artifact_sha256": _sha256_bytes(quality_bytes),
         "candidate_artifact_sha256": _sha256_bytes(candidate_bytes),
         "candidate_identity_match": True,

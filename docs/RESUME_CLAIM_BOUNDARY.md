@@ -23,7 +23,7 @@ must retain its stated dataset and metric scope.
 - On a consumed 200-question WixQA ExpertWritten retrieval replay with frozen
   raw candidates, Guard-before-rerank BGE Top-20 improved Recall@5 from 66.42%
   to 72.50%, nDCG@5 from 52.16% to 59.35%, and MRR@5 from 49.61% to 57.92%;
-  local total p95 was 296.48 ms. It is a security-preserving optional GPU
+  corrected local online total p95 was 302.75 ms. It is a security-preserving optional GPU
   profile, not a global default, answer-accuracy result, or blind validation.
   Evidence: [final paired closure](wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md).
 - On 192 previously unused UDA company-disjoint known-report page-localization

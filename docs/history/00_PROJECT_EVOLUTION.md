@@ -1526,6 +1526,26 @@ HERB remain explicitly `NOT_RUN`. The authoritative closeout is
 `docs/enterprise_eval/FINAL_REPORT.md`; the beginner-oriented code explanation
 is `docs/learning/RAG_PROJECT_TEACHING_HANDOFF.md`.
 
+## 52. WixQA raw-chunk reranker latency accounting erratum
+
+The final raw-chunk quality comparison remained frozen: the official LF source,
+index, Top-200 candidate artifact, BGE-M3 embedding model, BGE reranker weights,
+Guard rules, and 200-question consumed ExpertWritten replay were unchanged.
+An audit nevertheless found that the prior total-latency reconstruction included
+an article-level Dense candidate call that the online raw-chunk path never uses.
+
+The correction added a separate real-path measurement: query embedding, raw
+Top-200 FAISS retrieval, candidate-ID assertion, candidate slice, full-text
+Guard, admitted-only reranking, and post-score article deduplication are timed
+as one continuous interval. Three 200-question passes after five warm-ups
+reproduced every frozen Guard-on ranking and gave median p95 values of 302.75 ms
+for Top-20 and 680.86 ms for Top-50. Top-50 still failed its unchanged absolute
+650 ms gate, while passing the relative `3x` gate; `GUARDED_RAW_CHUNK_TOP20`
+therefore remains the only optional GPU quality profile. The global default
+remains bounded Hybrid RRF. The historical composite totals remain documented as
+superseded, rather than being erased. Public evidence contains aggregates and
+hashes only, not questions, chunks, gold labels, or per-question rankings.
+
 ## 51. UDA R4: hierarchical retrieval, failed gate, and scoped canary
 
 R4 consumed 28 previously unused UDA companies as disjoint 96-question
