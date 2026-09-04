@@ -25,7 +25,7 @@ budgets, tool authority, or final publication.
 | BGE-M3 Dense retrieval | `USEFUL_EXPERIMENTAL` | Best simple arm on consumed WixQA ExpertWritten: Recall@5 66.42%, nDCG@5 52.16%, local p95 50.06 ms. No fresh promotion. |
 | S4 validated multi-query | `USEFUL_EXPERIMENTAL` | Consumed quality profile: mean Recall@5 59.25% to 62.83%, but local p95 about 197 ms to 1148 ms and MRR down 0.10pp. |
 | Oracle corrective rewrite | `CORRECTIVE_REWRITE_POSITIVE` | Corrected evaluation Oracle recovers first-pass misses; no precise executable retry trigger was demonstrated. |
-| BGE reranker | `HISTORICAL_GPU_QUALITY_PROFILE` | Separate Dense/GPU experiment, not a direct comparison with the current Hybrid default. |
+| BGE reranker | `OPTIONAL_GPU_QUALITY_PROFILE` | Final paired Guard-before-rerank Raw Top-20 on consumed WixQA: Recall@5 66.42% to 72.50%, nDCG@5 52.16% to 59.35%, MRR@5 49.61% to 57.92%, total local p95 296.48 ms. It does not change the fast global default. |
 
 ## Rejected Experiments
 
@@ -61,6 +61,17 @@ offline branch bypasses the current retrieved-content Guard. This is additional
 evaluation evidence, not a reopened feature-development phase or a change to
 the final default. See
 [peer reproduction aggregate](wixqa_reranker/peer_branch_article_reproduction_v1.json).
+
+## Final Safe Raw-Chunk Closure
+
+The peer's raw-chunk idea was then evaluated in a final paired protocol: one
+official-LF index, one frozen raw candidate artifact, shared scorer, Shadow
+Guard diagnostics for OFF arms, enforced Guard for ON arms, no Dense backfill,
+and full-text tokenizer truncation. Guarded Raw Top-50 reached Recall@5
+`74.50%`, but its `677.93 ms` total local p95 exceeded the protocol's fixed
+`650 ms` limit. Guarded Raw Top-20 is therefore the sole optional GPU quality
+profile. Guard-off `74.75%`/`75.00%` values remain diagnostic ceilings and are
+not runtime eligible. See [final paired evidence](wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md).
 
 Related evidence: [final V3 comparison](adaptive_retrieval_v3/FINAL_COMPARISON.md),
 [dataset ledger](adaptive_retrieval_v3/DATASET_LEDGER.md), and

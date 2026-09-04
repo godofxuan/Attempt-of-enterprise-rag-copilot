@@ -20,6 +20,12 @@ must retain its stated dataset and metric scope.
   Dense improved Recall@5 from 42.75% to 66.42% and nDCG@5 from 32.15% to
   52.16%. This is retrieval quality, not answer accuracy. Evidence:
   [F3 aggregate](adaptive_retrieval_v3/evidence/f3-simple-baselines-7d08d84.json).
+- On a consumed 200-question WixQA ExpertWritten retrieval replay with frozen
+  raw candidates, Guard-before-rerank BGE Top-20 improved Recall@5 from 66.42%
+  to 72.50%, nDCG@5 from 52.16% to 59.35%, and MRR@5 from 49.61% to 57.92%;
+  local total p95 was 296.48 ms. It is a security-preserving optional GPU
+  profile, not a global default, answer-accuracy result, or blind validation.
+  Evidence: [final paired closure](wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md).
 - On 192 previously unused UDA company-disjoint known-report page-localization
   questions, page fusion improved Hit@5 from 80.21% to 88.02% and nDCG@5 from
   70.95% to 77.60% at 1.058x local p95. It is known-report page retrieval, not
@@ -48,6 +54,8 @@ must retain its stated dataset and metric scope.
   requires gold labels to select misses, while its executable assessor
   over-triggered.
 - Do not call the Guard result complete benchmark coverage or universal security.
+- Do not present Guard-off Raw Top-50 Recall@5 74.75% or the peer A100 75.00%
+  result as a safe runtime metric.
 - Do not call this repository a production deployment or production-certified
   platform.
 

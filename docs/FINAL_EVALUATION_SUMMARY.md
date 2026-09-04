@@ -29,6 +29,18 @@ this protocol. The branch bypasses the main runtime's retrieved-content Guard,
 so it is recorded as offline evidence and does not alter `FINAL_DEFAULT`.
 Evidence: [peer reproduction aggregate](wixqa_reranker/peer_branch_article_reproduction_v1.json).
 
+## Final Paired Safe Raw-Chunk Reranking
+
+The final closure removes the prior comparability gaps: all arms consume one
+official-LF index and one frozen raw candidate artifact; Guard ON/OFF uses the
+same scorer and candidate prefixes; Guard ON has no Dense backfill. On the
+consumed 200-question replay, Guarded Raw Top-20 achieved Recall@5 `72.50%`,
+nDCG@5 `59.35%`, MRR@5 `57.92%`, and `296.48 ms` total local p95, compared
+with Dense `66.42%`, `52.16%`, `49.61%`, and `44.41 ms`. Guarded Raw Top-50
+reached `74.50%` Recall@5 but failed its fixed `650 ms` p95 gate at `677.93
+ms`; Top-20 is the selected optional GPU profile. This remains retrospective
+retrieval-only evidence. [Final protocol and results](wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md).
+
 ## Corrected Adaptive-Retrieval Result
 
 The old G2 cohort used S4 outcomes and was invalid. The repaired Oracle cohort
