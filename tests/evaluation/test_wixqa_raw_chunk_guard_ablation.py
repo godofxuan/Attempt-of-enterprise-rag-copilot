@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from scripts.eval_wixqa_raw_chunk_guard_ablation import (
     _rank_after_score,
     _run_rerank_arm,
     _validate_candidate_parity,
 )
+from app.evaluation.wixqa_article_chunk_reranker import WixQARawChunkReranker
+from app.external_datasets.wixqa_retrieval import WixQAArticleCandidate
 from app.security.retrieved_content import RetrievedContentGuard
 
 
@@ -92,3 +97,50 @@ def test_deduplication_happens_after_chunk_score_order() -> None:
 
     assert article_ids == ["a", "b"]
     assert chunk_ids == ["a-high", "b"]
+
+
+def test_final_evaluator_and_runtime_raw_reranker_agree_on_safe_fixture() -> None:
+    case = _case()
+    score_by_text = {
+        row["text"]: float(row["dense_rank"])
+        for row in case["raw_candidates"][:20]
+    }
+    offline = _run_rerank_arm(
+        cases=[case],
+        depth=20,
+        guard_mode="enforced",
+        guard=RetrievedContentGuard(),
+        score_fn=lambda _question, texts: [score_by_text[text] for text in texts],
+    )
+    runtime = WixQARawChunkReranker(
+        model_id="fixture",
+        score_fn=lambda _question, texts: [score_by_text[text] for text in texts],
+    ).rerank(
+        question=case["question"],
+        candidates=[
+            WixQAArticleCandidate(
+                article_id=row["article_id"],
+                chunk_id=row["chunk_id"],
+                text=row["text"],
+                dense_score=1.0,
+            )
+            for row in case["raw_candidates"][:20]
+        ],
+    )
+
+    assert offline["signatures"]["q-1"]["article_ids"] == list(runtime.ranked_article_ids[:5])
+
+
+def test_final_public_evidence_preserves_security_and_privacy_boundaries() -> None:
+    root = Path(__file__).resolve().parents[2]
+    path = root / "docs" / "wixqa_reranker" / "raw_chunk_guard_final_evidence.json"
+    content = path.read_text(encoding="utf-8")
+    payload = json.loads(content)
+
+    assert payload["promotion"]["safe_default"] == "CURRENT_FAST_RETRIEVAL_PATH"
+    assert payload["promotion"]["optional_gpu_quality_profile"] == "GUARDED_RAW_CHUNK_TOP20"
+    assert payload["promotion"]["top50_promotion_passed"] is False
+    assert payload["arms"]["A2_RAW20_GUARD_ON"]["guard"]["scored_quarantined_chunks"] == 0
+    assert payload["arms"]["A4_RAW50_GUARD_ON"]["guard"]["scored_quarantined_chunks"] == 0
+    for forbidden in ('"question"', '"text"', "gold_article_ids", "private_rank_signatures"):
+        assert forbidden not in content

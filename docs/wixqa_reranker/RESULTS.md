@@ -208,3 +208,22 @@ article is not Pareto-efficient on this protocol. A stronger or domain-matched
 model should only be attempted after candidate-ceiling and failure analysis;
 it must use a new frozen protocol and may not reuse ExpertWritten as a fresh
 holdout.
+
+## Final Safe Raw-Chunk Closure
+
+The historical arms above used different candidate/index conditions or included
+Dense completion behavior. The final closure freezes one official-LF index and
+one raw Top-200 candidate artifact, then compares Dense, Raw Top-20 OFF/ON, and
+Raw Top-50 OFF/ON with full-text Guard scanning, tokenizer-level 512-token
+truncation, no candidate replenishment, and no Dense backfill.
+
+Guarded Raw Top-20 is selected as the only optional GPU quality profile:
+Recall@5 is `72.50%`, nDCG@5 `59.35%`, MRR@5 `57.92%`, and local total p95
+`296.48 ms`, versus Dense `66.42%`, `52.16%`, `49.61%`, and `44.41 ms`.
+Guarded Raw Top-50 reaches `74.50%` Recall@5 but has `677.93 ms` total p95,
+exceeding the protocol's `650 ms` limit. Guard-off numbers remain diagnostic
+ceilings and are not runtime eligible. The replay is consumed retrospective
+retrieval evidence; it is not answer accuracy or blind validation.
+
+The protocol, aggregate hash, Guard diagnostics, and claim boundary are in
+[the final closure record](RAW_CHUNK_GUARD_FINAL_RESULTS.md).
