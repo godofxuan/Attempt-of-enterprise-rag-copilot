@@ -1,5 +1,25 @@
 # Enterprise Agentic RAG v2 - Current Execution Handoff
 
+## 2026-09-07 Current delivery evidence, not the older checkpoint below
+
+RC0-RC6 finite implementation/measurement is closed with explicit limitations.
+RC7 release/CI/receipts remain tracked in
+[EXECUTION.md](../review/runtime_delivery_20260905/EXECUTION.md).
+Current result entry: [RESULTS.md](../review/runtime_delivery_20260905/RESULTS.md).
+Latest measured app code: `0bca9534fd0cf9d4b02d65c1c46de1a8fec67a4f`.
+Do not restart the approved quality sweep: 680 main requests, 35 warmups,
+60 resource requests are retained; 775 privacy-filtered observations exported.
+Three live runs and all failed attempts stay distinct. Baseline/repair/final
+readiness are not interchangeable or independent datasets.
+
+Global Hybrid unchanged; raw20 is an implemented explicit GPU option, not a
+new global default; raw50 was not service-confirmed after repairs. True
+question relevance, conservative table paraphrase rejection and a misconfigured
+live conflict fixture remain limitations. No human accuracy or production SLA.
+Q1 rejected; Q2/Q3/Q4 not justified; Q5 lacks a verified unused permitted cohort.
+Original lower sections are historical execution checkpoints, not current
+instructions to repeat completed experiments.
+
 ## 2026-09-05 Runtime correctness delivery in progress
 
 The current bounded plan is

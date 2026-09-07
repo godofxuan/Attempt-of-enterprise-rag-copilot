@@ -549,3 +549,93 @@ D4/D5 的 green 只证明默认 V2 本地数据流、prompt framing、public pro
 | `E19-I05` | Failed startup appeared as `NEW` | Runtime tracked counts but no failed state | Record `FAILED` and clean coordinator/resources fail-closed | startup matrix |
 | `E19-X01` | Does enabling observation change the API contract? | Needed real route-level comparison | 8 pairs, body/receipt mismatches `0/0`; OFF worker `0/0`; enabled offers/completions `8/8` | public E19 evidence |
 | `E19-L01` | Is the new entrypoint production-ready or more accurate? | No production traffic, SLO, resource soak, or answer-quality experiment was run | Decision remains default OFF and not promoted | explicit non-claims |
+
+## 44. RC runtime delivery: what changed, how we tested, what still fails
+
+本节对应 `docs/review/runtime_delivery_20260905/RESULTS.md`，不是新的功能路线。
+完整有限预算为 680 次主请求、35 次预热、60 次资源请求；问题只有 40 个
+场景，重复运行用来观察波动，不能说成 680 道独立测试题。
+
+### 44.1 为什么检索分数提高还需要这轮工作
+
+旧实验说明正确文档是否进入前五名，却不保证真正的 API 使用了相同重排器，
+也不保证模型看到的文本、引用文本和当前生效版本一致。因此这轮首先补
+`app.serving:create_app` 入口、`ServingRetrievalSettings`、真实本地交叉编码器
+以及 API 的身份/版本绑定。主链顺序是：验证身份 -> 权限过滤 -> 候选检索 ->
+内容准入 Guard -> 重排 -> 文档去重 -> 证据打包 -> 生成 -> 引用校验 -> 发布。
+把 Guard 放在评分前，是为了不让被隔离的文本进入模型，不是为了美化 Recall。
+
+### 44.2 提示证据、引用和版本是三件不同的事情
+
+`app/domain/evidence_packet.py` 保存真实交付给生成器的证据，而不是让生成器
+引用整个数据库里的任意原文。`generation_v2.py` 按完整语句/完整表格单元
+裁剪，对多个方面轮流分配预算；`open` 有自己的引用身份，不能冒用原搜索
+chunk。关键数值、日期、权限声明通过 `citation_verifier.py` 绑定原文区间。
+这些机制解决“引用了没看到的内容”和“把数字或条件改了仍称有依据”，但不能
+单靠逐字匹配证明“这个引用回答了当前问题”。删掉快递制度后，系统不再引用
+旧制度，却可能引用运费表回答快递报销问题，就是版本正确、问题相关性错误。
+
+`runner_v2.py` 在请求前后核对当前激活指针；切换过程中不能悄悄发布旧版本。
+`navigation_binding.py` 检查 open/find 的目标、内容、权限和快照是否一致。
+本地故障注入覆盖了目标错配、跨租户、版本变化、超时、评分器无效值和 OOM。
+通过这些反例不是“生产永不出错”的证明，而是能稳定阻止已知错误模式的证据。
+
+### 44.3 真实请求发现的两个逻辑错误
+
+第一，`evidence_relevance.py` 原来把书名号/引号中的制度名从主要关键词中
+排除。结果正确的供应商材料清单因不含“准备哪些”而被拒绝，无关运费文档
+却可能因共享“上限”而被接受。修复要求明确命名的文档能够匹配，且材料清单
+类请求可以先取得该文档；不同文档比较允许每次命中其中一个命名对象。
+显式年份和不存在的谓词仍不能靠标题单独证明。后续回答还要经过原来的安全
+和引用校验，不能把这一步的“相关”解释成“事实充分”。
+
+第二，`evidence_ledger.py` 用了每份文档独有的 `version_id` 分组冲突。
+不同文档即使属于同一政策、同一修订号也分到不同组。改为同政策 `version`
+比较，仍绑定同索引、租户、地区、权限范围、权威等级和相同数值句子模板。
+没有 policy_id 时不把不同文档随便归到一起。三条新增反例在修复前失败，
+相关 243 项回归修复后通过。但真实冲突场景还有评测设计问题：两份冲突文档
+被标为 supporting，而默认请求只取 authoritative，因此根本没送入比较器。
+这个场景继续计失败，不能宣称真实冲突验收通过，更不能偷偷修改标签抵消失败。
+
+### 44.4 为什么后来出现九次 503
+
+第二次完整服务实验中，默认策略连续九次返回 service_not_ready，尚未进入
+模型。代码显示周期健康检查等待整个 TTL 到期才开始下一次探测；探测本身
+需要时间，期间旧健康快照已经过期。这是一个可复现的可用性窗口。
+`ServingRuntimeResources.refresh_if_stale` 现在在半个 TTL 后请求已有后台
+线程提前刷新；真正过期、模型身份变化、检查失败仍然拒绝请求，没放宽过期
+门槛。测试先证明旧行为不提前刷新，再证明新行为提前唤醒且到期仍失败关闭。
+最后 80 个真实请求未再出现 503，但历史响应没有记录每个探测项的状态，
+因此不能武断地把九次错误的唯一原因都归给 TTL；也不能称做过长期压测。
+
+### 44.5 结果到底好在哪里，不好在哪里
+
+新应用准入协议下，WixQA Dense macro Recall@5 为 65.92%，raw20 为72.25%，
+raw50 为74.25%。共享 query embedding 不在该检索 p95 中；这些不是聊天时延，
+也不是旧协议66.42/72.50/74.50那一组数字。
+
+服务原始三轮通过数：Hybrid85/120、raw20 90/120、raw50 87/120。修复后
+Hybrid87/120（保留9次503），raw20 96/120。raw20净增6个重复配对通过，
+但也有11个改善、5个退化，不是每题都进步；p95从约1074ms升到1625ms。
+多事实/表格类别从Hybrid2/18到10/18，raw20从1/18到8/18，主要是原先
+被错误拦住的材料清单能够进入现有 search/open/answer 链路，不是重写了PDF解析。
+最后一轮健康修复确认是Hybrid32/40、raw20 31/40，不能拿一轮随机结果
+取代三轮评估。所有分子分母和失败都保存在公开导出包。
+
+表格中的事实经常已经完整送到模型，但模型改写关键数值句后被严格校验拦住，
+因此退回带引用的 partial。未知问题也可能得到无关但逐字有出处的回答。
+后续真正有价值的是单独设计问题主体/关系充分性协议和真实人工语义复核，
+而不是多加模型或无止境复测同一批问题。
+
+### 44.6 为什么没有把所有备选技术都加上
+
+Q1位图/selector原型更快，却改变并列分数下的TopK顺序，不满足无损替换，拒绝。
+Q2邻近补读没有新证据触发：已检查失败不是邻近事实缺失；先修相关性错误。
+Q3布局/表格解析的统计不能直接证明丢事实，未换解析器。Q4旧重试评估器过度
+触发，未开启默认重写。Q5没有核实可用的新独立数据；不能拿已经调过的题
+冒充盲测，也不能擅自消耗另一个任务的冻结测试标签。
+
+结论是保留默认Hybrid和可选raw20服务配置，raw50不因检索分数高就升全局默认。
+本轮公开775条记录去掉了完整回答、原文、JWT和个人路径；导出脚本检查输入
+hash、逐题与汇总一致性，并能逐字重放核对。简历使用外部检索指标和工程机制，
+不使用“80%真实企业问答准确率”“零幻觉”“生产SLA”之类没有证据的表述。

@@ -41,6 +41,26 @@ run can also emit a verifiable trajectory for replay and evaluation.
 
 ## Verified results
 
+### Current serving delivery (September 2026)
+
+The [runtime delivery report](docs/review/runtime_delivery_20260905/RESULTS.md)
+connects the retrieval experiment to a real authenticated API: Guard-before-
+reranker serving, delivered-evidence spans, active-index binding, bounded
+generation and early readiness refresh. `app.serving:create_app` exposes the
+opt-in GPU profiles; the global Hybrid default is unchanged.
+
+The new application-admission WixQA replay measured macro Recall@5
+`65.92% -> 72.25%` for Dense -> raw20, with raw50 reaching `74.25%`.
+These are consumed public-label retrieval results, separate from the historical
+protocols below. The service evidence retains **680 main requests across 40
+synthetic scenarios**, including failures, plus separate warmup/resource rows.
+It is not 680 independent questions or a human answer-accuracy claim.
+[Results and remaining failures](docs/review/runtime_delivery_20260905/RESULTS.md),
+[verifiable case checks](docs/review/runtime_delivery_20260905/service_cases.json),
+[metrics](docs/review/runtime_delivery_20260905/metrics.csv).
+
+### Historical external evidence
+
 | Result | Verified observation | Boundary |
 |---|---:|---|
 | WixQA retrieval | On 200 fixed ExpertWritten questions, BGE-M3 Dense improved Recall@5 `42.75% -> 66.42%` and nDCG@5 `32.15% -> 52.16%` | Public-label retrieval, not answer accuracy. [Evidence](docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json) |

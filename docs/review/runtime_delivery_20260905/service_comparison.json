@@ -1,0 +1,18 @@
+[
+  {
+    "gained": 10,
+    "missed": 25,
+    "pairs": 120,
+    "profile": "hybrid_default",
+    "regressed": 8,
+    "retained": 77
+  },
+  {
+    "gained": 11,
+    "missed": 19,
+    "pairs": 120,
+    "profile": "safe_dense_raw20_bge",
+    "regressed": 5,
+    "retained": 85
+  }
+]

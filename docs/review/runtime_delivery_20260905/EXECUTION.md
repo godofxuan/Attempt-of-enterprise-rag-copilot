@@ -2,6 +2,44 @@
 
 Status: IN_PROGRESS. This record does not claim RC0-RC7 are complete.
 
+## 2026-09-07 Final finite measurement completed
+
+Final local full regression: 3653 passed / 32 skipped, 189.28 s; XML SHA-256
+`7c9ff780cfdba3fefc5a748d2f84106e2fe272eab665769eaba0d7d511fa06cd`.
+After adding the retrieval arithmetic export test, focused public evidence
+suite: 6 passed. Service export replay: VERIFIED 775 rows. Retrieval export:
+800 rows, every aggregate and latency quantile checked. Final prepublication
+public scan: 1900 candidates / 0 findings. Ruff and git diff --check passed.
+
+Full code regression at c33484c: 3647 passed / 32 skipped, 202.06 s.
+Service baseline: 360 main + 15 warmup + 36 resource requests completed.
+Correctness repair: 240 main + 10 warmup + 24 resource requests completed.
+Repair Hybrid included nine service_not_ready 503s, retained as failures.
+Early-refresh deterministic reproduction: 1 failed / 4 passed before fix;
+207 related runtime/API/export tests passed afterward. Serving-only early
+refresh wakes the existing background worker at half TTL, without stale grace.
+Original resources.py is unchanged. The nine historical responses lack
+per-probe diagnostics; TTL expiry is a reproduced mechanism consistent with
+the burst, not an exclusive proven explanation of every historical failure.
+
+Final code 0bca953: 80 main + 10 warmup requests, zero 503s, one round each
+Hybrid/raw20, no extra concurrency test. Total 680 main, 35 warmup, 60
+resource = 775 exported observations. Application/harness stayed byte-stable
+during each run. Final complete contracts: Hybrid 32/40, raw20 31/40. Do not
+equate the final one-round smoke with the earlier three-round estimates.
+
+Exporter verification and public case/hash regression are added. No raw
+answers/evidence/JWTs are published. RESULTS.md records outcome, mechanisms,
+negative results, remaining subject-relevance failures and the supporting-only
+conflict-fixture design error. The fixture's failures remain in the denominator.
+No further model tuning is authorized inside this exhausted finite protocol.
+
+Code commits c33484c and 0bca953 pushed normally to main; old refs preserved.
+c33484c Windows, Ubuntu and PostgreSQL CI passed; container and final evidence
+commit CI/clean checkout/related-task final receipts still require verification.
+Initial resume correction ACK received: R11 was not overwritten or promoted.
+EvalOps ACK received: no RAG edits/GPU work; waits for final evidence.
+
 ## 2026-09-07 service baseline and bounded repair
 
 Quiescent full regression: 3641 passed, 30 skipped, 2 deselected in 236.26 s.
