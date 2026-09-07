@@ -25,6 +25,26 @@ def test_changed_model_does_not_silently_revalidate(monkeypatch):
         resources._probe_models(None)
 
 
+def test_active_requests_refresh_health_before_ttl_without_stale_grace(monkeypatch):
+    now = [0.0]
+    resources = ServingRuntimeResources(
+        Settings(_env_file=None, readiness_ttl_seconds=10), clock=lambda: now[0]
+    )
+    resources.started = True
+    resources._last_checked_at = 0.0
+    resources._snapshot = resources._unavailable_snapshot().model_copy(update={"status": "ready"})
+    refreshes = []
+    monkeypatch.setattr(resources, "refresh_in_background", lambda: refreshes.append(now[0]))
+    now[0] = 4.0
+    assert resources.refresh_if_stale().status == "ready"
+    assert refreshes == []
+    now[0] = 5.0
+    assert resources.refresh_if_stale().status == "ready"
+    assert refreshes == [5.0]
+    now[0] = 10.0
+    assert resources.refresh_if_stale().status == "not_ready"
+
+
 @pytest.mark.parametrize("defect", ["short_digest", "duplicate_alias"])
 def test_model_identity_probe_rejects_ambiguous_or_invalid_identity(monkeypatch, defect):
     settings = Settings(_env_file=None)

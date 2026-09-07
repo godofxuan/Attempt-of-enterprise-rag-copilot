@@ -13,6 +13,20 @@ class ServingRuntimeResources(RuntimeResources):
         super().__init__(*args, **kwargs)
         self._verified_model_digests = None
 
+    def refresh_if_stale(self):
+        with self._refresh_lock:
+            due = (
+                self.started
+                and not self.closed
+                and self._last_checked_at is not None
+                and self._clock() - self._last_checked_at
+                >= float(self.settings.readiness_ttl_seconds) / 2
+            )
+        # Wake the existing worker early; never extend a snapshot's validity.
+        if due:
+            self.refresh_in_background()
+        return super().refresh_if_stale()
+
     def _probe_models(self, index_info):
         if self._verified_model_digests is None:
             super()._probe_models(index_info)
