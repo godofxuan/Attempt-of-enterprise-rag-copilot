@@ -1,6 +1,48 @@
 # Runtime delivery execution record
 
-Status: IN_PROGRESS. This record does not claim RC0-RC7 are complete.
+Status: BOUNDED_DELIVERY_CLOSED_WITH_LIMITATIONS. Implementation, finite
+measurement, publication and four primary coordination receipts are complete.
+This does not turn failed quality cases or unverified live conflict acceptance
+into passing gates. Do not restart the exhausted experiments from older entries.
+
+## Release and coordination receipts
+
+- CODE_SHA `0bca9534fd0cf9d4b02d65c1c46de1a8fec67a4f`, CI 34089355411:
+  completed/success, Windows + Ubuntu + PostgreSQL + Linux container.
+- EVIDENCE_SHA `e276209bae4544ad54405a282448ab07cf01d8e5`, CI 34090622842:
+  completed/success for the same four jobs, including readiness failure,
+  rollback drill and runtime SBOM in the container job.
+- Independent detached clean checkout of EVIDENCE_SHA: 3650 passed / 36 skipped,
+  256.61 s; Git clean before and after. Four additional skips versus the
+  populated development workspace are private WixQA/UDA/FinQA data deliberately
+  absent from Git. Other skips include platform/symlink and local PostgreSQL
+  availability; the actual PostgreSQL path passed its separate CI job.
+- Clean-checkout XML SHA-256:
+  `b57c501c477430f46a378dd4eb8038fc329926422325d72e66bc7f6a464eacca`.
+- Existing portfolio_release verifier: five gates passed, clean exact main
+  identity at EVIDENCE_SHA; report SHA-256
+  `ffb0d48ea8ebf96a9082eca66c6118bedc5c171318baafee13baf8a4991d10e6`.
+- Both exports replayed from the clean checkout: VERIFIED 775 service rows and
+  VERIFIED 800 retrieval rows. Public numerical artifacts are not modified by
+  this later receipt update.
+
+| Recipient | Actual receipt, not merely a sent message |
+|---|---|
+| Resume maintenance | R12 published; four single-page PDFs passed its text/link/layout/180dpi QA; current pointer independently read back as R12 and all four SHA-256 values matched. R11 and submitted attachments retained. |
+| Teaching | Current breakpoint and course index updated with exact code/evidence, three protocols, failures, fixes and limitations; no claim the user has mastered the material. |
+| EvalOps | Independently verified exact Git-blob artifact/exporter hashes, all 87 CSV groups, both 120-pair comparisons and 800 retrieval rows. Status PUBLIC_ROWS_AND_AGGREGATES_VERIFIED only; no invented CaseResult or formal/private replay claim. |
+| Application control | Material-sync record written; future preparation reads the R12 pointer, historical PDFs and submission states remain unchanged; no automatic resubmission. |
+
+Exact private file paths and PDF hashes are kept in
+`.private/runtime_delivery/sync_receipts.json`, not copied into this public
+repository. The corresponding records were verified to exist. New resumes
+use repository-root URLs. Remote reads confirmed the five branches named in
+BRANCH_COMPATIBILITY.md, both portfolio tags and the collaborator's feature
+branch still exist. No ref was deleted, renamed or force-pushed in this delivery.
+The older codex/rag-eval-system ref is absent and is not one of those five;
+application control records its actual use by older attachments as unverified,
+not as a known-current link. A separate read-only historical-link check was
+sent to application monitoring; it is not permission to rewrite old submissions.
 
 ## 2026-09-07 Final finite measurement completed
 

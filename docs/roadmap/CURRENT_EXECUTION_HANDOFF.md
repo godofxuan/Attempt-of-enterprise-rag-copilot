@@ -3,8 +3,15 @@
 ## 2026-09-07 Current delivery evidence, not the older checkpoint below
 
 RC0-RC6 finite implementation/measurement is closed with explicit limitations.
-RC7 release/CI/receipts remain tracked in
+RC7 release/CI and four primary coordination receipts are complete; details in
 [EXECUTION.md](../review/runtime_delivery_20260905/EXECUTION.md).
+Code CI 34089355411 and evidence CI 34090622842 are fully successful. The
+evidence commit is e276209bae4544ad54405a282448ab07cf01d8e5; clean checkout
+passed 3650 tests / 36 skips and both exports matched. Resume maintenance
+published R12 and updated its pointer; teaching, EvalOps and application
+control returned concrete records. Preserve failed semantic cases and the
+NOT_VERIFIED live conflict fixture boundary. This finite delivery is closed,
+not production-certified; do not rerun it to chase a higher score.
 Current result entry: [RESULTS.md](../review/runtime_delivery_20260905/RESULTS.md).
 Latest measured app code: `0bca9534fd0cf9d4b02d65c1c46de1a8fec67a4f`.
 Do not restart the approved quality sweep: 680 main requests, 35 warmups,

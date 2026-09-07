@@ -1,8 +1,15 @@
 # Runtime correctness delivery: results and limits
 
-Status: LOCAL_EVIDENCE_COMPLETE; final release verification and cross-task
-receipts are tracked in EXECUTION.md. This is a bounded portfolio service,
+Status: BOUNDED_DELIVERY_CLOSED_WITH_LIMITATIONS; release verification and
+cross-task receipts are tracked in EXECUTION.md. This is a bounded portfolio service,
 not a production certification or a claim that every answer is correct.
+
+Measured application CI [34089355411](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/34089355411)
+and evidence-commit CI [34090622842](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/34090622842)
+both passed Windows, Ubuntu, PostgreSQL and Linux container gates. An independent
+clean checkout of the evidence commit passed 3650 tests with 36 explicit skips;
+both public exports replayed byte-for-byte. The later receipt commit does not
+change the measured application or immutable numeric artifacts.
 
 ## Decision
 
