@@ -1,5 +1,54 @@
 # Enterprise Agentic RAG v2 - Current Execution Handoff
 
+## 2026-09-05 Runtime correctness delivery in progress
+
+The current bounded plan is
+[Runtime correctness and reranker delivery](runtime_correctness_delivery_plan_20260905.md).
+It is `IN_PROGRESS`: baseline captured, RC1 routing slice implemented, RC2
+delivered-evidence/packing/grounding slices under verification. RC3-RC7 are
+not complete. The source/artifact audit at
+`d27c0f8a68830fd74bbb983567e8b4d50967c0ae` is recorded in
+[Project review](../review/2026-09-05_PROJECT_REVIEW.md).
+
+Latest completed local full checkpoint: 3588 passed, 30 skipped, 2 integration
+tests deselected, 239.57 s. Includes capacity/fault and navigation-binding tests.
+Public scan: 1876 candidates / 0 findings. No required command remains running.
+Optional safe raw20/raw50 reranking is wired through versioned serving
+admission; default remains unchanged. Historical admission bytes are preserved
+for exact replay. In-process warmup and lighter periodic readiness are now
+implemented. Real authenticated GPU API smoke v6 answers the reproduced
+remote-work question with an exact supporting span; missing identity is 401
+and secret disclosure is rejected with zero retrieval. See
+[API and navigation diagnosis](../review/runtime_delivery_20260905/API_AND_NAVIGATION_REPAIR.md)
+for failures v1-v5 and limits. Real paired service evaluation remains open.
+Bounded numeric conflict handling, final-outcome
+trace and version-bound serving cache/publication checks are included.
+Two spawned processes observe activation and rollback without cache messages;
+deleted-target and mid-generation switch tests pass. Remaining RC2 work and RC3-RC7 requirements are
+listed in the execution record. RC6-B completed 800 real retrieval rows on
+the consumed WixQA 200 cohort: Dense/Raw20/Raw50 macro Recall@5 is
+65.9167%/72.25%/74.25%. See
+[exact protocol and results](../review/runtime_delivery_20260905/RETRIEVAL_RESULTS.md).
+These are not answer accuracy or independent test results. No GitHub release
+has been produced by this execution checkpoint; defaults remain unchanged.
+
+See [live execution record](../review/runtime_delivery_20260905/EXECUTION.md)
+for exact tests and remaining acceptance work. Priorities are critical-claim support,
+benign-query routing, active-index/serving consistency, truthful provenance,
+and actual optional BGE reranker integration through the main chat API.
+Historical retrieval gains remain valid within their stated scope; the new
+plan does not label them as end-to-end answer accuracy or claim integration
+has already shipped. Keep the older handoffs below as historical records.
+
+The same-day second review is incorporated in plan v1.1. It adds R7-R12:
+prompt/aspect coverage, a shared search/open verification evidence packet,
+conflict classification, final-outcome trace consistency, candidate-versus-Top-5
+diagnostics, and a conditional exact-search capacity benchmark. RC2 now has
+four sub-deliverables; Q1-Q5 have explicit investigation/adoption/stop rules.
+Five synthetic component probes and 78 related existing tests were run; this
+did not mark RC0 or any business fix complete. See the supplemental section
+of the same review report and the probe script linked from it.
+
 ## 2026-08-02 FinQA Gate E12 handoff
 
 E12 completed with decision

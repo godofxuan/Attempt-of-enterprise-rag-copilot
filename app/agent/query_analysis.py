@@ -42,8 +42,8 @@ _RISK_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
         "credential_exfiltration",
         re.compile(
             r"(?:管理员\s*)?(?:密码|凭证|密钥)"
-            r"|\bapi[\s_-]*key\b|\badmin(?:istrator)?\s+password\b"
-            r"|\baccess\s+token\b|\bsecret\s+key\b",
+            r"|\bapi[\s_-]*key\b|\bpasswords?\b|\bcredentials?\b"
+            r"|\b(?:access\s+)?tokens?\b|\bsecret\s+key\b",
             re.IGNORECASE,
         ),
     ),
@@ -67,6 +67,30 @@ _RISK_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
             re.IGNORECASE,
         ),
     ),
+)
+
+_CREDENTIAL_PROCEDURE = re.compile(
+    r"重置|找回|忘记密码|修改密码|轮换|撤销|密钥管理|密码策略"
+    r"|\b(?:reset|rotate|rotation|revoke|password policy)\b",
+    re.IGNORECASE,
+)
+_SECRET_DISCLOSURE = re.compile(
+    r"发给|给我|泄露|导出|打印|明文|当前密码|实际密钥|读取|窃取|告诉我"
+    r"|\b(?:reveal|expose|dump|leak|export|print|send|give|retrieve|display|read|tell)\b"
+    r"|\bshow\s+me\b",
+    re.IGNORECASE,
+)
+_VOUCHER_CONTEXT = re.compile(r"报销|发票|票据|会计|记账|财务")
+_OTHER_SECRET_TOPIC = re.compile(
+    r"密码|密钥|口令|令牌|身份凭证|登录凭证|认证凭证"
+    r"|\b(?:passwords?|credentials?|tokens?|api[\s_-]*key|secret[\s_-]*key)\b",
+    re.IGNORECASE,
+)
+_CREDENTIAL_CLAUSE_BOUNDARY = re.compile(
+    r"[,;，；。！？\n]|然后|并且|\b(?:and|then|but)\b", re.IGNORECASE
+)
+_GUIDANCE_PREFIX = re.compile(
+    r"\b(?:show|tell)\s+me\s+(?=how\b)|告诉我(?=如何|怎么)", re.IGNORECASE
 )
 
 _COMPARISON_KEYWORDS = (
@@ -230,9 +254,7 @@ class RuleFirstQueryAnalyzer:
         temporal_is_explicit: bool,
     ) -> QueryAnalysis:
         try:
-            candidate = QueryAnalysis.model_validate(
-                self.fallback.analyze(question, user)
-            )
+            candidate = QueryAnalysis.model_validate(self.fallback.analyze(question, user))
             if candidate.original_question != question:
                 return deterministic
             if candidate.intent == "unsafe":
@@ -300,7 +322,27 @@ def _rules_analysis(
 
 
 def _risk_flags(question: str) -> list[str]:
-    return [name for name, pattern in _RISK_RULES if pattern.search(question)]
+    return [
+        name
+        for name, pattern in _RISK_RULES
+        if pattern.search(question)
+        and (name != "credential_exfiltration" or _credential_request_is_unsafe(question))
+    ]
+
+
+def _credential_request_is_unsafe(question: str) -> bool:
+    sensitive_clauses = [
+        clause
+        for clause in _CREDENTIAL_CLAUSE_BOUNDARY.split(question)
+        if ("凭证" in clause or _OTHER_SECRET_TOPIC.search(clause))
+        and not (_VOUCHER_CONTEXT.search(clause) and not _OTHER_SECRET_TOPIC.search(clause))
+    ]
+    if not sensitive_clauses:
+        return False
+    # Procedure intent is not an authorization grant; mixed disclosure stays unsafe.
+    if _SECRET_DISCLOSURE.search(_GUIDANCE_PREFIX.sub("", question)):
+        return True
+    return any(not _CREDENTIAL_PROCEDURE.search(clause) for clause in sensitive_clauses)
 
 
 def _compact(text: str) -> str:
@@ -349,9 +391,7 @@ def _comparison_entities(question: str, quoted: list[str]) -> list[str]:
         match = pattern.search(question)
         if match is None:
             continue
-        extracted.extend(
-            [_clean_entity(match.group("left")), _clean_entity(match.group("right"))]
-        )
+        extracted.extend([_clean_entity(match.group("left")), _clean_entity(match.group("right"))])
         break
     return _unique(
         [entity for entity in extracted if _useful_entity(entity)],
@@ -404,11 +444,7 @@ def _comparison_queries(
     queries: list[str] = []
     for entity in entities[:4]:
         matching = next(
-            (
-                query
-                for query in candidate_queries
-                if entity.casefold() in query.casefold()
-            ),
+            (query for query in candidate_queries if entity.casefold() in query.casefold()),
             entity,
         )
         queries.append(matching)

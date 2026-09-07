@@ -1,0 +1,50 @@
+{
+  "protocol_id": "runtime-delivery-wixqa-B-v2",
+  "status": "FROZEN_BEFORE_RUN",
+  "claim_boundary": "CONSUMED_RETROSPECTIVE_RETRIEVAL_NOT_ANSWER_ACCURACY",
+  "candidate_artifact_sha256": "73d5f994b6553e823914ccc98c247e1c953bfa81c2c90a1a97b67db26595f136",
+  "index_manifest_sha256": "e6b5f2a9e6e91e47f3601c015d4309742abbacd3c30343814ed60ca5da038ad9",
+  "question_ids_sha256": "ec11e3e4733bd6701441b127952fa98b0973f9961a0aacabfae570da45976110",
+  "case_count": 200,
+  "profiles": [
+    "hybrid_default",
+    "dense_reference",
+    "safe_dense_raw20_bge",
+    "safe_dense_raw50_bge"
+  ],
+  "candidate_k": 200,
+  "top_k": 5,
+  "seed": 20260905,
+  "max_query_profile_results": 800,
+  "question_order": "original frozen candidate artifact order",
+  "profile_order": "rotate profile order by question ordinal modulo four",
+  "embedding": "bge-m3",
+  "embedding_sha256": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+  "reranker": "BAAI/bge-reranker-v2-m3",
+  "reranker_revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+  "reranker_device": "cuda",
+  "reranker_precision": "float16",
+  "batch_size": 16,
+  "max_length": 512,
+  "warmup": "one synthetic scorer readiness call; excluded and reported",
+  "latency": "serial retrieval/admission/scoring; shared query embedding timed separately; not API SLA",
+  "guard": "full serving matched/metadata/split scans, not legacy body-only evaluator",
+  "adapter": "exact old vectors, BM25 and chunk text; benchmark-only ACL/version; no document open",
+  "metrics": [
+    "macro_article_recall_at_5",
+    "hit_at_1",
+    "hit_at_5",
+    "ndcg_at_5",
+    "mrr_at_5",
+    "all_gold_at_5"
+  ],
+  "failure_policy": "record empty ranking as zero; abort on artifact identity change; no replacement questions",
+  "promotion": "none from this retrieval-only replay; requires service validation",
+  "supersedes": "v1 aborted after 267 rows due duplicate context charging; failed rows preserved",
+  "execution_budget_deviation": {
+    "aborted_rows": 267,
+    "new_run_rows": 800,
+    "total_rows_cap": 1067,
+    "reason": "single correctness repair, no question or ranking-parameter changes"
+  }
+}

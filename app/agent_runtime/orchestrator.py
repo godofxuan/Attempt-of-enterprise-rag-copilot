@@ -76,9 +76,7 @@ class AgentRunResult(_StrictModel):
 
     @model_validator(mode="after")
     def validate_status_shape(self) -> AgentRunResult:
-        if self.status == "completed" and (
-            self.response is None or self.human_review is not None
-        ):
+        if self.status == "completed" and (self.response is None or self.human_review is not None):
             raise ValueError("completed run requires response only")
         if self.status == "needs_human_review" and (
             self.response is not None or self.human_review is None
@@ -776,7 +774,17 @@ def _complete_trajectory(
     for citation in response.citations:
         recorder.record(
             "citation.checked",
-            payload=citation.model_dump(mode="json"),
+            payload={
+                "claim_id": citation.claim_id,
+                "cited_chunk_ids": citation.cited_chunk_ids,
+                "citation_present": citation.citation_present,
+                "references_visible_evidence": citation.references_visible_evidence,
+                "lexical_support": citation.lexical_support,
+                "supported": citation.supported,
+                "unsupported_reason": citation.unsupported_reason,
+                "support_kind": citation.support_kind,
+                "supporting_span_count": len(citation.supporting_spans),
+            },
         )
     recorder.record(
         "terminal.reached",

@@ -35,9 +35,12 @@ inside the weaker `MULTI_DOC_INCOMPLETE` category.
 | `WRONG_DOCUMENT` | 58 | 12.34% |
 | `OK` | 200 | 42.55% |
 
-The primary bottleneck is zero-recall retrieval, not ranking. A cross-encoder can
-only reorder retrieved candidates and therefore cannot recover the 153 cases
-whose gold evidence never reaches top 5.
+The 153 cases have no gold evidence in the final top 5. This alone does not
+establish whether candidate recall or ranking is the primary bottleneck.
+A cross-encoder can recover a final-top-5 miss when the gold evidence is present
+in its larger candidate pool; it cannot recover evidence absent from that pool.
+Candidate-pool Recall@N must therefore be measured before estimating how many
+of these cases reranking can recover. The counts above are unchanged.
 
 ## Category evidence
 

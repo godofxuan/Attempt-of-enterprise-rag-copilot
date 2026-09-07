@@ -105,7 +105,14 @@ are not erased or presented as the corrected online latency.
 
 The corrected evidence is
 [raw_chunk_guard_final_latency_evidence.json](raw_chunk_guard_final_latency_evidence.json)
-(SHA-256 `043f043ccc67ba7aff6f78e7512bfe3a02d3f37dc45a0ee26876821cad5183d7`).
+(Git-published LF bytes SHA-256
+`287f8a20426256061f2d3b824e96ce79108e22e83fac5209b9078b52849dd2d0`).
+The previously listed `043f043ccc67ba7aff6f78e7512bfe3a02d3f37dc45a0ee26876821cad5183d7`
+identified a CRLF working copy, not the Git blob. The JSON values are unchanged;
+this is a byte-identity correction, not a new experiment.
+The old Dense 44.41 ms in the historical table was not remeasured under the
+corrected continuous-latency protocol. Do not use it to calculate a matched
+latency ratio against the corrected 302.75/680.86 ms measurements.
 The exact correction command is preserved in the artifact's `argv` field.
 Historical public evidence did not retain exact shell argv, so this document
 does not reconstruct or invent it.

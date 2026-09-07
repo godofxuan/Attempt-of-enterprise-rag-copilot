@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
+from decimal import Decimal
 from typing import Literal
 
 from app.domain.evidence import EvidenceItem, EvidenceLedger
+from app.domain.evidence_packet import SOURCE_UNIT_END
 from app.domain.queries import QueryAnalysis
 from app.domain.retrieved_security import AdmittedEvidenceChunk
-
 
 EvidenceByAspect = Mapping[str, Sequence[AdmittedEvidenceChunk]]
 NavigationAction = Literal["search", "find", "open"]
@@ -25,7 +27,8 @@ def build_ledger(
         raise ValueError("unsafe analysis cannot build an evidence ledger")
     if not analysis.required_aspects:
         raise ValueError("analysis requires at least one required aspect")
-    conflicts = conflicts or {}
+    detected_conflicts = conflicts is None
+    conflicts = _numeric_conflicts(evidence_by_aspect) if detected_conflicts else conflicts
     required = analysis.required_aspects
     required_set = set(required)
     supplied_aspects = set(evidence_by_aspect) | set(conflicts)
@@ -43,22 +46,15 @@ def build_ledger(
         supporting_hits = _unique_hits(evidence_by_aspect.get(aspect, ()))
         conflicting_hits = _unique_hits(conflicts.get(aspect, ()))
         visible_count += len(supporting_hits) + len(conflicting_hits)
-        items.extend(
-            _to_item(aspect, hit, relation="supports")
-            for hit in supporting_hits
-        )
-        items.extend(
-            _to_item(aspect, hit, relation="conflicts")
-            for hit in conflicting_hits
-        )
+        items.extend(_to_item(aspect, hit, relation="supports") for hit in supporting_hits)
+        items.extend(_to_item(aspect, hit, relation="conflicts") for hit in conflicting_hits)
 
         if not supporting_hits:
             if conflicting_hits:
                 conflicting_aspects.append(aspect)
             continue
-        if conflicting_hits and not _priority_resolves(
-            supporting_hits,
-            conflicting_hits,
+        if conflicting_hits and (
+            detected_conflicts or not _priority_resolves(supporting_hits, conflicting_hits)
         ):
             conflicting_aspects.append(aspect)
             continue
@@ -67,9 +63,7 @@ def build_ledger(
     if denied_only and visible_count:
         raise ValueError("denied_only cannot include visible evidence")
 
-    missing_aspects = [
-        aspect for aspect in required if aspect not in supported_aspects
-    ]
+    missing_aspects = [aspect for aspect in required if aspect not in supported_aspects]
     coverage = len(supported_aspects) / len(required)
     if coverage == 1.0 and not conflicting_aspects:
         recommended_action = "answer"
@@ -105,6 +99,57 @@ def _unique_hits(
             continue
         seen.add(evidence.hit.chunk_id)
         result.append(evidence)
+    return result
+
+
+def _numeric_conflicts(
+    evidence_by_aspect: EvidenceByAspect,
+) -> dict[str, list[AdmittedEvidenceChunk]]:
+    """Only same-scope, same-template single-value facts are comparable here."""
+    result: dict[str, list[AdmittedEvidenceChunk]] = {}
+    number_pattern = re.compile(r"(?<![A-Za-z0-9_.])\d+(?:\.\d+)?(?![\d.])")
+    unit_pattern = re.compile(
+        r"^\s*(?:days?\b|hours?\b|weeks?\b|months?\b|yuan\b|%|天|日|小时|元)", re.I
+    )
+    for aspect, evidence_values in evidence_by_aspect.items():
+        groups: dict[tuple, list[tuple[Decimal, AdmittedEvidenceChunk]]] = {}
+        for evidence in evidence_values:
+            hit = evidence.hit
+            if hit.status != "active":
+                continue
+            start = 0
+            ends = [match.end() for match in SOURCE_UNIT_END.finditer(hit.matched_text)]
+            if not ends or ends[-1] != len(hit.matched_text):
+                ends.append(len(hit.matched_text))
+            for end in ends:
+                sentence = hit.matched_text[start:end].strip()
+                start = end
+                numbers = list(number_pattern.finditer(sentence))
+                if len(numbers) != 1:
+                    continue
+                number = numbers[0]
+                if not unit_pattern.match(sentence[number.end() :]):
+                    continue
+                template = sentence[: number.start()] + "<value>" + sentence[number.end() :]
+                key = (
+                    hit.index_run_id,
+                    hit.policy_id or ("document", hit.doc_id),
+                    hit.version,
+                    hit.tenant_id,
+                    hit.region,
+                    tuple(sorted(hit.acl_groups)),
+                    hit.authority_level,
+                    " ".join(template.split()).casefold(),
+                )
+                groups.setdefault(key, []).append((Decimal(number.group()), evidence))
+        conflicting = [
+            evidence
+            for values in groups.values()
+            if len({value for value, _ in values}) > 1
+            for _, evidence in values
+        ]
+        if conflicting:
+            result[aspect] = _unique_hits(conflicting)
     return result
 
 

@@ -46,3 +46,37 @@ def test_entity_only_query_can_use_entity_match() -> None:
     )
 
     assert has_query_anchor_support(query, hit) is True
+
+
+def test_named_policy_cannot_be_replaced_by_shared_limit_word() -> None:
+    hit = admitted_search_hit(
+        matched_text="Freight policy: shipping limit is 100 yuan.",
+        context_text="Freight policy: shipping limit is 100 yuan.",
+    )
+    assert not has_query_anchor_support('What is the limit in "Courier reimbursement"?', hit)
+
+
+def test_named_policy_complete_list_can_match_without_generic_request_words() -> None:
+    hit = admitted_search_hit(
+        matched_text="Supplier onboarding. Business license and bank certificate.",
+        context_text="Supplier onboarding. Business license and bank certificate.",
+    )
+    assert has_query_anchor_support('Give the complete list for "Supplier onboarding".', hit)
+
+
+def test_named_policy_does_not_establish_unmentioned_predicate() -> None:
+    hit = admitted_search_hit(
+        matched_text="Supplier onboarding. Business license and bank certificate.",
+        context_text="Supplier onboarding. Business license and bank certificate.",
+    )
+    assert not has_query_anchor_support('Does "Supplier onboarding" waive inspections?', hit)
+
+
+def test_list_comparison_can_retrieve_one_named_document_at_a_time() -> None:
+    hit = admitted_search_hit(
+        matched_text="Supplier onboarding. Business license and bank certificate.",
+        context_text="Supplier onboarding. Business license and bank certificate.",
+    )
+    assert has_query_anchor_support(
+        'Compare the complete list for "Supplier onboarding" and "Employee onboarding".', hit
+    )

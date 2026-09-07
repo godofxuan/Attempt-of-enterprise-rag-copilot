@@ -32,7 +32,6 @@ from app.domain.retrieved_security import (
     GuardedV2ToolExecution,
 )
 
-
 ClockMs = Callable[[], float]
 
 
@@ -43,9 +42,7 @@ class ControllerState(BaseModel):
     user: UserContext
     top_k: int = Field(ge=1, le=20)
     budget_state: BudgetState
-    evidence_by_aspect: dict[str, list[AdmittedEvidenceChunk]] = Field(
-        default_factory=dict
-    )
+    evidence_by_aspect: dict[str, list[AdmittedEvidenceChunk]] = Field(default_factory=dict)
     attempted_search_aspects: list[str] = Field(default_factory=list)
     opened_doc_ids: list[str] = Field(default_factory=list)
     open_results: list[AdmittedOpenResult] = Field(default_factory=list)
@@ -143,9 +140,7 @@ class V2AgentController:
         if open_decision is not None:
             return open_decision
 
-        if state.security_filtered_signal and not _all_visible_hits(
-            state.evidence_by_aspect
-        ):
+        if state.security_filtered_signal and not _all_visible_hits(state.evidence_by_aspect):
             return _terminal(
                 sequence,
                 tool="stop",
@@ -161,6 +156,14 @@ class V2AgentController:
             and not _all_visible_hits(state.evidence_by_aspect),
             budget_exhausted=self._hard_budget_exhausted(state),
         )
+        if ledger.conflicting_aspects:
+            return _terminal(
+                sequence,
+                tool="answer",
+                mode="partial",
+                stop_reason="partial_evidence",
+                purpose="return unresolved conflicting evidence without choosing a winner",
+            )
         if ledger.recommended_action == "answer":
             return _terminal(
                 sequence,
@@ -223,13 +226,8 @@ class V2AgentController:
         execution: GuardedV2ToolExecution,
     ) -> ControllerState:
         if not isinstance(execution, GuardedV2ToolExecution):
-            raise TypeError(
-                "Controller.observe requires a guarded tool execution"
-            )
-        evidence = {
-            aspect: list(hits)
-            for aspect, hits in state.evidence_by_aspect.items()
-        }
+            raise TypeError("Controller.observe requires a guarded tool execution")
+        evidence = {aspect: list(hits) for aspect, hits in state.evidence_by_aspect.items()}
         attempted = list(state.attempted_search_aspects)
         opened_doc_ids = list(state.opened_doc_ids)
         open_results = list(state.open_results)
@@ -363,8 +361,7 @@ class V2AgentController:
             if raw_hit.doc_id in state.opened_doc_ids:
                 continue
             remaining = (
-                state.budget_state.budget.max_context_chars
-                - state.budget_state.context_chars
+                state.budget_state.budget.max_context_chars - state.budget_state.context_chars
             )
             if remaining <= 0:
                 return None
@@ -442,10 +439,7 @@ def _validated_state(
     state: ControllerState,
     **updates,
 ) -> ControllerState:
-    values = {
-        field_name: getattr(state, field_name)
-        for field_name in ControllerState.model_fields
-    }
+    values = {field_name: getattr(state, field_name) for field_name in ControllerState.model_fields}
     values.update(updates)
     return ControllerState(**values)
 

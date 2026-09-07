@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import platform
 import random
 import statistics
@@ -29,8 +30,37 @@ from scripts.eval_wixqa_raw_chunk_guard_ablation import (
     _summary,
 )
 
-
 DEPTH_TO_QUALITY_ARM = {20: "A2_RAW20_GUARD_ON", 50: "A4_RAW50_GUARD_ON"}
+
+
+def _quality_rule_passed(quality: dict[str, Any]) -> bool:
+    keys = ("article_recall_at_5", "ndcg_at_5", "mrr_at_5", "multi_article_completeness_at_5")
+    arms = quality["arms"]
+    left = arms[DEPTH_TO_QUALITY_ARM[20]]["metrics"]
+    right = arms[DEPTH_TO_QUALITY_ARM[50]]["metrics"]
+    values = [float(row[key]) for row in (left, right) for key in keys]
+    if any(not math.isfinite(value) or not 0 <= value <= 1 for value in values):
+        raise ValueError("quality metrics must be finite proportions")
+    gains = [float(right[key]) - float(left[key]) for key in keys]
+    return any(value > 0 for value in gains) and all(value >= -0.005 for value in gains[:3])
+
+
+def _git_state() -> dict[str, Any]:
+    root = Path(__file__).resolve().parents[1]
+
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=root).decode("utf-8").strip()
+
+    files = git("ls-files", "--cached", "--others", "--exclude-standard", "app", "scripts")
+    hashes = {
+        name: _sha256_file(root / name) if (root / name).is_file() else None
+        for name in sorted(set(files.splitlines()))
+    }
+    return {
+        "sha": git("rev-parse", "HEAD"),
+        "dirty": bool(git("status", "--porcelain")),
+        "source_sha256": _sha256_bytes(json.dumps(hashes, sort_keys=True).encode()),
+    }
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -75,20 +105,37 @@ def _assert_candidate_identity(*, frozen: list[dict[str, Any]], live: list[dict[
         raise RuntimeError("CANDIDATE_IDENTITY_MISMATCH")
 
 
-def _load_model(*, model_path: Path, device_name: str, torch: Any, tokenizer_type: Any, model_type: Any):
+def _load_model(
+    *, model_path: Path, device_name: str, torch: Any, tokenizer_type: Any, model_type: Any
+):
     if not device_name.startswith("cuda") or not torch.cuda.is_available():
         raise RuntimeError("online latency correction requires the requested CUDA device")
-    if not (model_path / "model.safetensors").is_file() or not (model_path / "config.json").is_file():
+    if (
+        not (model_path / "model.safetensors").is_file()
+        or not (model_path / "config.json").is_file()
+    ):
         raise FileNotFoundError("reranker snapshot is incomplete")
     device = torch.device(device_name)
     torch.cuda.set_device(device)
     tokenizer = tokenizer_type.from_pretrained(model_path, local_files_only=True)
-    model = model_type.from_pretrained(model_path, local_files_only=True, dtype=torch.float16).to(device)
+    model = model_type.from_pretrained(model_path, local_files_only=True, dtype=torch.float16).to(
+        device
+    )
     model.eval()
     return tokenizer, model, device
 
 
-def _score_pairs(*, question: str, texts: list[str], tokenizer: Any, model: Any, torch: Any, device: Any, batch_size: int, max_length: int) -> list[float]:
+def _score_pairs(
+    *,
+    question: str,
+    texts: list[str],
+    tokenizer: Any,
+    model: Any,
+    torch: Any,
+    device: Any,
+    batch_size: int,
+    max_length: int,
+) -> list[float]:
     scores: list[float] = []
     with torch.inference_mode():
         for start in range(0, len(texts), batch_size):
@@ -99,7 +146,14 @@ def _score_pairs(*, question: str, texts: list[str], tokenizer: Any, model: Any,
                 max_length=max_length,
                 return_tensors="pt",
             ).to(device)
-            scores.extend(float(value) for value in model(**inputs, return_dict=True).logits.view(-1).float().cpu().tolist())
+            scores.extend(
+                float(value)
+                for value in model(**inputs, return_dict=True)
+                .logits.view(-1)
+                .float()
+                .cpu()
+                .tolist()
+            )
     return scores
 
 
@@ -119,7 +173,18 @@ def _measure_profile(
     expected_signatures: dict[str, dict[str, list[str]]],
     record: bool,
 ) -> tuple[dict[str, Any], dict[str, dict[str, list[str]]]]:
-    stages = {name: [] for name in ("embedding_ms", "raw_faiss_ms", "candidate_slice_ms", "guard_ms", "reranker_ms", "dedup_ms", "total_ms")}
+    stages = {
+        name: []
+        for name in (
+            "embedding_ms",
+            "raw_faiss_ms",
+            "candidate_slice_ms",
+            "guard_ms",
+            "reranker_ms",
+            "dedup_ms",
+            "total_ms",
+        )
+    }
     signatures: dict[str, dict[str, list[str]]] = {}
     quarantine_count = 0
     for ordinal, case in enumerate(cases, start=1):
@@ -140,14 +205,23 @@ def _measure_profile(
         guard_started = time.perf_counter()
         admitted, diagnostic = _guard_scan(candidates=subset, guard=guard)
         guard_ms = (time.perf_counter() - guard_started) * 1000.0
-        if diagnostic["input_chunks"] != diagnostic["admitted_chunks"] + diagnostic["quarantined_chunks"]:
+        if (
+            diagnostic["input_chunks"]
+            != diagnostic["admitted_chunks"] + diagnostic["quarantined_chunks"]
+        ):
             raise AssertionError("Guard accounting invariant failed")
         quarantine_count += int(diagnostic["quarantined_chunks"])
 
         reranker_started = time.perf_counter()
         scores = _score_pairs(
-            question=case["question"], texts=[item["text"] for item in admitted], tokenizer=tokenizer,
-            model=model, torch=torch, device=device, batch_size=batch_size, max_length=max_length,
+            question=case["question"],
+            texts=[item["text"] for item in admitted],
+            tokenizer=tokenizer,
+            model=model,
+            torch=torch,
+            device=device,
+            batch_size=batch_size,
+            max_length=max_length,
         )
         reranker_ms = (time.perf_counter() - reranker_started) * 1000.0
 
@@ -161,18 +235,28 @@ def _measure_profile(
         total_ms = (time.perf_counter() - total_started) * 1000.0
         if record:
             for name, value in (
-                ("embedding_ms", embedding_ms), ("raw_faiss_ms", faiss_ms),
-                ("candidate_slice_ms", candidate_slice_ms), ("guard_ms", guard_ms),
-                ("reranker_ms", reranker_ms), ("dedup_ms", dedup_ms), ("total_ms", total_ms),
+                ("embedding_ms", embedding_ms),
+                ("raw_faiss_ms", faiss_ms),
+                ("candidate_slice_ms", candidate_slice_ms),
+                ("guard_ms", guard_ms),
+                ("reranker_ms", reranker_ms),
+                ("dedup_ms", dedup_ms),
+                ("total_ms", total_ms),
             ):
                 stages[name].append(value)
         if ordinal in {1, len(cases)} or ordinal % 50 == 0:
             print(f"depth {depth}: measured {ordinal}/{len(cases)}", flush=True)
-    return ({name: _summary(values) for name, values in stages.items()} if record else {"quarantined_chunks": quarantine_count}, signatures)
+    return (
+        {name: _summary(values) for name, values in stages.items()}
+        if record
+        else {"quarantined_chunks": quarantine_count},
+        signatures,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    git_before = _git_state()
     if args.batch_size != 16 or args.max_length != 512:
         raise SystemExit("frozen erratum requires batch size 16 and max length 512")
     if args.output.resolve().exists() or args.public_output.resolve().exists():
@@ -181,13 +265,33 @@ def main(argv: list[str] | None = None) -> int:
     candidates = json.loads(candidate_bytes)
     quality_bytes = args.quality_artifact.resolve().read_bytes()
     quality = json.loads(quality_bytes)
-    if candidates["case_count"] != 200 or quality["candidate_artifact_sha256"] != _sha256_bytes(candidate_bytes):
+    quality_passed = _quality_rule_passed(quality)
+    model_hash = _sha256_file(args.model_path.resolve() / "model.safetensors")
+    if model_hash != quality["reranker"]["model_safetensors_sha256"]:
+        raise ValueError("local weights differ from frozen quality evidence")
+    if quality["reranker"]["revision"] != MODEL_REVISION:
+        raise ValueError("quality evidence uses a different model revision")
+    if candidates["case_count"] != 200 or quality["candidate_artifact_sha256"] != _sha256_bytes(
+        candidate_bytes
+    ):
         raise ValueError("frozen candidate artifact does not match quality evidence")
     index = load_wixqa_flat_index(args.index_root)
-    if hashlib.sha256((args.index_root / "versions" / index.manifest.run_id / "manifest.json").read_bytes()).hexdigest() != candidates["index_manifest_sha256"]:
+    if (
+        hashlib.sha256(
+            (args.index_root / "versions" / index.manifest.run_id / "manifest.json").read_bytes()
+        ).hexdigest()
+        != candidates["index_manifest_sha256"]
+    ):
         raise ValueError("loaded index differs from frozen candidate artifact")
-    client = OllamaEmbeddingClient.from_settings(get_settings(), probe_text="WixQA online latency probe", endpoint_context="WixQA online latency")
-    if client.model_identifier != candidates["embedding_model"] or client.model_sha256 != candidates["embedding_model_sha256"]:
+    client = OllamaEmbeddingClient.from_settings(
+        get_settings(),
+        probe_text="WixQA online latency probe",
+        endpoint_context="WixQA online latency",
+    )
+    if (
+        client.model_identifier != candidates["embedding_model"]
+        or client.model_sha256 != candidates["embedding_model_sha256"]
+    ):
         raise ValueError("online query embedding identity differs from frozen candidate artifact")
 
     import torch
@@ -198,7 +302,13 @@ def main(argv: list[str] | None = None) -> int:
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
     load_started = time.perf_counter()
-    tokenizer, model, device = _load_model(model_path=args.model_path.resolve(), device_name=args.device, torch=torch, tokenizer_type=AutoTokenizer, model_type=AutoModelForSequenceClassification)
+    tokenizer, model, device = _load_model(
+        model_path=args.model_path.resolve(),
+        device_name=args.device,
+        torch=torch,
+        tokenizer_type=AutoTokenizer,
+        model_type=AutoModelForSequenceClassification,
+    )
     model_load_ms = (time.perf_counter() - load_started) * 1000.0
     guard = RetrievedContentGuard()
     expected = {
@@ -214,57 +324,160 @@ def main(argv: list[str] | None = None) -> int:
 
     # Fixed five-case warm-up verifies the real path but contributes no timing data.
     for depth in DEPTH_TO_QUALITY_ARM:
-        _measure_profile(cases=candidates["cases"][:5], depth=depth, index=index, client=client, guard=guard, tokenizer=tokenizer, model=model, torch=torch, device=device, batch_size=args.batch_size, max_length=args.max_length, expected_signatures=expected[depth], record=False)
+        _measure_profile(
+            cases=candidates["cases"][:5],
+            depth=depth,
+            index=index,
+            client=client,
+            guard=guard,
+            tokenizer=tokenizer,
+            model=model,
+            torch=torch,
+            device=device,
+            batch_size=args.batch_size,
+            max_length=args.max_length,
+            expected_signatures=expected[depth],
+            record=False,
+        )
 
     profiles: dict[str, Any] = {}
     for depth in DEPTH_TO_QUALITY_ARM:
         run_rows = []
         for run in range(1, 4):
-            measured, signatures = _measure_profile(cases=candidates["cases"], depth=depth, index=index, client=client, guard=guard, tokenizer=tokenizer, model=model, torch=torch, device=device, batch_size=args.batch_size, max_length=args.max_length, expected_signatures=expected[depth], record=True)
+            measured, signatures = _measure_profile(
+                cases=candidates["cases"],
+                depth=depth,
+                index=index,
+                client=client,
+                guard=guard,
+                tokenizer=tokenizer,
+                model=model,
+                torch=torch,
+                device=device,
+                batch_size=args.batch_size,
+                max_length=args.max_length,
+                expected_signatures=expected[depth],
+                record=True,
+            )
             if signatures != expected[depth]:
                 raise RuntimeError("LATENCY_RUN_CHANGED_QUALITY_RANKINGS")
             run_rows.append(measured)
             print(f"depth {depth}: latency pass {run}/3 complete", flush=True)
-        headline = {stage: _median_run_summary([run[stage] for run in run_rows]) for stage in run_rows[0]}
+        headline = {
+            stage: _median_run_summary([run[stage] for run in run_rows]) for stage in run_rows[0]
+        }
         p95s = [run["total_ms"]["p95"] for run in run_rows]
-        profiles[f"top{depth}"] = {"run_level": run_rows, "headline": headline, "run_level_total_p95_ms": p95s, "min_total_p95_ms": min(p95s), "max_total_p95_ms": max(p95s)}
+        profiles[f"top{depth}"] = {
+            "run_level": run_rows,
+            "headline": headline,
+            "run_level_total_p95_ms": p95s,
+            "min_total_p95_ms": min(p95s),
+            "max_total_p95_ms": max(p95s),
+        }
 
     top20_p95 = profiles["top20"]["headline"]["total_ms"]["p95"]
     top50_p95 = profiles["top50"]["headline"]["total_ms"]["p95"]
     absolute = top50_p95 <= 650.0
     relative = top50_p95 <= 3.0 * top20_p95
-    profile = "GUARDED_RAW_CHUNK_TOP50" if absolute and relative else "GUARDED_RAW_CHUNK_TOP20"
+    profile = (
+        "GUARDED_RAW_CHUNK_TOP50"
+        if absolute and relative and quality_passed
+        else "GUARDED_RAW_CHUNK_TOP20"
+    )
+    git_after = _git_state()
+    if git_after != git_before or model_hash != _sha256_file(
+        args.model_path.resolve() / "model.safetensors"
+    ):
+        raise RuntimeError("execution identity changed during measurement")
     base = {
         "schema_version": "wixqa_raw_chunk_final_online_latency_v1",
         "artifact_type": "LATENCY_ACCOUNTING_ERRATUM",
-        "git_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, encoding="utf-8").strip(),
-        "git_dirty": False,
+        "git_sha": git_before["sha"],
+        "git_dirty": git_before["dirty"],
+        "source_tree_sha256": git_before["source_sha256"],
         "erratum_protocol_git_sha": args.erratum_protocol_git_sha,
         # Public evidence must be reproducible without publishing this machine's path.
-        "argv": [Path(sys.argv[0]).name, *sys.argv[1:]],
+        "argv": [
+            "measure_wixqa_raw_chunk_online_latency.py",
+            "--device",
+            args.device,
+            "--batch-size",
+            str(args.batch_size),
+            "--max-length",
+            str(args.max_length),
+            "--seed",
+            str(args.seed),
+        ],
         "quality_artifact_sha256": _sha256_bytes(quality_bytes),
         "candidate_artifact_sha256": _sha256_bytes(candidate_bytes),
         "candidate_identity_match": True,
-        "candidate_provenance": {key: candidates[key] for key in ("dataset_manifest_sha256", "index_manifest_sha256", "index_artifacts", "question_ids_sha256", "embedding_model", "embedding_model_sha256")},
-        "reranker": {"model_id": MODEL_ID, "revision": MODEL_REVISION, "model_safetensors_sha256": _sha256_file(args.model_path.resolve() / "model.safetensors"), "dtype": "float16", "batch_size": args.batch_size, "max_length": args.max_length, "model_load_ms_excluded": model_load_ms},
-        "guard": {"rules_sha256": _guard_rules_sha256(), "order": "full_text_scan_before_cross_encoder", "dense_backfill": False},
-        "environment": {"device": args.device, "gpu": torch.cuda.get_device_name(device), "python": platform.python_version(), "torch": torch.__version__, "cuda": torch.version.cuda, "transformers": __import__("transformers").__version__, "seed": args.seed},
+        "candidate_provenance": {
+            key: candidates[key]
+            for key in (
+                "dataset_manifest_sha256",
+                "index_manifest_sha256",
+                "index_artifacts",
+                "question_ids_sha256",
+                "embedding_model",
+                "embedding_model_sha256",
+            )
+        },
+        "reranker": {
+            "model_id": MODEL_ID,
+            "revision": MODEL_REVISION,
+            "model_safetensors_sha256": _sha256_file(
+                args.model_path.resolve() / "model.safetensors"
+            ),
+            "dtype": "float16",
+            "batch_size": args.batch_size,
+            "max_length": args.max_length,
+            "model_load_ms_excluded": model_load_ms,
+        },
+        "guard": {
+            "rules_sha256": _guard_rules_sha256(),
+            "order": "full_text_scan_before_cross_encoder",
+            "dense_backfill": False,
+        },
+        "environment": {
+            "device": args.device,
+            "gpu": torch.cuda.get_device_name(device),
+            "python": platform.python_version(),
+            "torch": torch.__version__,
+            "cuda": torch.version.cuda,
+            "transformers": __import__("transformers").__version__,
+            "seed": args.seed,
+        },
         "warmup": {"case_count": 5, "included_in_latency": False},
         "latency_repetitions": 3,
         "profiles": profiles,
         "frozen_latency_gate_ms": 650.0,
         "top50_passes_absolute_gate": absolute,
         "top50_passes_relative_gate": relative,
-        "frozen_top50_quality_rule_passed": True,
+        "frozen_top50_quality_rule_passed": quality_passed,
         "final_gpu_profile": profile,
         "claim_boundary": "local offline warm-model latency; not a production SLA",
     }
-    public_bytes = (json.dumps(base, ensure_ascii=True, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    public_bytes = (json.dumps(base, ensure_ascii=True, indent=2, sort_keys=True) + "\n").encode(
+        "utf-8"
+    )
     args.output.resolve().parent.mkdir(parents=True, exist_ok=True)
     args.public_output.resolve().parent.mkdir(parents=True, exist_ok=True)
-    args.output.resolve().write_bytes(public_bytes)
+    private_payload = {**base, "execution_argv": list(argv if argv is not None else sys.argv[1:])}
+    args.output.resolve().write_text(json.dumps(private_payload, indent=2) + "\n", encoding="utf-8")
     args.public_output.resolve().write_bytes(public_bytes)
-    print(json.dumps({"output": str(args.output.resolve()), "public_output": str(args.public_output.resolve()), "public_sha256": _sha256_bytes(public_bytes), "final_gpu_profile": profile, "top20_p95": top20_p95, "top50_p95": top50_p95}, indent=2))
+    print(
+        json.dumps(
+            {
+                "output": str(args.output.resolve()),
+                "public_output": str(args.public_output.resolve()),
+                "public_sha256": _sha256_bytes(public_bytes),
+                "final_gpu_profile": profile,
+                "top20_p95": top20_p95,
+                "top50_p95": top50_p95,
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

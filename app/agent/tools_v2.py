@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -10,6 +11,7 @@ from app.domain.agent import AgentAction, BudgetState, ToolError, ToolErrorCode
 from app.domain.queries import FindResult, OpenResult, SearchResult
 from app.domain.retrieved_security import (
     DETECTOR_VERSION,
+    GuardedSearchResult,
     GuardedV2ToolExecution,
     SecurityCounters,
 )
@@ -54,10 +56,24 @@ class V2ToolRegistry:
         clock_ms: ClockMs | None = None,
         guard: object | None = None,
         admission: RetrievedContentAdmission | None = None,
+        retrieval_profile: str = "hybrid_default",
     ) -> None:
+        if retrieval_profile not in {
+            "hybrid_default",
+            "dense_reference",
+            "safe_dense_raw20_bge",
+            "safe_dense_raw50_bge",
+        }:
+            raise ValueError("unknown server retrieval profile")
+        self.retrieval_profile = retrieval_profile
         if guard is not None and admission is not None:
             raise ValueError("provide either Guard or admission, not both")
         self.navigator = navigator
+        from app.retrieval.navigation import DocumentNavigator
+
+        self.navigation_snapshot = (
+            navigator.snapshot if isinstance(navigator, DocumentNavigator) else None
+        )
         self.clock_ms = clock_ms or (lambda: time.monotonic() * 1000)
         if admission is not None and not isinstance(
             admission,
@@ -65,6 +81,11 @@ class V2ToolRegistry:
         ):
             raise TypeError("admission must be RetrievedContentAdmission")
         self.admission = admission or RetrievedContentAdmission(guard=guard)
+        if (
+            retrieval_profile.startswith("safe_dense_raw")
+            and getattr(self.admission, "search_scorer", None) is None
+        ):
+            raise ValueError("reranking profile requires an admitted-content scorer")
 
     def run(
         self,
@@ -105,9 +126,26 @@ class V2ToolRegistry:
             )
 
         consumed_state = _consume_call(action, budget_state)
+        effective_action = action
+        if action.tool == "search" and self.retrieval_profile != "hybrid_default":
+            request = action.search_request
+            request = type(request).model_validate(
+                {
+                    **request.model_dump(),
+                    "mode": "dense",
+                    "candidate_k": 200,
+                    "max_chunks_per_doc": 1,
+                }
+            )
+            effective_action = action.model_copy(update={"search_request": request})
         try:
             if action.tool == "search":
-                raw_result = self.navigator.search_ranked(action.search_request)
+                raw_result = self.navigator.search_ranked(effective_action.search_request)
+                if isinstance(raw_result, RankedSearchPool) and self.retrieval_profile.startswith(
+                    "safe_dense_raw"
+                ):
+                    depth = 20 if self.retrieval_profile == "safe_dense_raw20_bge" else 50
+                    raw_result = replace(raw_result, candidates=raw_result.candidates[:depth])
             elif action.tool == "find":
                 raw_result = self.navigator.find(action.find_request)
             else:
@@ -158,8 +196,24 @@ class V2ToolRegistry:
             )
 
         try:
-            admission = _admit(self.admission, action, raw_result)
-        except Exception:
+            if self.navigation_snapshot is not None and action.tool in {"find", "open"}:
+                from app.retrieval.navigation_binding import validate_navigation_binding
+
+                validate_navigation_binding(
+                    self.navigator, self.navigation_snapshot, action, raw_result
+                )
+            admission = _admit(self.admission, effective_action, raw_result)
+        except Exception as exc:
+            from app.retrieval.scorer_errors import RerankerFailure
+
+            if isinstance(exc, RerankerFailure):
+                return _error_execution(
+                    action,
+                    consumed_state,
+                    code="timeout" if exc.reason == "capacity_timeout" else "system",
+                    message=str(exc),
+                    retryable=True,
+                )
             if self.clock_ms() >= deadline_at_ms:
                 return _error_execution(
                     action,
@@ -190,25 +244,26 @@ class V2ToolRegistry:
                 code="timeout",
                 message="The tool call exceeded its deadline.",
                 retryable=True,
-                security_counters=_without_returned_evidence(
-                    admission.security_counters
-                ),
+                security_counters=_without_returned_evidence(admission.security_counters),
                 quarantine_summaries=admission.quarantine_summaries,
             )
 
         context_chars = admission.context_chars
-        if (
-            consumed_state.context_chars + context_chars
-            > consumed_state.budget.max_context_chars
-        ):
+        if isinstance(admission.result, GuardedSearchResult):
+            # The delivered prompt stores identical matched/context text once.
+            # Keep historical admission scan accounting unchanged for replay.
+            context_chars -= sum(
+                len(item.hit.context_text)
+                for item in admission.result.hits
+                if item.hit.context_text == item.hit.matched_text
+            )
+        if consumed_state.context_chars + context_chars > consumed_state.budget.max_context_chars:
             return _error_execution(
                 action,
                 consumed_state,
                 code="budget",
                 message="The context budget has been exhausted.",
-                security_counters=_without_returned_evidence(
-                    admission.security_counters
-                ),
+                security_counters=_without_returned_evidence(admission.security_counters),
                 quarantine_summaries=admission.quarantine_summaries,
             )
         final_state = _validated_budget_state(

@@ -3,10 +3,10 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
-from app.domain.evidence import Claim, ClaimCitation
+from app.domain.evidence import Claim, ClaimCitation, SupportingSpan
+from app.domain.evidence_packet import SOURCE_UNIT_END, DeliveredEvidence
 from app.domain.retrieved_security import AdmittedEvidenceChunk
 from app.utils import tokenize_for_bm25
-
 
 _STOP_TOKENS = {
     "a",
@@ -27,9 +27,13 @@ _STOP_TOKENS = {
 }
 _MIN_LEXICAL_SUPPORT = 0.4
 _MIN_SHARED_CONTENT_TOKENS = 2
-_NUMBER_PATTERN = re.compile(
-    r"(?<![\w.])(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?%?(?![\w.])"
+_CRITICAL_FACT_PATTERN = re.compile(
+    r"\d|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|"
+    r"approv\w*|submit\w*|authoriz\w*|permit\w*|allow\w*|forbid\w*|prohibit\w*)\b"
+    r"|批准|审批|提交|授权|允许|禁止|不得|不允许|不能|期限|金额|比例",
+    re.IGNORECASE,
 )
+_NUMBER_PATTERN = re.compile(r"(?<![\w.])(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?%?(?![\w.])")
 _DATE_PATTERN = re.compile(
     r"(?<!\d)(?:"
     r"\d{4}[-/.]\d{1,2}[-/.]\d{1,2}"
@@ -61,15 +65,20 @@ _POSITIVE_PATTERN = re.compile(
 
 def verify_claims(
     claims: Sequence[Claim],
-    visible_hits: Sequence[AdmittedEvidenceChunk],
+    visible_hits: Sequence[AdmittedEvidenceChunk | DeliveredEvidence],
 ) -> list[ClaimCitation]:
-    visible_by_id: dict[str, AdmittedEvidenceChunk] = {}
+    visible_by_id: dict[str, AdmittedEvidenceChunk | DeliveredEvidence] = {}
     for evidence in visible_hits:
-        if not isinstance(evidence, AdmittedEvidenceChunk):
+        if not isinstance(evidence, (AdmittedEvidenceChunk, DeliveredEvidence)):
             raise TypeError("visible evidence must contain admitted chunk values")
-        if evidence.hit.chunk_id in visible_by_id:
+        citation_id = (
+            evidence.citation_id
+            if isinstance(evidence, DeliveredEvidence)
+            else evidence.hit.chunk_id
+        )
+        if citation_id in visible_by_id:
             raise ValueError("visible chunk IDs must be unique")
-        visible_by_id[evidence.hit.chunk_id] = evidence
+        visible_by_id[citation_id] = evidence
 
     results: list[ClaimCitation] = []
     for claim in claims:
@@ -88,9 +97,7 @@ def verify_claims(
             )
             continue
 
-        references_visible = all(
-            chunk_id in visible_by_id for chunk_id in cited_ids
-        )
+        references_visible = all(chunk_id in visible_by_id for chunk_id in cited_ids)
         if not references_visible:
             results.append(
                 _unsupported(
@@ -103,14 +110,7 @@ def verify_claims(
             )
             continue
 
-        evidence_text = "\n".join(
-            (
-                visible_by_id[chunk_id].hit.matched_text
-                + "\n"
-                + visible_by_id[chunk_id].hit.context_text
-            )
-            for chunk_id in cited_ids
-        )
+        evidence_text = "\n".join(_evidence_text(visible_by_id[chunk_id]) for chunk_id in cited_ids)
         lexical_support = _lexical_support(claim.text, evidence_text)
         if lexical_support == 0.0:
             results.append(
@@ -124,10 +124,7 @@ def verify_claims(
             )
             continue
         shared_tokens = _shared_content_token_count(claim.text, evidence_text)
-        if (
-            lexical_support < _MIN_LEXICAL_SUPPORT
-            or shared_tokens < _MIN_SHARED_CONTENT_TOKENS
-        ):
+        if lexical_support < _MIN_LEXICAL_SUPPORT or shared_tokens < _MIN_SHARED_CONTENT_TOKENS:
             results.append(
                 _unsupported(
                     claim_id=claim.claim_id,
@@ -171,6 +168,20 @@ def verify_claims(
                 )
             )
             continue
+        spans = _exact_supporting_spans(
+            claim.text, [(chunk_id, visible_by_id[chunk_id]) for chunk_id in cited_ids]
+        )
+        if _CRITICAL_FACT_PATTERN.search(claim.text) and not spans:
+            results.append(
+                _unsupported(
+                    claim_id=claim.claim_id,
+                    cited_ids=cited_ids,
+                    references_visible=True,
+                    lexical_support=lexical_support,
+                    reason="critical_fact_requires_bound_span",
+                )
+            )
+            continue
         results.append(
             ClaimCitation(
                 claim_id=claim.claim_id,
@@ -179,9 +190,71 @@ def verify_claims(
                 references_visible_evidence=True,
                 lexical_support=lexical_support,
                 supported=True,
+                support_kind="exact_span" if spans else "heuristic",
+                supporting_spans=spans,
             )
         )
     return results
+
+
+def _exact_supporting_spans(claim_text, cited_evidence) -> list[SupportingSpan]:
+    """Resolve complete source units, never a substring with a removed qualifier."""
+    normalized = " ".join(claim_text.split()).casefold()
+    for citation_id, evidence in cited_evidence:
+        if isinstance(evidence, DeliveredEvidence):
+            hit = evidence.anchor.hit
+            fields = [
+                ("open_content" if evidence.opened else "matched_text", evidence.matched_text)
+            ]
+            if evidence.context_text:
+                fields.append(("context_text", evidence.context_text))
+        else:
+            hit = evidence.hit
+            fields = [("matched_text", hit.matched_text), ("context_text", hit.context_text)]
+        for field, text in fields:
+            ranges = [(0, len(text))]
+            start = 0
+            # A decimal point is not a sentence boundary; a line wrap is not one either.
+            for match in SOURCE_UNIT_END.finditer(text):
+                ranges.append((start, match.end()))
+                start = match.end()
+            ranges.append((start, len(text)))
+            for start, end in ranges:
+                while start < end and text[start].isspace():
+                    start += 1
+                # Only explicit neutral labels may be omitted; scope-bearing lines
+                # and ordinary wrapped sentences remain part of the source unit.
+                newline = text.find("\n", start, end)
+                if newline >= 0 and text[start:newline].strip() in {
+                    "制度要点",
+                    "制度要求",
+                    "Policy details",
+                }:
+                    start = newline + 1
+                    while start < end and text[start].isspace():
+                        start += 1
+                while end > start and text[end - 1].isspace():
+                    end -= 1
+                quote = text[start:end]
+                if quote and " ".join(quote.split()).casefold() == normalized:
+                    return [
+                        SupportingSpan(
+                            citation_id=citation_id,
+                            index_run_id=hit.index_run_id,
+                            version_id=hit.version_id,
+                            field=field,
+                            start=start,
+                            end=end,
+                            quote=quote,
+                        )
+                    ]
+    return []
+
+
+def _evidence_text(evidence: AdmittedEvidenceChunk | DeliveredEvidence) -> str:
+    if isinstance(evidence, DeliveredEvidence):
+        return evidence.text
+    return evidence.hit.matched_text + "\n" + evidence.hit.context_text
 
 
 def _unsupported(
@@ -199,6 +272,7 @@ def _unsupported(
         references_visible_evidence=references_visible,
         lexical_support=lexical_support,
         supported=False,
+        support_kind="none",
         unsupported_reason=reason,
     )
 
@@ -213,18 +287,12 @@ def _lexical_support(claim_text: str, evidence_text: str) -> float:
 
 
 def _shared_content_token_count(claim_text: str, evidence_text: str) -> int:
-    return len(
-        _content_tokens(claim_text).intersection(_content_tokens(evidence_text))
-    )
+    return len(_content_tokens(claim_text).intersection(_content_tokens(evidence_text)))
 
 
 def _date_mismatch(claim_text: str, evidence_text: str) -> bool:
-    claim_dates = {
-        _normalize_date(value) for value in _DATE_PATTERN.findall(claim_text)
-    }
-    evidence_dates = {
-        _normalize_date(value) for value in _DATE_PATTERN.findall(evidence_text)
-    }
+    claim_dates = {_normalize_date(value) for value in _DATE_PATTERN.findall(claim_text)}
+    evidence_dates = {_normalize_date(value) for value in _DATE_PATTERN.findall(evidence_text)}
     if claim_dates and not claim_dates.issubset(evidence_dates):
         return True
 
@@ -244,14 +312,11 @@ def _date_mismatch(claim_text: str, evidence_text: str) -> bool:
 
 
 def _numeric_mismatch(claim_text: str, evidence_text: str) -> bool:
-    claim_numbers = {
-        _normalize_number(value) for value in _NUMBER_PATTERN.findall(claim_text)
-    }
+    claim_numbers = {_normalize_number(value) for value in _NUMBER_PATTERN.findall(claim_text)}
     if not claim_numbers:
         return False
     evidence_numbers = {
-        _normalize_number(value)
-        for value in _NUMBER_PATTERN.findall(evidence_text)
+        _normalize_number(value) for value in _NUMBER_PATTERN.findall(evidence_text)
     }
     return not claim_numbers.issubset(evidence_numbers)
 
@@ -265,31 +330,21 @@ def _negation_mismatch(claim_text: str, evidence_text: str) -> bool:
     ]
     if not comparable_sentences:
         return False
-    evidence_polarities = {
-        _has_explicit_negation(sentence) for sentence in comparable_sentences
-    }
+    evidence_polarities = {_has_explicit_negation(sentence) for sentence in comparable_sentences}
     return claim_is_negative not in evidence_polarities
 
 
 def _negation_comparable(claim_text: str, evidence_sentence: str) -> bool:
     if _shared_content_token_count(claim_text, evidence_sentence) < 2:
         return False
-    claim_numbers = {
-        _normalize_number(value) for value in _NUMBER_PATTERN.findall(claim_text)
-    }
+    claim_numbers = {_normalize_number(value) for value in _NUMBER_PATTERN.findall(claim_text)}
     evidence_numbers = {
-        _normalize_number(value)
-        for value in _NUMBER_PATTERN.findall(evidence_sentence)
+        _normalize_number(value) for value in _NUMBER_PATTERN.findall(evidence_sentence)
     }
     if claim_numbers and not claim_numbers.issubset(evidence_numbers):
         return False
-    claim_dates = {
-        _normalize_date(value) for value in _DATE_PATTERN.findall(claim_text)
-    }
-    evidence_dates = {
-        _normalize_date(value)
-        for value in _DATE_PATTERN.findall(evidence_sentence)
-    }
+    claim_dates = {_normalize_date(value) for value in _DATE_PATTERN.findall(claim_text)}
+    evidence_dates = {_normalize_date(value) for value in _DATE_PATTERN.findall(evidence_sentence)}
     return not claim_dates or claim_dates.issubset(evidence_dates)
 
 

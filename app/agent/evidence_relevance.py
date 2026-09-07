@@ -5,7 +5,6 @@ import re
 from app.domain.retrieved_security import AdmittedEvidenceChunk
 from app.utils import tokenize_for_bm25
 
-
 _GENERIC_QUERY_TOKENS = {
     "a",
     "all",
@@ -41,6 +40,7 @@ _QUOTED_ENTITY_PATTERNS = (
     re.compile(r"[“\"]([^”\"]+)[”\"]"),
 )
 _YEAR_PATTERN = re.compile(r"(?<!\d)\d{4}(?!\d)")
+_LIST_REQUEST = re.compile(r"列出|列举|哪些|complete list|all required", re.I)
 
 
 def has_query_anchor_support(query: str, evidence: AdmittedEvidenceChunk) -> bool:
@@ -57,9 +57,22 @@ def has_query_anchor_support(query: str, evidence: AdmittedEvidenceChunk) -> boo
         return False
 
     entity_tokens: set[str] = set()
+    entities: list[str] = []
     for pattern in _QUOTED_ENTITY_PATTERNS:
         for entity in pattern.findall(query):
+            entities.append(entity)
             entity_tokens.update(_content_tokens(entity))
+    if entities:
+        normalized_evidence = "".join(evidence_text.casefold().split())
+        if not any(
+            "".join(entity.casefold().split()) in normalized_evidence for entity in entities
+        ):
+            return False
+        # A named-document list request can retrieve the document without the
+        # prose repeating generic words such as "list" or "which materials".
+        # This is relevance only; publication still requires grounded claims.
+        if _LIST_REQUEST.search(query):
+            return True
     anchors = query_tokens - entity_tokens - _GENERIC_QUERY_TOKENS
     if anchors:
         return bool(anchors.intersection(evidence_tokens))

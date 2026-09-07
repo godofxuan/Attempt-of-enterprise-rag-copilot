@@ -209,10 +209,12 @@ def test_prompt_contains_only_ledger_selected_visible_evidence() -> None:
     assert response.mode == "answered"
     assert '"intent":"fact"' in prompt
     assert state.analysis.original_question in prompt
-    assert [record["source_id"] for record in records] == ["S1"]
+    assert [record["source_id"] for record in records] == ["S1", "S2"]
     assert "Policy A allows remote work" in records[0]["matched_text"]
+    assert "authorized_document_context" not in records[0]
+    assert records[1]["evidence_kind"] == "open"
     assert (
-        records[0]["authorized_document_context"]
+        records[1]["matched_text"]
         == "Authorized full document context with exceptions."
     )
     assert "NIGHTFALL" not in prompt
