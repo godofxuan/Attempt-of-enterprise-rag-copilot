@@ -4,6 +4,7 @@ import time
 from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import numpy as np
 
@@ -531,7 +532,13 @@ def _matches_filters(chunk: ChunkRecord, filters: QueryFilters) -> bool:
         return False
 
     if filters.temporal_scope == "current":
-        return chunk.status == "active"
+        # Date-only validity uses UTC and the same half-open interval as as_of.
+        today = datetime.now(UTC).date()
+        return (
+            chunk.status == "active"
+            and chunk.effective_from <= today
+            and (chunk.effective_to is None or today < chunk.effective_to)
+        )
     if filters.temporal_scope == "historical":
         return chunk.status == "retired"
     if filters.temporal_scope == "as_of":

@@ -148,7 +148,11 @@ def build_conflict_response(state: ControllerState, trace: dict) -> AnswerRespon
     return AnswerResponse(
         mode="partial",
         stop_reason="partial_evidence",
-        answer="\n".join(claim.text for claim in claims) or "Conflicting evidence requires review.",
+        answer="\n".join([
+            *(claim.text for claim in claims),
+            "现有可见材料存在潜在不一致，无法据此确定唯一期限或数值。"
+            "以下结论仅限已展示摘录，不构成制度优先级裁决。",
+        ]),
         claims=claims,
         citations=[citation for citation in citations if citation.supported],
         sources=[
@@ -166,9 +170,12 @@ def build_conflict_response(state: ControllerState, trace: dict) -> AnswerRespon
             if view.citation_id in cited_ids
         ],
         warnings=[
-            "Unresolved same-scope evidence conflict; excerpts are not a selected policy answer."
+            "Potential same-scope evidence conflict; excerpts are not a selected policy answer."
         ],
-        trace={**trace, "answer_strategy": "conflict_excerpts"},
+        trace={
+            **trace, "answer_strategy": "conflict_excerpts", "generation_attempts": 0,
+            "stop_reason": "partial_evidence", "final_mode": "partial",
+        },
     )
 
 

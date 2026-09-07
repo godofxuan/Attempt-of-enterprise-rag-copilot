@@ -1,0 +1,8 @@
+1 .M N... 100644 100644 100644 8e8ec72b094d3f1d3703c82240c70ce6f271a668 8e8ec72b094d3f1d3703c82240c70ce6f271a668 app/agent/answer_contract.py
+1 .M N... 100644 100644 100644 348a8ca25c0ac1a47ba9e2650bb0ef170ec38af8 348a8ca25c0ac1a47ba9e2650bb0ef170ec38af8 app/agent/evidence_relevance.py
+1 .M N... 100644 100644 100644 60328b2c566792e0160ac15376240e1d6e93e978 60328b2c566792e0160ac15376240e1d6e93e978 app/agent/generation_v2.py
+? docs/review/runtime_closure_followup_20260907/
+? scripts/verify_runtime_closure.py
+? tests/agent_v2/test_runtime_closure_regressions.py
+? tests/api_v2/test_runtime_closure_flow.py
+? tests/evaluation/test_runtime_closure_verifier.py

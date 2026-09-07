@@ -1,0 +1,15 @@
+{
+  "checked_at": "2026-09-07T17:11:23.272342+08:00",
+  "head_unchanged": true,
+  "no_commit_push_merge_tag_deploy": true,
+  "old_evidence_unchanged": true,
+  "old_files": 15,
+  "original_git_clean": true,
+  "patch_scope": "tracked production modifications only; new source hashes are in SOURCE_FINGERPRINT",
+  "real_index_activation_commands": 0,
+  "scope_exclusions": ".git, .private, docs, data, streamlit, caches, weights, credentials; NOT entire repository",
+  "source_fingerprint": "c939f2687301bca085b1c4702dbb508f588bd920b58dc4747498dde36b190b76",
+  "source_fingerprint_scope": "all app/scripts/tests tracked and nonignored new files; workflows, dependency pins, pytest, pyproject, Dockerfile",
+  "tracked_patch_sha256": "dd6d95a5f0c2891b8b5565e8db7b4dbb332eab7d8f51160b2950bfc1018961ef",
+  "worktree_status": " M app/agent/answer_contract.py\n M app/agent/evidence_relevance.py\n M app/agent/generation_v2.py\n?? docs/review/runtime_closure_followup_20260907/\n?? scripts/verify_runtime_closure.py\n?? tests/agent_v2/test_runtime_closure_regressions.py\n?? tests/api_v2/test_runtime_closure_flow.py\n?? tests/evaluation/test_runtime_closure_verifier.py\n"
+}

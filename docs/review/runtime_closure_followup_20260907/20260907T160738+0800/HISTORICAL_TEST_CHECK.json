@@ -1,0 +1,17 @@
+{
+  "artifact": "pytest_clean_e276209.xml",
+  "classification": "historical XML checked; not a new execution on this patch",
+  "sha256": "b57c501c477430f46a378dd4eb8038fc329926422325d72e66bc7f6a464eacca",
+  "suites": [
+    {
+      "errors": "0",
+      "failures": "0",
+      "hostname": "DESKTOP-G3VUENO",
+      "name": "pytest",
+      "skipped": "36",
+      "tests": "3686",
+      "time": "256.476",
+      "timestamp": "2026-09-07T14:24:39.383250+08:00"
+    }
+  ]
+}

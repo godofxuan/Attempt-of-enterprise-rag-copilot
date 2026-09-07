@@ -1,0 +1,82 @@
+diff --git a/app/agent/answer_contract.py b/app/agent/answer_contract.py
+index 8e8ec72..a9211db 100644
+--- a/app/agent/answer_contract.py
++++ b/app/agent/answer_contract.py
+@@ -7,9 +7,15 @@ _VALUE = (
+ )
+ _DURATION_QUESTION = re.compile(r"how many days|几天|多少天", re.I)
+ _DURATION_VALUE = re.compile(_VALUE + r"\s*(?:days?\b|天|日)", re.I)
++_APPROVER_QUESTION = re.compile(r"(?:谁|哪个部门|哪位).{0,8}(?:审批|批准)|who.{0,20}approv", re.I)
++_APPROVAL_RELATION = re.compile(r"审批|批准|\bapprov\w*\b", re.I)
+ 
+ 
+ def answer_sufficiency(question: str, claim_texts: list[str]) -> str:
++    if _APPROVER_QUESTION.search(question) and not any(
++        _APPROVAL_RELATION.search(text) for text in claim_texts
++    ):
++        return "missing_requested_relation"
+     if _DURATION_QUESTION.search(question):
+         if not any(_DURATION_VALUE.search(text) for text in claim_texts):
+             return "missing_requested_value"
+diff --git a/app/agent/evidence_relevance.py b/app/agent/evidence_relevance.py
+index 348a8ca..df95230 100644
+--- a/app/agent/evidence_relevance.py
++++ b/app/agent/evidence_relevance.py
+@@ -41,6 +41,22 @@ _QUOTED_ENTITY_PATTERNS = (
+ )
+ _YEAR_PATTERN = re.compile(r"(?<!\d)\d{4}(?!\d)")
+ _LIST_REQUEST = re.compile(r"列出|列举|哪些|complete list|all required", re.I)
++_BARE_POLICY = re.compile(r"^([\u4e00-\u9fffA-Za-z0-9]{2,30}?(?:制度|政策|标准表))")
++_POLICY_REQUEST_PREFIX = re.compile(
++    r"^(?:(?:请核对|请介绍|请查询|请问|按照|根据|删除|更新后的|更新|恢复|原版本的|当前的|按)+)"
++)
++
++
++def _bare_policy_entity(query: str) -> str | None:
++    # A narrowly delimited unquoted policy reference is still an explicit
++    # document constraint. Do not infer entities from arbitrary noun overlap.
++    match = _BARE_POLICY.match(query.strip())
++    if not match:
++        return None
++    entity = _POLICY_REQUEST_PREFIX.sub("", match.group(1))
++    if len(entity) < 4 or entity in {"当前制度", "公司制度", "当前政策", "公司政策"}:
++        return None
++    return entity
+ 
+ 
+ def has_query_anchor_support(query: str, evidence: AdmittedEvidenceChunk) -> bool:
+@@ -62,6 +78,9 @@ def has_query_anchor_support(query: str, evidence: AdmittedEvidenceChunk) -> boo
+         for entity in pattern.findall(query):
+             entities.append(entity)
+             entity_tokens.update(_content_tokens(entity))
++    if not entities and (entity := _bare_policy_entity(query)):
++        entities.append(entity)
++        entity_tokens.update(_content_tokens(entity))
+     if entities:
+         normalized_evidence = "".join(evidence_text.casefold().split())
+         if not any(
+diff --git a/app/agent/generation_v2.py b/app/agent/generation_v2.py
+index 60328b2..8fd8ab4 100644
+--- a/app/agent/generation_v2.py
++++ b/app/agent/generation_v2.py
+@@ -328,6 +328,20 @@ class GenerationV2ResponseBuilder:
+                 verified_mode = "partial"
+                 verified_stop_reason = "partial_evidence"
+                 warnings.append("The cited evidence does not answer the requested duration.")
++            if sufficiency == "missing_requested_relation":
++                if len(state.analysis.required_aspects) == 1:
++                    return self.source_free_builder.build(
++                        question=question,
++                        state=state,
++                        mode="not_found",
++                        stop_reason="not_found",
++                        trace=response_trace,
++                    )
++                verified_mode = "partial"
++                verified_stop_reason = "partial_evidence"
++                warnings.append(
++                    "The cited evidence does not establish the requested approval relation."
++                )
+             return AnswerResponse(
+                 mode=verified_mode,
+                 answer="\n".join(claim.text for claim in supported_claims),

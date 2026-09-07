@@ -1,0 +1,32 @@
+{
+  "all_scoped_bytes_match": true,
+  "changes": [
+    "app/retrieval/pipeline.py",
+    "tests/retrieval/test_current_validity.py"
+  ],
+  "commands": [
+    {
+      "command": [
+        "git",
+        "-c",
+        "core.autocrlf=false",
+        "apply",
+        "--check",
+        "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\delivery\\changes\\this_round.patch"
+      ],
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "git",
+        "-c",
+        "core.autocrlf=false",
+        "apply",
+        "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\delivery\\changes\\this_round.patch"
+      ],
+      "exit_code": 0,
+      "output": ""
+    }
+  ]
+}

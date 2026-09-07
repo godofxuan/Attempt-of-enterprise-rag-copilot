@@ -1,0 +1,1961 @@
+{
+  "groups": [
+    {
+      "generation_errors": {
+        "not_reported": 32,
+        "unsupported": 8
+      },
+      "http": {
+        "200": 40
+      },
+      "kind": "main",
+      "max_ms": 1558.8642999937292,
+      "mean_ms": 840.4987524994795,
+      "modes": {
+        "answered": 26,
+        "not_found": 3,
+        "partial": 9,
+        "unsafe": 2
+      },
+      "n": 40,
+      "p50_ms": 905.7418500015046,
+      "p95_ms": 1372.4656799953664,
+      "profile": "hybrid_default",
+      "run_id": "service_C_readiness_v1",
+      "stop_reasons": {
+        "completed": 26,
+        "not_found": 3,
+        "partial_evidence": 9,
+        "unsafe": 2
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 30,
+        "unsupported": 2
+      },
+      "http": {
+        "200": 32
+      },
+      "kind": "main",
+      "max_ms": 1558.8642999937292,
+      "mean_ms": 807.5336874999266,
+      "modes": {
+        "answered": 25,
+        "not_found": 3,
+        "partial": 2,
+        "unsafe": 2
+      },
+      "n": 32,
+      "p50_ms": 905.7418500015046,
+      "p95_ms": 1188.8217399973653,
+      "profile": "hybrid_default",
+      "run_id": "service_C_readiness_v1",
+      "stop_reasons": {
+        "completed": 25,
+        "not_found": 3,
+        "partial_evidence": 2,
+        "unsafe": 2
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 2,
+        "unsupported": 6
+      },
+      "http": {
+        "200": 8
+      },
+      "kind": "main",
+      "max_ms": 1375.9233000018867,
+      "mean_ms": 972.3590124976909,
+      "modes": {
+        "answered": 1,
+        "partial": 7
+      },
+      "n": 8,
+      "p50_ms": 915.9186499964562,
+      "p95_ms": 1265.3351649983958,
+      "profile": "hybrid_default",
+      "run_id": "service_C_readiness_v1",
+      "stop_reasons": {
+        "completed": 1,
+        "partial_evidence": 7
+      },
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 4394.64460000454,
+      "mean_ms": 1524.5722599996952,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 806.2505999987479,
+      "p95_ms": 3681.419940004707,
+      "profile": "hybrid_default",
+      "run_id": "service_C_readiness_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 4394.64460000454,
+      "mean_ms": 1524.5722599996952,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 806.2505999987479,
+      "p95_ms": 3681.419940004707,
+      "profile": "hybrid_default",
+      "run_id": "service_C_readiness_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "warmup",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "hybrid_default",
+      "run_id": "service_C_readiness_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 32,
+        "unsupported": 8
+      },
+      "http": {
+        "200": 40
+      },
+      "kind": "main",
+      "max_ms": 1507.9398999951081,
+      "mean_ms": 847.1331625001767,
+      "modes": {
+        "answered": 26,
+        "not_found": 4,
+        "partial": 8,
+        "unsafe": 2
+      },
+      "n": 40,
+      "p50_ms": 934.5009499957087,
+      "p95_ms": 1227.203640003426,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_readiness_v1",
+      "stop_reasons": {
+        "completed": 26,
+        "not_found": 4,
+        "partial_evidence": 8,
+        "unsafe": 2
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 30,
+        "unsupported": 1
+      },
+      "http": {
+        "200": 31
+      },
+      "kind": "main",
+      "max_ms": 1507.9398999951081,
+      "mean_ms": 823.4581806450038,
+      "modes": {
+        "answered": 24,
+        "not_found": 4,
+        "partial": 1,
+        "unsafe": 2
+      },
+      "n": 31,
+      "p50_ms": 935.3759999939939,
+      "p95_ms": 1320.533099999011,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_readiness_v1",
+      "stop_reasons": {
+        "completed": 24,
+        "not_found": 4,
+        "partial_evidence": 1,
+        "unsafe": 2
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 2,
+        "unsupported": 7
+      },
+      "http": {
+        "200": 9
+      },
+      "kind": "main",
+      "max_ms": 1051.8249000015203,
+      "mean_ms": 928.6803222235499,
+      "modes": {
+        "answered": 2,
+        "partial": 7
+      },
+      "n": 9,
+      "p50_ms": 924.7331000078702,
+      "p95_ms": 1026.2393000011798,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_readiness_v1",
+      "stop_reasons": {
+        "completed": 2,
+        "partial_evidence": 7
+      },
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 10482.945099996869,
+      "mean_ms": 2791.633720000391,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 875.614200005657,
+      "p95_ms": 8566.445279997422,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_readiness_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 10482.945099996869,
+      "mean_ms": 2791.633720000391,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 875.614200005657,
+      "p95_ms": 8566.445279997422,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_readiness_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "warmup",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_readiness_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 97,
+        "unsupported": 23
+      },
+      "http": {
+        "200": 111,
+        "503": 9
+      },
+      "kind": "main",
+      "max_ms": 9384.458800006541,
+      "mean_ms": 946.2078516660162,
+      "modes": {
+        "answered": 72,
+        "http_error": 9,
+        "not_found": 7,
+        "partial": 26,
+        "unsafe": 6
+      },
+      "n": 120,
+      "p50_ms": 927.8955000045244,
+      "p95_ms": 1394.5239450011284,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 72,
+        "not_found": 7,
+        "not_reported": 9,
+        "partial_evidence": 26,
+        "unsafe": 6
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 81,
+        "unsupported": 6
+      },
+      "http": {
+        "200": 87
+      },
+      "kind": "main",
+      "max_ms": 9384.458800006541,
+      "mean_ms": 1032.5693862061767,
+      "modes": {
+        "answered": 68,
+        "not_found": 7,
+        "partial": 6,
+        "unsafe": 6
+      },
+      "n": 87,
+      "p50_ms": 930.6944999989355,
+      "p95_ms": 1428.3895300060979,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 68,
+        "not_found": 7,
+        "partial_evidence": 6,
+        "unsafe": 6
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 16,
+        "unsupported": 17
+      },
+      "http": {
+        "200": 24,
+        "503": 9
+      },
+      "kind": "main",
+      "max_ms": 1536.2685000000056,
+      "mean_ms": 718.5274424237749,
+      "modes": {
+        "answered": 4,
+        "http_error": 9,
+        "partial": 20
+      },
+      "n": 33,
+      "p50_ms": 914.2260000080569,
+      "p95_ms": 1172.833619994344,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4,
+        "not_reported": 9,
+        "partial_evidence": 20
+      },
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource1",
+      "max_ms": 884.9320999870542,
+      "mean_ms": 842.7922749906429,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 844.724699993094,
+      "p95_ms": 880.1834749887348,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource1",
+      "max_ms": 884.9320999870542,
+      "mean_ms": 842.7922749906429,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 844.724699993094,
+      "p95_ms": 880.1834749887348,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource1",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource2",
+      "max_ms": 1717.4433000036515,
+      "mean_ms": 1450.8581000009144,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 1639.4415000031586,
+      "p95_ms": 1709.1884400026174,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource2",
+      "max_ms": 1717.4433000036515,
+      "mean_ms": 1450.8581000009144,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 1639.4415000031586,
+      "p95_ms": 1709.1884400026174,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource2",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource4",
+      "max_ms": 3190.600900008576,
+      "mean_ms": 2047.9609250032809,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 2067.9684999995516,
+      "p95_ms": 3078.743665006914,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource4",
+      "max_ms": 3190.600900008576,
+      "mean_ms": 2047.9609250032809,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 2067.9684999995516,
+      "p95_ms": 3078.743665006914,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource4",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 4419.126499997219,
+      "mean_ms": 1549.424599998747,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 834.6282999991672,
+      "p95_ms": 3703.6745799967316,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 4419.126499997219,
+      "mean_ms": 1549.424599998747,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 834.6282999991672,
+      "p95_ms": 3703.6745799967316,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "warmup",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "hybrid_default",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 94,
+        "unsupported": 26
+      },
+      "http": {
+        "200": 120
+      },
+      "kind": "main",
+      "max_ms": 10204.743499998585,
+      "mean_ms": 1021.1127591661352,
+      "modes": {
+        "answered": 76,
+        "not_found": 12,
+        "partial": 26,
+        "unsafe": 6
+      },
+      "n": 120,
+      "p50_ms": 945.2931999985594,
+      "p95_ms": 1624.629535004351,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 76,
+        "not_found": 12,
+        "partial_evidence": 26,
+        "unsafe": 6
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 90,
+        "unsupported": 6
+      },
+      "http": {
+        "200": 96
+      },
+      "kind": "main",
+      "max_ms": 10204.743499998585,
+      "mean_ms": 1031.823928124292,
+      "modes": {
+        "answered": 72,
+        "not_found": 12,
+        "partial": 6,
+        "unsafe": 6
+      },
+      "n": 96,
+      "p50_ms": 945.9947000068496,
+      "p95_ms": 1629.3604750062514,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 72,
+        "not_found": 12,
+        "partial_evidence": 6,
+        "unsafe": 6
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4,
+        "unsupported": 20
+      },
+      "http": {
+        "200": 24
+      },
+      "kind": "main",
+      "max_ms": 1733.398100011982,
+      "mean_ms": 978.2680833335083,
+      "modes": {
+        "answered": 4,
+        "partial": 20
+      },
+      "n": 24,
+      "p50_ms": 934.729000000516,
+      "p95_ms": 1152.328019998822,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4,
+        "partial_evidence": 20
+      },
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource1",
+      "max_ms": 914.6341000014218,
+      "mean_ms": 880.2371500023582,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 877.5823500036495,
+      "p95_ms": 912.2261800017441,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource1",
+      "max_ms": 914.6341000014218,
+      "mean_ms": 880.2371500023582,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 877.5823500036495,
+      "p95_ms": 912.2261800017441,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource1",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource2",
+      "max_ms": 1689.7770000068704,
+      "mean_ms": 1425.9891000001517,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 1572.21225000103,
+      "p95_ms": 1675.4520450056589,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource2",
+      "max_ms": 1689.7770000068704,
+      "mean_ms": 1425.9891000001517,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 1572.21225000103,
+      "p95_ms": 1675.4520450056589,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource2",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource4",
+      "max_ms": 3287.1193000028143,
+      "mean_ms": 2107.5881500037212,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 2113.775000005262,
+      "p95_ms": 3167.231350002112,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource4",
+      "max_ms": 3287.1193000028143,
+      "mean_ms": 2107.5881500037212,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 2113.775000005262,
+      "p95_ms": 3167.231350002112,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource4",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 10948.796600001515,
+      "mean_ms": 2868.7540599989006,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 857.140399995842,
+      "p95_ms": 8930.971280002266,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 10948.796600001515,
+      "mean_ms": 2868.7540599989006,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 857.140399995842,
+      "p95_ms": 8930.971280002266,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "warmup",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_repair_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 95,
+        "unsupported": 25
+      },
+      "http": {
+        "200": 120
+      },
+      "kind": "main",
+      "max_ms": 9402.845799995703,
+      "mean_ms": 914.3301041653709,
+      "modes": {
+        "answered": 68,
+        "not_found": 18,
+        "partial": 28,
+        "unsafe": 6
+      },
+      "n": 120,
+      "p50_ms": 920.2001500016195,
+      "p95_ms": 1148.1265749876911,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 68,
+        "not_found": 18,
+        "partial_evidence": 28,
+        "unsafe": 6
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 79,
+        "unsupported": 6
+      },
+      "http": {
+        "200": 85
+      },
+      "kind": "main",
+      "max_ms": 9402.845799995703,
+      "mean_ms": 991.7632035277647,
+      "modes": {
+        "answered": 64,
+        "not_found": 9,
+        "partial": 6,
+        "unsafe": 6
+      },
+      "n": 85,
+      "p50_ms": 941.3006999966456,
+      "p95_ms": 1089.1124199901242,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 64,
+        "not_found": 9,
+        "partial_evidence": 6,
+        "unsafe": 6
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 16,
+        "unsupported": 19
+      },
+      "http": {
+        "200": 35
+      },
+      "kind": "main",
+      "max_ms": 1325.2073000039672,
+      "mean_ms": 726.278291428129,
+      "modes": {
+        "answered": 4,
+        "not_found": 9,
+        "partial": 22
+      },
+      "n": 35,
+      "p50_ms": 888.3873999875505,
+      "p95_ms": 1151.778449989797,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4,
+        "not_found": 9,
+        "partial_evidence": 22
+      },
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource1",
+      "max_ms": 859.8002999933669,
+      "mean_ms": 831.4085749989317,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 843.1334999986575,
+      "p95_ms": 858.028649994958,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource1",
+      "max_ms": 859.8002999933669,
+      "mean_ms": 831.4085749989317,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 843.1334999986575,
+      "p95_ms": 858.028649994958,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource1",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource2",
+      "max_ms": 1649.5817999966675,
+      "mean_ms": 1410.638649998873,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 1569.8560000018915,
+      "p95_ms": 1638.8340299970878,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource2",
+      "max_ms": 1649.5817999966675,
+      "mean_ms": 1410.638649998873,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 1569.8560000018915,
+      "p95_ms": 1638.8340299970878,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource2",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource4",
+      "max_ms": 3214.091699992423,
+      "mean_ms": 2021.9151499986765,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 2014.8472500004573,
+      "p95_ms": 3091.3100849931648,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource4",
+      "max_ms": 3214.091699992423,
+      "mean_ms": 2021.9151499986765,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 2014.8472500004573,
+      "p95_ms": 3091.3100849931648,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource4",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 5044.138600002043,
+      "mean_ms": 1694.2886800010456,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 864.8248999961652,
+      "p95_ms": 4212.013240001396,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 5044.138600002043,
+      "mean_ms": 1694.2886800010456,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 864.8248999961652,
+      "p95_ms": 4212.013240001396,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "warmup",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "hybrid_default",
+      "run_id": "service_C_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 98,
+        "unsupported": 22
+      },
+      "http": {
+        "200": 120
+      },
+      "kind": "main",
+      "max_ms": 9671.331199991982,
+      "mean_ms": 910.5765624998943,
+      "modes": {
+        "answered": 71,
+        "not_found": 21,
+        "partial": 22,
+        "unsafe": 6
+      },
+      "n": 120,
+      "p50_ms": 930.7971999951405,
+      "p95_ms": 1073.8011749956056,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 71,
+        "not_found": 21,
+        "partial_evidence": 22,
+        "unsafe": 6
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 84,
+        "unsupported": 6
+      },
+      "http": {
+        "200": 90
+      },
+      "kind": "main",
+      "max_ms": 9671.331199991982,
+      "mean_ms": 983.5110466670207,
+      "modes": {
+        "answered": 66,
+        "not_found": 12,
+        "partial": 6,
+        "unsafe": 6
+      },
+      "n": 90,
+      "p50_ms": 939.1967500050669,
+      "p95_ms": 1302.6976500026637,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 66,
+        "not_found": 12,
+        "partial_evidence": 6,
+        "unsafe": 6
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 14,
+        "unsupported": 16
+      },
+      "http": {
+        "200": 30
+      },
+      "kind": "main",
+      "max_ms": 1112.2111000004224,
+      "mean_ms": 691.7731099985152,
+      "modes": {
+        "answered": 5,
+        "not_found": 9,
+        "partial": 16
+      },
+      "n": 30,
+      "p50_ms": 910.1739999969141,
+      "p95_ms": 1061.7624249884102,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 5,
+        "not_found": 9,
+        "partial_evidence": 16
+      },
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource1",
+      "max_ms": 858.7124000041513,
+      "mean_ms": 847.2670500013919,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 846.1764000021503,
+      "p95_ms": 857.1948500044527,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource1",
+      "max_ms": 858.7124000041513,
+      "mean_ms": 847.2670500013919,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 846.1764000021503,
+      "p95_ms": 857.1948500044527,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource1",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource2",
+      "max_ms": 1625.9726999996928,
+      "mean_ms": 1389.170850001392,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 1544.2231499982881,
+      "p95_ms": 1616.4273599992157,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource2",
+      "max_ms": 1625.9726999996928,
+      "mean_ms": 1389.170850001392,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 1544.2231499982881,
+      "p95_ms": 1616.4273599992157,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource2",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource4",
+      "max_ms": 3184.1595000005327,
+      "mean_ms": 2073.834375001752,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 2082.5968500066665,
+      "p95_ms": 3075.5711850018997,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource4",
+      "max_ms": 3184.1595000005327,
+      "mean_ms": 2073.834375001752,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 2082.5968500066665,
+      "p95_ms": 3075.5711850018997,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource4",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 11290.655299992068,
+      "mean_ms": 2965.576839997084,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 898.3828999917023,
+      "p95_ms": 9218.014059992855,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 11290.655299992068,
+      "mean_ms": 2965.576839997084,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 898.3828999917023,
+      "p95_ms": 9218.014059992855,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "warmup",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw20_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 97,
+        "unsupported": 23
+      },
+      "http": {
+        "200": 120
+      },
+      "kind": "main",
+      "max_ms": 10350.514000005205,
+      "mean_ms": 911.3504391665629,
+      "modes": {
+        "answered": 70,
+        "not_found": 21,
+        "partial": 23,
+        "unsafe": 6
+      },
+      "n": 120,
+      "p50_ms": 942.6389000000199,
+      "p95_ms": 1062.3301850071584,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 70,
+        "not_found": 21,
+        "partial_evidence": 23,
+        "unsafe": 6
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 82,
+        "unsupported": 5
+      },
+      "http": {
+        "200": 87
+      },
+      "kind": "main",
+      "max_ms": 10350.514000005205,
+      "mean_ms": 986.5569425283479,
+      "modes": {
+        "answered": 64,
+        "not_found": 12,
+        "partial": 5,
+        "unsafe": 6
+      },
+      "n": 87,
+      "p50_ms": 952.8837999969255,
+      "p95_ms": 1071.3948800083017,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 64,
+        "not_found": 12,
+        "partial_evidence": 5,
+        "unsafe": 6
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 15,
+        "unsupported": 18
+      },
+      "http": {
+        "200": 33
+      },
+      "kind": "main",
+      "max_ms": 1072.7020000049379,
+      "mean_ms": 713.0787484854933,
+      "modes": {
+        "answered": 6,
+        "not_found": 9,
+        "partial": 18
+      },
+      "n": 33,
+      "p50_ms": 915.5803999892669,
+      "p95_ms": 1029.8820000025444,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 6,
+        "not_found": 9,
+        "partial_evidence": 18
+      },
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource1",
+      "max_ms": 886.9900999998208,
+      "mean_ms": 873.7704250015668,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 871.5741499981959,
+      "p95_ms": 885.1832149994152,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource1",
+      "max_ms": 886.9900999998208,
+      "mean_ms": 873.7704250015668,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 871.5741499981959,
+      "p95_ms": 885.1832149994152,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource1",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource2",
+      "max_ms": 1657.036100004916,
+      "mean_ms": 1412.1561250030936,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 1565.4959500025143,
+      "p95_ms": 1645.0691150028433,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource2",
+      "max_ms": 1657.036100004916,
+      "mean_ms": 1412.1561250030936,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 1565.4959500025143,
+      "p95_ms": 1645.0691150028433,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource2",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource4",
+      "max_ms": 3304.201799997827,
+      "mean_ms": 2128.231999995478,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 2136.624499995378,
+      "p95_ms": 3191.3631449970126,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 4
+      },
+      "http": {
+        "200": 4
+      },
+      "kind": "resource4",
+      "max_ms": 3304.201799997827,
+      "mean_ms": 2128.231999995478,
+      "modes": {
+        "answered": 4
+      },
+      "n": 4,
+      "p50_ms": 2136.624499995378,
+      "p95_ms": 3191.3631449970126,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 4
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "resource4",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 9698.49310000427,
+      "mean_ms": 2625.4415399977006,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 854.2541999922832,
+      "p95_ms": 7934.912420003091,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "all"
+    },
+    {
+      "generation_errors": {
+        "not_reported": 5
+      },
+      "http": {
+        "200": 5
+      },
+      "kind": "warmup",
+      "max_ms": 9698.49310000427,
+      "mean_ms": 2625.4415399977006,
+      "modes": {
+        "answered": 5
+      },
+      "n": 5,
+      "p50_ms": 854.2541999922832,
+      "p95_ms": 7934.912420003091,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {
+        "completed": 5
+      },
+      "subset": "contract_complete"
+    },
+    {
+      "generation_errors": {},
+      "http": {},
+      "kind": "warmup",
+      "max_ms": null,
+      "mean_ms": null,
+      "modes": {},
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "profile": "safe_dense_raw50_bge",
+      "run_id": "service_C_v1",
+      "stop_reasons": {},
+      "subset": "contract_failed"
+    }
+  ],
+  "scope": "descriptive saved observations; all contains complete and failed, never sum their n"
+}

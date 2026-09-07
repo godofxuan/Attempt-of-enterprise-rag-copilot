@@ -41,6 +41,22 @@ _QUOTED_ENTITY_PATTERNS = (
 )
 _YEAR_PATTERN = re.compile(r"(?<!\d)\d{4}(?!\d)")
 _LIST_REQUEST = re.compile(r"列出|列举|哪些|complete list|all required", re.I)
+_BARE_POLICY = re.compile(r"^([\u4e00-\u9fffA-Za-z0-9]{2,30}?(?:制度|政策|标准表))")
+_POLICY_REQUEST_PREFIX = re.compile(
+    r"^(?:(?:请核对|请介绍|请查询|请问|按照|根据|删除|更新后的|更新|恢复|原版本的|当前的|按)+)"
+)
+
+
+def _bare_policy_entity(query: str) -> str | None:
+    # A narrowly delimited unquoted policy reference is still an explicit
+    # document constraint. Do not infer entities from arbitrary noun overlap.
+    match = _BARE_POLICY.match(query.strip())
+    if not match:
+        return None
+    entity = _POLICY_REQUEST_PREFIX.sub("", match.group(1))
+    if len(entity) < 4 or entity in {"当前制度", "公司制度", "当前政策", "公司政策"}:
+        return None
+    return entity
 
 
 def has_query_anchor_support(query: str, evidence: AdmittedEvidenceChunk) -> bool:
@@ -62,6 +78,9 @@ def has_query_anchor_support(query: str, evidence: AdmittedEvidenceChunk) -> boo
         for entity in pattern.findall(query):
             entities.append(entity)
             entity_tokens.update(_content_tokens(entity))
+    if not entities and (entity := _bare_policy_entity(query)):
+        entities.append(entity)
+        entity_tokens.update(_content_tokens(entity))
     if entities:
         normalized_evidence = "".join(evidence_text.casefold().split())
         if not any(

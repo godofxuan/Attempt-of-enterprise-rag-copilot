@@ -1,0 +1,13 @@
+{
+  "attempts": 0,
+  "automatic_contract_complete": 0,
+  "finished_at": "2026-09-07T16:42:58.920791+08:00",
+  "human_review": "NEEDS_HUMAN",
+  "main": 0,
+  "production": "NOT_EVALUATED",
+  "source_after": "24a0d908f1bc8bc4497fdaf9ece68bee27c28fa5bde5178c0b1ad3fcb3d31af2",
+  "source_before": "24a0d908f1bc8bc4497fdaf9ece68bee27c28fa5bde5178c0b1ad3fcb3d31af2",
+  "started_at": "2026-09-07T16:42:58.163391+08:00",
+  "status": "STOPPED_ModuleNotFoundError",
+  "warmup": 0
+}

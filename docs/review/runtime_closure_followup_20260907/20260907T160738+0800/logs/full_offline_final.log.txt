@@ -1,0 +1,101 @@
+...........................ss........................................... [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+..ss.................................................................... [ 25%]
+...........................................s...............sss.......... [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+........................s.s..s.s........................................ [ 36%]
+..........s.s...s.s.s................................................... [ 38%]
+........................................................................ [ 40%]
+..s..................................................................... [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+.............................s..s....................................... [ 61%]
+........................................................................ [ 63%]
+..............s......................................................... [ 65%]
+...s.................................................................... [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+.................................................s...................... [ 73%]
+.............................s.......................................... [ 75%]
+.........................s......s...................s................... [ 77%]
+..............................ss........................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 84%]
+..............................................s........ss..s............ [ 86%]
+...s.................................s............s..................... [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+........................................................                 [100%]
+============================== warnings summary ===============================
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+SKIPPED [1] tests\agent_runtime\test_durable_orchestrator.py:771: TEST_POSTGRES_DSN is not configured
+SKIPPED [1] tests\agent_runtime\test_durable_orchestrator.py:786: TEST_POSTGRES_DSN is not configured
+SKIPPED [1] tests\evaluation\test_indirect_injection_cross_model_cli.py:2199: dangling directory symlink creation is unavailable: [WinError 1314] 客户端没有所需的特权。: '<WORKTREE>\\.private\\pytest_full_final\\test_real_dangling_targets_fai0\\missing-target' -> '<WORKTREE>\\.private\\pytest_full_final\\test_real_dangling_targets_fai0\\safe-output\\r2-s4-dangling-component-fixture'
+SKIPPED [1] tests\evaluation\test_indirect_injection_cross_model_cli.py:2199: dangling directory symlink creation is unavailable: [WinError 1314] 客户端没有所需的特权。: '<WORKTREE>\\.private\\pytest_full_final\\test_real_dangling_targets_fai1\\missing-target' -> '<WORKTREE>\\.private\\pytest_full_final\\test_real_dangling_targets_fai1\\safe-matrix\\r2-s4-dangling-matrix-fixture'
+SKIPPED [1] tests\evaluation\test_indirect_injection_cross_model_writer.py:1140: directory symlinks are unavailable on this host
+SKIPPED [1] tests\evaluation\test_indirect_injection_dataset.py:262: file symlinks are unavailable: [WinError 1314] 客户端没有所需的特权。: '<WORKTREE>\\.private\\pytest_full_final\\test_loader_rejects_symlinked_0\\test_dataset.target' -> '<WORKTREE>\\.private\\pytest_full_final\\test_loader_rejects_symlinked_0\\security\\indirect_injection_test_v1.json'
+SKIPPED [1] tests\evaluation\test_indirect_injection_dataset.py:262: file symlinks are unavailable: [WinError 1314] 客户端没有所需的特权。: '<WORKTREE>\\.private\\pytest_full_final\\test_loader_rejects_symlinked_1\\test_fixtures.target' -> '<WORKTREE>\\.private\\pytest_full_final\\test_loader_rejects_symlinked_1\\security\\fixtures_v1\\test\\manifest.json'
+SKIPPED [1] tests\evaluation\test_indirect_injection_dataset.py:262: file symlinks are unavailable: [WinError 1314] 客户端没有所需的特权。: '<WORKTREE>\\.private\\pytest_full_final\\test_loader_rejects_symlinked_2\\test_freeze_manifest.target' -> '<WORKTREE>\\.private\\pytest_full_final\\test_loader_rejects_symlinked_2\\security\\indirect_injection_test_v1.manifest.json'
+SKIPPED [1] tests\evaluation\test_indirect_injection_exposure_public.py:1331: POSIX output-root symlink regression requires POSIX
+SKIPPED [1] tests\evaluation\test_indirect_injection_exposure_public.py:1392: symlink creation is unavailable: [WinError 1314] 客户端没有所需的特权。: '<WORKTREE>\\.private\\pytest_full_final\\test_export_rejects_dangling_o0\\missing-public-referent' -> '<WORKTREE>\\.private\\pytest_full_final\\test_export_rejects_dangling_o0\\public'
+SKIPPED [1] tests\evaluation\test_indirect_injection_exposure_public.py:1459: symlink creation is unavailable: [WinError 1314] 客户端没有所需的特权。: 'redirected' -> '<WORKTREE>\\.private\\pytest_full_final\\test_export_rejects_dangling_f0\\public\\fixture'
+SKIPPED [1] tests\evaluation\test_indirect_injection_exposure_public.py:1532: symlink creation is unavailable: [WinError 1314] 客户端没有所需的特权。: '<WORKTREE>\\.private\\pytest_full_final\\test_export_rejects_source_run0\\private\\r2-s3-writer-test' -> '<WORKTREE>\\.private\\pytest_full_final\\test_export_rejects_source_run0\\source-alias'
+SKIPPED [1] tests\evaluation\test_indirect_injection_exposure_writer.py:951: POSIX output-root symlink regression requires POSIX
+SKIPPED [1] tests\evaluation\test_indirect_injection_exposure_writer.py:1013: symlink creation is unavailable: [WinError 1314] 客户端没有所需的特权。: '<WORKTREE>\\.private\\pytest_full_final\\test_publish_rejects_dangling_0\\missing-root-referent' -> '<WORKTREE>\\.private\\pytest_full_final\\test_publish_rejects_dangling_0\\runs'
+SKIPPED [1] tests\evaluation\test_indirect_injection_exposure_writer.py:1113: symlink creation is unavailable: [WinError 1314] 客户端没有所需的特权。: 'redirected' -> '<WORKTREE>\\.private\\pytest_full_final\\test_publish_rejects_dangling_1\\runs\\r2-s3-writer-test'
+SKIPPED [1] tests\evaluation\test_indirect_injection_exposure_writer.py:1155: symlinks are unavailable in this Windows environment
+SKIPPED [1] tests\evaluation\test_indirect_injection_exposure_writer.py:1203: symlink creation is unavailable: [WinError 1314] 客户端没有所需的特权。: '<WORKTREE>\\.private\\pytest_full_final\\test_verifier_rejects_top_leve0\\runs\\r2-s3-writer-test' -> '<WORKTREE>\\.private\\pytest_full_final\\test_verifier_rejects_top_leve0\\run-alias'
+SKIPPED [1] tests\evaluation\test_indirect_injection_live_writer.py:864: symlink creation is unavailable: [WinError 1314] 客户端没有所需的特权。: 'missing-live-target' -> '<WORKTREE>\\.private\\pytest_full_final\\test_publish_live_rejects_dang0\\runs\\r2-s1-v5-live-writer-test'
+SKIPPED [1] tests\external_datasets\test_finqa_shadow_replay_v1.py:51: private FinQA train split is unavailable
+SKIPPED [1] tests\external_datasets\test_finqa_shadow_replay_v1.py:119: private FinQA train split is unavailable
+SKIPPED [1] tests\external_datasets\test_uda_finance_r3.py:98: pinned private UDA QA file is not available
+SKIPPED [1] tests\external_datasets\test_wixqa_multidoc_fast_track.py:48: official WixQA source is intentionally not stored in Git
+SKIPPED [1] tests\ingestion\test_file_validation.py:791: symbolic-link creation is unavailable
+SKIPPED [1] tests\ingestion\test_revision_catalog.py:684: symbolic-link creation is unavailable on this platform
+SKIPPED [1] tests\lifecycle\test_append_only_evidence.py:93: symlink creation is unavailable on this platform
+SKIPPED [1] tests\lifecycle\test_enterprise_bundle.py:166: local account cannot create symbolic links
+SKIPPED [1] tests\lifecycle\test_lifecycle_validation.py:86: symlink creation is unavailable on this platform
+SKIPPED [1] tests\lifecycle\test_performance_bundle.py:493: symlink creation is unavailable on this platform
+SKIPPED [1] tests\lifecycle\test_performance_bundle.py:509: directory symlink creation is unavailable on this platform
+SKIPPED [1] tests\security\test_demo_identity_lifecycle.py:735: this volume does not expose a distinct 8.3 alias
+SKIPPED [1] tests\security\test_demo_identity_lifecycle.py:990: POSIX descriptor chmod semantics
+SKIPPED [1] tests\security\test_demo_identity_lifecycle.py:1038: POSIX nonblocking FIFO contract
+SKIPPED [1] tests\security\test_demo_identity_lifecycle.py:1142: directory symlink creation is not available
+SKIPPED [1] tests\security\test_demo_identity_lifecycle.py:1649: POSIX directory rename semantics
+SKIPPED [1] tests\security\test_identity_config.py:95: symlink creation is not available
+SKIPPED [1] tests\security\test_identity_jwks.py:133: symlink creation is not available
+3692 passed, 36 skipped, 3 warnings in 214.27s (0:03:34)

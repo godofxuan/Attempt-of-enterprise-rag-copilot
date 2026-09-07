@@ -1,0 +1,76 @@
+UP017 [*] Use `datetime.UTC` alias
+   --> app\retrieval\pipeline.py:536:30
+    |
+534 |     if filters.temporal_scope == "current":
+535 |         # Date-only validity uses UTC and the same half-open interval as as_of.
+536 |         today = datetime.now(timezone.utc).date()
+    |                              ^^^^^^^^^^^^
+537 |         return (
+538 |             chunk.status == "active"
+    |
+help: Convert to `datetime.UTC` alias
+    |
+6   | from dataclasses import dataclass
+    - from datetime import datetime, timezone
+7   + from datetime import datetime, timezone, UTC
+8   |
+--------------------------------------------------------------------------------
+535 |         # Date-only validity uses UTC and the same half-open interval as as_of.
+    -         today = datetime.now(timezone.utc).date()
+536 +         today = datetime.now(UTC).date()
+537 |         return (
+    |
+
+UP017 [*] Use `datetime.UTC` alias
+  --> tests\retrieval\test_current_validity.py:13:22
+   |
+11 |     @classmethod
+12 |     def now(cls, tz=None):
+13 |         assert tz is timezone.utc
+   |                      ^^^^^^^^^^^^
+14 |         return cls(2026, 9, 7, 12, tzinfo=timezone.utc)
+   |
+help: Convert to `datetime.UTC` alias
+   |
+   - from datetime import date, datetime, timezone
+1  + from datetime import date, datetime, timezone, UTC
+2  |
+--------------------------------------------------------------------------------
+12 |     def now(cls, tz=None):
+   -         assert tz is timezone.utc
+13 +         assert tz is UTC
+14 |         return cls(2026, 9, 7, 12, tzinfo=timezone.utc)
+   |
+
+UP017 [*] Use `datetime.UTC` alias
+  --> tests\retrieval\test_current_validity.py:14:43
+   |
+12 |     def now(cls, tz=None):
+13 |         assert tz is timezone.utc
+14 |         return cls(2026, 9, 7, 12, tzinfo=timezone.utc)
+   |                                           ^^^^^^^^^^^^
+help: Convert to `datetime.UTC` alias
+   |
+   - from datetime import date, datetime, timezone
+1  + from datetime import date, datetime, timezone, UTC
+2  |
+--------------------------------------------------------------------------------
+13 |         assert tz is timezone.utc
+   -         return cls(2026, 9, 7, 12, tzinfo=timezone.utc)
+14 +         return cls(2026, 9, 7, 12, tzinfo=UTC)
+15 |
+   |
+
+E501 Line too long (104 > 100)
+  --> tests\retrieval\test_current_validity.py:33:101
+   |
+31 |     ],
+32 | )
+33 | def test_current_validity_before_ranking(chunk_factory, snapshot_factory, start, end, status, expected):
+   |                                                                                                     ^^^^
+34 |     chunk = chunk_factory(effective_from=start, effective_to=end, status=status)
+35 |     pipeline = module.HybridRetrievalPipeline(snapshot_factory([chunk]))
+   |
+
+Found 4 errors.
+[*] 3 fixable with the `--fix` option.

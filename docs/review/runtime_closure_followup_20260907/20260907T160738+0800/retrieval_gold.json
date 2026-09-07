@@ -1,0 +1,1268 @@
+{
+  "candidate_artifact_sha256": "73d5f994b6553e823914ccc98c247e1c953bfa81c2c90a1a97b67db26595f136",
+  "id_scheme": "existing article sha256 and question pseudonyms unchanged; hashes are not anonymity guarantees",
+  "metric_definition": "first five distinct article IDs, binary gain, macro average over all 200; no empty gold",
+  "questions": [
+    {
+      "gold_article_ids": [
+        "49d9e88fadbf11fa4e685c847590078ff9394c2fe7566094f504f53ca4aca465"
+      ],
+      "question_id": "wixqa:expertwritten:c019a6a5a9e359e6c36c56bf"
+    },
+    {
+      "gold_article_ids": [
+        "06535db983ea0ffe0214af14497a1d158f279d92c92f211e87b8820aa95dbe43"
+      ],
+      "question_id": "wixqa:expertwritten:94b8831ed37152837eefb6f0"
+    },
+    {
+      "gold_article_ids": [
+        "de6e96935f0b3321cf29416ec164482247b5035f1d2e12b36e203be8126ca8b8"
+      ],
+      "question_id": "wixqa:expertwritten:71aa6fc7b8d795fbaaf43a9c"
+    },
+    {
+      "gold_article_ids": [
+        "a513a215c1798f329293330cb5f5e975a18978954b5ee27d84441e029f900d51",
+        "b9ba8c318ee75f49eaa89c1d5b8d461fa2b4c27167381b869aeb31027d7187f9"
+      ],
+      "question_id": "wixqa:expertwritten:30c1fb6cc119ce52f9176132"
+    },
+    {
+      "gold_article_ids": [
+        "8cc75fbcc571336d1ef1768e7727bd9d1e6c1333f22eeb5366232b9a1a066418"
+      ],
+      "question_id": "wixqa:expertwritten:fba047f7d9361cc3a0743c0d"
+    },
+    {
+      "gold_article_ids": [
+        "f346781bc6cf23c95342ce003927de9d985a99eeb7561c69f03e65da7c10f2fb",
+        "163d579af227160c8072dc465c81d8edea4b507d7e8789078b680f88633aefab",
+        "2df694686b70b35ed389ff590354cfaf19aafc07659b12b02078f2ebcf015ac8"
+      ],
+      "question_id": "wixqa:expertwritten:ef97705996ba58a39a0178a7"
+    },
+    {
+      "gold_article_ids": [
+        "5f02fc2f8937d16a4d8cdca47da36ae34429e0b279fb0cc56af72e2d91991a28"
+      ],
+      "question_id": "wixqa:expertwritten:8913f7cfa0469ef537784dbc"
+    },
+    {
+      "gold_article_ids": [
+        "65806b123ff355cef16c8abe4301f1df982e2c3bddcd33b81ed446b92a79e336",
+        "db6a6c4be5c11fae531b4fdd546601bab6d4a26b669a8a7ea6063c62a045e9d4"
+      ],
+      "question_id": "wixqa:expertwritten:80fe33478e7fc3e42923932c"
+    },
+    {
+      "gold_article_ids": [
+        "39158650c97235d1f9b98a71be41c5222ddb3ee3e497cfb1d10ef3bd0bc166cf",
+        "e9366441d1e037a1470c9bad57455dbadc24db0ca931791edd0f3b026ea6a58f"
+      ],
+      "question_id": "wixqa:expertwritten:0f74c25a47fd563609657391"
+    },
+    {
+      "gold_article_ids": [
+        "6b97c2a01f5c925927be970c1f768a4b628c6b52071dec733aa3a1719d17332e",
+        "7a49619f637ed0508bca64c0995e2726276d8faba2907d97350e0f01384709af"
+      ],
+      "question_id": "wixqa:expertwritten:6e44361491ffe023cc620989"
+    },
+    {
+      "gold_article_ids": [
+        "bec5870553814db329b6b83e73d059f0a42c2454b5bd4c4989b3b7110e29589c"
+      ],
+      "question_id": "wixqa:expertwritten:eca47954aa1bb311c989a9d8"
+    },
+    {
+      "gold_article_ids": [
+        "359dab9e725658fc9407e34714d19da1fda7a8cb8c85c5c141968dd3775de044",
+        "dd6385654e2bc9cc5fcaf350bc944449291fa2377a61e06052035a2f0605c5b5"
+      ],
+      "question_id": "wixqa:expertwritten:339ef62be3e19d50eb19dea7"
+    },
+    {
+      "gold_article_ids": [
+        "9dbf43e1a13c691c4ac016af067a723ca51613c639d878f7c556dd1a1fbc3018",
+        "04997ca3b0a1736557e6895e2eecc51ccd581a1982afa647b5ebf835e68d4deb"
+      ],
+      "question_id": "wixqa:expertwritten:9d3effb1175bb37e5f18125a"
+    },
+    {
+      "gold_article_ids": [
+        "2de6c16958d89aee79f3d5e8f44686b80d74cfccf56b02bd14fecf96663e3c06"
+      ],
+      "question_id": "wixqa:expertwritten:a53faa734bac2b5be6de95fb"
+    },
+    {
+      "gold_article_ids": [
+        "8309620f90a06cbd6b28930591ae59e9f479687ecac060543c69b26214815aab",
+        "3407d197c71652bee58835ba148794a8be7e70cf9e25c599044b823c82db29fd"
+      ],
+      "question_id": "wixqa:expertwritten:4d86e2bdbcbe1fc980249baf"
+    },
+    {
+      "gold_article_ids": [
+        "9b71e0c1c1101d626c050e2209b382430c36eb91644c25dc9016802164ea769f",
+        "0edfb79224593e47a232c58687f04d0534cabe82e36a6af890f92830860b5b72"
+      ],
+      "question_id": "wixqa:expertwritten:2d304800829517ab6ffdb1f0"
+    },
+    {
+      "gold_article_ids": [
+        "81815895cb357ab2acbf1da52c91beff481c88fe49d416c853b3fb88a4ae92ea"
+      ],
+      "question_id": "wixqa:expertwritten:adced97794c0bd9b4b0fb457"
+    },
+    {
+      "gold_article_ids": [
+        "7f365d820565efdc168e39938b16e965ea0e70a394eaac7e926078ec3b562ceb"
+      ],
+      "question_id": "wixqa:expertwritten:7f5b517ff7902c934d51d184"
+    },
+    {
+      "gold_article_ids": [
+        "8c2e56296ddb7b441238ff06cfa9b38204aca9e27371386689b1fa4643cdfbff"
+      ],
+      "question_id": "wixqa:expertwritten:466cb5e1dd1d834d914dfba2"
+    },
+    {
+      "gold_article_ids": [
+        "c8a54de5b540e9832be6e6468b5e498d532df9ea6af16ae83fcdcd15647e4c73"
+      ],
+      "question_id": "wixqa:expertwritten:6ce820322981e63efd196beb"
+    },
+    {
+      "gold_article_ids": [
+        "add129d0bc54006961811dd5065b2a69281974d794e372f68bc07c93696113dd"
+      ],
+      "question_id": "wixqa:expertwritten:a931cd5dcaa2f082f9c0c7e7"
+    },
+    {
+      "gold_article_ids": [
+        "0a229edfd466b96f849627494fb95e837c7c603cb7fdc5faeadef815a4d24804",
+        "035b36b995402d769a3117eb0ad63257a662e2eeef678b16ba740925985e7ef8"
+      ],
+      "question_id": "wixqa:expertwritten:b6dab829de900cc94722586a"
+    },
+    {
+      "gold_article_ids": [
+        "b254fcee6b0ae875da5b74071a0d306ab6eabd8ec17634d257638716fb529809"
+      ],
+      "question_id": "wixqa:expertwritten:e0df26f0ce8b919735c3893e"
+    },
+    {
+      "gold_article_ids": [
+        "49d9e88fadbf11fa4e685c847590078ff9394c2fe7566094f504f53ca4aca465"
+      ],
+      "question_id": "wixqa:expertwritten:1f73e1b108d6d9c0edf58c74"
+    },
+    {
+      "gold_article_ids": [
+        "49d9e88fadbf11fa4e685c847590078ff9394c2fe7566094f504f53ca4aca465"
+      ],
+      "question_id": "wixqa:expertwritten:4e706eb52abd55fa44e83881"
+    },
+    {
+      "gold_article_ids": [
+        "42494683352ccb36b16ef52dc0b32ff1aab64f5f3a6fe90827c33e0252a59098"
+      ],
+      "question_id": "wixqa:expertwritten:f0279edc57763bc5fb576e0d"
+    },
+    {
+      "gold_article_ids": [
+        "f353775648c196649a0cf3bf26ddea340192587efe7c0813b798325f1c412d9f"
+      ],
+      "question_id": "wixqa:expertwritten:36576444336ee9515e7f869c"
+    },
+    {
+      "gold_article_ids": [
+        "13ae20110f373b7614a4594a0b47cd190eaecba13c74138551ee24f682b43f08",
+        "0d6bacf2646098a55162336b12fc8eeb56c6618febc7ad94a9c7d5d9bb71ba3f"
+      ],
+      "question_id": "wixqa:expertwritten:101d32e290a7a5814ed2997b"
+    },
+    {
+      "gold_article_ids": [
+        "f3dbc14fb416feb03a8bcf6c1712d81cda4c6febe412e6acdfd8f471ed79adf8",
+        "8fd246f6ccd03e386abc914642c48d78e1e434c6895b6e98f7c690eb18f3a5a1",
+        "0dc521e6f3cba224285bf32a1a21752313474992f3be4ac874a7b93ca2f7dda6"
+      ],
+      "question_id": "wixqa:expertwritten:220640e84ec50f270b3f8968"
+    },
+    {
+      "gold_article_ids": [
+        "11e6ff65a8bb2f65b29f9d2726561da8f5de81543fe3000fe40668f383c88489"
+      ],
+      "question_id": "wixqa:expertwritten:9013752e521b01b018b241be"
+    },
+    {
+      "gold_article_ids": [
+        "bce5e3d829fe6eebd5fb2585b008cac096b48072d7cc5971ff31e72941fef5ae"
+      ],
+      "question_id": "wixqa:expertwritten:521e9dfebc4dc6731332e783"
+    },
+    {
+      "gold_article_ids": [
+        "a4bf9c1cccd5e7ae04d0fc890eaff145b933ab55a52c6cead06a9cd4caa8b6da"
+      ],
+      "question_id": "wixqa:expertwritten:1585cdcdd837b8279bf5dd85"
+    },
+    {
+      "gold_article_ids": [
+        "7a2109a7643cefe52eaad4779d868dd6fc845b8ab32bc8f131c4c63d53cb7456"
+      ],
+      "question_id": "wixqa:expertwritten:964a10392333d3522e609f36"
+    },
+    {
+      "gold_article_ids": [
+        "d487a621f0535cd8d7c717d614c18d36b49841066c8dd641967d05be5205b6c9"
+      ],
+      "question_id": "wixqa:expertwritten:c189cef8621872ec416ec31f"
+    },
+    {
+      "gold_article_ids": [
+        "2b832f8ff9989b6dede601a3c6452990cb582aed046dabac16fbc38d73e65ffd"
+      ],
+      "question_id": "wixqa:expertwritten:e0a1b9b3215346a43714bd27"
+    },
+    {
+      "gold_article_ids": [
+        "b4717557702f3383d3d4d7bf071c2ab5558b34fc62860d2879f9d48f86ec2de8"
+      ],
+      "question_id": "wixqa:expertwritten:67935ac1ec26af77a8d206cc"
+    },
+    {
+      "gold_article_ids": [
+        "61ffa2b0a7c68212db74fe792ac05131ccc9a4b25309047f15b1d5f6f4bca55e"
+      ],
+      "question_id": "wixqa:expertwritten:1684094ac437b7c3c8783110"
+    },
+    {
+      "gold_article_ids": [
+        "26300cd857c9f66141d42e808c89f5d48534efcfb0c3392eae63a5245df92e8e"
+      ],
+      "question_id": "wixqa:expertwritten:0215ee003ff8f432a484a500"
+    },
+    {
+      "gold_article_ids": [
+        "1609e162350e7c1bb21e17a9e6a3b5e78a34d4dd9ff087188115313cb2d53d86"
+      ],
+      "question_id": "wixqa:expertwritten:088e3cb9fab9dee41014f2fd"
+    },
+    {
+      "gold_article_ids": [
+        "76ae63aeb65260f8f2735b59718c74b58d2d364a65690e561675eb247b9eae7f",
+        "869c8a200a23aa567dbb783a8461a4f0857ee2ffeb38b296560268911e83b2cc"
+      ],
+      "question_id": "wixqa:expertwritten:ac0cca099b0b080d57a46cb5"
+    },
+    {
+      "gold_article_ids": [
+        "7ccd1a9278fc1868865563acc0217c1d235e1ce76037eafcde2c68cef64a8134"
+      ],
+      "question_id": "wixqa:expertwritten:d5f56099f7bcf7676b6531b6"
+    },
+    {
+      "gold_article_ids": [
+        "0b6d939e9e0d8599e895cad834a336ccec3f5e4c149645def2ea4d4d6091b356"
+      ],
+      "question_id": "wixqa:expertwritten:4dc3750daf40c67aa0741b91"
+    },
+    {
+      "gold_article_ids": [
+        "19cddc977e2dd448d6403b8fe556b2b49d482a160120d7ee807c908cd57016f3"
+      ],
+      "question_id": "wixqa:expertwritten:9e2a75e12d721f61e6ab0655"
+    },
+    {
+      "gold_article_ids": [
+        "c71c2c71e9442d4007e45716aa6e8f4826f19a00e850c8b742bd10aa6090a1e5"
+      ],
+      "question_id": "wixqa:expertwritten:727c0867d686fa41a24af86b"
+    },
+    {
+      "gold_article_ids": [
+        "674a8ee961c87e71e35bc7f786673c780ab0b522230ff5806aed8dac13989744"
+      ],
+      "question_id": "wixqa:expertwritten:050fd5af2ac87bcf87d76eab"
+    },
+    {
+      "gold_article_ids": [
+        "9127986712d7e0b33baf120a91ba5ea476a3b62e99269a561dd5e530db3df2b0"
+      ],
+      "question_id": "wixqa:expertwritten:8cce874f7d73e22affb6dd5d"
+    },
+    {
+      "gold_article_ids": [
+        "3a7ba684b5e7faa2655c89d099e584de6ee63108a373400a59695da8167db572"
+      ],
+      "question_id": "wixqa:expertwritten:7d1bedce10e6a9d18f2249f0"
+    },
+    {
+      "gold_article_ids": [
+        "8cb92704d3a87aa92be4860f006c3f7a959143b5f8cf4f962940508288b0dc04"
+      ],
+      "question_id": "wixqa:expertwritten:2e5697c604ba86b9c772c628"
+    },
+    {
+      "gold_article_ids": [
+        "89e39fdcca5874eb36d1ac6e359aad2cd93b601cac1cf7b8743449ff7893ead8",
+        "fd36cb06f2de70a197a60c3d2e28ec709fb884cad11153f4bb6086f82755bd5a"
+      ],
+      "question_id": "wixqa:expertwritten:7b927a389462744be6a345a6"
+    },
+    {
+      "gold_article_ids": [
+        "a58c7cf097e081353986990a4ed90f8045245be5295358d7e81a7475f1204e09"
+      ],
+      "question_id": "wixqa:expertwritten:94fa22274b50643ff781f043"
+    },
+    {
+      "gold_article_ids": [
+        "5097c7944bbd290a11bf9dbf7624d475139d109ed0b33bc0449f53e8583be1f3",
+        "caa8c4985acb151b210db3cf155fab9318119c9bf80eaef6ad5c1cd971e675ae"
+      ],
+      "question_id": "wixqa:expertwritten:ff8842f4867a74f9610ef862"
+    },
+    {
+      "gold_article_ids": [
+        "83dafaa7fb8598367f32ef2d9fb39c1aa49650ca2f64f1509f7823fc117b664a"
+      ],
+      "question_id": "wixqa:expertwritten:9edc639bf2978ee04b4ecd77"
+    },
+    {
+      "gold_article_ids": [
+        "7a2109a7643cefe52eaad4779d868dd6fc845b8ab32bc8f131c4c63d53cb7456"
+      ],
+      "question_id": "wixqa:expertwritten:0ccf21c03cf172528cb5f261"
+    },
+    {
+      "gold_article_ids": [
+        "c5d82d4a0741f072da98db371148bfb349e37561fd94b32c1326dd77d44a4ca0"
+      ],
+      "question_id": "wixqa:expertwritten:770e035572a36986ea80ff33"
+    },
+    {
+      "gold_article_ids": [
+        "44ac80104f2840a040407f38c3c6ed70d6b93277419d8a5b16d34d60ed86423b"
+      ],
+      "question_id": "wixqa:expertwritten:05f53cca8cd9ec7537370e3b"
+    },
+    {
+      "gold_article_ids": [
+        "979c6547854102876ed45799be73f2318ec3d52c2705586f883e9d5f9b204a15"
+      ],
+      "question_id": "wixqa:expertwritten:bd4598625033c14235a3f5d5"
+    },
+    {
+      "gold_article_ids": [
+        "78dc0abf7cd09064c04990aea88a340dffa118def85ee43bf18ec4eb315d47fe"
+      ],
+      "question_id": "wixqa:expertwritten:014d44baaace916ae5441a42"
+    },
+    {
+      "gold_article_ids": [
+        "fee90bfe3add5c0b9da4bf8c8c34b2d0ef79e802d7b8410b961c46df370ce336"
+      ],
+      "question_id": "wixqa:expertwritten:e840d78eb2a7ecb74529bdd8"
+    },
+    {
+      "gold_article_ids": [
+        "3c497f685ef01dea8fc0e5b2e4f848ed5306b1ebe2c6b291477269a4266d6d98",
+        "33dfa4eb3abc1c459f4b8f24cb14757f39c1b9c7c13f598cf904b9d395cc6970"
+      ],
+      "question_id": "wixqa:expertwritten:a13f94bdd0c2e57765396d36"
+    },
+    {
+      "gold_article_ids": [
+        "bb528ecfbf28534c702f7e30e97e1709741bb421299f376de6cb2bc8d8226fc4"
+      ],
+      "question_id": "wixqa:expertwritten:0deeccc44015bf1550056b01"
+    },
+    {
+      "gold_article_ids": [
+        "0cb65c6c64d2b1d3c54f04b08cd7c801334d1984fc5f07e6e1396b12fb9e1a08"
+      ],
+      "question_id": "wixqa:expertwritten:dac2fdc74fca11ffb419c9c9"
+    },
+    {
+      "gold_article_ids": [
+        "4c851bd1efd1009bb75a387d406fb7914e906fda9016127529184916bd23aaf9",
+        "8001def9f1cf8810f2685ae0f68ee4b4bca089212d77a99e0a129a1feb80370f",
+        "040613a5d53923efc2955eb8cfaf4573d7543dd0236bf90be63e40613359e4cf"
+      ],
+      "question_id": "wixqa:expertwritten:b3b5fea89e11aa31e4f0ae75"
+    },
+    {
+      "gold_article_ids": [
+        "1c468e44c3b2e17cc74bea4b83e6037bfd26c1b527d04f9641dd61c8fe54f551",
+        "e4b87cd9f38d652e0a018619be5ab7f6065f07e1bd2556d629fb34e693feff91"
+      ],
+      "question_id": "wixqa:expertwritten:68d0818df802f2a129e6767a"
+    },
+    {
+      "gold_article_ids": [
+        "13b7554664bd39da1825c1d396cefbb0afd2d9989c1a15659dd158b0a46b916c"
+      ],
+      "question_id": "wixqa:expertwritten:07b4ee02b4f8317fbc1f74c1"
+    },
+    {
+      "gold_article_ids": [
+        "1c468e44c3b2e17cc74bea4b83e6037bfd26c1b527d04f9641dd61c8fe54f551"
+      ],
+      "question_id": "wixqa:expertwritten:7e3e4abf5849135a328eeb87"
+    },
+    {
+      "gold_article_ids": [
+        "49d9e88fadbf11fa4e685c847590078ff9394c2fe7566094f504f53ca4aca465"
+      ],
+      "question_id": "wixqa:expertwritten:fb75ed34cd685aeb192bd349"
+    },
+    {
+      "gold_article_ids": [
+        "88f6b5848f6f662d7fe9d69f2708f00c75067894320261c58578ad0ed732baa9",
+        "9bf18dc24fbe1699beea4ea50fe1ac0ccdfe811623662cd87c6dd78ac9100d78"
+      ],
+      "question_id": "wixqa:expertwritten:b1a85c51eeb4b92fbb97c5e5"
+    },
+    {
+      "gold_article_ids": [
+        "9dbf43e1a13c691c4ac016af067a723ca51613c639d878f7c556dd1a1fbc3018",
+        "04997ca3b0a1736557e6895e2eecc51ccd581a1982afa647b5ebf835e68d4deb"
+      ],
+      "question_id": "wixqa:expertwritten:e25e3df274b524164bf047b1"
+    },
+    {
+      "gold_article_ids": [
+        "91eeefd48d7dcfda197a6162b7259e942579b5e6a53f50def1b09fecaad9ee1d",
+        "c767f27f3884550a922260527f188d9b32ded399a5f36d4f0b060253348764ed"
+      ],
+      "question_id": "wixqa:expertwritten:2943ce67e435c268a379f7a5"
+    },
+    {
+      "gold_article_ids": [
+        "be8f488cde5a1ed4c46d21398144c082d689a03c700094b17d1c9ebb1ee6902e"
+      ],
+      "question_id": "wixqa:expertwritten:cc361c0e53b05f73a4d0dadb"
+    },
+    {
+      "gold_article_ids": [
+        "dbe0a26325502a70afa42a8484e6e062fc31132896f4319cb0fc34f834551ee0"
+      ],
+      "question_id": "wixqa:expertwritten:da7f2267105a0e1a9edca19f"
+    },
+    {
+      "gold_article_ids": [
+        "ad7a6f1f5851bf2c4bc738d6223bb1546e78c7b7f3317d721b67181cd675c5a8",
+        "d487a621f0535cd8d7c717d614c18d36b49841066c8dd641967d05be5205b6c9"
+      ],
+      "question_id": "wixqa:expertwritten:9d7b6cf752dc10ee51693f3e"
+    },
+    {
+      "gold_article_ids": [
+        "b3e00d9ee8731d8ba3a2b6a598661814748800e26861ceae1043dd13aedcf7be"
+      ],
+      "question_id": "wixqa:expertwritten:409e67ae8e6b4bc9da90fa3d"
+    },
+    {
+      "gold_article_ids": [
+        "79455d545b2391bcf2def8c7df43ee5d3ae9aab18a36e789313c94e1f8765be8",
+        "261156aa199b397241f9cee31209331949be17ff75a2a42e53c561f2fd676951"
+      ],
+      "question_id": "wixqa:expertwritten:52b0b8cc6c68666b7f214080"
+    },
+    {
+      "gold_article_ids": [
+        "8cb92704d3a87aa92be4860f006c3f7a959143b5f8cf4f962940508288b0dc04"
+      ],
+      "question_id": "wixqa:expertwritten:6a491ac32a12df17e9835997"
+    },
+    {
+      "gold_article_ids": [
+        "be7dc55f18f09992ba827908f0e022346f4e05c76aabd81090798aa28714ff0d"
+      ],
+      "question_id": "wixqa:expertwritten:2c0e2cf944b8f22cf046a256"
+    },
+    {
+      "gold_article_ids": [
+        "2dc662f80a2af9aa209981a6aba1962f140573cba262184f4240b67a1d26772a"
+      ],
+      "question_id": "wixqa:expertwritten:022fb0b102761d2178d92cd0"
+    },
+    {
+      "gold_article_ids": [
+        "8309620f90a06cbd6b28930591ae59e9f479687ecac060543c69b26214815aab"
+      ],
+      "question_id": "wixqa:expertwritten:cb20e58fac197a79f3a91b0e"
+    },
+    {
+      "gold_article_ids": [
+        "5fbc47de05f77213b05973a3ad35aa082c84b11e939a70914ed66ab02fc8b617"
+      ],
+      "question_id": "wixqa:expertwritten:26eec128130d9f56d7f1a830"
+    },
+    {
+      "gold_article_ids": [
+        "c8783e7cee11b09c015c396cebcd60a7c1c93a4be6d73383d41d11369527cde3"
+      ],
+      "question_id": "wixqa:expertwritten:f69203a78eb5b58ce3a51642"
+    },
+    {
+      "gold_article_ids": [
+        "80f713366c2599da0c718797a8174799885289c8c050fccccb21442a90f0c03a"
+      ],
+      "question_id": "wixqa:expertwritten:3b9ac27b7a68db856572e33d"
+    },
+    {
+      "gold_article_ids": [
+        "db8689fb79cbb114d40d38ef89019ee4ee0498e18d25fcd9d53fc2fa42a27f80",
+        "7a49619f637ed0508bca64c0995e2726276d8faba2907d97350e0f01384709af"
+      ],
+      "question_id": "wixqa:expertwritten:48756571616df1e1e58444ea"
+    },
+    {
+      "gold_article_ids": [
+        "de6e96935f0b3321cf29416ec164482247b5035f1d2e12b36e203be8126ca8b8",
+        "1403e3db0171995eea2a0db5b92dd93976f60c48784dbe752b45b337a386adf5"
+      ],
+      "question_id": "wixqa:expertwritten:bbe685c246ad1a020d941fa5"
+    },
+    {
+      "gold_article_ids": [
+        "49d9e88fadbf11fa4e685c847590078ff9394c2fe7566094f504f53ca4aca465"
+      ],
+      "question_id": "wixqa:expertwritten:f6657105081ba0738c800487"
+    },
+    {
+      "gold_article_ids": [
+        "5641574289f2768293891471cfcc69b935623ef2723abd28fcb9dddf430ce5e8"
+      ],
+      "question_id": "wixqa:expertwritten:f9389c561bb3001fbcf5b982"
+    },
+    {
+      "gold_article_ids": [
+        "c260289b0947792bce0e1eac376a70ecf0d3482c1cde01fa22d8f44e6f7c0ee0"
+      ],
+      "question_id": "wixqa:expertwritten:2d9a95161b2714da2e343dc3"
+    },
+    {
+      "gold_article_ids": [
+        "c767f27f3884550a922260527f188d9b32ded399a5f36d4f0b060253348764ed"
+      ],
+      "question_id": "wixqa:expertwritten:41f087a9ff1ddec6ad7096cf"
+    },
+    {
+      "gold_article_ids": [
+        "9b19fff16487d6d81f188358b3be7959490e4d7291d43c35a71c5bb8b86814bc",
+        "5ffac2b71ea454640d6b2ff424935c68ca726a8d32036290d1c9f1a80d22667c"
+      ],
+      "question_id": "wixqa:expertwritten:defdce4a265aaa212b596b62"
+    },
+    {
+      "gold_article_ids": [
+        "9b19fff16487d6d81f188358b3be7959490e4d7291d43c35a71c5bb8b86814bc",
+        "5ffac2b71ea454640d6b2ff424935c68ca726a8d32036290d1c9f1a80d22667c"
+      ],
+      "question_id": "wixqa:expertwritten:c9a621337e534bd404dcca3d"
+    },
+    {
+      "gold_article_ids": [
+        "6ac11c077e31c980c3de33be613fa8af2af6f78ed5da96ede5644a7195a1e866",
+        "571ab41fb9e80c99d0f10cfceae8b71ed3d426c5b13c9745655925b4161e8fd4"
+      ],
+      "question_id": "wixqa:expertwritten:7a66bb716e62f64af855f3d3"
+    },
+    {
+      "gold_article_ids": [
+        "9dbf43e1a13c691c4ac016af067a723ca51613c639d878f7c556dd1a1fbc3018",
+        "62b26d2236aba83295c706d5285e063a5fa09be6fc2d892d642540a04b1c4d85"
+      ],
+      "question_id": "wixqa:expertwritten:a9260629fa9f2c20fe73dcfc"
+    },
+    {
+      "gold_article_ids": [
+        "91eeefd48d7dcfda197a6162b7259e942579b5e6a53f50def1b09fecaad9ee1d"
+      ],
+      "question_id": "wixqa:expertwritten:5b4329502cc690858a276de7"
+    },
+    {
+      "gold_article_ids": [
+        "21d0c4a48a5cb926c651d84555c943756b3c980010fff778098ebd5758e8dd10"
+      ],
+      "question_id": "wixqa:expertwritten:87a8325818d19ca6a2864459"
+    },
+    {
+      "gold_article_ids": [
+        "7f54f872dcefc45fec8d7bcaabce47769bccfd8f4efa5ffe8e8232fe11aa24c0"
+      ],
+      "question_id": "wixqa:expertwritten:ce20f1f2891f357433d462d7"
+    },
+    {
+      "gold_article_ids": [
+        "68cbfcb0aff2ca1fdf344999c66e4d87d40a216564a892512ff8018cf2bfe253",
+        "7d8d492c5a4e6bf7d47764f9674e840b6fc652c98689d1791c3442f306478613"
+      ],
+      "question_id": "wixqa:expertwritten:066ac98d207ffb4e5e3ab6ff"
+    },
+    {
+      "gold_article_ids": [
+        "be8f488cde5a1ed4c46d21398144c082d689a03c700094b17d1c9ebb1ee6902e"
+      ],
+      "question_id": "wixqa:expertwritten:b13433f6480d489cab383b2f"
+    },
+    {
+      "gold_article_ids": [
+        "fbe2efc44cd56402c42a2b443b654fc9332e94cc2bb5bcf5b206971ea1fe32aa"
+      ],
+      "question_id": "wixqa:expertwritten:62367d3c41e7651c7ab1e9d2"
+    },
+    {
+      "gold_article_ids": [
+        "04997ca3b0a1736557e6895e2eecc51ccd581a1982afa647b5ebf835e68d4deb",
+        "36e7c2a0419b630ed12f12697c3aa35b21e52ef790c3ce2bbce45a67fb04c52b"
+      ],
+      "question_id": "wixqa:expertwritten:6361e1e4cf4af08356feb900"
+    },
+    {
+      "gold_article_ids": [
+        "91eeefd48d7dcfda197a6162b7259e942579b5e6a53f50def1b09fecaad9ee1d"
+      ],
+      "question_id": "wixqa:expertwritten:af55f7fc968e574a403711ca"
+    },
+    {
+      "gold_article_ids": [
+        "49d9e88fadbf11fa4e685c847590078ff9394c2fe7566094f504f53ca4aca465",
+        "04997ca3b0a1736557e6895e2eecc51ccd581a1982afa647b5ebf835e68d4deb"
+      ],
+      "question_id": "wixqa:expertwritten:7df7d543a2ed47ffeade5832"
+    },
+    {
+      "gold_article_ids": [
+        "fa04af5bc8c305f900f1f6bcea2fe66b5a4e6b1a84450b1f6a980084d3d4addc"
+      ],
+      "question_id": "wixqa:expertwritten:70d37bcf7eaa39e64444054b"
+    },
+    {
+      "gold_article_ids": [
+        "51aca93604e8d423b3a87c0126335c5864f343205d7441aa23171523bb26c7aa"
+      ],
+      "question_id": "wixqa:expertwritten:a15880a7131960ea7606df7f"
+    },
+    {
+      "gold_article_ids": [
+        "a591b77f0a070d2ba56e5ec94f24cfbbe9890bb5260b49a533de802033741aa5",
+        "917dc0f5c250da8787fde5f21c192cd6906aa239bd4d2c499277c2606a93c974"
+      ],
+      "question_id": "wixqa:expertwritten:f08b765ce12816df5f2cdf56"
+    },
+    {
+      "gold_article_ids": [
+        "7a2a95eef86788654dd78c208baa0f8adc5ba65cdf05d27b90ebf747d87ca171",
+        "24953d9f24a1cd711d55a2a3729dd74257e6de98ea882b8a9ae49e2d2720d1fa",
+        "568140964e5e7c1628d295e9991367ed4d3c2090a79105d435231030b620a506"
+      ],
+      "question_id": "wixqa:expertwritten:6bc1c4ef6be1c0e4e5ba3941"
+    },
+    {
+      "gold_article_ids": [
+        "5641574289f2768293891471cfcc69b935623ef2723abd28fcb9dddf430ce5e8"
+      ],
+      "question_id": "wixqa:expertwritten:f731f2b7eb70fd885cafb553"
+    },
+    {
+      "gold_article_ids": [
+        "8a5d43f98c713e756106a2550c8ead9e4a16c91d2b55f9a240f82bb75fd12782"
+      ],
+      "question_id": "wixqa:expertwritten:639a6d9343e7a439788b42d0"
+    },
+    {
+      "gold_article_ids": [
+        "568140964e5e7c1628d295e9991367ed4d3c2090a79105d435231030b620a506"
+      ],
+      "question_id": "wixqa:expertwritten:bcd8bcb753bbff45b08b4899"
+    },
+    {
+      "gold_article_ids": [
+        "9fc70d88423ae68403ccb81a8aac36ddb5fd9a7ac9d57c35ba163e3dcb841417"
+      ],
+      "question_id": "wixqa:expertwritten:7c76a2159162386dcbdf8f75"
+    },
+    {
+      "gold_article_ids": [
+        "c8783e7cee11b09c015c396cebcd60a7c1c93a4be6d73383d41d11369527cde3"
+      ],
+      "question_id": "wixqa:expertwritten:4906b0b3b372970fe8d1509d"
+    },
+    {
+      "gold_article_ids": [
+        "d44da9f63404b7f277086f617efa87e65efc5cb8fd237e6d9470ffdcd38c9e46"
+      ],
+      "question_id": "wixqa:expertwritten:239015a6953729e603fd24f7"
+    },
+    {
+      "gold_article_ids": [
+        "d43e89aeb2f79d5105520f40f84f47ad11f15dcf092e5fe3376bc368dd152b80"
+      ],
+      "question_id": "wixqa:expertwritten:2b917c9c3e18a84a890b1c20"
+    },
+    {
+      "gold_article_ids": [
+        "e63fe24104428cb2bb94d1087fbb7a9c7136f0c028f7a441bbfeb33357069d25"
+      ],
+      "question_id": "wixqa:expertwritten:38afc20ee05f8ebb88cae3be"
+    },
+    {
+      "gold_article_ids": [
+        "7e10270b7ecd05d2573050a9ca7541e71edcb7b2b82220e5079404417d10d7dd",
+        "01e329b27ef95b8d6da00ab4ef5edde1b08837190925fefaaa23a1cbbc5bf855"
+      ],
+      "question_id": "wixqa:expertwritten:02342aa4518b78bdb12d5d60"
+    },
+    {
+      "gold_article_ids": [
+        "a513a215c1798f329293330cb5f5e975a18978954b5ee27d84441e029f900d51"
+      ],
+      "question_id": "wixqa:expertwritten:1d17dce78c7b9a91b40c1a8e"
+    },
+    {
+      "gold_article_ids": [
+        "df9f74cf9a89d202a31987b14b341e2568b71e795d65c737c3cc7c8b1f19061a"
+      ],
+      "question_id": "wixqa:expertwritten:abb5de1cad4d3a56132c3bf3"
+    },
+    {
+      "gold_article_ids": [
+        "8355a228e57d0a766b3bdfd591d86a12b060f7e7f7d4fd19c468cb8f1c336721"
+      ],
+      "question_id": "wixqa:expertwritten:02a377bdab9b151c87516387"
+    },
+    {
+      "gold_article_ids": [
+        "82e09fe1f4ab70ddd74290b51b6f3182ea71e460664d48ba6d550961e312bfd8"
+      ],
+      "question_id": "wixqa:expertwritten:056acbffb240d5ccd7a14cfe"
+    },
+    {
+      "gold_article_ids": [
+        "6d5d61b21e2981893d50b1c101694cddc3c88c93e4f2b14b02143c0f19038687"
+      ],
+      "question_id": "wixqa:expertwritten:1f2b6d2bfee046e3f5c0db9a"
+    },
+    {
+      "gold_article_ids": [
+        "50d02c7ce566adb08742f7cc810bfceab55f9a7c43fcd7fe73f932c2cd8c88b1"
+      ],
+      "question_id": "wixqa:expertwritten:16950689b7085cc25c75dd35"
+    },
+    {
+      "gold_article_ids": [
+        "3b3edb8700d3099ded98be8cb0c41785b964f5fc4c21db11cd1c6f96250b8f51",
+        "c8783e7cee11b09c015c396cebcd60a7c1c93a4be6d73383d41d11369527cde3"
+      ],
+      "question_id": "wixqa:expertwritten:e42c03f245ee968255fa64c3"
+    },
+    {
+      "gold_article_ids": [
+        "f971216b06eba45cab4e5bdea5cea4196024af8360a81ed603a36266bbc6f926",
+        "085e4d36ca87e3caa5403c4a9fd6e2e147826bf93f1bb909f23e8f2f0167aab4"
+      ],
+      "question_id": "wixqa:expertwritten:889616c20dcba897c1f50ac6"
+    },
+    {
+      "gold_article_ids": [
+        "01e329b27ef95b8d6da00ab4ef5edde1b08837190925fefaaa23a1cbbc5bf855"
+      ],
+      "question_id": "wixqa:expertwritten:3f6d9cf912d38f269a3453f8"
+    },
+    {
+      "gold_article_ids": [
+        "ac52db95f0cfec00e71b43d37c7428fb694f9bc262cd7f2770fe661de581c8be"
+      ],
+      "question_id": "wixqa:expertwritten:7dda9409e45c3ca987c26da0"
+    },
+    {
+      "gold_article_ids": [
+        "fff4ccf96f0bf0a2c3b82d0734f384299bd9a621212087f9268941acd38f8d36"
+      ],
+      "question_id": "wixqa:expertwritten:3cf8733a6780b8a766218cbd"
+    },
+    {
+      "gold_article_ids": [
+        "71c4af17a58608e6532561f6b5e39a52b765ec05704a8cefa4618255e00c35a3",
+        "2d4fc8ead551a8cf2f64ffe33d48e2c4aff88693fe418e33d623296dd25a1de2"
+      ],
+      "question_id": "wixqa:expertwritten:3b60ed667510601a92195cbf"
+    },
+    {
+      "gold_article_ids": [
+        "7e10270b7ecd05d2573050a9ca7541e71edcb7b2b82220e5079404417d10d7dd",
+        "1d9d696fc7b02666984ce70a49e3b106ce8bf6f4fefe351d2cd4d1ec98253aac"
+      ],
+      "question_id": "wixqa:expertwritten:ff8318b7ac2f378b34322c4b"
+    },
+    {
+      "gold_article_ids": [
+        "e5d4d43fc8badaf4ce4f7f3a548fbda56f60f10e1dcc73c0a408d154c3a3608d"
+      ],
+      "question_id": "wixqa:expertwritten:cbfbde04443f9a4ec24fcbb7"
+    },
+    {
+      "gold_article_ids": [
+        "a64cacf41053234604e05d45255bae13d63974acbfe808ee003ee480107d14d8"
+      ],
+      "question_id": "wixqa:expertwritten:8e79a672de2e6de7d5d5a9ca"
+    },
+    {
+      "gold_article_ids": [
+        "cca1a826035f2460c3bcd3e68d4b52927f10be5f289de310f592625890e6f520"
+      ],
+      "question_id": "wixqa:expertwritten:38c9d6a95cf90bbc79bc1e7d"
+    },
+    {
+      "gold_article_ids": [
+        "67b2ea3d053a9791a200c8dbdded565fa8ccccb50d375cca1c745ecefba17e88"
+      ],
+      "question_id": "wixqa:expertwritten:daeea5727cd04b60347d13c7"
+    },
+    {
+      "gold_article_ids": [
+        "908476ad8eae76bfa335531628978f33cf5967b3943a7d0898d94aa1bdea1f26"
+      ],
+      "question_id": "wixqa:expertwritten:08154d663136eaf0609749be"
+    },
+    {
+      "gold_article_ids": [
+        "a58c7cf097e081353986990a4ed90f8045245be5295358d7e81a7475f1204e09"
+      ],
+      "question_id": "wixqa:expertwritten:08ff400b57dc978811923870"
+    },
+    {
+      "gold_article_ids": [
+        "7be79d27b2ef237124f1629a4f23d8b41c90ebf31dc773ca90e86aadb95fa09f"
+      ],
+      "question_id": "wixqa:expertwritten:2fce413be295e9cae3ac451a"
+    },
+    {
+      "gold_article_ids": [
+        "93b0b3e9143597ad88074cb36a60e73fc02d9d5e7ebe707b1537847cda6f2cb1",
+        "ef059ae18c89167addcdbf182f654898434af7b6ca75577fdc7e006c65568be1"
+      ],
+      "question_id": "wixqa:expertwritten:cab79016322fc3957b6adb66"
+    },
+    {
+      "gold_article_ids": [
+        "73962a6c69a291d8a5d108b0a2116dd29341275b37c155084612574eb649c8d7"
+      ],
+      "question_id": "wixqa:expertwritten:3aca7ec094aa055fdd331dc2"
+    },
+    {
+      "gold_article_ids": [
+        "59d93fe87c11976a1762f5f0b66281fa3abaa794311b4797740eb2fc17a04514"
+      ],
+      "question_id": "wixqa:expertwritten:cb4490e2387d9411fe2fb216"
+    },
+    {
+      "gold_article_ids": [
+        "4410ec7a468ff3fbc16226eaed066aa4eedb099aec7d62d9190586d9b814cdf4",
+        "52491d805ef26f5b0173acea8a0de24c75364577bf69eb1ba6442d8ae449b738",
+        "bd21131f1c6bf94859aa1162f8e4d7c1e91e5596a86e873f0a65a5b87dddfd58"
+      ],
+      "question_id": "wixqa:expertwritten:d9162d549154b6648c9bb5fe"
+    },
+    {
+      "gold_article_ids": [
+        "860274d1352a93de212e60fd6460b0bf658a82e9945ab967bc4069eec5f831e2"
+      ],
+      "question_id": "wixqa:expertwritten:a23792bdd90a5a8d0beb36d5"
+    },
+    {
+      "gold_article_ids": [
+        "0f62233f56e2ec9872da8bf74fda8cf9af0dad4b186d40e3cd8284495d2027a3"
+      ],
+      "question_id": "wixqa:expertwritten:1cec2034c5d2fa1e9fe44e06"
+    },
+    {
+      "gold_article_ids": [
+        "63feacd4199e7305e277fb785d3ee7a86252a753036d619d4a940b4cc36d5f82"
+      ],
+      "question_id": "wixqa:expertwritten:49d8f1bdfabc4267a2b6944f"
+    },
+    {
+      "gold_article_ids": [
+        "c8ecc53ea0624b4a821db3a01ce700772ef6415db04a456ed9f06bd55e1d1fe6"
+      ],
+      "question_id": "wixqa:expertwritten:8760c885bfe13c389987d14a"
+    },
+    {
+      "gold_article_ids": [
+        "7702378a3ae3fe2d928d1610769855c7f506efa705b43039177cfcd85e93766a"
+      ],
+      "question_id": "wixqa:expertwritten:8872df8d5c27312cacb1c340"
+    },
+    {
+      "gold_article_ids": [
+        "93b0b3e9143597ad88074cb36a60e73fc02d9d5e7ebe707b1537847cda6f2cb1"
+      ],
+      "question_id": "wixqa:expertwritten:8f27faefe643a516a15e1518"
+    },
+    {
+      "gold_article_ids": [
+        "10d6ad17a475d203890657d1d3bde15f4e5534bc4b0c1f87ca79bd29f73fd2a7"
+      ],
+      "question_id": "wixqa:expertwritten:0448cc73b1bbbf69a35fc19f"
+    },
+    {
+      "gold_article_ids": [
+        "a58c7cf097e081353986990a4ed90f8045245be5295358d7e81a7475f1204e09"
+      ],
+      "question_id": "wixqa:expertwritten:3f3d129bb0f7fee0f61fa9b8"
+    },
+    {
+      "gold_article_ids": [
+        "8f75535d9e4da125f409c551a9606beda8b8475d6c1351f783dd13914103962f"
+      ],
+      "question_id": "wixqa:expertwritten:d97e4ac4d856e73276367f37"
+    },
+    {
+      "gold_article_ids": [
+        "b1294bb659f5a89d919117c0b9b00387752d0e8cbfdc681113616775aae5ef9b"
+      ],
+      "question_id": "wixqa:expertwritten:14b7d680fe70aea349eb16b9"
+    },
+    {
+      "gold_article_ids": [
+        "77c054b29c894610643f474b8ddf92ab5d587006d3e23d13d38da92df7944d8e"
+      ],
+      "question_id": "wixqa:expertwritten:c5a9491cb60dff9e3b02a0e0"
+    },
+    {
+      "gold_article_ids": [
+        "a58c7cf097e081353986990a4ed90f8045245be5295358d7e81a7475f1204e09"
+      ],
+      "question_id": "wixqa:expertwritten:50357dac28a9edc6c8bc764d"
+    },
+    {
+      "gold_article_ids": [
+        "82536ac2af6aa83c87762d382aa1e3d223101ddaca264de4e98e7d229b15e398"
+      ],
+      "question_id": "wixqa:expertwritten:5b0798773cdeed33a6058d9b"
+    },
+    {
+      "gold_article_ids": [
+        "0585250f004dcd17b373021e5e3b007fe355250034fe47d554a98b3c448a5f06",
+        "a3c3c5e722dc8315970e6716f6437f346b313e57b347f50df990006cea519384"
+      ],
+      "question_id": "wixqa:expertwritten:f68602b78689ba41628edcf0"
+    },
+    {
+      "gold_article_ids": [
+        "76f467a6f07dedfe956e5c2587bdfbc6d1e75e955efafb23605310cb93b2a658"
+      ],
+      "question_id": "wixqa:expertwritten:c7b1d10da0120c4d374bdbb4"
+    },
+    {
+      "gold_article_ids": [
+        "7a2109a7643cefe52eaad4779d868dd6fc845b8ab32bc8f131c4c63d53cb7456"
+      ],
+      "question_id": "wixqa:expertwritten:b625225d834b62213368d1f4"
+    },
+    {
+      "gold_article_ids": [
+        "da2dea4c3119a1a60712c89c0a28e6364574434e36bf8a40621a5f4af08da9a8"
+      ],
+      "question_id": "wixqa:expertwritten:2061aba9aeaa46f669b3f6c3"
+    },
+    {
+      "gold_article_ids": [
+        "869eb0229f712d95946eba23a8eb9aa28569a8c0122194b342135ced4d59c1fb"
+      ],
+      "question_id": "wixqa:expertwritten:f5a472ce4984a4066a19060d"
+    },
+    {
+      "gold_article_ids": [
+        "c1e76a9137405f2f62ea51a52f42bbf9fea7cb9b16938168117fd534a5ebb314",
+        "dd1291f6b0918036ef572c2420931b0f24a2936fcdad9b187567cac915b00b33"
+      ],
+      "question_id": "wixqa:expertwritten:1df17928a3cb07b1428ccae0"
+    },
+    {
+      "gold_article_ids": [
+        "fc00aa38975e2ccdb0406699909a3fd7a4b50bbdba6bcdad41c83e28db994ab4"
+      ],
+      "question_id": "wixqa:expertwritten:888f06d7bda6da8fa003635f"
+    },
+    {
+      "gold_article_ids": [
+        "f9cf92b16b6d02aa90ad11d717bbd3f75ff35b0fd1b9f8043f751413ff06a7ef"
+      ],
+      "question_id": "wixqa:expertwritten:35718413f7752eb06d74be56"
+    },
+    {
+      "gold_article_ids": [
+        "75dba4f7b4602675735dcc63a86d7fc11c1b3005f66adfc2b4b346e7bf35dc7f",
+        "0c7a0fe78a0902c8b6c608792cd420cad12d1930769664eb7cd6fbc776a5eef5"
+      ],
+      "question_id": "wixqa:expertwritten:aa280bdeb45ec249c13e64bd"
+    },
+    {
+      "gold_article_ids": [
+        "93b0b3e9143597ad88074cb36a60e73fc02d9d5e7ebe707b1537847cda6f2cb1"
+      ],
+      "question_id": "wixqa:expertwritten:ca6f5956d5d8e50b83e9f8a6"
+    },
+    {
+      "gold_article_ids": [
+        "0cb65c6c64d2b1d3c54f04b08cd7c801334d1984fc5f07e6e1396b12fb9e1a08"
+      ],
+      "question_id": "wixqa:expertwritten:2899d78881a204858140d70d"
+    },
+    {
+      "gold_article_ids": [
+        "61aecb220fb63759dba4322f38aee10901bd2b2e1634d2602a0a6077b18da072"
+      ],
+      "question_id": "wixqa:expertwritten:7bffe9d54ea7b7a81b36309e"
+    },
+    {
+      "gold_article_ids": [
+        "68ab3d953de53475aa5aac38c7e91c4c3db4364376bab1b1909747ffe2ddbeb1"
+      ],
+      "question_id": "wixqa:expertwritten:c5eebfbf2596efafff316da7"
+    },
+    {
+      "gold_article_ids": [
+        "153d5a847abdb50f5a761f9051a4dd86544d59b3df8535dd1b0181fdad85b3ce"
+      ],
+      "question_id": "wixqa:expertwritten:20afa6199dd45727c6400426"
+    },
+    {
+      "gold_article_ids": [
+        "708a5fa702a563c41598a4d2b446735e9e382ecec5b1e8a9b63a23c20fca6b47"
+      ],
+      "question_id": "wixqa:expertwritten:3abdee9f619e21887570b3e0"
+    },
+    {
+      "gold_article_ids": [
+        "2a73ce56cfb6d899bd155abfa319d863360de062a21d82959a45463086aee274"
+      ],
+      "question_id": "wixqa:expertwritten:eb05767993d07c054fcf9260"
+    },
+    {
+      "gold_article_ids": [
+        "31b175af682a7a0437661ebdca352fb3a8bb648ca4b2c165ea92f9b6dc26b71f"
+      ],
+      "question_id": "wixqa:expertwritten:65f06e4679ae23c3063aa9c6"
+    },
+    {
+      "gold_article_ids": [
+        "0585250f004dcd17b373021e5e3b007fe355250034fe47d554a98b3c448a5f06"
+      ],
+      "question_id": "wixqa:expertwritten:c556ca6bf5822fcdd1154ca4"
+    },
+    {
+      "gold_article_ids": [
+        "e21d28bf471b3d8bff54d979e90a89561cc441d8e64f700edb9a90083b7fa4a8",
+        "64c2cd062c241c4f313d58c772508e30fe3b4d4a66a210a9f32661c22ad0b400"
+      ],
+      "question_id": "wixqa:expertwritten:f852c156aa4e7ffd1129d27a"
+    },
+    {
+      "gold_article_ids": [
+        "e21d28bf471b3d8bff54d979e90a89561cc441d8e64f700edb9a90083b7fa4a8",
+        "64c2cd062c241c4f313d58c772508e30fe3b4d4a66a210a9f32661c22ad0b400"
+      ],
+      "question_id": "wixqa:expertwritten:13d2be734ab47a775d9936d5"
+    },
+    {
+      "gold_article_ids": [
+        "2c1cfbdffd686c067c718ba09df4f1be69152ef1944991c80ef7eee8502cc946"
+      ],
+      "question_id": "wixqa:expertwritten:11ed4239659af6397b936cea"
+    },
+    {
+      "gold_article_ids": [
+        "c104d7065faf024029b59ab7eebe751d7c7b4a7a4b613d377a90ee7bf266a12d",
+        "37cb430372ab6f7343a726511cd84bb5657e8e536267aeaa653735240c20dd45"
+      ],
+      "question_id": "wixqa:expertwritten:c5aa9f9f89d3bdffe5b371f3"
+    },
+    {
+      "gold_article_ids": [
+        "568140964e5e7c1628d295e9991367ed4d3c2090a79105d435231030b620a506"
+      ],
+      "question_id": "wixqa:expertwritten:ebbf5159ca3b5a052d0addfa"
+    },
+    {
+      "gold_article_ids": [
+        "bd86afd5b4d032ce688e73d1d115f85b9ab1c811e5f87b02ae6b2ddb8174a2db"
+      ],
+      "question_id": "wixqa:expertwritten:a13d7205fdbecc81cbadf1a7"
+    },
+    {
+      "gold_article_ids": [
+        "69d173b727fb562910b949feaa4c69f6d0281dd20c0bdbecbe7414b74915f2c5"
+      ],
+      "question_id": "wixqa:expertwritten:5ede9cb376ddf4ba4bed03d6"
+    },
+    {
+      "gold_article_ids": [
+        "21b52231b7ae64ad316d4558d1972af4e12c9986a8ba096e466f9e033e31eb9a"
+      ],
+      "question_id": "wixqa:expertwritten:a9ca126fa22abda2cdc87f8f"
+    },
+    {
+      "gold_article_ids": [
+        "b4717557702f3383d3d4d7bf071c2ab5558b34fc62860d2879f9d48f86ec2de8",
+        "72b0e7a5966ce8cf8a16163fecc8ee33133e4cc5e72b04d3e108f004c6e622c3"
+      ],
+      "question_id": "wixqa:expertwritten:0a423a289e332078c7c9c135"
+    },
+    {
+      "gold_article_ids": [
+        "8eb9087663e148864e022b06c70b4c81bda356bdf88cc2ba28dcf874ceff1d2c",
+        "386e74ab93c52d0695c73f765d338c795de37dffd976c98b932bcd6a89fc3248",
+        "89bd8fb2548fafd8d6efe52f176c2b81df7e40aa83b04cc87efc31ffe44ecc90"
+      ],
+      "question_id": "wixqa:expertwritten:580ea5ce9bc00900487afe44"
+    },
+    {
+      "gold_article_ids": [
+        "79dc16843d8a0dfd5b12f8e260801c1f27e02c813cff37b75e04f023b01cee8c"
+      ],
+      "question_id": "wixqa:expertwritten:cb24b8821d8319885528c584"
+    },
+    {
+      "gold_article_ids": [
+        "32b870b67f3290a2bc22e736b2e2e84c3e5837be7ee447d88bd4efb73d4e8b00"
+      ],
+      "question_id": "wixqa:expertwritten:515148b8fd767e6a274b60e1"
+    },
+    {
+      "gold_article_ids": [
+        "3e67c7354f82374d09126f1c6dbbd0cc6faf8b4f4ffda2f9dd8dd941a94900ce"
+      ],
+      "question_id": "wixqa:expertwritten:185d63750d294f169c1da9c4"
+    },
+    {
+      "gold_article_ids": [
+        "568140964e5e7c1628d295e9991367ed4d3c2090a79105d435231030b620a506"
+      ],
+      "question_id": "wixqa:expertwritten:6b7c8e71af93974d6405f6f9"
+    },
+    {
+      "gold_article_ids": [
+        "bdcb95cf95836b146655fa214e21f1efbed7d11994679cba47d3b93230107c37"
+      ],
+      "question_id": "wixqa:expertwritten:607851c9ae987ca0750576b7"
+    },
+    {
+      "gold_article_ids": [
+        "c847ec20daef72ad69151d50ab17df712f69a345d67ad325f3cb79c7af1dd013"
+      ],
+      "question_id": "wixqa:expertwritten:39558e4f043a76136e6cc882"
+    },
+    {
+      "gold_article_ids": [
+        "80fcb5fecede003f96127d01abb7581d7064e1794c279cb679d2df6fa20085e6"
+      ],
+      "question_id": "wixqa:expertwritten:13d30809289415ab0b2b9273"
+    },
+    {
+      "gold_article_ids": [
+        "0818abadd5ad83b3f396db90f9b5720cda7b873449c63b9e0518e668992f8545",
+        "b4b30ce184e3ca7b78c04b615831ebaee8d5a029b95c2ea42fb30bdb2262e697"
+      ],
+      "question_id": "wixqa:expertwritten:e47a3af2d61f5ab9b7dc1219"
+    },
+    {
+      "gold_article_ids": [
+        "09f8a53674e864e3be35ec5133836085b662e5518598ccbf290d1f59ad8685dc",
+        "01955178e4945f1c3254dd5819a9233ae17067c36da95e37c3c13be636a47e7b"
+      ],
+      "question_id": "wixqa:expertwritten:698fc8835ddaf48df3f21fce"
+    },
+    {
+      "gold_article_ids": [
+        "90eae85f4fbd197949ba2e9df3bf31e05d40e77ffa0aa9022e4b1b0e44e5739a"
+      ],
+      "question_id": "wixqa:expertwritten:0bee550f5bc21309953c4f33"
+    },
+    {
+      "gold_article_ids": [
+        "21c80886fc0ad5a0111af4ff34c8ceb490538aaad0023beefe9febe5a623ca37"
+      ],
+      "question_id": "wixqa:expertwritten:6d96e1e51124ae40ae3017b3"
+    },
+    {
+      "gold_article_ids": [
+        "0c7a0fe78a0902c8b6c608792cd420cad12d1930769664eb7cd6fbc776a5eef5"
+      ],
+      "question_id": "wixqa:expertwritten:73d3f54c74272d902af7fcc5"
+    },
+    {
+      "gold_article_ids": [
+        "bf96e8499d7d40177f154c45cd2a0d6b030ce05011680f948720cac228907870"
+      ],
+      "question_id": "wixqa:expertwritten:62d0eecd7e1970053fb4eaeb"
+    },
+    {
+      "gold_article_ids": [
+        "7e10270b7ecd05d2573050a9ca7541e71edcb7b2b82220e5079404417d10d7dd"
+      ],
+      "question_id": "wixqa:expertwritten:e15b2240d68bf1d4e02b473f"
+    },
+    {
+      "gold_article_ids": [
+        "a4cc1ee6d897b9047536a42e242d8f3faecb8262b7e079e250c11c16ba055597"
+      ],
+      "question_id": "wixqa:expertwritten:39713c460c05817de6e84c9d"
+    },
+    {
+      "gold_article_ids": [
+        "568140964e5e7c1628d295e9991367ed4d3c2090a79105d435231030b620a506"
+      ],
+      "question_id": "wixqa:expertwritten:25e4a00a757e2f8a2585dbb7"
+    },
+    {
+      "gold_article_ids": [
+        "49d9e88fadbf11fa4e685c847590078ff9394c2fe7566094f504f53ca4aca465"
+      ],
+      "question_id": "wixqa:expertwritten:d34888a6429a4dec0cf964b3"
+    },
+    {
+      "gold_article_ids": [
+        "7c0a599789c8ec5db8e5a8bea387803a28f09d070cb5ffb282f0ffcb571a01dd",
+        "703407f8c458eae47456d67598acf9d8074440e21c16467aac692c8a60d4c5e6"
+      ],
+      "question_id": "wixqa:expertwritten:e3561eb8b79f83c4cede4a9c"
+    },
+    {
+      "gold_article_ids": [
+        "cb6b0342764eae6b79f220a5c257bd78c798cf2d3bb048b30f513593a44cd99c"
+      ],
+      "question_id": "wixqa:expertwritten:322ae67db5e5752d819e5035"
+    },
+    {
+      "gold_article_ids": [
+        "908476ad8eae76bfa335531628978f33cf5967b3943a7d0898d94aa1bdea1f26"
+      ],
+      "question_id": "wixqa:expertwritten:e0391a9d381e59eefbfa5b70"
+    },
+    {
+      "gold_article_ids": [
+        "da2dea4c3119a1a60712c89c0a28e6364574434e36bf8a40621a5f4af08da9a8"
+      ],
+      "question_id": "wixqa:expertwritten:4838dcc74573c70624ddc654"
+    },
+    {
+      "gold_article_ids": [
+        "05734f0dc85daaba58f0356dbeaef40fa9e715d1d780a6da1d91538d96aea9aa"
+      ],
+      "question_id": "wixqa:expertwritten:95019252c329219168d57eab"
+    }
+  ],
+  "ranking_evidence_sha256": "e32443f1379131c2411d3f474ebd25045a0937482ec3d5ef03563832dcb8e456",
+  "schema": "runtime-retrieval-gold/1",
+  "source": "frozen WixQA public ExpertWritten candidate artifact, not inferred labels"
+}

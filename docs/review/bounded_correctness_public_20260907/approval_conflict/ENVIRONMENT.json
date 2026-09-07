@@ -1,0 +1,9 @@
+{
+  "dependencies": "Existing .venv, actual tests imported faiss/FastAPI/Pydantic/JWT/docx. No installs, mocks of missing dependencies, or real-model execution.",
+  "full_suite": "NOT_RUN",
+  "human": "NEEDS_HUMAN",
+  "learned_ranker": "NOT_IMPLEMENTED / DEFERRED",
+  "platform": "Windows-10-10.0.26200-SP0",
+  "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+  "python_version": "Python 3.11.9"
+}

@@ -1,0 +1,31 @@
+.............F                                                           [100%]
+================================== FAILURES ===================================
+_________________________ test_cross_policy_conflict __________________________
+
+service = (<function service.<locals>.start at 0x0000023438043C40>, {'llm': [], 'scorer': ['退款争议处理期限为 7 天。', '退款争议处理期限为 30 天。']}...'D:/文档/agent/RAG_try/.private/bounded_temporal_fix_20260907/scratch/runs/G4_final/pytest/test_cross_policy_conflict0'))
+
+    def test_cross_policy_conflict(service):
+     start,seen,_=service
+     rows=[dict(id='policy_a',policy='refund_a',text='退款争议处理期限为 7 天。'),dict(id='policy_b',policy='refund_b',text='退款争议处理期限为 30 天。')]
+     question='退款争议处理期限是多少天？'
+     with start(rows,'safe_dense_raw20_bge') as client:
+      data=client.post('/agent/v2/chat',json={'question':question}).json()
+     record('cross_policy_conflict',question,rows,data,seen)
+     assert all(r['text'] in seen['scorer'] for r in rows)
+>    assert all(r['text'] in json.dumps(seen['llm'],ensure_ascii=False) for r in rows)
+E    assert False
+E     +  where False = all(<generator object test_cross_policy_conflict.<locals>.<genexpr> at 0x000002347FF4EB60>)
+
+..\bounded_temporal_fix_20260907\scratch\runs\G4_final\external_checks\test_counterexamples.py:56: AssertionError
+============================== warnings summary ===============================
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 failed, 13 passed, 3 warnings in 6.72s

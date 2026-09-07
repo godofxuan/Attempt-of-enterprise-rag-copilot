@@ -17,7 +17,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.agent.answer_contract import answer_sufficiency
+from app.agent.answer_contract import answer_sufficiency, bounded_answer_slots
 from app.agent.citation_verifier import verify_claims
 from app.agent.controller_v2 import ControllerState
 from app.agent.runner_v2 import ExtractiveResponseBuilder, build_conflict_response
@@ -295,7 +295,9 @@ class GenerationV2ResponseBuilder:
 
             if not supported_claims:
                 response_trace["generation_error_category"] = "unsupported"
-                return _delivered_extractive_fallback(sources, response_trace)
+                return self._apply_answer_contract(
+                    question, state, _delivered_extractive_fallback(sources, response_trace)
+                )
 
             cited_chunk_ids = {
                 chunk_id for claim in supported_claims for chunk_id in claim.cited_chunk_ids
@@ -324,11 +326,7 @@ class GenerationV2ResponseBuilder:
                 warnings.append(
                     f"{len(missing_aspects)} required aspect(s) lack a supported answer."
                 )
-            if sufficiency == "missing_requested_value":
-                verified_mode = "partial"
-                verified_stop_reason = "partial_evidence"
-                warnings.append("The cited evidence does not answer the requested duration.")
-            return AnswerResponse(
+            response = AnswerResponse(
                 mode=verified_mode,
                 answer="\n".join(claim.text for claim in supported_claims),
                 claims=supported_claims,
@@ -338,6 +336,7 @@ class GenerationV2ResponseBuilder:
                 stop_reason=verified_stop_reason,
                 trace=response_trace,
             )
+            return self._apply_answer_contract(question, state, response)
         except Exception as exc:
             response_trace["generation_error_category"] = _generation_error_category(exc)
             return self.source_free_builder.build(
@@ -347,6 +346,69 @@ class GenerationV2ResponseBuilder:
                 stop_reason="system_error",
                 trace=response_trace,
             )
+
+    def _apply_answer_contract(
+        self, question: str, state: ControllerState, response: AnswerResponse
+    ) -> AnswerResponse:
+        if response.mode not in {"answered", "partial"}:
+            return response
+        slots = bounded_answer_slots(question, [claim.text for claim in response.claims])
+        if not slots.requested:
+            return response
+        trace = {
+            **response.trace,
+            "requested_answer_aspect_count": len(slots.requested),
+            "answered_aspect_count": len(slots.satisfied),
+            "missing_answer_aspect_count": len(slots.missing),
+            "answer_coverage_basis": "bounded_answer_slots_v1",
+            "retrieval_coverage_basis": "query_anchor_relevance_not_semantic_proof",
+            "answer_sufficiency": answer_sufficiency(
+                question, [response.claims[i].text for i in slots.retained]
+            ),
+        }
+        if not slots.retained:
+            return self.source_free_builder.build(
+                question=question,
+                state=state,
+                mode="not_found",
+                stop_reason="not_found",
+                trace=trace,
+            )
+        claims = [response.claims[i] for i in slots.retained]
+        claim_ids = {claim.claim_id for claim in claims}
+        cited_ids = {cid for claim in claims for cid in claim.cited_chunk_ids}
+        warnings = list(response.warnings)
+        notes = []
+        english = not re.search(r"[\u4e00-\u9fff]", question)
+        for slot in slots.missing:
+            label = {"duration": "天数", "approver": "审批人"}[slot]
+            note = (
+                f"The verified answer has not yet determined the requested {slot}."
+                if english
+                else f"当前已核验的回答尚未确定所问的{label}。"
+            )
+            notes.append(note)
+        if slots.conditional:
+            notes.append(
+                "The applicable condition is not yet determined."
+                if english
+                else "当前适用条件尚未确定，无法确定应使用哪一分支。"
+            )
+        warnings.extend(notes)
+        mode = "partial" if slots.missing else response.mode
+        reason = "partial_evidence" if slots.missing else response.stop_reason
+        return response.model_copy(
+            update={
+                "mode": mode,
+                "stop_reason": reason,
+                "answer": "\n".join([*(claim.text for claim in claims), *notes]),
+                "claims": claims,
+                "citations": [c for c in response.citations if c.claim_id in claim_ids],
+                "sources": [s for s in response.sources if s.chunk_id in cited_ids],
+                "warnings": warnings,
+                "trace": {**trace, "stop_reason": reason, "final_mode": mode},
+            }
+        )
 
     def _generate_valid_shape(
         self,

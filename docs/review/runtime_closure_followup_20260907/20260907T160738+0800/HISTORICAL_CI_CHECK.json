@@ -1,0 +1,37 @@
+{
+  "checked_date": "2026-09-07",
+  "conclusion": "success",
+  "current_patch_ci": "NOT_RUN",
+  "head_sha": "c9984e92a10a6f417e2c1d8082af7e8f1e11aee1",
+  "jobs": [
+    {
+      "conclusion": "success",
+      "id": 101650096895,
+      "name": "postgres-checkpointer-integration",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 101650097081,
+      "name": "deterministic-windows-latest",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 101650097135,
+      "name": "deterministic-ubuntu-latest",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 101651820922,
+      "name": "linux-container-contract",
+      "status": "completed"
+    }
+  ],
+  "limitations": "API job/step outcomes checked, not independent rerun or raw-log verification",
+  "raw_job_logs": "NOT_OBTAINED: HTTP403 Must have admin rights to Repository",
+  "run_id": 34092932571,
+  "source": "GitHub REST Actions API read-only response",
+  "status": "completed"
+}

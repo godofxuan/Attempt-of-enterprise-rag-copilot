@@ -113,6 +113,7 @@ def _numeric_conflicts(
     )
     for aspect, evidence_values in evidence_by_aspect.items():
         groups: dict[tuple, list[tuple[Decimal, AdmittedEvidenceChunk]]] = {}
+        cross_policy: dict[tuple, list[tuple[Decimal, AdmittedEvidenceChunk]]] = {}
         for evidence in evidence_values:
             hit = evidence.hit
             if hit.status != "active":
@@ -142,12 +143,39 @@ def _numeric_conflicts(
                     " ".join(template.split()).casefold(),
                 )
                 groups.setdefault(key, []).append((Decimal(number.group()), evidence))
+                # Separate from version governance: only explicit, admitted
+                # authoritative scopes can participate across policy identities.
+                # The full predicate/object/condition/unit template is retained.
+                if (
+                    hit.policy_id
+                    and hit.variant == "authoritative"
+                    and hit.index_run_id
+                    and hit.tenant_id
+                    and hit.region
+                    and hit.acl_groups
+                ):
+                    scope = (
+                        hit.index_run_id,
+                        hit.tenant_id,
+                        hit.region,
+                        tuple(sorted(hit.acl_groups)),
+                        hit.authority_level,
+                        " ".join(template.split()).casefold(),
+                    )
+                    cross_policy.setdefault(scope, []).append((Decimal(number.group()), evidence))
         conflicting = [
             evidence
             for values in groups.values()
             if len({value for value, _ in values}) > 1
             for _, evidence in values
         ]
+        conflicting.extend(
+            evidence
+            for values in cross_policy.values()
+            if len({item.hit.policy_id for _, item in values}) > 1
+            and len({value for value, _ in values}) > 1
+            for _, evidence in values
+        )
         if conflicting:
             result[aspect] = _unique_hits(conflicting)
     return result

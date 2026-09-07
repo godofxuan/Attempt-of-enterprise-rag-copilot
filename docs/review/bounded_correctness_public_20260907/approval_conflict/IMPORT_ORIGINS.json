@@ -1,0 +1,47 @@
+[
+  {
+    "blocked_network_attempts": [],
+    "outside_worktree": [],
+    "path": "audit/G1_final/imports_existing.json"
+  },
+  {
+    "blocked_network_attempts": [],
+    "outside_worktree": [],
+    "path": "audit/G1_initial/imports_existing.json"
+  },
+  {
+    "blocked_network_attempts": [],
+    "outside_worktree": [],
+    "path": "audit/G1_red/imports_existing.json"
+  },
+  {
+    "blocked_network_attempts": [],
+    "outside_worktree": [],
+    "path": "audit/G2_final/imports_existing.json"
+  },
+  {
+    "blocked_network_attempts": [],
+    "outside_worktree": [],
+    "path": "audit/G2_original25/imports_existing.json"
+  },
+  {
+    "blocked_network_attempts": [],
+    "outside_worktree": [],
+    "path": "audit/G3_adjacent/imports_existing.json"
+  },
+  {
+    "blocked_network_attempts": [],
+    "outside_worktree": [],
+    "path": "audit/G3_final/imports_existing.json"
+  },
+  {
+    "blocked_network_attempts": [],
+    "outside_worktree": [],
+    "path": "audit/G4_external14/imports_external.json"
+  },
+  {
+    "blocked_network_attempts": [],
+    "outside_worktree": [],
+    "path": "audit/G4_final/imports_external.json"
+  }
+]

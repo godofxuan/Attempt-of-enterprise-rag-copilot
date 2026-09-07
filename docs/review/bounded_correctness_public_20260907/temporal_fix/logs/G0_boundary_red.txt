@@ -1,0 +1,108 @@
+F.FF......                                                               [100%]
+================================== FAILURES ===================================
+_______ test_current_validity_before_ranking[start0-None-active-False] ________
+
+chunk_factory = <function chunk_factory.<locals>.build at 0x000001B1FC036C00>
+snapshot_factory = <function snapshot_factory.<locals>.build at 0x000001B1FC036D40>
+start = datetime.date(2026, 9, 8), end = None, status = 'active'
+expected = False
+
+    @pytest.mark.parametrize(
+        "start,end,status,expected",
+        [
+            (date(2026, 9, 8), None, "active", False),
+            (date(2026, 9, 7), None, "active", True),
+            (date(2026, 1, 1), date(2026, 9, 7), "active", False),
+            (date(2026, 1, 1), date(2026, 9, 6), "active", False),
+            (date(2026, 1, 1), date(2026, 9, 8), "active", True),
+            (date(2026, 1, 1), None, "retired", False),
+        ],
+    )
+    def test_current_validity_before_ranking(chunk_factory, snapshot_factory, start, end, status, expected):
+        chunk = chunk_factory(effective_from=start, effective_to=end, status=status)
+        pipeline = module.HybridRetrievalPipeline(snapshot_factory([chunk]))
+        result = pipeline.search(search_request(query=chunk.text))
+>       assert bool(result.hits) is expected
+E       AssertionError: assert True is False
+E        +  where True = bool([SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)])
+E        +    where [SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)] = SearchResult(request_id='request', query='Policy text', mode='bm25', index_run_id='synthetic-run', manifest_sha256='cc...data_visible': 1, 'bm25_candidates': 1, 'dense_candidates': 0, 'fused_candidates': 1, 'returned': 1}, stop_reason='ok').hits
+
+tests\retrieval\test_current_validity.py:37: AssertionError
+---------------------------- Captured stderr call -----------------------------
+Building prefix dict from the default dictionary ...
+Loading model from cache D:\文档\agent\RAG_try\.private\runtime_closure_20260907T160738\.private\runtime_cache\jieba\jieba.cache
+Loading model cost 0.528 seconds.
+Prefix dict has been built successfully.
+------------------------------ Captured log call ------------------------------
+DEBUG    jieba:__init__.py:113 Building prefix dict from the default dictionary ...
+DEBUG    jieba:__init__.py:132 Loading model from cache D:\文档\agent\RAG_try\.private\runtime_closure_20260907T160738\.private\runtime_cache\jieba\jieba.cache
+DEBUG    jieba:__init__.py:164 Loading model cost 0.528 seconds.
+DEBUG    jieba:__init__.py:166 Prefix dict has been built successfully.
+_______ test_current_validity_before_ranking[start2-end2-active-False] ________
+
+chunk_factory = <function chunk_factory.<locals>.build at 0x000001B1882DEFC0>
+snapshot_factory = <function snapshot_factory.<locals>.build at 0x000001B1882DF2E0>
+start = datetime.date(2026, 1, 1), end = datetime.date(2026, 9, 7)
+status = 'active', expected = False
+
+    @pytest.mark.parametrize(
+        "start,end,status,expected",
+        [
+            (date(2026, 9, 8), None, "active", False),
+            (date(2026, 9, 7), None, "active", True),
+            (date(2026, 1, 1), date(2026, 9, 7), "active", False),
+            (date(2026, 1, 1), date(2026, 9, 6), "active", False),
+            (date(2026, 1, 1), date(2026, 9, 8), "active", True),
+            (date(2026, 1, 1), None, "retired", False),
+        ],
+    )
+    def test_current_validity_before_ranking(chunk_factory, snapshot_factory, start, end, status, expected):
+        chunk = chunk_factory(effective_from=start, effective_to=end, status=status)
+        pipeline = module.HybridRetrievalPipeline(snapshot_factory([chunk]))
+        result = pipeline.search(search_request(query=chunk.text))
+>       assert bool(result.hits) is expected
+E       AssertionError: assert True is False
+E        +  where True = bool([SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)])
+E        +    where [SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)] = SearchResult(request_id='request', query='Policy text', mode='bm25', index_run_id='synthetic-run', manifest_sha256='cc...data_visible': 1, 'bm25_candidates': 1, 'dense_candidates': 0, 'fused_candidates': 1, 'returned': 1}, stop_reason='ok').hits
+
+tests\retrieval\test_current_validity.py:37: AssertionError
+_______ test_current_validity_before_ranking[start3-end3-active-False] ________
+
+chunk_factory = <function chunk_factory.<locals>.build at 0x000001B1882DEDE0>
+snapshot_factory = <function snapshot_factory.<locals>.build at 0x000001B1882DF740>
+start = datetime.date(2026, 1, 1), end = datetime.date(2026, 9, 6)
+status = 'active', expected = False
+
+    @pytest.mark.parametrize(
+        "start,end,status,expected",
+        [
+            (date(2026, 9, 8), None, "active", False),
+            (date(2026, 9, 7), None, "active", True),
+            (date(2026, 1, 1), date(2026, 9, 7), "active", False),
+            (date(2026, 1, 1), date(2026, 9, 6), "active", False),
+            (date(2026, 1, 1), date(2026, 9, 8), "active", True),
+            (date(2026, 1, 1), None, "retired", False),
+        ],
+    )
+    def test_current_validity_before_ranking(chunk_factory, snapshot_factory, start, end, status, expected):
+        chunk = chunk_factory(effective_from=start, effective_to=end, status=status)
+        pipeline = module.HybridRetrievalPipeline(snapshot_factory([chunk]))
+        result = pipeline.search(search_request(query=chunk.text))
+>       assert bool(result.hits) is expected
+E       AssertionError: assert True is False
+E        +  where True = bool([SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)])
+E        +    where [SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)] = SearchResult(request_id='request', query='Policy text', mode='bm25', index_run_id='synthetic-run', manifest_sha256='cc...data_visible': 1, 'bm25_candidates': 1, 'dense_candidates': 0, 'fused_candidates': 1, 'returned': 1}, stop_reason='ok').hits
+
+tests\retrieval\test_current_validity.py:37: AssertionError
+============================== warnings summary ===============================
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+3 failed, 7 passed, 3 warnings in 0.94s

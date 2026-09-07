@@ -1,0 +1,37 @@
+{
+  "claim": "Prior ZIP did NOT deliver promised full-suite redacted XML; this delivery does not claim to supply historical XML either. Local source hash checks are not external receipt.",
+  "local_original_xml": [
+    {
+      "available": true,
+      "expected": "aedb8491f2e452025d9356f34bf9b734e333883328d1ad24bb3452d00afc05f8",
+      "path": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738\\.private\\full.xml",
+      "provided_this_delivery": false,
+      "sha256": "aedb8491f2e452025d9356f34bf9b734e333883328d1ad24bb3452d00afc05f8"
+    },
+    {
+      "available": true,
+      "expected": "1b0774e7660098f21b0695eaad175c23df512a14921d5262a0dfd67a65c4aca7",
+      "path": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738\\.private\\full_final.xml",
+      "provided_this_delivery": false,
+      "sha256": "1b0774e7660098f21b0695eaad175c23df512a14921d5262a0dfd67a65c4aca7"
+    },
+    {
+      "available": true,
+      "expected": "aeadbc9e7bc5ebf16e69ed2b585e8aa42db535b225bed243a993f487a755d81a",
+      "path": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738\\.private\\full_release.xml",
+      "provided_this_delivery": false,
+      "sha256": "aeadbc9e7bc5ebf16e69ed2b585e8aa42db535b225bed243a993f487a755d81a"
+    },
+    {
+      "available": true,
+      "expected": "b57c501c477430f46a378dd4eb8038fc329926422325d72e66bc7f6a464eacca",
+      "path": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_delivery\\pytest_clean_e276209.xml",
+      "provided_this_delivery": false,
+      "sha256": "b57c501c477430f46a378dd4eb8038fc329926422325d72e66bc7f6a464eacca"
+    }
+  ],
+  "new_matrix_red_test_bytes": "Initial red test SHA256 preserved; pre-format full test bytes were not separately archived. Final complete test provided; all frozen legacy tests byte-preserved.",
+  "original_raw_omissions_count": 4,
+  "original_redacted_xml_members": [],
+  "original_redaction_map": []
+}

@@ -1,0 +1,428 @@
+E501 Line too long (110 > 100)
+  --> app\agent\answer_contract.py:96:101
+   |
+94 |     if conditional:
+95 |         satisfied.discard("approver")
+96 |     return AnswerSlots(requested, tuple(s for s in requested if s in satisfied), tuple(retained), conditional)
+   |                                                                                                     ^^^^^^^^^^
+
+E501 Line too long (102 > 100)
+   --> app\agent\generation_v2.py:371:101
+    |
+369 |         if not slots.retained:
+370 |             return self.source_free_builder.build(
+371 |                 question=question, state=state, mode="not_found", stop_reason="not_found", trace=trace
+    |                                                                                                     ^^
+372 |             )
+373 |         claims = [response.claims[i] for i in slots.retained]
+    |
+
+E501 Line too long (121 > 100)
+   --> app\agent\generation_v2.py:382:101
+    |
+380 |             label = {"duration": "天数", "approver": "审批人"}[slot]
+381 |             note = (
+382 |                 f"The verified answer has not yet determined the requested {slot if slot != 'duration' else 'duration'}."
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^
+383 |                 if english
+384 |                 else f"当前已核验的回答尚未确定所问的{label}。"
+    |
+
+E501 Line too long (119 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:25:76
+   |
+23 |     ("A03", WHO, "这笔报销材料未说明审批人。", None, "partial", (1, 0), ["未说明审批人"], "审批人"),
+24 |     ("A04", WHO, "这笔报销无需审批。", None, "answered", (1, 1), ["无需审批"], None),
+25 |     ("A05", WHO, "这笔报销由员工提交，财务核验，部门负责人审批。", None, "answered", (1, 1), ["部门负责人审批"], None),
+   |                                                                                                      ^^^^^^^^^^^^^^^^^^
+26 |     ("A06", WHO, "这笔报销审批由部门负责人完成。", None, "answered", (1, 1), ["审批由部门负责人完成"], None),
+27 |     ("A08", WHO, "这笔报销需要审批。另一类申请无需审批。", None, "partial", (1, 0), ["需要审批"], "审批人"),
+   |
+
+E501 Line too long (109 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:26:76
+   |
+24 |     ("A04", WHO, "这笔报销无需审批。", None, "answered", (1, 1), ["无需审批"], None),
+25 |     ("A05", WHO, "这笔报销由员工提交，财务核验，部门负责人审批。", None, "answered", (1, 1), ["部门负责人审批"], None),
+26 |     ("A06", WHO, "这笔报销审批由部门负责人完成。", None, "answered", (1, 1), ["审批由部门负责人完成"], None),
+   |                                                                                                     ^^^^^^^^^
+27 |     ("A08", WHO, "这笔报销需要审批。另一类申请无需审批。", None, "partial", (1, 0), ["需要审批"], "审批人"),
+28 |     ("A09", WHO, "这笔报销无需经理审批，仍需部门负责人审批。", None, "answered", (1, 1), ["仍需部门负责人审批"], None),
+   |
+
+E501 Line too long (108 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:27:78
+   |
+25 |     ("A05", WHO, "这笔报销由员工提交，财务核验，部门负责人审批。", None, "answered", (1, 1), ["部门负责人审批"], None),
+26 |     ("A06", WHO, "这笔报销审批由部门负责人完成。", None, "answered", (1, 1), ["审批由部门负责人完成"], None),
+27 |     ("A08", WHO, "这笔报销需要审批。另一类申请无需审批。", None, "partial", (1, 0), ["需要审批"], "审批人"),
+   |                                                                                                      ^^^^^^^
+28 |     ("A09", WHO, "这笔报销无需经理审批，仍需部门负责人审批。", None, "answered", (1, 1), ["仍需部门负责人审批"], None),
+29 |     ("A10", WHO, "这笔报销未说明是否无需审批。", None, "partial", (1, 0), ["未说明是否无需审批"], "审批人"),
+   |
+
+E501 Line too long (119 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:28:76
+   |
+26 |     ("A06", WHO, "这笔报销审批由部门负责人完成。", None, "answered", (1, 1), ["审批由部门负责人完成"], None),
+27 |     ("A08", WHO, "这笔报销需要审批。另一类申请无需审批。", None, "partial", (1, 0), ["需要审批"], "审批人"),
+28 |     ("A09", WHO, "这笔报销无需经理审批，仍需部门负责人审批。", None, "answered", (1, 1), ["仍需部门负责人审批"], None),
+   |                                                                                                      ^^^^^^^^^^^^^^^^^^
+29 |     ("A10", WHO, "这笔报销未说明是否无需审批。", None, "partial", (1, 0), ["未说明是否无需审批"], "审批人"),
+30 |     ("A11", "报销金额超过 100 元由谁审批？", BRANCHES, None, "answered", (1, 1), ["超过 100 元由部门负责人审批"], None),
+   |
+
+E501 Line too long (108 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:29:78
+   |
+27 |     ("A08", WHO, "这笔报销需要审批。另一类申请无需审批。", None, "partial", (1, 0), ["需要审批"], "审批人"),
+28 |     ("A09", WHO, "这笔报销无需经理审批，仍需部门负责人审批。", None, "answered", (1, 1), ["仍需部门负责人审批"], None),
+29 |     ("A10", WHO, "这笔报销未说明是否无需审批。", None, "partial", (1, 0), ["未说明是否无需审批"], "审批人"),
+   |                                                                                                      ^^^^^^^
+30 |     ("A11", "报销金额超过 100 元由谁审批？", BRANCHES, None, "answered", (1, 1), ["超过 100 元由部门负责人审批"], None),
+31 |     ("A12a", "报销金额超过 100 元由谁审批？", BRANCHES, ["不超过 100 元由直属经理审批。"], "not_found", (1, 0), [], None),
+   |
+
+E501 Line too long (120 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:30:83
+   |
+28 |     ("A09", WHO, "这笔报销无需经理审批，仍需部门负责人审批。", None, "answered", (1, 1), ["仍需部门负责人审批"], None),
+29 |     ("A10", WHO, "这笔报销未说明是否无需审批。", None, "partial", (1, 0), ["未说明是否无需审批"], "审批人"),
+30 |     ("A11", "报销金额超过 100 元由谁审批？", BRANCHES, None, "answered", (1, 1), ["超过 100 元由部门负责人审批"], None),
+   |                                                                                                     ^^^^^^^^^^^^^^^^^^^^
+31 |     ("A12a", "报销金额超过 100 元由谁审批？", BRANCHES, ["不超过 100 元由直属经理审批。"], "not_found", (1, 0), [], None),
+32 |     ("A12b", "报销金额超过 100 元由谁审批？", "不超过 100 元由直属经理审批。超过 100 元的报销需要审批。", ["不超过 100 元由直属经理审…
+   |
+
+E501 Line too long (122 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:31:77
+   |
+29 |     ("A10", WHO, "这笔报销未说明是否无需审批。", None, "partial", (1, 0), ["未说明是否无需审批"], "审批人"),
+30 |     ("A11", "报销金额超过 100 元由谁审批？", BRANCHES, None, "answered", (1, 1), ["超过 100 元由部门负责人审批"], None),
+31 |     ("A12a", "报销金额超过 100 元由谁审批？", BRANCHES, ["不超过 100 元由直属经理审批。"], "not_found", (1, 0), [], None),
+   |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^
+32 |     ("A12b", "报销金额超过 100 元由谁审批？", "不超过 100 元由直属经理审批。超过 100 元的报销需要审批。", ["不超过 100 元由直属经理审…
+33 |     ("A13", WHO, "报销金额不超过 100 元无需审批。超过 100 元由部门负责人审批。", None, "partial", (1, 0), ["不超过 100 元", "超过 100…
+   |
+
+E501 Line too long (232 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:32:68
+   |
+30 | … 门负责人审批"], None),
+31 | …found", (1, 0), [], None),
+32 | … 审批。", ["不超过 100 元由直属经理审批。", "超过 100 元的报销需要审批。"], "partial", (1, 0), ["超过 100 元的报销需要审批"], "审批人"),
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+33 | …, (1, 0), ["不超过 100 元", "超过 100 元"], "条件"),
+34 | …
+   |
+
+E501 Line too long (148 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:33:76
+   |
+31 | …不超过 100 元由直属经理审批。"], "not_found", (1, 0), [], None),
+32 | …元由直属经理审批。超过 100 元的报销需要审批。", ["不超过 100 元由直属经理审批。", "超过 100 元的报销需要审批。"], "partial", (1, 0), …
+33 | …元由部门负责人审批。", None, "partial", (1, 0), ["不超过 100 元", "超过 100 元"], "条件"),
+   |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+34 | …rtial", (2, 1), ["7 天"], "审批人"),
+35 | …al", (2, 1), ["直属经理审批"], "天数"),
+   |
+
+E501 Line too long (131 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:36:77
+   |
+34 |     ("A14", DUAL, "出差申请必须提前 7 天提交。", None, "partial", (2, 1), ["7 天"], "审批人"),
+35 |     ("A15", DUAL, "出差申请由直属经理审批。", None, "partial", (2, 1), ["直属经理审批"], "天数"),
+36 |     ("A16", DUAL, "出差申请必须提前 7 天提交。出差申请由直属经理审批。", None, "answered", (2, 2), ["7 天", "直属经理审批"], None),
+   |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+37 |     ("A17", "出差申请由谁审批？", "出差申请必须提前 7 天提交。", None, "not_found", (1, 0), [], None),
+38 |     ("A18_control", "员工报销上限是多少元？", UNITS, None, "answered", None, [UNITS], None),
+   |
+
+E501 Line too long (102 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:37:80
+   |
+35 |     ("A15", DUAL, "出差申请由直属经理审批。", None, "partial", (2, 1), ["直属经理审批"], "天数"),
+36 |     ("A16", DUAL, "出差申请必须提前 7 天提交。出差申请由直属经理审批。", None, "answered", (2, 2), ["7 天", "直属经理审批"], None),
+37 |     ("A17", "出差申请由谁审批？", "出差申请必须提前 7 天提交。", None, "not_found", (1, 0), [], None),
+   |                                                                                                     ^^
+38 |     ("A18_control", "员工报销上限是多少元？", UNITS, None, "answered", None, [UNITS], None),
+39 |     ("A18_wrong_currency", "员工报销上限是多少元？", UNITS, ["员工报销上限为 20 美元。"], "partial", None, [UNITS], None),
+   |
+
+E501 Line too long (122 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:39:80
+   |
+37 |     ("A17", "出差申请由谁审批？", "出差申请必须提前 7 天提交。", None, "not_found", (1, 0), [], None),
+38 |     ("A18_control", "员工报销上限是多少元？", UNITS, None, "answered", None, [UNITS], None),
+39 |     ("A18_wrong_currency", "员工报销上限是多少元？", UNITS, ["员工报销上限为 20 美元。"], "partial", None, [UNITS], None),
+   |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^
+40 |     ("A18_wrong_subject", "员工报销上限是多少元？", UNITS, ["承包商报销上限为 20 元。"], "partial", None, [UNITS], None),
+41 |     ("A19_en_actor", "Who approves travel requests?", "The manager approves travel requests.", None, "answered", (1, 1), ["manager app…
+   |
+
+E501 Line too long (121 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:40:80
+   |
+38 |     ("A18_control", "员工报销上限是多少元？", UNITS, None, "answered", None, [UNITS], None),
+39 |     ("A18_wrong_currency", "员工报销上限是多少元？", UNITS, ["员工报销上限为 20 美元。"], "partial", None, [UNITS], None),
+40 |     ("A18_wrong_subject", "员工报销上限是多少元？", UNITS, ["承包商报销上限为 20 元。"], "partial", None, [UNITS], None),
+   |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^
+41 |     ("A19_en_actor", "Who approves travel requests?", "The manager approves travel requests.", None, "answered", (1, 1), ["manager app…
+42 |     ("A19_en_duration", "How many days is remote work allowed?", "Remote work is allowed three days per month.", None, "answered", (1,…
+   |
+
+E501 Line too long (149 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:41:101
+   |
+39 | …, ["员工报销上限为 20 美元。"], "partial", None, [UNITS], None),
+40 | … ["承包商报销上限为 20 元。"], "partial", None, [UNITS], None),
+41 | … manager approves travel requests.", None, "answered", (1, 1), ["manager approves"], None),
+   |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+42 | …wed?", "Remote work is allowed three days per month.", None, "answered", (1, 1), ["three days"], None),
+43 | …ed?", "Remote work is allowed.", None, "partial", (1, 0), ["Remote work is allowed."], "duration"),
+   |
+
+E501 Line too long (161 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:42:101
+   |
+40 | … 商报销上限为 20 元。"], "partial", None, [UNITS], None),
+41 | …er approves travel requests.", None, "answered", (1, 1), ["manager approves"], None),
+42 | … "Remote work is allowed three days per month.", None, "answered", (1, 1), ["three days"], None),
+   |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+43 | …"Remote work is allowed.", None, "partial", (1, 0), ["Remote work is allowed."], "duration"),
+44 | … 审批者批准。"], "partial", (1, 0), ["按流程审批"], "审批人"),
+   |
+
+E501 Line too long (157 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:43:101
+   |
+41 | …ager approves travel requests.", None, "answered", (1, 1), ["manager approves"], None),
+42 | …", "Remote work is allowed three days per month.", None, "answered", (1, 1), ["three days"], None),
+43 | …, "Remote work is allowed.", None, "partial", (1, 0), ["Remote work is allowed."], "duration"),
+   |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+44 | … 构审批者批准。"], "partial", (1, 0), ["按流程审批"], "审批人"),
+45 | … 提前 99 天提交。"], "partial", (2, 1), ["7 天"], "审批人"),
+   |
+
+E501 Line too long (126 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:44:78
+   |
+42 |     ("A19_en_duration", "How many days is remote work allowed?", "Remote work is allowed three days per month.", None, "answered", (1,…
+43 |     ("A19_en_missing", "How many days is remote work allowed?", "Remote work is allowed.", None, "partial", (1, 0), ["Remote work is a…
+44 |     ("A20_process", WHO, "这笔报销按流程审批。", ["这笔报销由虚构审批者批准。"], "partial", (1, 0), ["按流程审批"], "审批人"),
+   |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+45 |     ("A20_dual", DUAL, "出差申请必须提前 7 天提交。", ["出差申请提前 99 天提交。"], "partial", (2, 1), ["7 天"], "审批人"),
+46 |     ("A20_irrelevant", "出差申请由谁审批？", "出差申请必须提前 7 天提交。", ["出差申请提前 99 天提交。"], "not_found", (1, 0), [], Non…
+   |
+
+E501 Line too long (123 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:45:79
+   |
+43 |     ("A19_en_missing", "How many days is remote work allowed?", "Remote work is allowed.", None, "partial", (1, 0), ["Remote work is a…
+44 |     ("A20_process", WHO, "这笔报销按流程审批。", ["这笔报销由虚构审批者批准。"], "partial", (1, 0), ["按流程审批"], "审批人"),
+45 |     ("A20_dual", DUAL, "出差申请必须提前 7 天提交。", ["出差申请提前 99 天提交。"], "partial", (2, 1), ["7 天"], "审批人"),
+   |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^
+46 |     ("A20_irrelevant", "出差申请由谁审批？", "出差申请必须提前 7 天提交。", ["出差申请提前 99 天提交。"], "not_found", (1, 0), [], Non…
+47 |     ("A14_omitted_actor", DUAL, "出差申请必须提前 7 天提交。出差申请由直属经理审批。", ["出差申请必须提前 7 天提交。"], "partial", (2,…
+   |
+
+E501 Line too long (137 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:46:71
+   |
+44 | … 笔报销由虚构审批者批准。"], "partial", (1, 0), ["按流程审批"], "审批人"),
+45 | …, ["出差申请提前 99 天提交。"], "partial", (2, 1), ["7 天"], "审批人"),
+46 | … 必须提前 7 天提交。", ["出差申请提前 99 天提交。"], "not_found", (1, 0), [], None),
+   |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+47 | …天提交。出差申请由直属经理审批。", ["出差申请必须提前 7 天提交。"], "partial", (2, 1), ["7 天"], "审批人"),
+48 | …
+   |
+
+E501 Line too long (159 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:47:72
+   |
+45 | … 前 99 天提交。"], "partial", (2, 1), ["7 天"], "审批人"),
+46 | … 天提交。", ["出差申请提前 99 天提交。"], "not_found", (1, 0), [], None),
+47 | … 请由直属经理审批。", ["出差申请必须提前 7 天提交。"], "partial", (2, 1), ["7 天"], "审批人"),
+   |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+48 | …
+49 | …responsible", "这笔报销审批由谁负责？")]:
+   |
+
+E501 Line too long (105 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:49:81
+   |
+47 |     ("A14_omitted_actor", DUAL, "出差申请必须提前 7 天提交。出差申请由直属经理审批。", ["出差申请必须提前 7 天提交。"], "partial", (2,…
+48 | ]
+49 | for suffix, question in [("reverse", "这笔报销审批人是谁？"), ("responsible", "这笔报销审批由谁负责？")]:
+   |                                                                                                      ^^^^
+50 |     for kind, text, mode, count in [
+51 |         ("actor", "这笔报销由部门负责人审批。", "answered", 1),
+   |
+
+E501 Line too long (127 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:55:99
+   |
+53 |         ("process", "这笔报销按流程审批。", "partial", 0),
+54 |     ]:
+55 |         CASES.append((f"A07_{suffix}_{kind}", question, text, None, mode, (1, count), [text], "审批人" if not count else None))
+   |                                                                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+E501 Line too long (115 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:81:101
+   |
+81 | @pytest.mark.parametrize("case,question,text,output,mode,slots,required,missing", CASES, ids=[r[0] for r in CASES])
+   |                                                                                                     ^^^^^^^^^^^^^^^
+82 | def test_matrix_a(service, monkeypatch, case, question, text, output, mode, slots, required, missing):
+83 |     start, seen, _ = service
+   |
+
+F811 Redefinition of unused `service` from line 12
+  --> tests\api_v2\test_bounded_correctness_matrix.py:82:19
+   |
+81 | @pytest.mark.parametrize("case,question,text,output,mode,slots,required,missing", CASES, ids=[r[0] for r in CASES])
+82 | def test_matrix_a(service, monkeypatch, case, question, text, output, mode, slots, required, missing):
+   |                   ^^^^^^^ `service` redefined here
+83 |     start, seen, _ = service
+84 |     if output is not None:
+   |
+  ::: tests\api_v2\test_bounded_correctness_matrix.py:12:67
+   |
+10 | from app.agent.answer_contract import answer_sufficiency
+11 | from tests.api_v2 import test_runtime_closure_flow as original
+12 | from tests.api_v2.test_runtime_closure_flow import build_fixture, service  # noqa: F401
+   |                                                                   ------- previous definition of `service` here
+13 |
+14 | WHO = "这笔报销由谁审批？"
+   |
+help: Remove definition: `service`
+
+E501 Line too long (102 > 100)
+  --> tests\api_v2\test_bounded_correctness_matrix.py:82:101
+   |
+81 | @pytest.mark.parametrize("case,question,text,output,mode,slots,required,missing", CASES, ids=[r[0] for r in CASES])
+82 | def test_matrix_a(service, monkeypatch, case, question, text, output, mode, slots, required, missing):
+   |                                                                                                     ^^
+83 |     start, seen, _ = service
+84 |     if output is not None:
+   |
+
+E501 Line too long (103 > 100)
+   --> tests\api_v2\test_bounded_correctness_matrix.py:108:101
+    |
+106 |         assert data["trace"]["missing_answer_aspect_count"] == requested - satisfied
+107 |         assert data["trace"]["answer_coverage_basis"] == "bounded_answer_slots_v1"
+108 |         assert data["trace"]["retrieval_coverage_basis"] == "query_anchor_relevance_not_semantic_proof"
+    |                                                                                                     ^^^
+109 |     if case in {"A12a", "A12b"}:
+110 |         assert "直属经理" not in data["answer"]
+    |
+
+F811 Redefinition of unused `service` from line 12
+   --> tests\api_v2\test_bounded_correctness_matrix.py:133:28
+    |
+131 | @pytest.mark.parametrize("profile", ["hybrid_default", "safe_dense_raw20_bge"])
+132 | @pytest.mark.parametrize("case", ["B01", "B02", "B03", "B05", "B11", "B12"])
+133 | def test_matrix_b_conflict(service, metadata_overrides, case, profile):
+    |                            ^^^^^^^ `service` redefined here
+134 |     start, seen, _ = service
+135 |     rows = [dict(id="policy_a", policy="refund_a", text="退款争议处理期限为 7 天。"),
+    |
+   ::: tests\api_v2\test_bounded_correctness_matrix.py:12:67
+    |
+ 10 | from app.agent.answer_contract import answer_sufficiency
+ 11 | from tests.api_v2 import test_runtime_closure_flow as original
+ 12 | from tests.api_v2.test_runtime_closure_flow import build_fixture, service  # noqa: F401
+    |                                                                   ------- previous definition of `service` here
+ 13 |
+ 14 | WHO = "这笔报销由谁审批？"
+    |
+help: Remove definition: `service`
+
+E501 Line too long (115 > 100)
+   --> tests\api_v2\test_bounded_correctness_matrix.py:142:83
+    |
+140 |         metadata_overrides["policy_b"] = dict(version="2025", version_id="other@2025")
+141 |     if case == "B05":
+142 |         rows = [dict(id="policy_a", policy="refund_a", text="退款争议处理期限为 7 天。退款争议处理期限为 30 天。")]
+    |                                                                                                     ^^^^^^^^^^^^^^^
+143 |     question = "退款争议处理期限是多少天？"
+144 |     with start(rows, profile) as client:
+    |
+
+E501 Line too long (103 > 100)
+   --> tests\api_v2\test_bounded_correctness_matrix.py:158:101
+    |
+156 |     assert all(r["text"] not in json.dumps(data["trace"], ensure_ascii=False) for r in rows)
+157 |     for value in ["7 天", "30 天"]:
+158 |         assert any(value in span["quote"] for c in data["citations"] for span in c["supporting_spans"])
+    |                                                                                                     ^^^
+159 |     if profile != "hybrid_default":
+160 |         assert all(r["text"] in seen["scorer"] for r in rows)
+    |
+
+F811 Redefinition of unused `service` from line 12
+   --> tests\api_v2\test_bounded_correctness_matrix.py:170:31
+    |
+168 |     ("B08_days", "退款处理期限为 7 个自然日。", "退款处理期限为 30 个工作日。"),
+169 | ])
+170 | def test_matrix_b_nonconflict(service, case, left, right):
+    |                               ^^^^^^^ `service` redefined here
+171 |     start, seen, _ = service
+172 |     rows = [dict(id="policy_a", text=left), dict(id="policy_b", text=right)]
+    |
+   ::: tests\api_v2\test_bounded_correctness_matrix.py:12:67
+    |
+ 10 | from app.agent.answer_contract import answer_sufficiency
+ 11 | from tests.api_v2 import test_runtime_closure_flow as original
+ 12 | from tests.api_v2.test_runtime_closure_flow import build_fixture, service  # noqa: F401
+    |                                                                   ------- previous definition of `service` here
+ 13 |
+ 14 | WHO = "这笔报销由谁审批？"
+    |
+help: Remove definition: `service`
+
+E501 Line too long (118 > 100)
+   --> tests\api_v2\test_bounded_correctness_matrix.py:183:101
+    |
+183 | @pytest.mark.parametrize("case", ["B09_region", "B09_future", "B10_tenant", "B10_acl", "B10_supporting", "B10_guard"])
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^
+184 | def test_matrix_b_admission(service, metadata_overrides, case):
+185 |     start, seen, _ = service
+    |
+
+F811 Redefinition of unused `service` from line 12
+   --> tests\api_v2\test_bounded_correctness_matrix.py:184:29
+    |
+183 | @pytest.mark.parametrize("case", ["B09_region", "B09_future", "B10_tenant", "B10_acl", "B10_supporting", "B10_guard"])
+184 | def test_matrix_b_admission(service, metadata_overrides, case):
+    |                             ^^^^^^^ `service` redefined here
+185 |     start, seen, _ = service
+186 |     sentinel = "BOUNDED_EXCLUDED_SENTINEL"
+    |
+   ::: tests\api_v2\test_bounded_correctness_matrix.py:12:67
+    |
+ 10 | from app.agent.answer_contract import answer_sufficiency
+ 11 | from tests.api_v2 import test_runtime_closure_flow as original
+ 12 | from tests.api_v2.test_runtime_closure_flow import build_fixture, service  # noqa: F401
+    |                                                                   ------- previous definition of `service` here
+ 13 |
+ 14 | WHO = "这笔报销由谁审批？"
+    |
+help: Remove definition: `service`
+
+E501 Line too long (126 > 100)
+   --> tests\api_v2\test_bounded_correctness_matrix.py:215:97
+    |
+213 | def test_B04_version_governance(tmp_path):
+214 |     with pytest.raises(ValueError, match="exactly one active authoritative"):
+215 |         build_fixture(tmp_path, [dict(id="a", policy="p", text="期限 7 天。"), dict(id="b", policy="p", text="期限 30 天。")])
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+E501 Line too long (118 > 100)
+   --> tests\api_v2\test_bounded_correctness_matrix.py:219:79
+    |
+218 | def test_A17_helper_compatibility():
+219 |     assert answer_sufficiency("出差申请需要谁审批？", ["出差申请必须提前 7 天提交。"]) == "missing_requested_relation"
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^
+
+Found 37 errors.

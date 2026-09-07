@@ -1,0 +1,92 @@
+[
+  {
+    "checkout_sha256": "43530686db849cd4a6cf2d2fd4259024f445f57111c9400be5ec47fc3b9ceb93",
+    "git_blob_sha256": "43530686db849cd4a6cf2d2fd4259024f445f57111c9400be5ec47fc3b9ceb93",
+    "path": "docs/review/runtime_delivery_20260905/API_AND_NAVIGATION_REPAIR.md",
+    "same": true
+  },
+  {
+    "checkout_sha256": "d986abe57353acbafa1a7932ebeca64d3eacc1dd26e6a8cab631c8dd30128b33",
+    "git_blob_sha256": "d986abe57353acbafa1a7932ebeca64d3eacc1dd26e6a8cab631c8dd30128b33",
+    "path": "docs/review/runtime_delivery_20260905/CONDITIONAL_DECISIONS.md",
+    "same": true
+  },
+  {
+    "checkout_sha256": "9acdb959bfe497e0065162b609cc15eac2f9a33be5efd8b47291a59d87264b8f",
+    "git_blob_sha256": "9acdb959bfe497e0065162b609cc15eac2f9a33be5efd8b47291a59d87264b8f",
+    "path": "docs/review/runtime_delivery_20260905/EXECUTION.md",
+    "same": true
+  },
+  {
+    "checkout_sha256": "357a390349236e205590dd853429027339df4c405c7564a3f61f5e6c3987dd00",
+    "git_blob_sha256": "357a390349236e205590dd853429027339df4c405c7564a3f61f5e6c3987dd00",
+    "path": "docs/review/runtime_delivery_20260905/manifest.json",
+    "same": true
+  },
+  {
+    "checkout_sha256": "a67bbc64c322a58c307ede4af2b169a2404eedfcab531780b0f71626f07f0d53",
+    "git_blob_sha256": "a67bbc64c322a58c307ede4af2b169a2404eedfcab531780b0f71626f07f0d53",
+    "path": "docs/review/runtime_delivery_20260905/metrics.csv",
+    "same": true
+  },
+  {
+    "checkout_sha256": "3604f688eb8654e48540614c1c8bc709b75f0fecd1da716ab8cadadacc6fa5f5",
+    "git_blob_sha256": "3604f688eb8654e48540614c1c8bc709b75f0fecd1da716ab8cadadacc6fa5f5",
+    "path": "docs/review/runtime_delivery_20260905/RESULTS.md",
+    "same": true
+  },
+  {
+    "checkout_sha256": "e32443f1379131c2411d3f474ebd25045a0937482ec3d5ef03563832dcb8e456",
+    "git_blob_sha256": "e32443f1379131c2411d3f474ebd25045a0937482ec3d5ef03563832dcb8e456",
+    "path": "docs/review/runtime_delivery_20260905/retrieval_evidence.json",
+    "same": true
+  },
+  {
+    "checkout_sha256": "88d4eb4c5819e6555a015c0f500743c8dc38cda8235f3ae1e8f1b191976b2b79",
+    "git_blob_sha256": "88d4eb4c5819e6555a015c0f500743c8dc38cda8235f3ae1e8f1b191976b2b79",
+    "path": "docs/review/runtime_delivery_20260905/RETRIEVAL_PROTOCOL.json",
+    "same": true
+  },
+  {
+    "checkout_sha256": "ffc4a18f4ae38b952f2cebfdc17e0264bf1accdede0959ddce4f2fa5b7da22a8",
+    "git_blob_sha256": "ffc4a18f4ae38b952f2cebfdc17e0264bf1accdede0959ddce4f2fa5b7da22a8",
+    "path": "docs/review/runtime_delivery_20260905/RETRIEVAL_PROTOCOL_V2.json",
+    "same": true
+  },
+  {
+    "checkout_sha256": "cdd4adede57fa2b9a580bef6b7845ccaa83dd6b66e7b543069ed671d562e7795",
+    "git_blob_sha256": "cdd4adede57fa2b9a580bef6b7845ccaa83dd6b66e7b543069ed671d562e7795",
+    "path": "docs/review/runtime_delivery_20260905/RETRIEVAL_RESULTS.md",
+    "same": true
+  },
+  {
+    "checkout_sha256": "47a7824dec7e5ff5a40300c0bbacf119899765afc9a16da4be8ce51fda3a997e",
+    "git_blob_sha256": "47a7824dec7e5ff5a40300c0bbacf119899765afc9a16da4be8ce51fda3a997e",
+    "path": "docs/review/runtime_delivery_20260905/service_cases.json",
+    "same": true
+  },
+  {
+    "checkout_sha256": "ec86eb4d9f1bd9056370cdc055cdff721190fa43ba05833603d68f44ed7ce2ab",
+    "git_blob_sha256": "ec86eb4d9f1bd9056370cdc055cdff721190fa43ba05833603d68f44ed7ce2ab",
+    "path": "docs/review/runtime_delivery_20260905/service_comparison.json",
+    "same": true
+  },
+  {
+    "checkout_sha256": "7115a62faceefd4992c674da7cb95f0d924cbd6c216bf131e9ba8fa0243997bd",
+    "git_blob_sha256": "7115a62faceefd4992c674da7cb95f0d924cbd6c216bf131e9ba8fa0243997bd",
+    "path": "docs/review/runtime_delivery_20260905/SERVICE_PROTOCOL.json",
+    "same": true
+  },
+  {
+    "checkout_sha256": "45dc6c5c593ab78f79bd51e64499cdeea83bd7750d78100e452e4c2e3376a9d3",
+    "git_blob_sha256": "45dc6c5c593ab78f79bd51e64499cdeea83bd7750d78100e452e4c2e3376a9d3",
+    "path": "docs/review/runtime_delivery_20260905/SERVICE_READINESS_PROTOCOL.json",
+    "same": true
+  },
+  {
+    "checkout_sha256": "701480ca1c0f27cfeaf38eb062eb11ef7b48ec649700b1cecb669873813c92e6",
+    "git_blob_sha256": "701480ca1c0f27cfeaf38eb062eb11ef7b48ec649700b1cecb669873813c92e6",
+    "path": "docs/review/runtime_delivery_20260905/SERVICE_REPAIR_PROTOCOL.json",
+    "same": true
+  }
+]

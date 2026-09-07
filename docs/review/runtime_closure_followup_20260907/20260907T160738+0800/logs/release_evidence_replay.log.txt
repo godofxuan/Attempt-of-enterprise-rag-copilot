@@ -1,0 +1,1 @@
+{"overall_status": "VERIFIED_WITHIN_SCOPE", "verification_scope": {"artifact_hash": "ARTIFACT_HASH_VERIFIED", "aggregate_replay": "AGGREGATE_REPLAY_VERIFIED", "gold_metrics": "GOLD_METRICS_VERIFIED"}}

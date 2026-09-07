@@ -1,0 +1,212 @@
+{
+  "case": "cross_policy_conflict",
+  "question": "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u662f\u591a\u5c11\u5929\uff1f",
+  "evidence": [
+    {
+      "id": "policy_a",
+      "policy": "refund_a",
+      "text": "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 7 \u5929\u3002"
+    },
+    {
+      "id": "policy_b",
+      "policy": "refund_b",
+      "text": "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 30 \u5929\u3002"
+    }
+  ],
+  "response": {
+    "mode": "partial",
+    "answer": "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 7 \u5929\u3002\n\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 30 \u5929\u3002\n\u73b0\u6709\u53ef\u89c1\u6750\u6599\u5b58\u5728\u6f5c\u5728\u4e0d\u4e00\u81f4\uff0c\u65e0\u6cd5\u636e\u6b64\u786e\u5b9a\u552f\u4e00\u671f\u9650\u6216\u6570\u503c\u3002\u4ee5\u4e0b\u7ed3\u8bba\u4ec5\u9650\u5df2\u5c55\u793a\u6458\u5f55\uff0c\u4e0d\u6784\u6210\u5236\u5ea6\u4f18\u5148\u7ea7\u88c1\u51b3\u3002",
+    "claims": [
+      {
+        "claim_id": "conflict-1",
+        "text": "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 7 \u5929\u3002",
+        "critical": true,
+        "cited_chunk_ids": [
+          "policy_a::fixed::94aea1c6567bc6eb7210"
+        ]
+      },
+      {
+        "claim_id": "conflict-2",
+        "text": "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 30 \u5929\u3002",
+        "critical": true,
+        "cited_chunk_ids": [
+          "policy_b::fixed::338dbe841d127c018350"
+        ]
+      }
+    ],
+    "citations": [
+      {
+        "claim_id": "conflict-1",
+        "cited_chunk_ids": [
+          "policy_a::fixed::94aea1c6567bc6eb7210"
+        ],
+        "citation_present": true,
+        "references_visible_evidence": true,
+        "lexical_support": 1.0,
+        "supported": true,
+        "unsupported_reason": null,
+        "support_kind": "exact_span",
+        "supporting_spans": [
+          {
+            "citation_id": "policy_a::fixed::94aea1c6567bc6eb7210",
+            "index_run_id": "base",
+            "version_id": "policy_a@2026",
+            "field": "matched_text",
+            "start": 0,
+            "end": 14,
+            "quote": "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 7 \u5929\u3002"
+          }
+        ]
+      },
+      {
+        "claim_id": "conflict-2",
+        "cited_chunk_ids": [
+          "policy_b::fixed::338dbe841d127c018350"
+        ],
+        "citation_present": true,
+        "references_visible_evidence": true,
+        "lexical_support": 1.0,
+        "supported": true,
+        "unsupported_reason": null,
+        "support_kind": "exact_span",
+        "supporting_spans": [
+          {
+            "citation_id": "policy_b::fixed::338dbe841d127c018350",
+            "index_run_id": "base",
+            "version_id": "policy_b@2026",
+            "field": "matched_text",
+            "start": 0,
+            "end": 15,
+            "quote": "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 30 \u5929\u3002"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "doc_id": "policy_a",
+        "source_path": "policy_a.md",
+        "section_path": [
+          "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 7 \u5929\u3002"
+        ],
+        "chunk_id": "policy_a::fixed::94aea1c6567bc6eb7210",
+        "preview": "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 7 \u5929\u3002",
+        "evidence_kind": "search",
+        "target_type": "chunk",
+        "target_id": "policy_a::fixed::94aea1c6567bc6eb7210",
+        "index_run_id": "base",
+        "version_id": "policy_a@2026"
+      },
+      {
+        "doc_id": "policy_b",
+        "source_path": "policy_b.md",
+        "section_path": [
+          "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 30 \u5929\u3002"
+        ],
+        "chunk_id": "policy_b::fixed::338dbe841d127c018350",
+        "preview": "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 30 \u5929\u3002",
+        "evidence_kind": "search",
+        "target_type": "chunk",
+        "target_id": "policy_b::fixed::338dbe841d127c018350",
+        "index_run_id": "base",
+        "version_id": "policy_b@2026"
+      }
+    ],
+    "warnings": [
+      "Potential same-scope evidence conflict; excerpts are not a selected policy answer."
+    ],
+    "stop_reason": "partial_evidence",
+    "trace": {
+      "intent": "fact",
+      "analysis_source": "rules",
+      "required_aspect_count": 1,
+      "steps": [
+        {
+          "retrieval_mode": "dense",
+          "retrieval_counts": {
+            "reranker_scored": 2,
+            "reranker_calls": 1,
+            "reranker_elapsed_ms": 0,
+            "returned": 2
+          },
+          "sequence": 1,
+          "tool": "search",
+          "status": "ok",
+          "latency_ms": 0.0,
+          "visible_count": 2,
+          "context_chars_added": 90,
+          "error_code": null,
+          "budget": {
+            "search_calls": 1,
+            "find_calls": 0,
+            "open_calls": 0,
+            "steps": 1,
+            "context_chars": 90
+          },
+          "retrieved_content_security": {
+            "candidate_count": 2,
+            "scanned_count": 4,
+            "admitted_count": 4,
+            "quarantined_count": 0,
+            "scanned_chars": 155,
+            "decoded_candidate_count": 0,
+            "top_up_attempts": 0,
+            "post_guard_evidence_count": 2,
+            "guard_error_count": 0,
+            "risk_categories": [],
+            "rule_ids": [],
+            "detector_version": "rcg-v1.2.0",
+            "stop_reason": null
+          }
+        },
+        {
+          "sequence": 2,
+          "tool": "answer",
+          "status": "terminal",
+          "latency_ms": 0.0,
+          "visible_count": 0,
+          "context_chars_added": 0,
+          "error_code": null,
+          "budget": {
+            "search_calls": 1,
+            "find_calls": 0,
+            "open_calls": 0,
+            "steps": 1,
+            "context_chars": 90
+          }
+        }
+      ],
+      "stop_reason": "partial_evidence",
+      "evidence": {
+        "required": 1,
+        "supported": 0,
+        "missing": 1,
+        "conflicting": 1,
+        "coverage": 0.0,
+        "recommended_action": "search"
+      },
+      "budget": {
+        "search_calls": 1,
+        "find_calls": 0,
+        "open_calls": 0,
+        "steps": 1,
+        "context_chars": 90
+      },
+      "answer_strategy": "conflict_excerpts",
+      "generation_attempts": 0,
+      "final_mode": "partial",
+      "controller_stop_reason": "partial_evidence",
+      "index_run_id": "base",
+      "index_manifest_sha256": "41aeac1a5d5d99074dfefc272c7d3ca72d5e17e38b4db7ef73f359bd7bbf1260",
+      "index_binding_status": "verified",
+      "request_id": "578d432b97d54cf8b3a3b6f7b8e7a58e"
+    }
+  },
+  "model_boundary_spies": {
+    "scorer": [
+      "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 7 \u5929\u3002",
+      "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u4e3a 30 \u5929\u3002"
+    ],
+    "llm": []
+  }
+}

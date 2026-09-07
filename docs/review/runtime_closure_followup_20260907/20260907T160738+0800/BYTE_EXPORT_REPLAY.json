@@ -1,0 +1,39 @@
+{
+  "export_exit_codes": [
+    0,
+    0
+  ],
+  "files": [
+    {
+      "byte_identical": true,
+      "file": "service_cases.json",
+      "old_sha256": "47a7824dec7e5ff5a40300c0bbacf119899765afc9a16da4be8ce51fda3a997e",
+      "replayed_sha256": "47a7824dec7e5ff5a40300c0bbacf119899765afc9a16da4be8ce51fda3a997e"
+    },
+    {
+      "byte_identical": true,
+      "file": "metrics.csv",
+      "old_sha256": "a67bbc64c322a58c307ede4af2b169a2404eedfcab531780b0f71626f07f0d53",
+      "replayed_sha256": "a67bbc64c322a58c307ede4af2b169a2404eedfcab531780b0f71626f07f0d53"
+    },
+    {
+      "byte_identical": true,
+      "file": "service_comparison.json",
+      "old_sha256": "ec86eb4d9f1bd9056370cdc055cdff721190fa43ba05833603d68f44ed7ce2ab",
+      "replayed_sha256": "ec86eb4d9f1bd9056370cdc055cdff721190fa43ba05833603d68f44ed7ce2ab"
+    },
+    {
+      "byte_identical": true,
+      "file": "manifest.json",
+      "old_sha256": "357a390349236e205590dd853429027339df4c405c7564a3f61f5e6c3987dd00",
+      "replayed_sha256": "357a390349236e205590dd853429027339df4c405c7564a3f61f5e6c3987dd00"
+    },
+    {
+      "byte_identical": true,
+      "file": "retrieval_evidence.json",
+      "old_sha256": "e32443f1379131c2411d3f474ebd25045a0937482ec3d5ef03563832dcb8e456",
+      "replayed_sha256": "e32443f1379131c2411d3f474ebd25045a0937482ec3d5ef03563832dcb8e456"
+    }
+  ],
+  "normalization": "none"
+}

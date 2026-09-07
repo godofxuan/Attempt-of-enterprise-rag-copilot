@@ -1,0 +1,139 @@
+..........FF....F                                                        [100%]
+================================== FAILURES ===================================
+___________ test_bad_public_evidence_is_rejected[fractional_count] ____________
+
+tmp_path = WindowsPath('<WORKTREE>/.private/pytest_count_red/test_bad_public_evidence_is_re4')
+mutation = 'fractional_count'
+
+    @pytest.mark.parametrize("mutation", ["duplicate", "tamper", "missing_field", "nan", "fractional_count", "identity_float_count"])
+    def test_bad_public_evidence_is_rejected(tmp_path, mutation):
+        import shutil
+    
+        source = ROOT / "docs/review/runtime_delivery_20260905"
+        for name in (
+            "manifest.json",
+            "service_cases.json",
+            "metrics.csv",
+            "service_comparison.json",
+            "retrieval_evidence.json",
+        ):
+            shutil.copyfile(source / name, tmp_path / name)
+        path = tmp_path / "retrieval_evidence.json"
+        packet = json.loads(path.read_bytes())
+        if mutation == "duplicate":
+            packet["rows"][1] = packet["rows"][0]
+        elif mutation == "tamper":
+            packet["rows"][0]["metrics"]["mrr_at_5"] = 0.123
+        elif mutation == "missing_field":
+            del packet["rows"][0]["article_ids"]
+        elif mutation == "fractional_count":
+            profile = packet["protocol"]["profiles"][0]
+            packet["summary"][profile]["case_count"] += 1e-11
+        elif mutation == "identity_float_count":
+            manifest_path = tmp_path / "manifest.json"
+            manifest = json.loads(manifest_path.read_bytes())
+            manifest["identities"][0]["main_count"] = float(manifest["identities"][0]["main_count"])
+            manifest_path.write_text(json.dumps(manifest), encoding="utf8")
+        else:
+            packet["rows"][0]["latency_ms_excluding_shared_embedding"] = float("nan")
+        path.write_text(json.dumps(packet), encoding="utf-8")
+        report = verify(tmp_path)
+>       assert report["overall_status"] == "INVALID"
+E       AssertionError: assert 'INCOMPLETE' == 'INVALID'
+E         
+E         - INVALID
+E         + INCOMPLETE
+
+tests\evaluation\test_runtime_closure_verifier.py:72: AssertionError
+_________ test_bad_public_evidence_is_rejected[identity_float_count] __________
+
+tmp_path = WindowsPath('<WORKTREE>/.private/pytest_count_red/test_bad_public_evidence_is_re5')
+mutation = 'identity_float_count'
+
+    @pytest.mark.parametrize("mutation", ["duplicate", "tamper", "missing_field", "nan", "fractional_count", "identity_float_count"])
+    def test_bad_public_evidence_is_rejected(tmp_path, mutation):
+        import shutil
+    
+        source = ROOT / "docs/review/runtime_delivery_20260905"
+        for name in (
+            "manifest.json",
+            "service_cases.json",
+            "metrics.csv",
+            "service_comparison.json",
+            "retrieval_evidence.json",
+        ):
+            shutil.copyfile(source / name, tmp_path / name)
+        path = tmp_path / "retrieval_evidence.json"
+        packet = json.loads(path.read_bytes())
+        if mutation == "duplicate":
+            packet["rows"][1] = packet["rows"][0]
+        elif mutation == "tamper":
+            packet["rows"][0]["metrics"]["mrr_at_5"] = 0.123
+        elif mutation == "missing_field":
+            del packet["rows"][0]["article_ids"]
+        elif mutation == "fractional_count":
+            profile = packet["protocol"]["profiles"][0]
+            packet["summary"][profile]["case_count"] += 1e-11
+        elif mutation == "identity_float_count":
+            manifest_path = tmp_path / "manifest.json"
+            manifest = json.loads(manifest_path.read_bytes())
+            manifest["identities"][0]["main_count"] = float(manifest["identities"][0]["main_count"])
+            manifest_path.write_text(json.dumps(manifest), encoding="utf8")
+        else:
+            packet["rows"][0]["latency_ms_excluding_shared_embedding"] = float("nan")
+        path.write_text(json.dumps(packet), encoding="utf-8")
+        report = verify(tmp_path)
+>       assert report["overall_status"] == "INVALID"
+E       AssertionError: assert 'INCOMPLETE' == 'INVALID'
+E         
+E         - INVALID
+E         + INCOMPLETE
+
+tests\evaluation\test_runtime_closure_verifier.py:72: AssertionError
+_________________ test_non_success_exit_contract[internal-4] __________________
+
+tmp_path = WindowsPath('<WORKTREE>/.private/pytest_count_red/test_non_success_exit_contract2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000017EFFC5B610>
+mode = 'internal', exit_code = 4
+
+    @pytest.mark.parametrize("mode,exit_code", [("missing", 2), ("invalid", 3), ("internal", 4)])
+    def test_non_success_exit_contract(tmp_path, monkeypatch, mode, exit_code):
+        from scripts import verify_runtime_closure as module
+    
+        source = tmp_path / "input"
+        source.mkdir()
+        if mode == "invalid":
+            (source / "manifest.json").write_text("{")
+        if mode == "internal":
+    
+            def fail(*args):
+                raise RuntimeError("must not leak internal details")
+    
+            monkeypatch.setattr(module, "verify", fail)
+        monkeypatch.setattr(
+            "sys.argv", ["verify", "--evidence", str(source), "--output", str(tmp_path / "output")]
+        )
+        assert module.main() == exit_code
+        assert "must not leak" not in (tmp_path / "output/VERIFICATION_REPORT.json").read_text()
+>       assert json.loads((tmp_path / "output/VERIFICATION_REPORT.json").read_bytes())["verification_scope"]
+E       assert {}
+
+tests\evaluation\test_runtime_closure_verifier.py:157: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"overall_status": "INTERNAL_ERROR", "verification_scope": {}}
+============================== warnings summary ===============================
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/evaluation/test_runtime_closure_verifier.py::test_bad_public_evidence_is_rejected[fractional_count]
+FAILED tests/evaluation/test_runtime_closure_verifier.py::test_bad_public_evidence_is_rejected[identity_float_count]
+FAILED tests/evaluation/test_runtime_closure_verifier.py::test_non_success_exit_contract[internal-4]
+3 failed, 14 passed, 3 warnings in 0.81s

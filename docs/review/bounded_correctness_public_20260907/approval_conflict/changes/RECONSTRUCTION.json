@@ -1,0 +1,98 @@
+{
+  "changes": [
+    {
+      "after": {
+        "bytes": 5113,
+        "path": "app/agent/answer_contract.py",
+        "sha256": "7c428f52bd3180c48d3cb990dd58c7677c35fa1e1eb2df97ecd763be94c47741"
+      },
+      "before": {
+        "bytes": 1030,
+        "path": "app/agent/answer_contract.py",
+        "sha256": "b0f44bbf355ee024389b91e0466904ddd4485637e4e66e59c00f69390f9031d6"
+      },
+      "path": "app/agent/answer_contract.py",
+      "status": "MODIFIED"
+    },
+    {
+      "after": {
+        "bytes": 8394,
+        "path": "app/agent/evidence_ledger.py",
+        "sha256": "f414a54786ffb51bb7b37de24ce8c88a61515ba061552b8f4735e9dea3c12ae4"
+      },
+      "before": {
+        "bytes": 7091,
+        "path": "app/agent/evidence_ledger.py",
+        "sha256": "0cf5b37182a80718f1ad5c47f05d7afd8203e9917022ae93ebbfbd02cb425b2a"
+      },
+      "path": "app/agent/evidence_ledger.py",
+      "status": "MODIFIED"
+    },
+    {
+      "after": {
+        "bytes": 37711,
+        "path": "app/agent/generation_v2.py",
+        "sha256": "41b2afcaef1083ba868e315bb5e92cca5b6bc0084667d47339928a473ba278be"
+      },
+      "before": {
+        "bytes": 35594,
+        "path": "app/agent/generation_v2.py",
+        "sha256": "3d41bcd6375b56d2c97a7f621a137668a106510c25037d36ddbc604ba24a34b9"
+      },
+      "path": "app/agent/generation_v2.py",
+      "status": "MODIFIED"
+    },
+    {
+      "after": {
+        "bytes": 26282,
+        "path": "app/agent/runner_v2.py",
+        "sha256": "00c0799fc8dc436e7f52d555dad9fe4895e80576e39599c180c39e41f5229dc6"
+      },
+      "before": {
+        "bytes": 25993,
+        "path": "app/agent/runner_v2.py",
+        "sha256": "576d3d08dc11262150e806ba5d0a53dbbe2d0ffa15917ca3ca481e916103d421"
+      },
+      "path": "app/agent/runner_v2.py",
+      "status": "MODIFIED"
+    },
+    {
+      "after": {
+        "bytes": 16257,
+        "path": "tests/api_v2/test_bounded_correctness_matrix.py",
+        "sha256": "9cf143ab4c269004b7a1aa833baafec312da7e31dc52d96008f901094a43273d"
+      },
+      "before": null,
+      "path": "tests/api_v2/test_bounded_correctness_matrix.py",
+      "status": "ADDED"
+    }
+  ],
+  "full_files_exact": true,
+  "patch_commands": [
+    {
+      "command": [
+        "git",
+        "-c",
+        "core.autocrlf=false",
+        "apply",
+        "--check",
+        "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\delivery\\changes\\this_round.patch"
+      ],
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "git",
+        "-c",
+        "core.autocrlf=false",
+        "apply",
+        "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\delivery\\changes\\this_round.patch"
+      ],
+      "exit_code": 0,
+      "output": ""
+    }
+  ],
+  "patch_exact": true,
+  "runner_outside_renderer_ast_unchanged": true
+}

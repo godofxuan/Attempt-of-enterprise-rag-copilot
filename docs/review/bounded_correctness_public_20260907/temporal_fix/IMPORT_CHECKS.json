@@ -1,0 +1,16 @@
+{
+  "all_from_target": true,
+  "blocked_network_attempts": 0,
+  "files": [
+    "audit/G0_boundary_red/imports_existing.json",
+    "audit/G0_red/imports_existing.json",
+    "audit/G1_final/imports_existing.json",
+    "audit/G1_release/imports_existing.json",
+    "audit/G2_final/imports_existing.json",
+    "audit/G2_release/imports_existing.json",
+    "audit/G3_final/imports_existing.json",
+    "audit/G3_release/imports_existing.json",
+    "audit/G4_final/imports_external.json",
+    "audit/G4_release/imports_external.json"
+  ]
+}

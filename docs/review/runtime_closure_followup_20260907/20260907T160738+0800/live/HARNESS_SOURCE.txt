@@ -1,0 +1,253 @@
+"""One-shot synthetic development confirmation; NOT a benchmark or semantic judge."""
+import hashlib
+import json
+import os
+import sys
+import threading
+import time
+from pathlib import Path
+from urllib.parse import urlsplit
+
+from closure_audit import OUT, ROOT, ORIGINAL, encoded, fingerprint, now
+
+RUN = ROOT / ".private/mini_live_once"
+PROFILES = ["hybrid_default", "safe_dense_raw20_bge"]
+DOCS = [
+    dict(id="remote", text="远程办公制度。远程办公每周最多允许 3 天。"),
+    dict(id="shipping", text="运费标准表。文件运费上限为 20 元。"),
+    dict(id="travel", text="出差申请必须提前 7 天提交。"),
+    dict(id="condition", text="Only employees in the pilot may claim up to 20 yuan after approval."),
+    dict(id="conflict", text="退款争议处理期限为 7 天。退款争议处理期限为 30 天。"),
+    dict(id="refund", text="Refund policy: refunds arrive in 7 days."),
+    dict(id="supporting", text="Refund policy: EXCLUDED_LIVE_SENTINEL refunds arrive in 30 days.", variant="supporting"),
+]
+CASES = [
+    dict(id="normal", question="远程办公制度每周允许几天？", modes=["answered"], expected=["3 天"]),
+    dict(id="absent_named", question="删除快递报销制度后，还能确认每单上限吗？", modes=["not_found"], expected=[]),
+    dict(id="wrong_relation", question="出差申请需要谁审批？", modes=["not_found"], expected=[]),
+    dict(id="condition", question="How much may employees in the pilot claim after approval?", modes=["answered", "partial"], expected=["20 yuan", "pilot", "after approval"]),
+    dict(id="internal_conflict", question="退款争议处理期限是多少天？", modes=["partial"], expected=["7 天", "30 天"]),
+    dict(id="supporting_exclusion", question="How many days do refunds take?", modes=["answered"], expected=["7 days"]),
+]
+
+
+def main():
+    if RUN.exists():
+        raise RuntimeError("one-shot directory exists; never rerun")
+    source = fingerprint()
+    tests = json.loads((OUT/"TEST_RESULTS.json").read_bytes())
+    if not any(r["label"] == "full_offline" and r["exit_code"] == 0
+               and r["before"] == r["after"] == source["source_fingerprint"] for r in tests):
+        raise RuntimeError("final-source full offline gate required")
+    import requests
+    import torch
+    from app.retrieval.reranker_identity import verify_reranker_identity
+    model_path = ORIGINAL/".private/reranker_models/BAAI--bge-reranker-v2-m3"
+    if not torch.cuda.is_available():
+        raise RuntimeError("existing GPU runtime unavailable")
+    model_files = verify_reranker_identity(model_path)
+    with requests.Session() as session:
+        session.trust_env = False
+        tags = session.get("http://127.0.0.1:11434/api/tags", timeout=5).json()["models"]
+    available = {r["name"].removesuffix(":latest"): r["digest"] for r in tags}
+    required = {
+        "qwen2.5:3b": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+        "qwen3:8b": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+        "bge-m3": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+    }
+    # Embedding identity is read from the immutable, previously verified protocol.
+    old = json.loads((ROOT/"docs/review/runtime_delivery_20260905/RETRIEVAL_PROTOCOL_V2.json").read_bytes())
+    required["bge-m3"] = old["embedding_sha256"]
+    if any(available.get(k) != v for k, v in required.items()):
+        raise RuntimeError("model identity mismatch")
+    RUN.mkdir()
+    live = OUT/"live"
+    live.mkdir(exist_ok=False)
+    protocol = dict(
+        schema="runtime-closure-mini-live/1", frozen_at=now(), source_fingerprint=source["source_fingerprint"],
+        harness_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        model_identities=required, reranker_files=model_files, profiles=PROFILES, cases=CASES,
+        fixture_sha256=hashlib.sha256(encoded(DOCS)).hexdigest(),
+        scope="6 synthetic development scenarios; ASGI in-process; not independent validation",
+        main_requests_cap=12, warmup_requests_cap=2, concurrency=1, no_resource_requests=True,
+        chat_model="qwen2.5:3b", seed=None, temperature=0, top_k=5,
+        model_max_attempts=2, structured_attempts=2, request_deadline_ms=15000,
+        query_embed_max_per_request=2, chat_transport_max_per_request=4,
+        corpus_embed_attempt_cap=14, startup_inference_attempt_cap_per_profile=6,
+        request_inference_attempt_cap=6, total_inference_attempt_cap=110,
+        local_reranker_call_cap=8, reranker_calls_per_search=1,
+        total_wall_seconds_cap=300, failure_policy="retain every attempt; stop at cap/security failure; no rerun",
+        internal_conflict="host excerpts; zero generation expected, NOT two-document or LLM adjudication",
+    )
+    (live/"MINI_LIVE_PROTOCOL.json").write_bytes(encoded(protocol))
+    os.environ.update(
+        LLM_BASE_URL="http://127.0.0.1:11434/v1", CHAT_MODEL="qwen2.5:3b",
+        EVIDENCE_MODEL="qwen3:8b", EMBEDDING_MODEL="bge-m3",
+        SQLITE_PATH=str(RUN/"service.db"), V2_INDEXES_DIR=str(RUN/"indexes"),
+        RAW_DOCS_DIR=str(RUN/"raw"), PARSED_DOCS_DIR=str(RUN/"parsed"),
+        INDEXES_DIR=str(RUN/"legacy"), V2_RERANKER_PATH=str(model_path), V2_RERANKER_DEVICE="cuda",
+        HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1",
+        TEMP=str(RUN), TMP=str(RUN), MODEL_MAX_ATTEMPTS="2",
+    )
+    from app.config import get_settings
+    get_settings.cache_clear()
+    from app.agent.query_analysis import RuleFirstQueryAnalyzer
+    from app.corpus.schemas import SmokeFixtureManifest
+    from app.domain.queries import UserContext
+    from app.indexing.store import build_index_version
+    from app.ingestion.chunking import ChunkerConfig
+    from app.retriever import _embed_text
+    from app.runtime.resources import build_service_container
+    from app.security.demo_identity import initialize_demo_identity
+    from app.serving import create_app
+    from fastapi.testclient import TestClient
+    settings = get_settings()
+    assert settings.v2_indexes_dir.resolve() == (RUN/"indexes").resolve()
+    assert settings.model_max_attempts == settings.structured_generation_max_attempts == 2
+    user = UserContext(user_id="user_employee", tenant_id="starbridge-cn", region="cn", groups=["all_employees"])
+    for case in CASES:
+        analysis = RuleFirstQueryAnalyzer().analyze(case["question"], user)
+        assert len(analysis.required_aspects) == 1 and analysis.intent != "completeness"
+    started = time.monotonic()
+    original_request = requests.Session.request
+    lock = threading.Lock()
+    calls, rows, scorer_calls, resources = [], [], [], []
+    phase = ["corpus"]
+    limits = {"corpus":14, **{p+":startup":6 for p in PROFILES}}
+
+    def request(session, method, url, **kwargs):
+        parsed = urlsplit(url)
+        if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.port != 11434:
+            raise RuntimeError("external model destination forbidden")
+        if parsed.path in {"/api/embed", "/api/chat"}:
+            with lock:
+                name = phase[0]
+                if (time.monotonic()-started > 300 or len(calls) >= 110
+                    or sum(c["phase"] == name for c in calls) >= limits.get(name,6)):
+                    raise RuntimeError("mini-live inference budget exhausted")
+                entry = dict(phase=name, operation=parsed.path, model=kwargs.get("json",{}).get("model"),
+                             started_at=now(), status="STARTED")
+                if parsed.path == "/api/chat":
+                    entry["synthetic_model_input"] = kwargs.get("json", {})
+                    if "EXCLUDED_LIVE_SENTINEL" in json.dumps(entry["synthetic_model_input"]):
+                        raise RuntimeError("excluded marker reached model input")
+                calls.append(entry)
+            try:
+                response = original_request(session, method, url, **kwargs)
+                entry["status"] = response.status_code
+                if parsed.path == "/api/chat":
+                    entry["synthetic_raw_output"] = response.json()
+                return response
+            except Exception as exc:
+                entry["status"] = type(exc).__name__
+                raise
+            finally:
+                entry["finished_at"] = now()
+        return original_request(session, method, url, **kwargs)
+
+    requests.Session.request = request
+    from app.retrieval.local_cross_encoder import LocalCrossEncoder
+    original_score = LocalCrossEncoder.__call__
+
+    def score(scorer, query, texts):
+        if len(scorer_calls) >= 8 or time.monotonic()-started > 300:
+            raise RuntimeError("local reranker budget exhausted")
+        record = dict(phase=phase[0], query=query, texts=list(texts), started_at=now())
+        scorer_calls.append(record)
+        if "EXCLUDED_LIVE_SENTINEL" in json.dumps(record):
+            raise RuntimeError("excluded marker reached scorer input")
+        try:
+            result = original_score(scorer, query, texts)
+            record["status"] = "COMPLETED"
+            return result
+        except Exception as exc:
+            record["status"] = type(exc).__name__
+            raise
+        finally:
+            record["finished_at"] = now()
+
+    LocalCrossEncoder.__call__ = score
+    status = "NOT_VERIFIED"
+    try:
+        corpus = RUN/"corpus"
+        corpus.mkdir()
+        entries = []
+        for doc in DOCS:
+            raw = doc["text"].encode("utf8")
+            name = doc["id"]+".md"
+            (corpus/name).write_bytes(raw)
+            variant = doc.get("variant","authoritative")
+            entries.append(dict(doc_id=doc["id"], path=name, sha256=hashlib.sha256(raw).hexdigest(),
+                byte_count=len(raw), format="md", source_type="policy", variant=variant, fact_ids=[],
+                metadata=dict(policy_id=doc["id"], version_id=doc["id"]+"@2026", version="2026",
+                    status="active", effective_from="2026-01-01", authority=90, actual_department="operations",
+                    filed_department="operations", tenant="starbridge-cn", region="cn",
+                    acl_groups=["all_employees"], variant=variant)))
+        manifest = SmokeFixtureManifest(schema_version="enterprise_smoke_fixture_v1",producer="enterprise_agentic_rag_v2",
+            generator_version="closure-mini-v1",source_profile_id="synthetic-development",seed=1,
+            facts_sha256=protocol["fixture_sha256"],profile_sha256=protocol["fixture_sha256"],documents=entries)
+        (corpus/"manifest.json").write_text(manifest.model_dump_json(),encoding="utf8")
+        build_index_version(root=RUN/"indexes", input_dir=corpus,run_id="mini",
+            chunker_config=ChunkerConfig(mode="fixed",chunk_size=500,overlap=80),
+            embedding_model="bge-m3",embed_text=lambda text:_embed_text("bge-m3",text),activate=True)
+        for profile in PROFILES:
+            phase[0] = profile+":startup"
+            os.environ["V2_RETRIEVAL_PROFILE"] = profile
+            identity = RUN/("identity-"+profile)
+            initialize_demo_identity(identity,issuer=settings.identity_issuer,audience=settings.identity_audience,token_lifetime_seconds=900)
+            tokens = json.loads((identity/"persona_tokens.json").read_bytes())["tokens"]
+            block = settings.model_copy(update={"identity_jwks_path":identity/"jwks.json",
+                        "identity_feedback_hmac_key_path":identity/"feedback_actor_hmac.key"})
+            app = create_app(build_service_container(block))
+            resources.append(app.state.service_container.resources)
+            with TestClient(app) as client:
+                service = app.state.service_container
+                service.resources.wait_for_refresh(65)
+                if client.get("/health/ready").status_code != 200:
+                    raise RuntimeError("real readiness failed; no stub fallback")
+                for i, case in enumerate([CASES[0], *CASES]):
+                    if time.monotonic()-started > 300:
+                        raise RuntimeError("wall budget exhausted")
+                    kind = "warmup" if i == 0 else "main"
+                    phase[0] = profile+":"+kind+":"+str(i)
+                    begin=time.monotonic()
+                    response=client.post("/agent/v2/chat",json={"question":case["question"],"top_k":5},
+                        headers={"Authorization":"Bearer "+tokens["user_employee"],"X-Request-ID":"mini-"+str(i)+"-"+profile})
+                    payload=response.json()
+                    safe = "EXCLUDED_LIVE_SENTINEL" not in json.dumps(payload)
+                    row=dict(profile=profile,case_id=case["id"],kind=kind,status=response.status_code,
+                             client_ms=(time.monotonic()-begin)*1000,response=payload,
+                             automatic_contract=response.status_code==200 and payload.get("mode") in case["modes"]
+                                and all(x in payload.get("answer","") for x in case["expected"]),
+                             excluded_marker_absent=safe)
+                    rows.append(row)
+                    (live/"rows.json").write_bytes(encoded(rows))
+                    print(json.dumps({k:row[k] for k in ("profile","case_id","kind","status","automatic_contract")}),flush=True)
+                    if not safe:
+                        raise RuntimeError("known exclusion publication failure")
+        status="COMPLETED_WITH_LIMITATIONS"
+    except Exception as exc:
+        print(type(exc).__name__+": "+str(exc)+"; mini confirmation stopped",flush=True)
+        status="STOPPED_"+type(exc).__name__
+    finally:
+        for resource in resources:
+            resource.close()
+            if resource._refresh_thread is not None:
+                resource._refresh_thread.join(timeout=settings.readiness_model_load_timeout_seconds+5)
+                if resource._refresh_thread.is_alive():
+                    raise RuntimeError("readiness worker remains active; keep budget interception")
+        requests.Session.request=original_request
+        LocalCrossEncoder.__call__=original_score
+        (live/"calls.json").write_bytes(encoded(calls))
+        (live/"scorer_calls.json").write_bytes(encoded(scorer_calls))
+        (live/"summary.json").write_bytes(encoded(dict(
+            status=status,started_at=protocol["frozen_at"],finished_at=now(),attempts=len(calls),
+            main=sum(r["kind"]=="main" for r in rows),warmup=sum(r["kind"]=="warmup" for r in rows),
+            automatic_contract_complete=sum(r["kind"]=="main" and r["automatic_contract"] for r in rows),
+            source_before=source["source_fingerprint"],source_after=fingerprint()["source_fingerprint"],
+            human_review="NEEDS_HUMAN",production="NOT_EVALUATED")))
+    return 0 if status=="COMPLETED_WITH_LIMITATIONS" else 2
+
+
+if __name__=="__main__":
+    raise SystemExit(main())

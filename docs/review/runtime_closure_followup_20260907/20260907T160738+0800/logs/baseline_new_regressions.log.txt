@@ -1,0 +1,154 @@
+FF.......F.FFF...........                                                [100%]
+================================== FAILURES ===================================
+_ test_deleted_named_policy_cannot_be_answered_from_another_limit[hybrid_default] _
+
+service = (<function service.<locals>.start at 0x00000142B80A9760>, {'llm': [[{'content': 'You are a grounded enterprise knowled.../文档/agent/RAG_try/.private/closure_baseline_20260907T163000/.private/baseline_pytest/test_deleted_named_policy_cann0'))
+profile = 'hybrid_default'
+
+    @pytest.mark.parametrize("profile", ["hybrid_default", "safe_dense_raw20_bge"])
+    def test_deleted_named_policy_cannot_be_answered_from_another_limit(service, profile):
+        start, seen, root = service
+        other = dict(id="shipping", text="运费标准表。文件运费上限为 20 元。")
+        with start(
+            [dict(id="courier", text="快递报销制度。快递报销上限为每单 40 元。"), other], profile
+        ) as client:
+            first = client.post(
+                "/agent/v2/chat", json={"question": "快递报销制度每单上限是多少？"}
+            ).json()
+            assert first["mode"] in {"answered", "partial"}
+            assert any(s["doc_id"] == "courier" for s in first["sources"])
+            build_fixture(root, [other], "deleted")
+            seen["llm"].clear()
+            final = client.post(
+                "/agent/v2/chat", json={"question": "删除快递报销制度后，还能确认每单上限吗？"}
+            ).json()
+>           assert final["mode"] == "not_found"
+E           AssertionError: assert 'answered' == 'not_found'
+E             
+E             - not_found
+E             + answered
+
+tests\api_v2\test_runtime_closure_flow.py:176: AssertionError
+---------------------------- Captured stderr call -----------------------------
+Building prefix dict from the default dictionary ...
+Dumping model to file cache <WORKTREE>\.private\runtime_cache\jieba\jieba.cache
+Loading model cost 0.387 seconds.
+Prefix dict has been built successfully.
+------------------------------ Captured log call ------------------------------
+DEBUG    jieba:__init__.py:113 Building prefix dict from the default dictionary ...
+DEBUG    jieba:__init__.py:146 Dumping model to file cache <WORKTREE>\.private\runtime_cache\jieba\jieba.cache
+DEBUG    jieba:__init__.py:164 Loading model cost 0.387 seconds.
+DEBUG    jieba:__init__.py:166 Prefix dict has been built successfully.
+_ test_deleted_named_policy_cannot_be_answered_from_another_limit[safe_dense_raw20_bge] _
+
+service = (<function service.<locals>.start at 0x00000142BC21AB60>, {'llm': [[{'content': 'You are a grounded enterprise knowled.../文档/agent/RAG_try/.private/closure_baseline_20260907T163000/.private/baseline_pytest/test_deleted_named_policy_cann1'))
+profile = 'safe_dense_raw20_bge'
+
+    @pytest.mark.parametrize("profile", ["hybrid_default", "safe_dense_raw20_bge"])
+    def test_deleted_named_policy_cannot_be_answered_from_another_limit(service, profile):
+        start, seen, root = service
+        other = dict(id="shipping", text="运费标准表。文件运费上限为 20 元。")
+        with start(
+            [dict(id="courier", text="快递报销制度。快递报销上限为每单 40 元。"), other], profile
+        ) as client:
+            first = client.post(
+                "/agent/v2/chat", json={"question": "快递报销制度每单上限是多少？"}
+            ).json()
+            assert first["mode"] in {"answered", "partial"}
+            assert any(s["doc_id"] == "courier" for s in first["sources"])
+            build_fixture(root, [other], "deleted")
+            seen["llm"].clear()
+            final = client.post(
+                "/agent/v2/chat", json={"question": "删除快递报销制度后，还能确认每单上限吗？"}
+            ).json()
+>           assert final["mode"] == "not_found"
+E           AssertionError: assert 'answered' == 'not_found'
+E             
+E             - not_found
+E             + answered
+
+tests\api_v2\test_runtime_closure_flow.py:176: AssertionError
+_____ test_same_subject_without_requested_approval_relation_is_not_found ______
+
+service = (<function service.<locals>.start at 0x00000142FE4EFE20>, {'llm': [[{'content': 'You are a grounded enterprise knowled.../文档/agent/RAG_try/.private/closure_baseline_20260907T163000/.private/baseline_pytest/test_same_subject_without_requ0'))
+
+    def test_same_subject_without_requested_approval_relation_is_not_found(service):
+        start, seen, _ = service
+        with start([dict(id="travel", text="出差申请必须提前 7 天提交。")]) as client:
+            response = client.post("/agent/v2/chat", json={"question": "出差申请需要谁审批？"})
+        assert seen["llm"]
+        data = response.json()
+>       assert data["mode"] == "not_found" and data["sources"] == []
+E       AssertionError: assert ('answered' == 'not_found'
+E         
+E         - not_found
+E         + answered)
+
+tests\api_v2\test_runtime_closure_flow.py:248: AssertionError
+_ test_unquoted_named_policy_is_an_anchor[\u5220\u9664\u5feb\u9012\u62a5\u9500\u5236\u5ea6\u540e\uff0c\u8fd8\u80fd\u786e\u8ba4\u6bcf\u5355\u4e0a\u9650\u5417\uff1f] _
+
+question = '删除快递报销制度后，还能确认每单上限吗？'
+
+    @pytest.mark.parametrize(
+        "question",
+        [
+            "删除快递报销制度后，还能确认每单上限吗？",
+            "快递报销制度每单上限是多少？",
+        ],
+    )
+    def test_unquoted_named_policy_is_an_anchor(question):
+        hit = admitted_search_hit(
+            matched_text="运费标准表。文件运费上限为 20 元。",
+            context_text="运费标准表。文件运费上限为 20 元。",
+        )
+>       assert not has_query_anchor_support(question, hit)
+E       AssertionError: assert not True
+E        +  where True = has_query_anchor_support('删除快递报销制度后，还能确认每单上限吗？', AdmittedEvidenceChunk(hit=AdmittedSearchHitSnapshot(index_run_id='run-one', chunk_id='chunk-a', doc_id='doc-a', parent...on='rcg-v1.2.0', original_length=32, normalized_length=32, scanned_length=32, decoded_view_count=0, guard_error=False)))
+
+tests\agent_v2\test_runtime_closure_regressions.py:22: AssertionError
+_ test_unquoted_named_policy_is_an_anchor[\u5feb\u9012\u62a5\u9500\u5236\u5ea6\u6bcf\u5355\u4e0a\u9650\u662f\u591a\u5c11\uff1f] _
+
+question = '快递报销制度每单上限是多少？'
+
+    @pytest.mark.parametrize(
+        "question",
+        [
+            "删除快递报销制度后，还能确认每单上限吗？",
+            "快递报销制度每单上限是多少？",
+        ],
+    )
+    def test_unquoted_named_policy_is_an_anchor(question):
+        hit = admitted_search_hit(
+            matched_text="运费标准表。文件运费上限为 20 元。",
+            context_text="运费标准表。文件运费上限为 20 元。",
+        )
+>       assert not has_query_anchor_support(question, hit)
+E       AssertionError: assert not True
+E        +  where True = has_query_anchor_support('快递报销制度每单上限是多少？', AdmittedEvidenceChunk(hit=AdmittedSearchHitSnapshot(index_run_id='run-one', chunk_id='chunk-a', doc_id='doc-a', parent...on='rcg-v1.2.0', original_length=32, normalized_length=32, scanned_length=32, decoded_view_count=0, guard_error=False)))
+
+tests\agent_v2\test_runtime_closure_regressions.py:22: AssertionError
+_______ test_same_subject_different_requested_relation_is_not_complete ________
+
+    def test_same_subject_different_requested_relation_is_not_complete():
+>       assert (
+            answer_sufficiency("出差申请需要谁审批？", ["出差申请必须提前 7 天提交。"])
+            == "missing_requested_relation"
+        )
+E       AssertionError: assert 'semantic_com...ss_unverified' == 'missing_requested_relation'
+E         
+E         - missing_requested_relation
+E         + semantic_completeness_unverified
+
+tests\agent_v2\test_runtime_closure_regressions.py:26: AssertionError
+============================== warnings summary ===============================
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+6 failed, 19 passed, 3 warnings in 3.73s

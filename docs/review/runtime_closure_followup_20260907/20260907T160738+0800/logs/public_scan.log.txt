@@ -1,0 +1,4 @@
+[absolute_user_path] docs/review/runtime_closure_followup_20260907/20260907T160738+0800/DEMO_GUIDE.md: machine-specific absolute path detected
+[absolute_user_path] docs/review/runtime_closure_followup_20260907/20260907T160738+0800/EVIDENCE_REPLAY.md: machine-specific absolute path detected
+[absolute_user_path] docs/review/runtime_closure_followup_20260907/20260907T160738+0800/RUN_METADATA.json: machine-specific absolute path detected
+public candidates=1947 findings=3

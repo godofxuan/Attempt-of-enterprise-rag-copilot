@@ -1,0 +1,417 @@
+{
+  "diagnostics": [],
+  "hashes": {
+    "metrics.csv": "a67bbc64c322a58c307ede4af2b169a2404eedfcab531780b0f71626f07f0d53",
+    "service_cases.json": "47a7824dec7e5ff5a40300c0bbacf119899765afc9a16da4be8ce51fda3a997e",
+    "service_comparison.json": "ec86eb4d9f1bd9056370cdc055cdff721190fa43ba05833603d68f44ed7ce2ab"
+  },
+  "human_semantics": "NEEDS_HUMAN",
+  "model_rerun": "NOT_RUN",
+  "overall_status": "VERIFIED_WITHIN_SCOPE",
+  "retrieval": {
+    "anomalies": {
+      "rankings_with_duplicate_articles": 97,
+      "short_rankings": 97
+    },
+    "profiles": {
+      "dense_reference": {
+        "all_gold_at_5": 0.595,
+        "case_count": 200,
+        "failures": 0,
+        "hit_at_1": 0.355,
+        "hit_at_5": 0.725,
+        "macro_article_recall_at_5": 0.6591666666666666,
+        "mrr_at_5": 0.49966666666666654,
+        "ndcg_at_5": 0.5208353136805738,
+        "retrieval_latency_p50_ms": 195.95160000608303,
+        "retrieval_latency_p95_ms": 335.5780699872412
+      },
+      "hybrid_default": {
+        "all_gold_at_5": 0.485,
+        "case_count": 200,
+        "failures": 0,
+        "hit_at_1": 0.335,
+        "hit_at_5": 0.635,
+        "macro_article_recall_at_5": 0.56,
+        "mrr_at_5": 0.4412499999999999,
+        "ndcg_at_5": 0.45071588022493825,
+        "retrieval_latency_p50_ms": 250.64129999373108,
+        "retrieval_latency_p95_ms": 411.41473999014124
+      },
+      "safe_dense_raw20_bge": {
+        "all_gold_at_5": 0.655,
+        "case_count": 200,
+        "failures": 0,
+        "hit_at_1": 0.445,
+        "hit_at_5": 0.79,
+        "macro_article_recall_at_5": 0.7225,
+        "mrr_at_5": 0.5800833333333332,
+        "ndcg_at_5": 0.5919742191469217,
+        "retrieval_latency_p50_ms": 310.3106500057038,
+        "retrieval_latency_p95_ms": 333.9447550300973
+      },
+      "safe_dense_raw50_bge": {
+        "all_gold_at_5": 0.675,
+        "case_count": 200,
+        "failures": 0,
+        "hit_at_1": 0.44,
+        "hit_at_5": 0.815,
+        "macro_article_recall_at_5": 0.7425000000000002,
+        "mrr_at_5": 0.5839999999999997,
+        "ndcg_at_5": 0.5993249801393671,
+        "retrieval_latency_p50_ms": 690.0907499948516,
+        "retrieval_latency_p95_ms": 754.4569900084753
+      }
+    },
+    "rows": 800
+  },
+  "service": {
+    "counts": {
+      "main": 680,
+      "resource": 60,
+      "warmup": 35
+    },
+    "csv_groups": 87,
+    "groups": {
+      "service_C_readiness_v1/hybrid_default/main": {
+        "complete": 32,
+        "http": {
+          "200": 40
+        },
+        "modes": {
+          "answered": 26,
+          "not_found": 3,
+          "partial": 9,
+          "unsafe": 2
+        },
+        "n": 40
+      },
+      "service_C_readiness_v1/hybrid_default/warmup": {
+        "complete": 5,
+        "http": {
+          "200": 5
+        },
+        "modes": {
+          "answered": 5
+        },
+        "n": 5
+      },
+      "service_C_readiness_v1/safe_dense_raw20_bge/main": {
+        "complete": 31,
+        "http": {
+          "200": 40
+        },
+        "modes": {
+          "answered": 26,
+          "not_found": 4,
+          "partial": 8,
+          "unsafe": 2
+        },
+        "n": 40
+      },
+      "service_C_readiness_v1/safe_dense_raw20_bge/warmup": {
+        "complete": 5,
+        "http": {
+          "200": 5
+        },
+        "modes": {
+          "answered": 5
+        },
+        "n": 5
+      },
+      "service_C_repair_v1/hybrid_default/main": {
+        "complete": 87,
+        "http": {
+          "200": 111,
+          "503": 9
+        },
+        "modes": {
+          "answered": 72,
+          "http_error": 9,
+          "not_found": 7,
+          "partial": 26,
+          "unsafe": 6
+        },
+        "n": 120
+      },
+      "service_C_repair_v1/hybrid_default/resource1": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_repair_v1/hybrid_default/resource2": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_repair_v1/hybrid_default/resource4": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_repair_v1/hybrid_default/warmup": {
+        "complete": 5,
+        "http": {
+          "200": 5
+        },
+        "modes": {
+          "answered": 5
+        },
+        "n": 5
+      },
+      "service_C_repair_v1/safe_dense_raw20_bge/main": {
+        "complete": 96,
+        "http": {
+          "200": 120
+        },
+        "modes": {
+          "answered": 76,
+          "not_found": 12,
+          "partial": 26,
+          "unsafe": 6
+        },
+        "n": 120
+      },
+      "service_C_repair_v1/safe_dense_raw20_bge/resource1": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_repair_v1/safe_dense_raw20_bge/resource2": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_repair_v1/safe_dense_raw20_bge/resource4": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_repair_v1/safe_dense_raw20_bge/warmup": {
+        "complete": 5,
+        "http": {
+          "200": 5
+        },
+        "modes": {
+          "answered": 5
+        },
+        "n": 5
+      },
+      "service_C_v1/hybrid_default/main": {
+        "complete": 85,
+        "http": {
+          "200": 120
+        },
+        "modes": {
+          "answered": 68,
+          "not_found": 18,
+          "partial": 28,
+          "unsafe": 6
+        },
+        "n": 120
+      },
+      "service_C_v1/hybrid_default/resource1": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_v1/hybrid_default/resource2": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_v1/hybrid_default/resource4": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_v1/hybrid_default/warmup": {
+        "complete": 5,
+        "http": {
+          "200": 5
+        },
+        "modes": {
+          "answered": 5
+        },
+        "n": 5
+      },
+      "service_C_v1/safe_dense_raw20_bge/main": {
+        "complete": 90,
+        "http": {
+          "200": 120
+        },
+        "modes": {
+          "answered": 71,
+          "not_found": 21,
+          "partial": 22,
+          "unsafe": 6
+        },
+        "n": 120
+      },
+      "service_C_v1/safe_dense_raw20_bge/resource1": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_v1/safe_dense_raw20_bge/resource2": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_v1/safe_dense_raw20_bge/resource4": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_v1/safe_dense_raw20_bge/warmup": {
+        "complete": 5,
+        "http": {
+          "200": 5
+        },
+        "modes": {
+          "answered": 5
+        },
+        "n": 5
+      },
+      "service_C_v1/safe_dense_raw50_bge/main": {
+        "complete": 87,
+        "http": {
+          "200": 120
+        },
+        "modes": {
+          "answered": 70,
+          "not_found": 21,
+          "partial": 23,
+          "unsafe": 6
+        },
+        "n": 120
+      },
+      "service_C_v1/safe_dense_raw50_bge/resource1": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_v1/safe_dense_raw50_bge/resource2": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_v1/safe_dense_raw50_bge/resource4": {
+        "complete": 4,
+        "http": {
+          "200": 4
+        },
+        "modes": {
+          "answered": 4
+        },
+        "n": 4
+      },
+      "service_C_v1/safe_dense_raw50_bge/warmup": {
+        "complete": 5,
+        "http": {
+          "200": 5
+        },
+        "modes": {
+          "answered": 5
+        },
+        "n": 5
+      }
+    },
+    "pairs": [
+      {
+        "gained": 10,
+        "missed": 25,
+        "pairs": 120,
+        "profile": "hybrid_default",
+        "regressed": 8,
+        "retained": 77
+      },
+      {
+        "gained": 11,
+        "missed": 19,
+        "pairs": 120,
+        "profile": "safe_dense_raw20_bge",
+        "regressed": 5,
+        "retained": 85
+      }
+    ],
+    "rows": 775,
+    "unique_main_cases": 40,
+    "uniqueness_basis": "main: run/profile/case/repeat; warmup/resource unique request ID absent publicly"
+  },
+  "verification_scope": {
+    "aggregate_replay": "AGGREGATE_REPLAY_VERIFIED",
+    "artifact_hash": "ARTIFACT_HASH_VERIFIED",
+    "gold_metrics": "GOLD_METRICS_VERIFIED"
+  }
+}

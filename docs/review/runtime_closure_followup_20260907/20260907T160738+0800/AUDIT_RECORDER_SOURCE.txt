@@ -1,0 +1,174 @@
+"""Local execution recorder; never runs inference or changes old evidence."""
+import csv
+import hashlib
+import json
+import os
+import platform
+import re
+import subprocess
+import sys
+import time
+import xml.etree.ElementTree as ET
+from datetime import datetime
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+ORIGINAL = ROOT.parents[1]
+BASE = "c9984e92a10a6f417e2c1d8082af7e8f1e11aee1"
+REL = Path("docs/review/runtime_closure_followup_20260907/20260907T160738+0800")
+OUT = ROOT / REL
+OLD = Path("docs/review/runtime_delivery_20260905")
+
+
+def now():
+    return datetime.now().astimezone().isoformat()
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def encoded(obj):
+    return (json.dumps(obj, ensure_ascii=True, sort_keys=True, indent=2) + "\n").encode()
+
+
+def write(name, obj):
+    path = OUT / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(encoded(obj))
+
+
+def git(*args):
+    return subprocess.check_output(["git", "-c", "safe.directory="+ROOT.as_posix(), *args], cwd=ROOT)
+
+
+def fingerprint():
+    names = set(git("ls-files", "-z", "--cached", "--others", "--exclude-standard").decode("utf8").split("\0")) - {""}
+    names = sorted(n for n in names if
+        n.startswith(("app/", "scripts/", "tests/", ".github/workflows/"))
+        or n in {"requirements.txt", "requirements-dev.txt", "requirements-reranker.txt", "pyproject.toml", "pytest.ini", "Dockerfile"})
+    files = []
+    for name in names:
+        p = ROOT / name
+        if p.is_file():
+            raw = p.read_bytes()
+            files.append(dict(path=name, bytes=len(raw), sha256=sha(raw)))
+    canonical = json.dumps(files, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
+    return dict(
+        algorithm="sha256 of ASCII canonical JSON sorted list(path,bytes,sha256), actual checkout bytes",
+        includes="all app/scripts/tests tracked and nonignored new files; workflows, dependency pins, pytest, pyproject, Dockerfile",
+        excludes=".git, .private, docs, data, streamlit, caches, weights, credentials; NOT entire repository",
+        base_sha=BASE, head_sha=git("rev-parse", "HEAD").decode().strip(),
+        dirty=bool(git("status", "--porcelain")), source_fingerprint=sha(canonical),
+        tracked_diff_sha256=sha(git("diff", "--binary", BASE, "--", "app", "scripts", "tests", "requirements.txt", "requirements-dev.txt", "requirements-reranker.txt", "pyproject.toml", "pytest.ini", ".github", "Dockerfile")),
+        files=files,
+    )
+
+
+def sanitize(text):
+    for p, label in ((str(ROOT), "<WORKTREE>"), (ROOT.as_posix(), "<WORKTREE>"),
+                     (str(ORIGINAL), "<ORIGINAL_WORKSPACE>"), (str(Path.home()), "<HOME>")):
+        text = text.replace(p.replace("\\", "\\\\"), label)
+        text = text.replace(p, label)
+    return re.sub(r"Bearer\s+[A-Za-z0-9._-]+", "Bearer <REDACTED>", text)
+
+
+def record(label, command):
+    before = fingerprint()
+    start = now()
+    env = os.environ.copy()
+    env.update(PYTHONUTF8="1", PYTHONDONTWRITEBYTECODE="1", TEMP=str(ROOT/".private"), TMP=str(ROOT/".private"))
+    t = time.monotonic()
+    run = subprocess.run(command, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    end = now()
+    after = fingerprint()
+    text = sanitize(run.stdout.decode("utf8", errors="replace"))
+    log = OUT / "logs" / (label + ".log.txt")
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text(text, encoding="utf8", newline="\n")
+    info = dict(label=label, command=[sanitize(str(s)) for s in command], cwd="<WORKTREE>",
+                start=start, end=end, timezone="Asia/Shanghai",
+                seconds=time.monotonic()-t, exit_code=run.returncode,
+                before=before["source_fingerprint"], after=after["source_fingerprint"],
+                source_unchanged=before["source_fingerprint"] == after["source_fingerprint"],
+                log=str(log.relative_to(OUT)).replace("\\", "/"), log_sha256=sha(log.read_bytes()))
+    match = re.search(r"(\d+) passed", text)
+    info["passed"] = int(match[1]) if match else None
+    for field in ("failed", "skipped", "deselected"):
+        m = re.search(r"(\d+) " + field, text)
+        info[field] = int(m[1]) if m else 0
+    records = json.loads((OUT/"TEST_RESULTS.json").read_bytes()) if (OUT/"TEST_RESULTS.json").exists() else []
+    records.append(info)
+    write("TEST_RESULTS.json", records)
+    write("SOURCE_FINGERPRINT.json", after)
+    print(json.dumps(info), flush=True)
+    if run.returncode:
+        print(text[-5000:], flush=True)
+    return run.returncode
+
+
+def init():
+    OUT.mkdir(parents=True, exist_ok=True)
+    write("RUN_METADATA.json", dict(
+        run_id="20260907T160738+0800", created_at=now(), timezone="Asia/Shanghai",
+        platform=platform.platform(), shell="PowerShell", python=platform.python_version(),
+        environment="existing original-workspace .venv, Python 3.11.9; no installs",
+        base_sha=BASE, branch=git("branch", "--show-current").decode().strip(),
+        workspace="isolated worktree inside original project's .private",
+        original_worktree_clean=True, commits_authorized=False, network_models_run=False,
+        old_evidence_readonly=True, no_applicable_AGENTS_found=True,
+    ))
+    candidate_path = ORIGINAL/".private/external/wixqa_final_lf/eval_runs/final_raw_candidates_67c7e55.json"
+    candidate_bytes = candidate_path.read_bytes()
+    candidates = json.loads(candidate_bytes)
+    packet = json.loads((ROOT/OLD/"retrieval_evidence.json").read_bytes())
+    assert sha(candidate_bytes) == packet["protocol"]["candidate_artifact_sha256"]
+    labels = [dict(question_id=c["question_id"], gold_article_ids=c["gold_article_ids"]) for c in candidates["cases"]]
+    assert len(labels) == 200 and len({r["question_id"] for r in labels}) == 200
+    # IDs already occur in published ranking artifacts; export no questions or text.
+    assert all(re.fullmatch(r"[0-9a-f]{64}", a) for r in labels for a in r["gold_article_ids"])
+    write("retrieval_gold.json", dict(
+        schema="runtime-retrieval-gold/1", questions=labels,
+        ranking_evidence_sha256=sha((ROOT/OLD/"retrieval_evidence.json").read_bytes()),
+        candidate_artifact_sha256=sha(candidate_bytes),
+        source="frozen WixQA public ExpertWritten candidate artifact, not inferred labels",
+        id_scheme="existing article sha256 and question pseudonyms unchanged; hashes are not anonymity guarantees",
+        metric_definition="first five distinct article IDs, binary gain, macro average over all 200; no empty gold",
+    ))
+    byte_rows = []
+    for p in sorted((ROOT/OLD).rglob("*")):
+        if not p.is_file():
+            continue
+        relative = p.relative_to(ROOT).as_posix()
+        blob = git("show", BASE+":"+relative)
+        byte_rows.append(dict(path=relative, git_blob_sha256=sha(blob),
+                              checkout_sha256=sha(p.read_bytes()), same=blob==p.read_bytes()))
+    write("historical_bytes.json", byte_rows)
+    write("SOURCE_FINGERPRINT.json", fingerprint())
+    from scripts.verify_runtime_closure import verify
+    write("VERIFICATION_REPORT.json", verify(ROOT/OLD, OUT))
+    # Full private row identities are read, not copied publicly.
+    checks = []
+    for name in ("service_C_v1", "service_C_repair_v1", "service_C_readiness_v1"):
+        root = ORIGINAL/".private/runtime_delivery"/name
+        completion = json.loads((root/"completion.json").read_bytes())
+        rows_bytes = (root/"rows.jsonl").read_bytes()
+        assert sha(rows_bytes) == completion["rows_sha256"]
+        rows = [json.loads(x) for x in rows_bytes.splitlines()]
+        request_ids = [r["server_trace"]["request_id"] if r.get("server_trace") else r["response"].get("trace",{}).get("request_id") for r in rows]
+        checks.append(dict(run=name, rows=len(rows), request_ids_present=sum(x is not None for x in request_ids),
+                           request_ids_unique=len({x for x in request_ids if x is not None}),
+                           actual_rows_sha256=sha(rows_bytes), source_unchanged=completion["source_unchanged"]))
+    write("private_identity_checks.json", checks)
+    print(json.dumps({"initialized":str(REL), "verification":json.loads((OUT/"VERIFICATION_REPORT.json").read_bytes())["overall_status"]}))
+
+
+if __name__ == "__main__":
+    if sys.argv[1] == "init":
+        init()
+    elif sys.argv[1] == "record":
+        raise SystemExit(record(sys.argv[2], sys.argv[3:]))
+    elif sys.argv[1] == "fingerprint":
+        write("SOURCE_FINGERPRINT.json", fingerprint())
+        print(fingerprint()["source_fingerprint"])

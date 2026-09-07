@@ -1,0 +1,212 @@
+{
+  "case": "B09_future",
+  "question": "How many days do refunds take?",
+  "evidence": [
+    {
+      "id": "allowed",
+      "text": "Refund policy: refunds arrive in 7 days."
+    },
+    {
+      "id": "excluded",
+      "text": "Refund policy: refunds arrive in 30 days. BOUNDED_EXCLUDED_SENTINEL"
+    }
+  ],
+  "response": {
+    "mode": "partial",
+    "answer": "Refund policy: refunds arrive in 7 days.\nRefund policy: refunds arrive in 30 days. BOUNDED_EXCLUDED_SENTINEL\n\u73b0\u6709\u53ef\u89c1\u6750\u6599\u5b58\u5728\u6f5c\u5728\u4e0d\u4e00\u81f4\uff0c\u65e0\u6cd5\u636e\u6b64\u786e\u5b9a\u552f\u4e00\u671f\u9650\u6216\u6570\u503c\u3002\u4ee5\u4e0b\u7ed3\u8bba\u4ec5\u9650\u5df2\u5c55\u793a\u6458\u5f55\uff0c\u4e0d\u6784\u6210\u5236\u5ea6\u4f18\u5148\u7ea7\u88c1\u51b3\u3002",
+    "claims": [
+      {
+        "claim_id": "conflict-1",
+        "text": "Refund policy: refunds arrive in 7 days.",
+        "critical": true,
+        "cited_chunk_ids": [
+          "allowed::fixed::a06df8887a97198d76c8"
+        ]
+      },
+      {
+        "claim_id": "conflict-2",
+        "text": "Refund policy: refunds arrive in 30 days. BOUNDED_EXCLUDED_SENTINEL",
+        "critical": true,
+        "cited_chunk_ids": [
+          "excluded::fixed::e476fbc9930928995a0d"
+        ]
+      }
+    ],
+    "citations": [
+      {
+        "claim_id": "conflict-1",
+        "cited_chunk_ids": [
+          "allowed::fixed::a06df8887a97198d76c8"
+        ],
+        "citation_present": true,
+        "references_visible_evidence": true,
+        "lexical_support": 1.0,
+        "supported": true,
+        "unsupported_reason": null,
+        "support_kind": "exact_span",
+        "supporting_spans": [
+          {
+            "citation_id": "allowed::fixed::a06df8887a97198d76c8",
+            "index_run_id": "base",
+            "version_id": "allowed@2026",
+            "field": "matched_text",
+            "start": 0,
+            "end": 40,
+            "quote": "Refund policy: refunds arrive in 7 days."
+          }
+        ]
+      },
+      {
+        "claim_id": "conflict-2",
+        "cited_chunk_ids": [
+          "excluded::fixed::e476fbc9930928995a0d"
+        ],
+        "citation_present": true,
+        "references_visible_evidence": true,
+        "lexical_support": 1.0,
+        "supported": true,
+        "unsupported_reason": null,
+        "support_kind": "exact_span",
+        "supporting_spans": [
+          {
+            "citation_id": "excluded::fixed::e476fbc9930928995a0d",
+            "index_run_id": "base",
+            "version_id": "excluded@2026",
+            "field": "matched_text",
+            "start": 0,
+            "end": 67,
+            "quote": "Refund policy: refunds arrive in 30 days. BOUNDED_EXCLUDED_SENTINEL"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "doc_id": "allowed",
+        "source_path": "allowed.md",
+        "section_path": [
+          "Refund policy: refunds arrive in 7 days."
+        ],
+        "chunk_id": "allowed::fixed::a06df8887a97198d76c8",
+        "preview": "Refund policy: refunds arrive in 7 days.",
+        "evidence_kind": "search",
+        "target_type": "chunk",
+        "target_id": "allowed::fixed::a06df8887a97198d76c8",
+        "index_run_id": "base",
+        "version_id": "allowed@2026"
+      },
+      {
+        "doc_id": "excluded",
+        "source_path": "excluded.md",
+        "section_path": [
+          "Refund policy: refunds arrive in 30 days. BOUNDED_EXCLUDED_SENTINEL"
+        ],
+        "chunk_id": "excluded::fixed::e476fbc9930928995a0d",
+        "preview": "Refund policy: refunds arrive in 30 days. BOUNDED_EXCLUDED_SENTINEL",
+        "evidence_kind": "search",
+        "target_type": "chunk",
+        "target_id": "excluded::fixed::e476fbc9930928995a0d",
+        "index_run_id": "base",
+        "version_id": "excluded@2026"
+      }
+    ],
+    "warnings": [
+      "Potential same-scope evidence conflict; excerpts are not a selected policy answer."
+    ],
+    "stop_reason": "partial_evidence",
+    "trace": {
+      "intent": "fact",
+      "analysis_source": "rules",
+      "required_aspect_count": 1,
+      "steps": [
+        {
+          "retrieval_mode": "dense",
+          "retrieval_counts": {
+            "reranker_scored": 2,
+            "reranker_calls": 1,
+            "reranker_elapsed_ms": 0,
+            "returned": 2
+          },
+          "sequence": 1,
+          "tool": "search",
+          "status": "ok",
+          "latency_ms": 0.0,
+          "visible_count": 2,
+          "context_chars_added": 245,
+          "error_code": null,
+          "budget": {
+            "search_calls": 1,
+            "find_calls": 0,
+            "open_calls": 0,
+            "steps": 1,
+            "context_chars": 245
+          },
+          "retrieved_content_security": {
+            "candidate_count": 2,
+            "scanned_count": 4,
+            "admitted_count": 4,
+            "quarantined_count": 0,
+            "scanned_chars": 388,
+            "decoded_candidate_count": 0,
+            "top_up_attempts": 0,
+            "post_guard_evidence_count": 2,
+            "guard_error_count": 0,
+            "risk_categories": [],
+            "rule_ids": [],
+            "detector_version": "rcg-v1.2.0",
+            "stop_reason": null
+          }
+        },
+        {
+          "sequence": 2,
+          "tool": "answer",
+          "status": "terminal",
+          "latency_ms": 0.0,
+          "visible_count": 0,
+          "context_chars_added": 0,
+          "error_code": null,
+          "budget": {
+            "search_calls": 1,
+            "find_calls": 0,
+            "open_calls": 0,
+            "steps": 1,
+            "context_chars": 245
+          }
+        }
+      ],
+      "stop_reason": "partial_evidence",
+      "evidence": {
+        "required": 1,
+        "supported": 0,
+        "missing": 1,
+        "conflicting": 1,
+        "coverage": 0.0,
+        "recommended_action": "search"
+      },
+      "budget": {
+        "search_calls": 1,
+        "find_calls": 0,
+        "open_calls": 0,
+        "steps": 1,
+        "context_chars": 245
+      },
+      "answer_strategy": "conflict_excerpts",
+      "generation_attempts": 0,
+      "final_mode": "partial",
+      "controller_stop_reason": "partial_evidence",
+      "index_run_id": "base",
+      "index_manifest_sha256": "b5e85267f71370010c566f71ae56102ca1323dbac26275122bb6f9e5c26a2bf8",
+      "index_binding_status": "verified",
+      "request_id": "5dc5b130870a47439c99a69af98a942a"
+    }
+  },
+  "spies": {
+    "scorer": [
+      "Refund policy: refunds arrive in 7 days.",
+      "Refund policy: refunds arrive in 30 days. BOUNDED_EXCLUDED_SENTINEL"
+    ],
+    "llm": []
+  },
+  "stub_generation_calls": 0,
+  "real_model_calls": 0
+}

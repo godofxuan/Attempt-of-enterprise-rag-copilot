@@ -1,0 +1,11 @@
+E501 Line too long (108 > 100)
+   --> scripts\verify_runtime_closure.py:238:101
+    |
+236 |         pairs=comparison,
+237 |         unique_main_cases=len({r["case_id"] for r in rows if r["kind"] == "main"}),
+238 |         uniqueness_basis="main: run/profile/case/repeat; warmup/resource unique request ID absent publicly",
+    |                                                                                                     ^^^^^^^^
+239 |     )
+    |
+
+Found 1 error.

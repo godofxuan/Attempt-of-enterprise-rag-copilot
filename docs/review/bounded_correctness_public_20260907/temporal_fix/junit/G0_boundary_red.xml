@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="10" time="0.941" timestamp="2026-09-07T22:38:30.786979+08:00" hostname="DESKTOP-G3VUENO"><testcase classname="tests.retrieval.test_current_validity" name="test_current_validity_before_ranking[start0-None-active-False]" time="0.539"><failure message="AssertionError: assert True is False&#10; +  where True = bool([SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)])&#10; +    where [SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)] = SearchResult(request_id='request', query='Policy text', mode='bm25', index_run_id='synthetic-run', manifest_sha256='cc...data_visible': 1, 'bm25_candidates': 1, 'dense_candidates': 0, 'fused_candidates': 1, 'returned': 1}, stop_reason='ok').hits">chunk_factory = &lt;function chunk_factory.&lt;locals&gt;.build at 0x000001B1FC036C00&gt;
+snapshot_factory = &lt;function snapshot_factory.&lt;locals&gt;.build at 0x000001B1FC036D40&gt;
+start = datetime.date(2026, 9, 8), end = None, status = 'active'
+expected = False
+
+    @pytest.mark.parametrize(
+        "start,end,status,expected",
+        [
+            (date(2026, 9, 8), None, "active", False),
+            (date(2026, 9, 7), None, "active", True),
+            (date(2026, 1, 1), date(2026, 9, 7), "active", False),
+            (date(2026, 1, 1), date(2026, 9, 6), "active", False),
+            (date(2026, 1, 1), date(2026, 9, 8), "active", True),
+            (date(2026, 1, 1), None, "retired", False),
+        ],
+    )
+    def test_current_validity_before_ranking(chunk_factory, snapshot_factory, start, end, status, expected):
+        chunk = chunk_factory(effective_from=start, effective_to=end, status=status)
+        pipeline = module.HybridRetrievalPipeline(snapshot_factory([chunk]))
+        result = pipeline.search(search_request(query=chunk.text))
+&gt;       assert bool(result.hits) is expected
+E       AssertionError: assert True is False
+E        +  where True = bool([SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)])
+E        +    where [SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)] = SearchResult(request_id='request', query='Policy text', mode='bm25', index_run_id='synthetic-run', manifest_sha256='cc...data_visible': 1, 'bm25_candidates': 1, 'dense_candidates': 0, 'fused_candidates': 1, 'returned': 1}, stop_reason='ok').hits
+
+tests\retrieval\test_current_validity.py:37: AssertionError</failure></testcase><testcase classname="tests.retrieval.test_current_validity" name="test_current_validity_before_ranking[start1-None-active-True]" time="0.004" /><testcase classname="tests.retrieval.test_current_validity" name="test_current_validity_before_ranking[start2-end2-active-False]" time="0.004"><failure message="AssertionError: assert True is False&#10; +  where True = bool([SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)])&#10; +    where [SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)] = SearchResult(request_id='request', query='Policy text', mode='bm25', index_run_id='synthetic-run', manifest_sha256='cc...data_visible': 1, 'bm25_candidates': 1, 'dense_candidates': 0, 'fused_candidates': 1, 'returned': 1}, stop_reason='ok').hits">chunk_factory = &lt;function chunk_factory.&lt;locals&gt;.build at 0x000001B1882DEFC0&gt;
+snapshot_factory = &lt;function snapshot_factory.&lt;locals&gt;.build at 0x000001B1882DF2E0&gt;
+start = datetime.date(2026, 1, 1), end = datetime.date(2026, 9, 7)
+status = 'active', expected = False
+
+    @pytest.mark.parametrize(
+        "start,end,status,expected",
+        [
+            (date(2026, 9, 8), None, "active", False),
+            (date(2026, 9, 7), None, "active", True),
+            (date(2026, 1, 1), date(2026, 9, 7), "active", False),
+            (date(2026, 1, 1), date(2026, 9, 6), "active", False),
+            (date(2026, 1, 1), date(2026, 9, 8), "active", True),
+            (date(2026, 1, 1), None, "retired", False),
+        ],
+    )
+    def test_current_validity_before_ranking(chunk_factory, snapshot_factory, start, end, status, expected):
+        chunk = chunk_factory(effective_from=start, effective_to=end, status=status)
+        pipeline = module.HybridRetrievalPipeline(snapshot_factory([chunk]))
+        result = pipeline.search(search_request(query=chunk.text))
+&gt;       assert bool(result.hits) is expected
+E       AssertionError: assert True is False
+E        +  where True = bool([SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)])
+E        +    where [SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)] = SearchResult(request_id='request', query='Policy text', mode='bm25', index_run_id='synthetic-run', manifest_sha256='cc...data_visible': 1, 'bm25_candidates': 1, 'dense_candidates': 0, 'fused_candidates': 1, 'returned': 1}, stop_reason='ok').hits
+
+tests\retrieval\test_current_validity.py:37: AssertionError</failure></testcase><testcase classname="tests.retrieval.test_current_validity" name="test_current_validity_before_ranking[start3-end3-active-False]" time="0.006"><failure message="AssertionError: assert True is False&#10; +  where True = bool([SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)])&#10; +    where [SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)] = SearchResult(request_id='request', query='Policy text', mode='bm25', index_run_id='synthetic-run', manifest_sha256='cc...data_visible': 1, 'bm25_candidates': 1, 'dense_candidates': 0, 'fused_candidates': 1, 'returned': 1}, stop_reason='ok').hits">chunk_factory = &lt;function chunk_factory.&lt;locals&gt;.build at 0x000001B1882DEDE0&gt;
+snapshot_factory = &lt;function snapshot_factory.&lt;locals&gt;.build at 0x000001B1882DF740&gt;
+start = datetime.date(2026, 1, 1), end = datetime.date(2026, 9, 6)
+status = 'active', expected = False
+
+    @pytest.mark.parametrize(
+        "start,end,status,expected",
+        [
+            (date(2026, 9, 8), None, "active", False),
+            (date(2026, 9, 7), None, "active", True),
+            (date(2026, 1, 1), date(2026, 9, 7), "active", False),
+            (date(2026, 1, 1), date(2026, 9, 6), "active", False),
+            (date(2026, 1, 1), date(2026, 9, 8), "active", True),
+            (date(2026, 1, 1), None, "retired", False),
+        ],
+    )
+    def test_current_validity_before_ranking(chunk_factory, snapshot_factory, start, end, status, expected):
+        chunk = chunk_factory(effective_from=start, effective_to=end, status=status)
+        pipeline = module.HybridRetrievalPipeline(snapshot_factory([chunk]))
+        result = pipeline.search(search_request(query=chunk.text))
+&gt;       assert bool(result.hits) is expected
+E       AssertionError: assert True is False
+E        +  where True = bool([SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)])
+E        +    where [SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fixed::001', doc_id='doc-a', parent_chunk_id=None, policy_id...-a'], fused_score=-0.5493061443340548, dense_score=None, bm25_score=-0.5493061443340548, dense_rank=None, bm25_rank=1)] = SearchResult(request_id='request', query='Policy text', mode='bm25', index_run_id='synthetic-run', manifest_sha256='cc...data_visible': 1, 'bm25_candidates': 1, 'dense_candidates': 0, 'fused_candidates': 1, 'returned': 1}, stop_reason='ok').hits
+
+tests\retrieval\test_current_validity.py:37: AssertionError</failure></testcase><testcase classname="tests.retrieval.test_current_validity" name="test_current_validity_before_ranking[start4-end4-active-True]" time="0.005" /><testcase classname="tests.retrieval.test_current_validity" name="test_current_validity_before_ranking[start5-None-retired-False]" time="0.004" /><testcase classname="tests.retrieval.test_current_validity" name="test_explicit_temporal_scopes_unchanged[all]" time="0.001" /><testcase classname="tests.retrieval.test_current_validity" name="test_explicit_temporal_scopes_unchanged[historical]" time="0.001" /><testcase classname="tests.retrieval.test_current_validity" name="test_explicit_temporal_scopes_unchanged[as_of]" time="0.000" /><testcase classname="tests.retrieval.test_current_validity" name="test_as_of_end_remains_exclusive" time="0.001" /></testsuite></testsuites>

@@ -1,0 +1,50 @@
+[
+  {
+    "file": "red.xml",
+    "sha256": "a452df77825e4424be224667bc35a32316afffc823c9f7705663b67e5d9fbeb5",
+    "source_before_after": "NOT_RECORDED; development checkpoint only, not final-source certification",
+    "suites": [
+      {
+        "errors": "0",
+        "failures": "7",
+        "name": "pytest",
+        "skipped": "0",
+        "tests": "15",
+        "time": "3.927",
+        "timestamp": "2026-09-07T16:19:07.339005+08:00"
+      }
+    ]
+  },
+  {
+    "file": "green.xml",
+    "sha256": "ab4fd8ace444f9bef67be0aa9d2ebcef9f05854bdf26d04298417f60a275f2a6",
+    "source_before_after": "NOT_RECORDED; development checkpoint only, not final-source certification",
+    "suites": [
+      {
+        "errors": "0",
+        "failures": "0",
+        "name": "pytest",
+        "skipped": "0",
+        "tests": "32",
+        "time": "3.061",
+        "timestamp": "2026-09-07T16:20:38.915544+08:00"
+      }
+    ]
+  },
+  {
+    "file": "closure_v2.xml",
+    "sha256": "bc150744857231f69ca5bd91abc37fa725f748382032a46602ba9fa4749d5acd",
+    "source_before_after": "NOT_RECORDED; development checkpoint only, not final-source certification",
+    "suites": [
+      {
+        "errors": "0",
+        "failures": "0",
+        "name": "pytest",
+        "skipped": "0",
+        "tests": "25",
+        "time": "3.628",
+        "timestamp": "2026-09-07T16:22:36.183508+08:00"
+      }
+    ]
+  }
+]

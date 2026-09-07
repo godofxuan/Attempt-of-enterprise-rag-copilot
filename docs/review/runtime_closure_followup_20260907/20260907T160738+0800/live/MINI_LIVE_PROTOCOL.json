@@ -1,0 +1,109 @@
+{
+  "cases": [
+    {
+      "expected": [
+        "3 \u5929"
+      ],
+      "id": "normal",
+      "modes": [
+        "answered"
+      ],
+      "question": "\u8fdc\u7a0b\u529e\u516c\u5236\u5ea6\u6bcf\u5468\u5141\u8bb8\u51e0\u5929\uff1f"
+    },
+    {
+      "expected": [],
+      "id": "absent_named",
+      "modes": [
+        "not_found"
+      ],
+      "question": "\u5220\u9664\u5feb\u9012\u62a5\u9500\u5236\u5ea6\u540e\uff0c\u8fd8\u80fd\u786e\u8ba4\u6bcf\u5355\u4e0a\u9650\u5417\uff1f"
+    },
+    {
+      "expected": [],
+      "id": "wrong_relation",
+      "modes": [
+        "not_found"
+      ],
+      "question": "\u51fa\u5dee\u7533\u8bf7\u9700\u8981\u8c01\u5ba1\u6279\uff1f"
+    },
+    {
+      "expected": [
+        "20 yuan",
+        "pilot",
+        "after approval"
+      ],
+      "id": "condition",
+      "modes": [
+        "answered",
+        "partial"
+      ],
+      "question": "How much may employees in the pilot claim after approval?"
+    },
+    {
+      "expected": [
+        "7 \u5929",
+        "30 \u5929"
+      ],
+      "id": "internal_conflict",
+      "modes": [
+        "partial"
+      ],
+      "question": "\u9000\u6b3e\u4e89\u8bae\u5904\u7406\u671f\u9650\u662f\u591a\u5c11\u5929\uff1f"
+    },
+    {
+      "expected": [
+        "7 days"
+      ],
+      "id": "supporting_exclusion",
+      "modes": [
+        "answered"
+      ],
+      "question": "How many days do refunds take?"
+    }
+  ],
+  "chat_model": "qwen2.5:3b",
+  "chat_transport_max_per_request": 4,
+  "concurrency": 1,
+  "corpus_embed_attempt_cap": 14,
+  "failure_policy": "retain every attempt; stop at cap/security failure; no rerun",
+  "fixture_sha256": "eb053babc52a9c872fc1e777fea0532eec053e307d90965b51e3aa46106b34de",
+  "frozen_at": "2026-09-07T16:42:58.163391+08:00",
+  "harness_sha256": "9498c215fc43d89c6fd85762d894baabc6c666f8f17c8e49156d3aa2a39c6f51",
+  "internal_conflict": "host excerpts; zero generation expected, NOT two-document or LLM adjudication",
+  "local_reranker_call_cap": 8,
+  "main_requests_cap": 12,
+  "model_identities": {
+    "bge-m3": "7907646426070047a77226ac3e684fbbe8410524f7b4a74d02837e43f2146bab",
+    "qwen2.5:3b": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+    "qwen3:8b": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41"
+  },
+  "model_max_attempts": 2,
+  "no_resource_requests": true,
+  "profiles": [
+    "hybrid_default",
+    "safe_dense_raw20_bge"
+  ],
+  "query_embed_max_per_request": 2,
+  "request_deadline_ms": 15000,
+  "request_inference_attempt_cap": 6,
+  "reranker_calls_per_search": 1,
+  "reranker_files": {
+    "config.json": "13dcd6c31d9fec9d1d8e158702072f62d7fa7d312a64b9fe057bec9a08cfe41a",
+    "model.safetensors": "d9e3e081faff1eefb84019509b2f5558fd74c1a05a2c7db22f74174fcedb5286",
+    "sentencepiece.bpe.model": "cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865",
+    "special_tokens_map.json": "8c785abebea9ae3257b61681b4e6fd8365ceafde980c21970d001e834cf10835",
+    "tokenizer.json": "69564b696052886ed0ac63fa393e928384e0f8caada38c1f4864a9bfbf379c15",
+    "tokenizer_config.json": "7e4c1cc848840aeccdd763458c18dd525eb0f795c992e00ebe9c28554e7db2d4"
+  },
+  "schema": "runtime-closure-mini-live/1",
+  "scope": "6 synthetic development scenarios; ASGI in-process; not independent validation",
+  "seed": null,
+  "source_fingerprint": "24a0d908f1bc8bc4497fdaf9ece68bee27c28fa5bde5178c0b1ad3fcb3d31af2",
+  "startup_inference_attempt_cap_per_profile": 6,
+  "structured_attempts": 2,
+  "temperature": 0,
+  "top_k": 5,
+  "total_inference_attempt_cap": 110,
+  "total_wall_seconds_cap": 300,
+  "warmup_requests_cap": 2
+}

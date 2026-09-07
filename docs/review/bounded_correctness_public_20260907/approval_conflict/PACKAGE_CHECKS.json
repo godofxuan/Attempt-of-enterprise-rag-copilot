@@ -1,0 +1,17 @@
+{
+  "final_source_identity_unchanged": true,
+  "historical_evidence_unchanged": true,
+  "input_zip_hashes_unchanged": true,
+  "original_frozen_tests_unchanged": true,
+  "overall_business_status": "PARTIAL_NOT_CLOSED",
+  "privacy_scan": {
+    "findings": [],
+    "patterns": [
+      "private_key_material",
+      "jwt_value"
+    ],
+    "scope": "Delivered bytes; bounded PEM/JWT scan, not comprehensive secret detection"
+  },
+  "recorded_artifact_hashes_verified": true,
+  "redaction": "NONE; no modified derived log/XML; private scratch excluded"
+}

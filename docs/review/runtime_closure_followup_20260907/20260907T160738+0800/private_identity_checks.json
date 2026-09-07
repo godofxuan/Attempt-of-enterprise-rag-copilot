@@ -1,0 +1,26 @@
+[
+  {
+    "actual_rows_sha256": "899d1c98e5f53199c5305cf82b5693f1e899271a65520243e6f3af554655a7c4",
+    "request_ids_present": 411,
+    "request_ids_unique": 411,
+    "rows": 411,
+    "run": "service_C_v1",
+    "source_unchanged": true
+  },
+  {
+    "actual_rows_sha256": "bf57cdeebc5a8ec5f8f09ce98a87de98857f25d705ce737badba4294c3c214d0",
+    "request_ids_present": 274,
+    "request_ids_unique": 274,
+    "rows": 274,
+    "run": "service_C_repair_v1",
+    "source_unchanged": true
+  },
+  {
+    "actual_rows_sha256": "1edde1ee56b985904090a586f1ad0e9a70714f4c5fc7d11cfb31373544dc141c",
+    "request_ids_present": 90,
+    "request_ids_unique": 90,
+    "rows": 90,
+    "run": "service_C_readiness_v1",
+    "source_unchanged": true
+  }
+]
