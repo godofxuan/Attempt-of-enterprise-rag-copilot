@@ -1,0 +1,155 @@
+{
+  "full": {
+    "exit_code": 2,
+    "elapsed_seconds": 13.011117696762085,
+    "total": 1,
+    "failed": 0,
+    "errors": 1,
+    "skipped": 0,
+    "args": [
+      "--import-mode=importlib",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "--basetemp=<workspace>\\.private\\rc_full\\pytest",
+      "--junitxml=<workspace>\\.private\\release_closeout_20260910\\full\\junit.xml",
+      "tests"
+    ],
+    "failures": [],
+    "passed": 0,
+    "imports_bound": true,
+    "interpretation": "PACKAGING_ERROR_MISSING_EXISTING_EXPERIMENT_HELPER"
+  },
+  "full2": {
+    "exit_code": 1,
+    "elapsed_seconds": 307.12802600860596,
+    "total": 4012,
+    "failed": 19,
+    "errors": 0,
+    "skipped": 36,
+    "args": [
+      "--import-mode=importlib",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "--basetemp=<workspace>\\.private\\rc_full2\\pytest",
+      "--junitxml=<workspace>\\.private\\release_closeout_20260910\\full2\\junit.xml",
+      "tests"
+    ],
+    "failures": [
+      {
+        "name": "tests.agent_runtime.test_start_lifecycle::test_two_processes_start_same_key_and_retry_returns_one_ready_generation",
+        "text": "tmp_path = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_two_processes_start_same_0')\n\n    def test_two_processes_start_same_key_and_retry_returns_one_ready_generation(tmp_path) -> None:\n        state_dir = tmp_path / \"state\"\n        initializer = _runtime(state_dir, [100.0])\n        initializer.close()\n        context = multiprocessing.get_context(\"spawn\")\n        barrier = context.Barrier(2)\n        output = context.Queue()\n        processes = [\n            context.Process(target=_process_start_worker, args=(state_dir, barrier, output))\n            for _ in range(2)\n        ]\n        for process in processes:\n            process.start()\n        for process in processes:\n            process.join(timeout=30)\n>           assert process.exitcode == 0\nE           AssertionError: assert 1 == 0\nE            +  where 1 = <SpawnProcess name='SpawnProcess-1' pid=32020 parent=34972 stopped exitcode=1>.exitcode\n\ntests\\agent_runtime\\test_start_lifecycle.py:167: AssertionError"
+      },
+      {
+        "name": "tests.agent_v2.test_runtime_delivery_index_binding::test_two_processes_observe_activation_without_an_invalidation_message",
+        "text": "versions = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_two_processes_observe_act0/indexes')\n\n    def test_two_processes_observe_activation_without_an_invalidation_message(versions):\n        context = get_context(\"spawn\")\n        processes = []\n        connections = []\n        try:\n            for _ in range(2):\n                parent, child = context.Pipe()\n                process = context.Process(target=_worker_index_identity, args=(str(versions), child))\n                process.start()\n                child.close()\n                processes.append(process)\n                connections.append(parent)\n            for expected in (\"first\", \"second\", \"first\"):\n                activate_version(versions, expected)\n                for connection in connections:\n                    connection.send(\"read\")\n                for connection in connections:\n>                   assert connection.poll(30), \"worker did not return index identity\"\nE                   AssertionError: worker did not return index identity\nE                   assert False\nE                    +  where False = poll(30)\nE                    +    where poll = <multiprocessing.connection.PipeConnection object at 0x000001CDFF909090>.poll\n\ntests\\agent_v2\\test_runtime_delivery_index_binding.py:173: AssertionError"
+      },
+      {
+        "name": "tests.external_datasets.test_enterprise_rag_bench_fts::test_single_writer_lock_recovers_after_hard_process_termination",
+        "text": "tmp_path = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_single_writer_lock_recove0')\n\n    def test_single_writer_lock_recovers_after_hard_process_termination(\n        tmp_path: Path,\n    ) -> None:\n        output = (tmp_path / \"hard-crash-lock\").absolute()\n        ready = tmp_path / \"lock-ready\"\n        process = get_context(\"spawn\").Process(\n            target=_hold_build_lock_until_killed,\n            args=(str(output), str(ready)),\n        )\n        process.start()\n        deadline = time.monotonic() + 10\n        while not ready.exists() and time.monotonic() < deadline:\n            time.sleep(0.01)\n>       assert ready.exists()\nE       AssertionError: assert False\nE        +  where False = exists()\nE        +    where exists = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_single_writer_lock_recove0/lock-ready').exists\n\ntests\\external_datasets\\test_enterprise_rag_bench_fts.py:275: AssertionError"
+      },
+      {
+        "name": "tests.external_datasets.test_finqa_shadow_pool_v1::test_real_pool_closes_spawn_workers_and_rejects_new_work",
+        "text": "def test_real_pool_closes_spawn_workers_and_rejects_new_work() -> None:\n        primary, question, skeleton, catalog = _inputs()\n        pool = FinQABoundedShadowWorkerPoolV1(\n            evidence_dir=EVIDENCE,\n            config=FinQAShadowWorkerPoolConfigV1(\n                worker_count=2,\n                queue_capacity=2,\n                admission_timeout_seconds=0.1,\n                response_deadline_seconds=2,\n                shutdown_grace_seconds=5,\n            ),\n        )\n>       assert pool.start() is True\nE       assert False is True\nE        +  where False = start()\nE        +    where start = <app.external_datasets.finqa_shadow_pool_v1.FinQABoundedShadowWorkerPoolV1 object at 0x000001CE491CAB90>.start\n\ntests\\external_datasets\\test_finqa_shadow_pool_v1.py:411: AssertionError"
+      },
+      {
+        "name": "tests.external_datasets.test_finqa_shadow_worker_v1::test_real_spawn_worker_runs_verified_e11_and_closes",
+        "text": "def test_real_spawn_worker_runs_verified_e11_and_closes() -> None:\n        primary, question, skeleton, catalog = _primary_inputs()\n        worker = FinQAIsolatedShadowWorkerV1(evidence_dir=EVIDENCE)\n>       assert worker.start() is True\nE       assert False is True\nE        +  where False = start()\nE        +    where start = <app.external_datasets.finqa_shadow_worker_v1.FinQAIsolatedShadowWorkerV1 object at 0x000001CE49250250>.start\n\ntests\\external_datasets\\test_finqa_shadow_worker_v1.py:145: AssertionError"
+      },
+      {
+        "name": "tests.external_datasets.test_finqa_shadow_worker_v1::test_hard_timeout_terminates_old_pid_and_starts_replacement",
+        "text": "def test_hard_timeout_terminates_old_pid_and_starts_replacement() -> None:\n        primary, question, skeleton, catalog = _primary_inputs()\n        worker = FinQAIsolatedShadowWorkerV1(\n            evidence_dir=EVIDENCE,\n            config=FinQAShadowWorkerConfigV1(\n                startup_timeout_seconds=5,\n                observation_timeout_seconds=0.05,\n                termination_grace_seconds=0.5,\n            ),\n            worker_entry=_ready_then_hang,\n        )\n>       assert worker.start() is True\nE       assert False is True\nE        +  where False = start()\nE        +    where start = <app.external_datasets.finqa_shadow_worker_v1.FinQAIsolatedShadowWorkerV1 object at 0x000001CE4919C950>.start\n\ntests\\external_datasets\\test_finqa_shadow_worker_v1.py:202: AssertionError"
+      },
+      {
+        "name": "tests.external_datasets.test_finqa_shadow_worker_v1::test_crash_and_malformed_response_are_detected_then_restarted",
+        "text": "def test_crash_and_malformed_response_are_detected_then_restarted() -> None:\n        primary, question, skeleton, catalog = _primary_inputs()\n        for entry, expected in (\n            (_ready_then_crash, \"WORKER_CRASH\"),\n            (_ready_then_malformed, \"WORKER_ERROR\"),\n        ):\n            worker = FinQAIsolatedShadowWorkerV1(\n                evidence_dir=EVIDENCE,\n                config=FinQAShadowWorkerConfigV1(\n                    startup_timeout_seconds=5,\n                    observation_timeout_seconds=1,\n                    termination_grace_seconds=0.5,\n                ),\n                worker_entry=entry,\n            )\n>           assert worker.start() is True\nE           assert False is True\nE            +  where False = start()\nE            +    where start = <app.external_datasets.finqa_shadow_worker_v1.FinQAIsolatedShadowWorkerV1 object at 0x000001CE491689D0>.start\n\ntests\\external_datasets\\test_finqa_shadow_worker_v1.py:237: AssertionError"
+      },
+      {
+        "name": "tests.indexing.test_computation_cache::test_concurrent_same_key_writers_converge_to_one_canonical_entry",
+        "text": "tmp_path = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_concurrent_same_key_write0')\n\n    def test_concurrent_same_key_writers_converge_to_one_canonical_entry(\n        tmp_path: Path,\n    ) -> None:\n        root = (tmp_path / \"concurrent-cache\").absolute()\n        start_at = time.time() + 1.0\n        with ProcessPoolExecutor(\n            max_workers=4,\n            mp_context=get_context(\"spawn\"),\n        ) as executor:\n>           statuses = list(\n                executor.map(\n                    _store_parsed_in_process,\n                    [str(root)] * 4,\n                    [start_at] * 4,\n                )\n            )\n\ntests\\indexing\\test_computation_cache.py:488: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n<user-home>\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\process.py:620: in _chain_from_iterable_of_lists\n    for element in iterable:\n<user-home>\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\_base.py:619: in result_iterator\n    yield _result_or_cancel(fs.pop())\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n<user-home>\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\_base.py:317: in _result_or_cancel\n    return fut.result(timeout)\n           ^^^^^^^^^^^^^^^^^^^\n<user-home>\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\_base.py:456: in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nself = None\n\n    def __get_result(self):\n        if self._exception:\n            try:\n>               raise self._exception\nE               concurrent.futures.process.BrokenProcessPool: A process in the process pool was terminated abruptly while the future was running or pending.\n\n<user-home>\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\_base.py:401: BrokenProcessPool"
+      },
+      {
+        "name": "tests.indexing.test_store::test_active_pointer_survives_hard_process_exit_at_publication_stage[before_write]",
+        "text": "tmp_path = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_active_pointer_survives_h0')\ncorpus_dir = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/index-store-corpus0/corpus')\nkill_stage = 'before_write'\n\n    @pytest.mark.parametrize(\n        \"kill_stage\",\n        [\"before_write\", \"after_temp_write\", \"before_replace\", \"after_replace\"],\n    )\n    def test_active_pointer_survives_hard_process_exit_at_publication_stage(\n        tmp_path: Path,\n        corpus_dir: Path,\n        kill_stage: str,\n    ) -> None:\n        root = (tmp_path / f\"indexes-{kill_stage}\").absolute()\n        build_version(root, corpus_dir, \"run-one\", activate=True)\n        build_version(root, corpus_dir, \"run-two\")\n    \n        process = get_context(\"spawn\").Process(\n            target=_activate_and_hard_exit,\n            args=(str(root), kill_stage),\n        )\n        process.start()\n        process.join(timeout=20)\n>       assert process.exitcode == 91\nE       AssertionError: assert 1 == 91\nE        +  where 1 = <SpawnProcess name='SpawnProcess-14' pid=14596 parent=34972 stopped exitcode=1>.exitcode\n\ntests\\indexing\\test_store.py:259: AssertionError"
+      },
+      {
+        "name": "tests.indexing.test_store::test_active_pointer_survives_hard_process_exit_at_publication_stage[after_temp_write]",
+        "text": "tmp_path = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_active_pointer_survives_h1')\ncorpus_dir = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/index-store-corpus0/corpus')\nkill_stage = 'after_temp_write'\n\n    @pytest.mark.parametrize(\n        \"kill_stage\",\n        [\"before_write\", \"after_temp_write\", \"before_replace\", \"after_replace\"],\n    )\n    def test_active_pointer_survives_hard_process_exit_at_publication_stage(\n        tmp_path: Path,\n        corpus_dir: Path,\n        kill_stage: str,\n    ) -> None:\n        root = (tmp_path / f\"indexes-{kill_stage}\").absolute()\n        build_version(root, corpus_dir, \"run-one\", activate=True)\n        build_version(root, corpus_dir, \"run-two\")\n    \n        process = get_context(\"spawn\").Process(\n            target=_activate_and_hard_exit,\n            args=(str(root), kill_stage),\n        )\n        process.start()\n        process.join(timeout=20)\n>       assert process.exitcode == 91\nE       AssertionError: assert 1 == 91\nE        +  where 1 = <SpawnProcess name='SpawnProcess-15' pid=28636 parent=34972 stopped exitcode=1>.exitcode\n\ntests\\indexing\\test_store.py:259: AssertionError"
+      },
+      {
+        "name": "tests.indexing.test_store::test_active_pointer_survives_hard_process_exit_at_publication_stage[before_replace]",
+        "text": "tmp_path = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_active_pointer_survives_h2')\ncorpus_dir = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/index-store-corpus0/corpus')\nkill_stage = 'before_replace'\n\n    @pytest.mark.parametrize(\n        \"kill_stage\",\n        [\"before_write\", \"after_temp_write\", \"before_replace\", \"after_replace\"],\n    )\n    def test_active_pointer_survives_hard_process_exit_at_publication_stage(\n        tmp_path: Path,\n        corpus_dir: Path,\n        kill_stage: str,\n    ) -> None:\n        root = (tmp_path / f\"indexes-{kill_stage}\").absolute()\n        build_version(root, corpus_dir, \"run-one\", activate=True)\n        build_version(root, corpus_dir, \"run-two\")\n    \n        process = get_context(\"spawn\").Process(\n            target=_activate_and_hard_exit,\n            args=(str(root), kill_stage),\n        )\n        process.start()\n        process.join(timeout=20)\n>       assert process.exitcode == 91\nE       AssertionError: assert 1 == 91\nE        +  where 1 = <SpawnProcess name='SpawnProcess-16' pid=11324 parent=34972 stopped exitcode=1>.exitcode\n\ntests\\indexing\\test_store.py:259: AssertionError"
+      },
+      {
+        "name": "tests.indexing.test_store::test_active_pointer_survives_hard_process_exit_at_publication_stage[after_replace]",
+        "text": "tmp_path = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_active_pointer_survives_h3')\ncorpus_dir = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/index-store-corpus0/corpus')\nkill_stage = 'after_replace'\n\n    @pytest.mark.parametrize(\n        \"kill_stage\",\n        [\"before_write\", \"after_temp_write\", \"before_replace\", \"after_replace\"],\n    )\n    def test_active_pointer_survives_hard_process_exit_at_publication_stage(\n        tmp_path: Path,\n        corpus_dir: Path,\n        kill_stage: str,\n    ) -> None:\n        root = (tmp_path / f\"indexes-{kill_stage}\").absolute()\n        build_version(root, corpus_dir, \"run-one\", activate=True)\n        build_version(root, corpus_dir, \"run-two\")\n    \n        process = get_context(\"spawn\").Process(\n            target=_activate_and_hard_exit,\n            args=(str(root), kill_stage),\n        )\n        process.start()\n        process.join(timeout=20)\n>       assert process.exitcode == 91\nE       AssertionError: assert 1 == 91\nE        +  where 1 = <SpawnProcess name='SpawnProcess-17' pid=27964 parent=34972 stopped exitcode=1>.exitcode\n\ntests\\indexing\\test_store.py:259: AssertionError"
+      },
+      {
+        "name": "tests.ingestion.test_revision_catalog::test_independent_process_writers_are_both_durable",
+        "text": "tmp_path = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_independent_process_write0')\n\n    def test_independent_process_writers_are_both_durable(tmp_path: Path) -> None:\n        root = (tmp_path / \"catalog\").absolute()\n        event_a = _upsert(event_id=\"evt-a\", source_key=\"policy-a\")\n        event_b = _upsert(\n            event_id=\"evt-b\",\n            source_key=\"policy-b\",\n            content_sha256=\"b\" * 64,\n        )\n        context = get_context(\"spawn\")\n        start_at = time.time() + 2.0\n    \n        with ProcessPoolExecutor(max_workers=2, mp_context=context) as executor:\n            futures = [\n                executor.submit(\n                    _apply_in_process,\n                    str(root),\n                    event.model_dump(mode=\"json\"),\n                    _materialization(event).model_dump(mode=\"json\"),\n                    start_at,\n                )\n                for event in (event_a, event_b)\n            ]\n>           outcomes = [future.result(timeout=20) for future in futures]\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests\\ingestion\\test_revision_catalog.py:395: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\ntests\\ingestion\\test_revision_catalog.py:395: in <listcomp>\n    outcomes = [future.result(timeout=20) for future in futures]\n                ^^^^^^^^^^^^^^^^^^^^^^^^^\n<user-home>\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\_base.py:456: in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nself = None\n\n    def __get_result(self):\n        if self._exception:\n            try:\n>               raise self._exception\nE               concurrent.futures.process.BrokenProcessPool: A process in the process pool was terminated abruptly while the future was running or pending.\n\n<user-home>\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\_base.py:401: BrokenProcessPool"
+      },
+      {
+        "name": "tests.ingestion.test_revision_catalog::test_competing_process_updates_accept_exactly_one",
+        "text": "tmp_path = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_competing_process_updates0')\n\n    def test_competing_process_updates_accept_exactly_one(tmp_path: Path) -> None:\n        root = (tmp_path / \"catalog\").absolute()\n        catalog = PersistentRevisionCatalog(root)\n        original_event = _upsert()\n        original = catalog.apply(\n            original_event,\n            materialization=_materialization(original_event),\n        )\n        updates = [\n            _upsert(\n                event_id=f\"evt-update-{suffix}\",\n                content_sha256=content * 64,\n                expected_revision_id=original.revision.revision_id,\n            )\n            for suffix, content in ((\"b\", \"b\"), (\"c\", \"c\"))\n        ]\n        context = get_context(\"spawn\")\n        start_at = time.time() + 2.0\n    \n        with ProcessPoolExecutor(max_workers=2, mp_context=context) as executor:\n            futures = [\n                executor.submit(\n                    _apply_in_process,\n                    str(root),\n                    event.model_dump(mode=\"json\"),\n                    _materialization(event).model_dump(mode=\"json\"),\n                    start_at,\n                )\n                for event in updates\n            ]\n>           outcomes = [future.result(timeout=20) for future in futures]\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests\\ingestion\\test_revision_catalog.py:436: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\ntests\\ingestion\\test_revision_catalog.py:436: in <listcomp>\n    outcomes = [future.result(timeout=20) for future in futures]\n                ^^^^^^^^^^^^^^^^^^^^^^^^^\n<user-home>\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\_base.py:456: in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\nself = None\n\n    def __get_result(self):\n        if self._exception:\n            try:\n>               raise self._exception\nE               concurrent.futures.process.BrokenProcessPool: A process in the process pool was terminated abruptly while the future was running or pending.\n\n<user-home>\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\concurrent\\futures\\_base.py:401: BrokenProcessPool"
+      },
+      {
+        "name": "tests.ingestion.test_revision_catalog::test_second_process_times_out_while_catalog_lock_is_held",
+        "text": "tmp_path = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_second_process_times_out_0')\n\n    def test_second_process_times_out_while_catalog_lock_is_held(\n        tmp_path: Path,\n    ) -> None:\n        root = (tmp_path / \"catalog\").absolute()\n        ready = tmp_path / \"lock-ready\"\n        release = tmp_path / \"lock-release\"\n        context = get_context(\"spawn\")\n    \n        with ProcessPoolExecutor(max_workers=1, mp_context=context) as executor:\n            holder = executor.submit(\n                _hold_catalog_lock,\n                str(root),\n                str(ready),\n                str(release),\n            )\n            deadline = time.monotonic() + 10.0\n            while not ready.exists():\n                if time.monotonic() >= deadline:\n>                   raise TimeoutError(\"lock holder did not become ready\")\nE                   TimeoutError: lock holder did not become ready\n\ntests\\ingestion\\test_revision_catalog.py:463: TimeoutError"
+      },
+      {
+        "name": "tests.runtime.test_dark_observation_evidence_v1::test_e16_public_evidence_binds_protocol_sources_and_implementation",
+        "text": "def test_e16_public_evidence_binds_protocol_sources_and_implementation() -> None:\n        protocol, protocol_sha256 = load_dark_observation_service_protocol_v1(\n            PROTOCOL\n        )\n        payload = json.loads(PUBLIC.read_text(encoding=\"ascii\"))\n    \n        assert payload[\"protocol_sha256\"] == protocol_sha256\n        assert payload[\"source_binding\"][\"source_e15_protocol_sha256\"] == _sha256(\n            EVIDENCE / \"finqa_shadow_capacity_protocol_v1.json\"\n        )\n        assert payload[\"source_binding\"][\n            \"source_e15_public_evidence_sha256\"\n        ] == _sha256(EVIDENCE / \"finqa_shadow_capacity_public_v1.json\")\n>       assert payload[\"source_binding\"][\"implementation_sha256\"] == {\n            relative: _sha256(ROOT / relative) for relative in IMPLEMENTATION_PATHS\n        }\nE       AssertionError: assert {'app/config....f8319c7', ...} == {'app/config....f8319c7', ...}\nE         \nE         Omitting 4 identical items, use -vv to show\nE         Differing items:\nE         {'app/config.py': 'b48f183b9c62d8995d98b4ea1c766daa32dbbbd0d148109ea5846ddb67eca039'} != {'app/config.py': 'd5f7fa0ee918750774a3ecf097df8758559014703fac6c4fa5f33f5e41ebf6d6'}\nE         {'app/runtime/resources.py': 'b7b6aee5d561ea0d199503777b34f07d0cf33915bedd274b061b4658a8641a43'} != {'app/runtime/resources.py': 'e671591cfcecf12be736fa9c1e48c3904b6b5e46694a0cae895737aa23dd7c09'}\nE         Use -v to get more diff\n\ntests\\runtime\\test_dark_observation_evidence_v1.py:57: AssertionError"
+      },
+      {
+        "name": "tests.security.test_demo_identity_lifecycle::test_concurrent_rotations_are_serialized_without_lost_keys",
+        "text": "tmp_path = WindowsPath('D:/\u6587\u6863/agent/RAG_try/.private/rc_full2/pytest/test_concurrent_rotations_are_0')\n\n    def test_concurrent_rotations_are_serialized_without_lost_keys(tmp_path: Path) -> None:\n        initialize_demo_identity(\n            tmp_path,\n            issuer=\"https://identity.localhost/\",\n            audience=\"enterprise-rag-api\",\n            token_lifetime_seconds=900,\n        )\n        context = multiprocessing.get_context(\"spawn\")\n        results = context.Queue()\n        workers = [\n            context.Process(target=_rotate_in_process, args=(str(tmp_path), results))\n            for _ in range(2)\n        ]\n    \n        for worker in workers:\n            worker.start()\n        for worker in workers:\n            worker.join(timeout=30)\n    \n>       assert all(not worker.is_alive() and worker.exitcode == 0 for worker in workers)\nE       assert False\nE        +  where False = all(<generator object test_concurrent_rotations_are_serialized_without_lost_keys.<locals>.<genexpr> at 0x000001CE49C51220>)\n\ntests\\security\\test_demo_identity_lifecycle.py:1214: AssertionError"
+      },
+      {
+        "name": "tests.security.test_trusted_identity_evaluation::test_public_trusted_identity_result_recomputes_exactly",
+        "text": "def test_public_trusted_identity_result_recomputes_exactly() -> None:\n        published = TrustedIdentityEvaluationResult.model_validate_json(\n            PUBLIC_RESULT.read_text(encoding=\"utf-8\")\n        )\n    \n>       assert published == evaluate_trusted_identity(MATRIX)\nE       assert TrustedIdenti...passed=True)]) == TrustedIdenti...passed=True)])\nE         \nE         Use -v to get more diff\n\ntests\\security\\test_trusted_identity_evaluation.py:91: AssertionError"
+      },
+      {
+        "name": "tests.test_repository_config::test_direct_requirements_match_the_proven_local_versions",
+        "text": "def test_direct_requirements_match_the_proven_local_versions() -> None:\n        lines = {\n            line.strip()\n            for line in (ROOT / \"requirements.txt\").read_text(encoding=\"utf-8\").splitlines()\n            if line.strip() and not line.lstrip().startswith(\"#\")\n        }\n>       assert lines == EXPECTED_REQUIREMENTS\nE       AssertionError: assert {'PyJWT==2.13...==3.1.2', ...} == {'PyJWT==2.13...==3.1.2', ...}\nE         \nE         Extra items in the left set:\nE         'markdown-it-py==4.2.0'\nE         Use -v to get more diff\n\ntests\\test_repository_config.py:44: AssertionError"
+      }
+    ],
+    "passed": 3957,
+    "imports_bound": true,
+    "interpretation": "HARNESS_SPAWN_ERROR_PLUS_THREE_CONTRACT_FAILURES"
+  },
+  "full3": {
+    "exit_code": 1,
+    "elapsed_seconds": 234.40437293052673,
+    "total": 4012,
+    "failed": 3,
+    "errors": 0,
+    "skipped": 36,
+    "args": [
+      "--import-mode=importlib",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "--basetemp=<workspace>\\.private\\rc_full3\\pytest",
+      "--junitxml=<workspace>\\.private\\release_closeout_20260910\\full3\\junit.xml",
+      "tests"
+    ],
+    "failures": [
+      {
+        "name": "tests.runtime.test_dark_observation_evidence_v1::test_e16_public_evidence_binds_protocol_sources_and_implementation",
+        "text": "def test_e16_public_evidence_binds_protocol_sources_and_implementation() -> None:\n        protocol, protocol_sha256 = load_dark_observation_service_protocol_v1(\n            PROTOCOL\n        )\n        payload = json.loads(PUBLIC.read_text(encoding=\"ascii\"))\n    \n        assert payload[\"protocol_sha256\"] == protocol_sha256\n        assert payload[\"source_binding\"][\"source_e15_protocol_sha256\"] == _sha256(\n            EVIDENCE / \"finqa_shadow_capacity_protocol_v1.json\"\n        )\n        assert payload[\"source_binding\"][\n            \"source_e15_public_evidence_sha256\"\n        ] == _sha256(EVIDENCE / \"finqa_shadow_capacity_public_v1.json\")\n>       assert payload[\"source_binding\"][\"implementation_sha256\"] == {\n            relative: _sha256(ROOT / relative) for relative in IMPLEMENTATION_PATHS\n        }\nE       AssertionError: assert {'app/config....f8319c7', ...} == {'app/config....f8319c7', ...}\nE         \nE         Omitting 4 identical items, use -vv to show\nE         Differing items:\nE         {'app/config.py': 'b48f183b9c62d8995d98b4ea1c766daa32dbbbd0d148109ea5846ddb67eca039'} != {'app/config.py': 'd5f7fa0ee918750774a3ecf097df8758559014703fac6c4fa5f33f5e41ebf6d6'}\nE         {'app/runtime/resources.py': 'b7b6aee5d561ea0d199503777b34f07d0cf33915bedd274b061b4658a8641a43'} != {'app/runtime/resources.py': 'e671591cfcecf12be736fa9c1e48c3904b6b5e46694a0cae895737aa23dd7c09'}\nE         Use -v to get more diff\n\ntests\\runtime\\test_dark_observation_evidence_v1.py:57: AssertionError"
+      },
+      {
+        "name": "tests.security.test_trusted_identity_evaluation::test_public_trusted_identity_result_recomputes_exactly",
+        "text": "def test_public_trusted_identity_result_recomputes_exactly() -> None:\n        published = TrustedIdentityEvaluationResult.model_validate_json(\n            PUBLIC_RESULT.read_text(encoding=\"utf-8\")\n        )\n    \n>       assert published == evaluate_trusted_identity(MATRIX)\nE       assert TrustedIdenti...passed=True)]) == TrustedIdenti...passed=True)])\nE         \nE         Use -v to get more diff\n\ntests\\security\\test_trusted_identity_evaluation.py:91: AssertionError"
+      },
+      {
+        "name": "tests.test_repository_config::test_direct_requirements_match_the_proven_local_versions",
+        "text": "def test_direct_requirements_match_the_proven_local_versions() -> None:\n        lines = {\n            line.strip()\n            for line in (ROOT / \"requirements.txt\").read_text(encoding=\"utf-8\").splitlines()\n            if line.strip() and not line.lstrip().startswith(\"#\")\n        }\n>       assert lines == EXPECTED_REQUIREMENTS\nE       AssertionError: assert {'PyJWT==2.13...==3.1.2', ...} == {'PyJWT==2.13...==3.1.2', ...}\nE         \nE         Extra items in the left set:\nE         'markdown-it-py==4.2.0'\nE         Use -v to get more diff\n\ntests\\test_repository_config.py:44: AssertionError"
+      }
+    ],
+    "passed": 3973,
+    "imports_bound": true,
+    "interpretation": "FINAL_FULL_SUITE_WITH_THREE_PRESERVED_FAILURES"
+  }
+}

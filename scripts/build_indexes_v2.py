@@ -47,7 +47,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--chunker",
-        choices=("fixed", "heading", "parent-child"),
+        choices=("fixed", "heading", "parent-child", "structure"),
         help="Chunking mode; defaults to the v2 setting.",
     )
     parser.add_argument(

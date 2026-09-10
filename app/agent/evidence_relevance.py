@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import re
 
+from app.agent.answer_contract import bounded_answer_slots
+from app.agent.answer_applicability import scope_evidence_support
 from app.domain.retrieved_security import AdmittedEvidenceChunk
 from app.utils import tokenize_for_bm25
+from app.retrieval.query_normalization import retrieval_query
 
 _GENERIC_QUERY_TOKENS = {
     "a",
@@ -34,6 +37,19 @@ _GENERIC_QUERY_TOKENS = {
     "请",
     "额度",
     "年",
+    "每人",
+    "几天",
+    "天",
+    "日",
+    "期限",
+    "处理",
+    "能",
+    "可以",
+    "吗",
+    "多久",
+    "一个",
+    "什么",
+    "这笔",
 }
 _QUOTED_ENTITY_PATTERNS = (
     re.compile(r"《([^》]+)》"),
@@ -45,12 +61,15 @@ _BARE_POLICY = re.compile(r"^([\u4e00-\u9fffA-Za-z0-9]{2,30}?(?:制度|政策|�
 _POLICY_REQUEST_PREFIX = re.compile(
     r"^(?:(?:请核对|请介绍|请查询|请问|按照|根据|删除|更新后的|更新|恢复|原版本的|当前的|按)+)"
 )
+_GOVERNANCE_PREAMBLE = re.compile(r"^以当前生效且权威的制度为准[，,]\s*")
 
 
 def _bare_policy_entity(query: str) -> str | None:
     # A narrowly delimited unquoted policy reference is still an explicit
     # document constraint. Do not infer entities from arbitrary noun overlap.
-    match = _BARE_POLICY.match(query.strip())
+    # This is a selection instruction, not the name of a requested document.
+    # Temporal and authority admission remain the retrieval host's responsibility.
+    match = _BARE_POLICY.match(_GOVERNANCE_PREAMBLE.sub("", query.strip()))
     if not match:
         return None
     entity = _POLICY_REQUEST_PREFIX.sub("", match.group(1))
@@ -63,8 +82,10 @@ def has_query_anchor_support(query: str, evidence: AdmittedEvidenceChunk) -> boo
     if not isinstance(evidence, AdmittedEvidenceChunk):
         raise TypeError("query-anchor evidence must be an admitted chunk")
     hit = evidence.hit
-    query_tokens = _content_tokens(query)
+    query_tokens = _content_tokens(retrieval_query(query))
     evidence_text = f"{hit.matched_text}\n{hit.context_text}"
+    if not scope_evidence_support(query, evidence_text, section_path=tuple(hit.section_path)):
+        return False
     evidence_tokens = _content_tokens(evidence_text)
 
     explicit_years = set(_YEAR_PATTERN.findall(query))
@@ -94,6 +115,16 @@ def has_query_anchor_support(query: str, evidence: AdmittedEvidenceChunk) -> boo
             return True
     anchors = query_tokens - entity_tokens - _GENERIC_QUERY_TOKENS
     if anchors:
+        # One generic overlap (e.g. a shared refund topic) cannot establish the
+        # requested relation. Keep the English historical path unchanged.
+        if (
+            re.search(r"[\u4e00-\u9fff]", query)
+            and not entities
+            and "approver" not in bounded_answer_slots(query, []).requested
+        ):
+            meaningful = {token for token in anchors if len(token) > 1}
+            if meaningful:
+                return len(meaningful.intersection(evidence_tokens)) >= min(2, len(meaningful))
         return bool(anchors.intersection(evidence_tokens))
 
     entity_or_query = (entity_tokens or query_tokens) - _GENERIC_QUERY_TOKENS

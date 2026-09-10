@@ -15,7 +15,7 @@ from app.domain.documents import (
 )
 
 
-ChunkMode = Literal["fixed", "heading", "parent_child"]
+ChunkMode = Literal["fixed", "heading", "parent_child", "structure"]
 
 
 class ChunkerConfig(BaseModel):
@@ -293,11 +293,19 @@ def chunk_document(
         chunks = _fixed_chunks(record, config)
     elif config.mode == "heading":
         chunks = _heading_chunks(record, config)
-    else:
+    elif config.mode == "parent_child":
         chunks = _parent_child_chunks(record, config)
+    else:
+        from app.ingestion.structured_chunking import structure_chunks
+
+        chunks = structure_chunks(record, config)
     if not chunks:
         raise ValueError(f"chunker produced no chunks for {record.doc_id!r}")
     ids = [chunk.chunk_id for chunk in chunks]
     if len(ids) != len(set(ids)):
         raise AssertionError(f"chunk IDs are not unique for {record.doc_id!r}")
+    if config.mode == "structure":
+        from app.ingestion.document_quality import require_document_quality
+
+        require_document_quality(record, chunks, config)
     return chunks

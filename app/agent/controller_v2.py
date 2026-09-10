@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.agent.evidence_ledger import build_ledger
 from app.agent.evidence_relevance import has_query_anchor_support
+from app.agent.query_needs import material_terms, relevant_need_count, requested_needs
 from app.domain.agent import (
     AgentAction,
     AgentBudget,
@@ -17,6 +18,7 @@ from app.domain.agent import (
 )
 from app.domain.evidence import EvidenceLedger
 from app.domain.queries import (
+    FindRequest,
     OpenRequest,
     QueryAnalysis,
     SearchRequest,
@@ -47,6 +49,8 @@ class ControllerState(BaseModel):
     opened_doc_ids: list[str] = Field(default_factory=list)
     open_results: list[AdmittedOpenResult] = Field(default_factory=list)
     find_results: list[AdmittedFindMatch] = Field(default_factory=list)
+    focused_find_doc_id: str | None = None
+    focused_open_count: int = Field(default=0, ge=0, le=2)
     denied_only_signal: bool = False
     security_filtered_signal: bool = False
     ledger: EvidenceLedger | None = None
@@ -136,7 +140,7 @@ class V2AgentController:
                 )
             )
 
-        open_decision = self._completeness_open(state, sequence)
+        open_decision = self._focused_read(state, sequence) or self._completeness_open(state, sequence)
         if open_decision is not None:
             return open_decision
 
@@ -237,6 +241,8 @@ class V2AgentController:
             execution.security_stop_reason == "evidence_filtered"
         )
         last_error: ToolError | None = None
+        focused_find_doc_id = state.focused_find_doc_id
+        focused_open_count = state.focused_open_count
         action = execution.action
         result = execution.result
 
@@ -264,8 +270,13 @@ class V2AgentController:
                 opened_doc_ids.append(target_id)
             if isinstance(result, GuardedOpenAdmittedResult):
                 open_results.append(result.item)
+            if action.open_request.anchor_chunk_id is not None:
+                focused_open_count = min(2, focused_open_count + 1)
         elif action.tool == "find" and isinstance(result, GuardedFindResult):
             find_results.extend(result.matches)
+
+        if action.tool == "find" and action.find_request.anchor_chunk_id is not None:
+            focused_find_doc_id = action.find_request.doc_id
 
         if isinstance(result, ToolError):
             if not (result.code == "not_found" and action.tool in {"find", "open"}):
@@ -282,6 +293,8 @@ class V2AgentController:
             denied_only_signal=denied_signal,
             security_filtered_signal=security_filtered_signal,
             last_error=last_error,
+            focused_find_doc_id=focused_find_doc_id,
+            focused_open_count=focused_open_count,
         )
         if state.analysis.intent != "unsafe":
             ledger = build_ledger(
@@ -349,12 +362,60 @@ class V2AgentController:
             purpose="stop before exceeding a hard budget",
         )
 
+    def _focused_read(self, state: ControllerState, sequence: int) -> ControllerDecision | None:
+        needs = requested_needs(state.analysis.original_question)
+        if not ("materials" in needs or len(needs) > 1) or state.analysis.intent == "comparison":
+            return None
+        hits = _all_visible_hits(state.evidence_by_aspect)
+        if not hits or (state.ledger and state.ledger.conflicting_aspects):
+            return None
+        anchor = hits[0].hit
+        budget = state.budget_state.budget
+        if state.focused_find_doc_id is None:
+            if state.budget_state.find_calls >= budget.max_find_calls:
+                return None
+            return ControllerDecision(action=AgentAction(
+                sequence=sequence, tool="find", purpose="locate bounded reimbursement evidence in the admitted document",
+                aspect=state.analysis.required_aspects[0], find_request=FindRequest(
+                    request_id=f"agent-step-{sequence}", user=state.user, doc_id=anchor.doc_id,
+                    pattern="报销", max_results=20, anchor_chunk_id=anchor.chunk_id, filters=state.analysis.filters,
+                ),
+            ))
+        if state.focused_open_count >= 2 or state.budget_state.open_calls >= budget.max_open_calls:
+            return None
+        seen_text = '\n'.join([*(h.hit.matched_text for h in hits),
+                               *(o.result.content for o in state.open_results)])
+        known_materials = material_terms(seen_text)
+        seen_ids = {h.hit.chunk_id for h in hits} | set(state.opened_doc_ids)
+        candidates = [m.match for m in state.find_results
+                      if m.match.doc_id == anchor.doc_id and m.match.chunk_id not in seen_ids
+                      and relevant_need_count(m.match.preview, needs)]
+        candidates.sort(key=lambda match: (
+            -len(material_terms(match.preview) - known_materials),
+            -relevant_need_count(match.preview, needs), match.chunk_id,
+        ))
+        remaining = budget.max_context_chars - state.budget_state.context_chars
+        if not candidates or remaining <= 0:
+            return None
+        return ControllerDecision(action=AgentAction(
+            sequence=sequence, tool="open", purpose="read a located same-scope evidence chunk",
+            aspect=state.analysis.required_aspects[0], open_request=OpenRequest(
+                request_id=f"agent-step-{sequence}", user=state.user, target_type="chunk",
+                target_id=candidates[0].chunk_id, max_chars=min(2000, remaining),
+                anchor_chunk_id=anchor.chunk_id, filters=state.analysis.filters,
+            ),
+        ))
+
     def _completeness_open(
         self,
         state: ControllerState,
         sequence: int,
     ) -> ControllerDecision | None:
         if state.analysis.intent != "completeness":
+            return None
+        needs = requested_needs(state.analysis.original_question)
+        if "materials" in needs or len(needs) > 1:
+            # The focused path must never fall back to an unscoped full-document prefix.
             return None
         for hit in _all_visible_hits(state.evidence_by_aspect):
             raw_hit = hit.hit

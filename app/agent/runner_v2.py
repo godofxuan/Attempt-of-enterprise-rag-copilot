@@ -8,6 +8,7 @@ from threading import RLock
 from typing import Protocol
 
 from app.agent.citation_verifier import verify_claims
+from app.agent.answer_applicability import enforce_answer_applicability
 from app.agent.controller_v2 import (
     ControllerDecision,
     ControllerState,
@@ -121,6 +122,19 @@ class ExtractiveResponseBuilder:
 
 
 def build_conflict_response(state: ControllerState, trace: dict) -> AnswerResponse:
+    from app.agent.evidence_ledger import _numeric_conflicts
+
+    admitted = {"comparison": _all_visible_hits(state)}
+    scope_only = bool(_numeric_conflicts(admitted, scope_ambiguity=True)) and not bool(
+        _numeric_conflicts(admitted)
+    )
+    note = (
+        "现有材料的适用范围不同或不完整，当前范围信息不足以比较或确定唯一适用制度。"
+        "以下为各自摘录，不构成同一事实冲突或制度优先级裁决。"
+        if scope_only else
+        "现有可见材料存在潜在不一致，无法据此确定唯一期限或数值。"
+        "以下结论仅限已展示摘录，不构成制度优先级裁决。"
+    )
     conflict_ids = (
         {item.chunk_id for item in state.ledger.items if item.relation == "conflicts"}
         if state.ledger
@@ -150,8 +164,7 @@ def build_conflict_response(state: ControllerState, trace: dict) -> AnswerRespon
         stop_reason="partial_evidence",
         answer="\n".join([
             *(claim.text for claim in claims),
-            "现有可见材料存在潜在不一致，无法据此确定唯一期限或数值。"
-            "以下结论仅限已展示摘录，不构成制度优先级裁决。",
+            note,
         ]),
         claims=claims,
         citations=[citation for citation in citations if citation.supported],
@@ -170,11 +183,16 @@ def build_conflict_response(state: ControllerState, trace: dict) -> AnswerRespon
             if view.citation_id in cited_ids
         ],
         warnings=[
+            "Explicit scope differs or is incomplete; insufficient scope to compare."
+            if scope_only else
             "Potential same-scope evidence conflict; excerpts are not a selected policy answer."
         ],
         trace={
             **trace, "answer_strategy": "conflict_excerpts", "generation_attempts": 0,
             "stop_reason": "partial_evidence", "final_mode": "partial",
+            "comparison_status": (
+                "scope_insufficient" if scope_only else "potential_numeric_conflict"
+            ),
         },
     )
 
@@ -328,6 +346,7 @@ class V2AgentRunner:
                         stop_reason=decision.stop_reason,
                         trace=trace,
                     )
+                    response = enforce_answer_applicability(question, response)
                 except Exception:
                     response = _source_free_response(
                         "system",

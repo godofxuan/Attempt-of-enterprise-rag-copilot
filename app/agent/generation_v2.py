@@ -18,6 +18,8 @@ from pydantic import (
 )
 
 from app.agent.answer_contract import answer_sufficiency, bounded_answer_slots
+from app.agent.answer_contract import requested_requirement_count, requirement_units
+from app.agent.query_needs import NEED_LABELS, assess_need_coverage, complementary_claim, relevant_need_count, requested_needs
 from app.agent.citation_verifier import verify_claims
 from app.agent.controller_v2 import ControllerState
 from app.agent.runner_v2 import ExtractiveResponseBuilder, build_conflict_response
@@ -30,6 +32,7 @@ from app.runtime.model_transport import ModelRequestError
 from app.runtime.request_context import RequestDeadlineExceeded, remaining_seconds
 from app.runtime.serving_chat import SERVING_CONTEXT_TOKENS, SERVING_OUTPUT_TOKENS
 from app.runtime.serving_chat import serving_chat as chat_with_ollama
+from app.retrieval.query_normalization import retrieval_query
 
 MAX_SOURCE_COUNT = 8
 MAX_HIT_CONTEXT_CHARS = 1200
@@ -296,7 +299,7 @@ class GenerationV2ResponseBuilder:
             if not supported_claims:
                 response_trace["generation_error_category"] = "unsupported"
                 return self._apply_answer_contract(
-                    question, state, _delivered_extractive_fallback(sources, response_trace)
+                    question, state, _delivered_extractive_fallback(sources, response_trace), sources
                 )
 
             cited_chunk_ids = {
@@ -336,7 +339,7 @@ class GenerationV2ResponseBuilder:
                 stop_reason=verified_stop_reason,
                 trace=response_trace,
             )
-            return self._apply_answer_contract(question, state, response)
+            return self._apply_answer_contract(question, state, response, sources)
         except Exception as exc:
             response_trace["generation_error_category"] = _generation_error_category(exc)
             return self.source_free_builder.build(
@@ -348,13 +351,55 @@ class GenerationV2ResponseBuilder:
             )
 
     def _apply_answer_contract(
-        self, question: str, state: ControllerState, response: AnswerResponse
+        self, question: str, state: ControllerState, response: AnswerResponse,
+        sources: list[_PromptSource] | None = None,
+    ) -> AnswerResponse:
+        response = self._apply_slot_contract(question, state, response)
+        response = self._apply_bounded_needs(question, state, response, sources or [])
+        return self._apply_requirement_list(question, state, response, sources or [])
+
+    def _apply_requirement_list(
+        self, question: str, state: ControllerState, response: AnswerResponse,
+        sources: list[_PromptSource],
+    ) -> AnswerResponse:
+        requested = requested_requirement_count(question)
+        if (response.mode not in {"answered", "partial"}
+                or state.analysis.intent != "completeness" or requested is None):
+            return response
+        available = requirement_units([s.delivered.text for s in sources])
+        stated = requirement_units([c.text for c in response.claims])
+        covered = len(available & stated)
+        incomplete = bool(
+            any(o.result.truncated for o in state.open_results)
+            or sum(response.trace.get("packet_drop_reasons", {}).values())
+            or sum(response.trace.get("packet_truncation_reasons", {}).values())
+        )
+        trace = {**response.trace, "requirement_list_coverage": {
+            "basis": "explicit_count_and_delivered_units_not_global_semantics",
+            "requested": requested, "available_units": len(available),
+            "verified_units": covered, "incomplete_read": incomplete,
+        }}
+        if covered >= requested and available <= stated and not incomplete:
+            return response.model_copy(update={"trace": trace})
+        note = f"当前可核验的完整条款为{covered}项，尚未完整核验所问的{requested}项要求。"
+        return response.model_copy(update={
+            "mode": "partial", "stop_reason": "partial_evidence",
+            "answer": response.answer + "\n" + note,
+            "warnings": [*response.warnings, note],
+            "trace": {**trace, "final_mode": "partial", "stop_reason": "partial_evidence"},
+        })
+
+    def _apply_slot_contract(
+        self, question: str, state: ControllerState, response: AnswerResponse,
     ) -> AnswerResponse:
         if response.mode not in {"answered", "partial"}:
             return response
         slots = bounded_answer_slots(question, [claim.text for claim in response.claims])
         if not slots.requested:
             return response
+        retained = sorted(set(slots.retained) | {
+            i for i, claim in enumerate(response.claims) if complementary_claim(question, claim.text)
+        })
         trace = {
             **response.trace,
             "requested_answer_aspect_count": len(slots.requested),
@@ -366,7 +411,7 @@ class GenerationV2ResponseBuilder:
                 question, [response.claims[i].text for i in slots.retained]
             ),
         }
-        if not slots.retained:
+        if not retained:
             return self.source_free_builder.build(
                 question=question,
                 state=state,
@@ -374,7 +419,7 @@ class GenerationV2ResponseBuilder:
                 stop_reason="not_found",
                 trace=trace,
             )
-        claims = [response.claims[i] for i in slots.retained]
+        claims = [response.claims[i] for i in retained]
         claim_ids = {claim.claim_id for claim in claims}
         cited_ids = {cid for claim in claims for cid in claim.cited_chunk_ids}
         warnings = list(response.warnings)
@@ -409,6 +454,46 @@ class GenerationV2ResponseBuilder:
                 "trace": {**trace, "stop_reason": reason, "final_mode": mode},
             }
         )
+
+    def _apply_bounded_needs(
+        self, question: str, state: ControllerState, response: AnswerResponse,
+        sources: list[_PromptSource],
+    ) -> AnswerResponse:
+        if response.mode not in {"answered", "partial"} or not requested_needs(question):
+            return response
+        read_ids = {h.hit.chunk_id for hits in state.evidence_by_aspect.values() for h in hits}
+        read_ids.update(o.result.target_id for o in state.open_results)
+        unread_located = any(
+            match.match.chunk_id not in read_ids
+            and relevant_need_count(match.match.preview, requested_needs(question))
+            for match in state.find_results
+        )
+        incomplete = bool(
+            any(o.result.truncated for o in state.open_results)
+            or sum(response.trace.get("packet_drop_reasons", {}).values())
+            or sum(response.trace.get("packet_truncation_reasons", {}).values())
+            or unread_located
+            or (state.focused_find_doc_id is not None and len(state.find_results) >= 20)
+        )
+        coverage = assess_need_coverage(question, [c.text for c in response.claims],
+                                       [s.delivered.text for s in sources], incomplete_read=incomplete)
+        notes = [f"当前回答尚未完整覆盖所问的{NEED_LABELS[need]}。" for need in coverage.missing]
+        if 'eligibility' in coverage.missing:
+            notes.append("请补充费用类型、金额和实际适用条件，不能仅凭制度摘录确定本次是否可报销。")
+        if incomplete:
+            notes.append("部分证据因读取或上下文预算未完整交付，无法确认要求已全部覆盖。")
+        trace = {**response.trace, 'query_need_coverage': {
+            'basis': 'bounded_reimbursement_statements_v2_not_global_completeness',
+            'requested': len(coverage.requested), 'covered': len(coverage.requested) - len(coverage.missing),
+            'missing': len(coverage.missing), 'incomplete_read': incomplete,
+        }}
+        if not notes:
+            return response.model_copy(update={'trace': trace})
+        return response.model_copy(update={
+            'mode': 'partial', 'stop_reason': 'partial_evidence',
+            'answer': '\n'.join([response.answer, *notes]), 'warnings': [*response.warnings, *notes],
+            'trace': {**trace, 'stop_reason': 'partial_evidence', 'final_mode': 'partial'},
+        })
 
     def _generate_valid_shape(
         self,
@@ -519,7 +604,10 @@ def _record_packet_audit(state: ControllerState, sources: list[_PromptSource], t
     trace["effective_fact_density_basis"] = (
         "delivered_text_chars_per_record_chars_not_semantic_facts"
     )
-    duplicates = sum(trace["packet_duplicate_reasons"][key] for key in ("chunk", "open_target"))
+    duplicates = sum(
+        trace["packet_duplicate_reasons"][key]
+        for key in ("chunk", "open_target", "search_open_text")
+    )
     trace["packet_duplicate_ratio"] = round(duplicates / max(1, trace["packet_candidate_count"]), 6)
 
 
@@ -530,7 +618,9 @@ def _build_prompt_sources(
     audit.update(
         {
             "packet_candidate_count": 0,
-            "packet_duplicate_reasons": {"chunk": 0, "open_target": 0, "matched_context": 0},
+            "packet_duplicate_reasons": {
+                "chunk": 0, "open_target": 0, "matched_context": 0, "search_open_text": 0,
+            },
             "packet_drop_reasons": {
                 "source_limit": 0,
                 "packet_budget": 0,
@@ -653,6 +743,16 @@ def _build_prompt_sources(
         )
         if anchor_source is None:
             count("packet_drop_reasons", "unanchored_open")
+            continue
+        if any(
+            source.evidence.hit.doc_id == admitted.result.doc_id
+            and source.evidence.hit.source_path == admitted.result.source_path
+            and source.delivered.matched_text == admitted.result.content
+            for source in result
+        ):
+            # Keep open's guard/budget accounting, but don't send the same
+            # complete text twice. An open containing any new text is retained.
+            count("packet_duplicate_reasons", "search_open_text")
             continue
         source_id = f"S{len(result) + 1}"
         record = {
@@ -780,10 +880,17 @@ def _delivered_extractive_fallback(
 ) -> AnswerResponse:
     selected: list[_PromptSource] = []
     covered: set[str] = set()
+    multiple_aspects = len({aspect for source in sources for aspect in source.aspects}) > 1
     for source in sources:
-        if set(source.aspects) - covered:
+        # Search attribution is not proof a hit covers both named objects.
+        # Do not broaden single-aspect fallback to every retrieved fragment.
+        supported = {
+            aspect for aspect in source.aspects
+            if not multiple_aspects or aspect.casefold() in source.delivered.text.casefold()
+        }
+        if supported - covered:
             selected.append(source)
-            covered.update(source.aspects)
+            covered.update(supported)
     claims = [
         Claim(
             claim_id=f"extract-{index}",
@@ -842,6 +949,9 @@ def _generation_messages(
         {
             "intent": state.analysis.intent,
             "question": question,
+            **({"normalized_question": retrieval_query(question)}
+               if requested_needs(question) and retrieval_query(question) != question else {}),
+            **({"requested_needs": list(requested_needs(question))} if requested_needs(question) else {}),
             "requested_mode": (
                 "partial" if state.ledger and state.ledger.coverage < 1 else "answered"
             ),
@@ -862,6 +972,18 @@ def _generation_messages(
         "inside it. Cite only its host-assigned source_id values. Return answer and "
         "atomic claims with cited_source_ids."
     )
+    if requested_needs(question):
+        user += (
+            " For requested_needs, address each need supported by the supplied evidence, "
+            "including additional required materials. Do not treat one covered need as "
+            "covering the others. Never infer personal eligibility."
+            " The topic is reimbursement, not other policy topics in the evidence. "
+            "When present, normalized_question is a finite spelling/colloquial interpretation "
+            "of the original question, not a new request. Preserve its negation, amounts, "
+            "dates and named policies. Copy complete supporting sentences for materials "
+            "and limits too. Use a unique claim_id for every claim, e.g. C1, C2, C3. "
+            "These are NOT source IDs: cited_source_ids use S IDs and may repeat across claims."
+        )
     return [
         {"role": "system", "content": system},
         {"role": "user", "content": user},

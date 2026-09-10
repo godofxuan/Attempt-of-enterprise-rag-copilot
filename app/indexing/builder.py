@@ -316,6 +316,10 @@ def build_index_artifacts(
         embed_chunks=embed_chunks,
         phase_observer=phase_observer,
     )
+    if chunker_config.mode == "structure":
+        from app.ingestion.document_quality import QUALITY_ARTIFACT, quality_artifact
+
+        artifacts[QUALITY_ARTIFACT] = quality_artifact(prepared.governed.documents, prepared.chunks, chunker_config)
     finish = finished_at or datetime.now(timezone.utc)
     preview = _preview(prepared, chunker_config)
     manifest = IndexManifest(
@@ -377,6 +381,10 @@ def validate_index_directory(output_dir: Path, manifest: IndexManifest) -> None:
         "faiss.index",
     }
     declared_artifacts = {artifact.path for artifact in manifest.artifacts}
+    if manifest.chunker_config.get("mode") == "structure":
+        from app.ingestion.document_quality import QUALITY_ARTIFACT
+
+        required_artifacts.add(QUALITY_ARTIFACT)
     missing = required_artifacts - declared_artifacts
     if missing:
         raise ValueError(
@@ -396,6 +404,16 @@ def validate_index_directory(output_dir: Path, manifest: IndexManifest) -> None:
     chunks = json.loads((output_dir / "chunks.json").read_text(encoding="utf-8"))
     parents = json.loads((output_dir / "parents.json").read_text(encoding="utf-8"))
     documents = json.loads((output_dir / "documents.json").read_text(encoding="utf-8"))
+    if manifest.chunker_config.get("mode") == "structure":
+        from app.ingestion.document_quality import QUALITY_ARTIFACT, quality_artifact
+
+        expected_quality = quality_artifact(
+            [DocumentRecord.model_validate(document) for document in documents],
+            [ChunkRecord.model_validate(chunk) for chunk in [*chunks, *parents]],
+            ChunkerConfig.model_validate(manifest.chunker_config),
+        )
+        if (output_dir / QUALITY_ARTIFACT).read_bytes() != expected_quality:
+            raise ValueError("document quality artifact does not match materialized source/chunks")
     with (output_dir / "bm25_tokens.pkl").open("rb") as handle:
         tokenized = pickle.load(handle)
     index = faiss.deserialize_index(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -79,8 +80,15 @@ def build_ollama_lifecycle_runtime(
         chunker=ComponentFingerprint(
             name="enterprise-chunker",
             semantic_version="1",
-            implementation_sha256=_source_digest("ingestion/chunking.py"),
-            dependency_versions=dependencies,
+            implementation_sha256=_source_digest(
+                "ingestion/chunking.py", "ingestion/structured_chunking.py",
+                "ingestion/markdown_tables.py",
+                "ingestion/document_quality.py",
+            ),
+            dependency_versions=(
+                tuple(sorted((*dependencies, f"markdown-it-py={importlib.metadata.version('markdown-it-py')}")))
+                if settings.v2_chunker_mode == "structure" else dependencies
+            ),
         ),
         chunker_config=ChunkerConfig(
             mode=settings.v2_chunker_mode,

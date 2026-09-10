@@ -190,7 +190,19 @@ class SearchResult(StrictModel):
         return self
 
 
-class FindRequest(StrictModel):
+class BoundNavigationRequest(StrictModel):
+    # Optional for legacy explicit navigation; automatic expansion supplies both.
+    anchor_chunk_id: str | None = Field(default=None, min_length=1)
+    filters: QueryFilters | None = None
+
+    @model_validator(mode="after")
+    def validate_anchor_filters(self):
+        if (self.anchor_chunk_id is None) != (self.filters is None):
+            raise ValueError("bound navigation requires both anchor and filters")
+        return self
+
+
+class FindRequest(BoundNavigationRequest):
     request_id: str = Field(default="request", min_length=1)
     user: UserContext
     doc_id: str = Field(min_length=1)
@@ -213,7 +225,7 @@ class FindResult(StrictModel):
     stop_reason: Literal["ok", "not_found", "timeout"]
 
 
-class OpenRequest(StrictModel):
+class OpenRequest(BoundNavigationRequest):
     request_id: str = Field(default="request", min_length=1)
     user: UserContext
     target_type: Literal["chunk", "parent", "document"]

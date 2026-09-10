@@ -283,7 +283,9 @@ class RuntimeResources:
                 self._last_checked_at = self._clock()
                 self._refresh_completed.set()
             self._refresh_wakeup.wait(
-                timeout=float(self.settings.readiness_ttl_seconds)
+                # Refresh before expiry even without incoming requests. The
+                # original TTL remains the hard maximum age of a snapshot.
+                timeout=float(self.settings.readiness_ttl_seconds) / 2
             )
             self._refresh_wakeup.clear()
 

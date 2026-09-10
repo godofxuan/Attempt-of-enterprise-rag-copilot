@@ -787,6 +787,8 @@ def _write_stage(
     _write_file(stage / "bm25_tokens.pkl", artifacts["bm25_tokens.pkl"])
     _hit(injector, "faiss_write")
     _write_file(stage / "faiss.index", artifacts["faiss.index"])
+    if "document_quality.json" in artifacts:
+        _write_file(stage / "document_quality.json", artifacts["document_quality.json"])
     _hit(injector, "manifest_write")
     for name in (
         _TARGET_CATALOG_PATH,
@@ -1178,6 +1180,12 @@ def build_incremental_index_version(
         pipeline,
         lifecycle,
     )
+    if pipeline.chunker_config.mode == "structure":
+        from app.ingestion.document_quality import QUALITY_ARTIFACT, quality_artifact
+
+        artifacts[QUALITY_ARTIFACT] = quality_artifact(
+            list(computation.documents), list(computation.chunks), pipeline.chunker_config,
+        )
     manifest = _index_manifest(
         plan=plan,
         target=target_catalog,

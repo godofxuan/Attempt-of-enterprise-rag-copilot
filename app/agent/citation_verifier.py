@@ -217,6 +217,10 @@ def _exact_supporting_spans(claim_text, cited_evidence) -> list[SupportingSpan]:
             # A decimal point is not a sentence boundary; a line wrap is not one either.
             for match in SOURCE_UNIT_END.finditer(text):
                 ranges.append((start, match.end()))
+                # A prefix ending at a complete unit retains every preceding
+                # subject/condition. Never accept arbitrary skipped fragments
+                # or a prefix that ends in the middle of a source unit.
+                ranges.append((0, match.end()))
                 start = match.end()
             ranges.append((start, len(text)))
             for start, end in ranges:

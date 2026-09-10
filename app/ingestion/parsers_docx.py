@@ -12,6 +12,7 @@ from docx.text.paragraph import Paragraph
 from app.domain.documents import (
     DocumentParseError,
     ParseResult,
+    ParseWarning,
     ParsedSection,
     ParsedTable,
     SourceLocator,
@@ -23,7 +24,7 @@ _HEADING_STYLE = re.compile(r"^Heading\s+([1-6])$", re.IGNORECASE)
 
 class DocxDocumentParser:
     name = "docx"
-    version = docx.__version__
+    version = docx.__version__ + "-dq1"
     suffixes = (".docx",)
 
     def parse(self, path: Path) -> ParseResult:
@@ -49,6 +50,7 @@ class DocxDocumentParser:
         headings: list[str] = []
         sections: list[ParsedSection] = []
         tables: list[ParsedTable] = []
+        warnings: list[ParseWarning] = []
         path_stack: list[str] = []
         current_heading = "General"
         current_level = 0
@@ -102,6 +104,10 @@ class DocxDocumentParser:
 
             if isinstance(block, Table):
                 table_number += 1
+                if block._tbl.xpath(".//w:vMerge") or any(int(v.val) > 1 for v in block._tbl.xpath(".//w:gridSpan")):
+                    warnings.append(ParseWarning(code="merged_table_cells", message=f"DOCX table {table_number} requires layout review"))
+                if block._tbl.xpath(".//w:tc/w:tbl"):
+                    warnings.append(ParseWarning(code="nested_table", message=f"DOCX table {table_number} contains a nested table"))
                 rows = [
                     [cell.text.strip() for cell in row.cells]
                     for row in block.rows
@@ -157,7 +163,7 @@ class DocxDocumentParser:
                 "block_order": "preserved",
             },
             source_location=path.name,
-            parse_warnings=[],
+            parse_warnings=warnings,
             parser_name=self.name,
             parser_version=self.version,
         )

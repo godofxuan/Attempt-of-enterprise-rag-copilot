@@ -15,7 +15,7 @@ from app.domain.queries import (
     SearchRequest,
     SearchResult,
 )
-from app.retrieval.pipeline import HybridRetrievalPipeline, RankedSearchPool
+from app.retrieval.pipeline import HybridRetrievalPipeline, RankedSearchPool, _matches_filters
 from app.retrieval.snapshot import V2IndexSnapshot
 from app.security.access import AccessPolicy
 from app.utils import tokenize_for_bm25
@@ -98,6 +98,8 @@ class DocumentNavigator:
             return _tool_error("not_found")
         if not self.access_policy.evaluate(request.user, document).allowed:
             return _tool_error("permission")
+        if request.anchor_chunk_id and not self.bound_resource_allowed(request, document):
+            return _tool_error("not_found")
 
         candidates = sorted(
             (
@@ -112,6 +114,10 @@ class DocumentNavigator:
             if self._expired(started, request.timeout_ms):
                 return _tool_error("timeout")
             if not self.access_policy.evaluate(request.user, chunk).allowed:
+                continue
+            if request.anchor_chunk_id and (
+                not chunk.indexable or not self.bound_resource_allowed(request, chunk)
+            ):
                 continue
             if not _text_matches(request.pattern, chunk.text):
                 continue
@@ -145,6 +151,8 @@ class DocumentNavigator:
             return _tool_error("not_found")
         if not self.access_policy.evaluate(request.user, resource).allowed:
             return _tool_error("permission")
+        if request.anchor_chunk_id and not self.bound_resource_allowed(request, resource):
+            return _tool_error("not_found")
 
         if isinstance(resource, DocumentRecord):
             doc_id = resource.doc_id
@@ -169,6 +177,32 @@ class DocumentNavigator:
             truncated=truncated,
             source_path=source_path,
             section_path=section_path,
+        )
+
+    def bound_resource_allowed(self, request, resource) -> bool:
+        """Navigation cannot expand beyond the admitted anchor's retrieval scope."""
+        anchor = self.snapshot.all_chunks_by_id.get(request.anchor_chunk_id)
+        if anchor is None or request.filters is None:
+            return False
+        if not self.access_policy.evaluate(request.user, anchor).allowed:
+            return False
+        if not _matches_filters(anchor, request.filters):
+            return False
+        document = self.snapshot.documents_by_id.get(anchor.doc_id)
+        if document is None or not self.access_policy.evaluate(request.user, document).allowed:
+            return False
+        if (document.document_version.version_id, document.tenant_id, document.policy_id) != (
+            anchor.version_id, anchor.tenant_id, anchor.policy_id
+        ):
+            return False
+        if resource.doc_id != anchor.doc_id or not self.access_policy.evaluate(request.user, resource).allowed:
+            return False
+        if isinstance(resource, DocumentRecord):
+            return resource.doc_id == document.doc_id
+        return (
+            (resource.version_id, resource.tenant_id, resource.region, resource.policy_id) ==
+            (anchor.version_id, anchor.tenant_id, anchor.region, anchor.policy_id)
+            and _matches_filters(resource, request.filters)
         )
 
     def _resolve_target(

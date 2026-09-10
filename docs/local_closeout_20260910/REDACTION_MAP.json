@@ -1,0 +1,47 @@
+[
+  {
+    "raw_relative": "full/junit.xml",
+    "raw_sha256": "d2a3368f8ef376bfd37b16f509a5734965aff66cf3e44a10b789524cdacdcdee",
+    "derived": "full.junit.xml",
+    "derived_sha256": "754fdf6c387a23a83a9041ad977823c1b88f315b86a1bab2eecc4567078055a6",
+    "transformations": [
+      "replace_machine_path_prefixes",
+      "redact_junit_hostname",
+      "remove_captured_stdout_stderr",
+      "redact_remaining_absolute_paths_and_credential_syntax",
+      "redact_posix_user_paths",
+      "LF_and_trailing_whitespace_normalization"
+    ],
+    "captured_output_elements_removed": 0
+  },
+  {
+    "raw_relative": "full2/junit.xml",
+    "raw_sha256": "fef93c268ed4039b8dd14092498d1f7ad0262f0c137fe67d25cb6b79921d6290",
+    "derived": "full2.junit.xml",
+    "derived_sha256": "cbd99fc11f4bdd661b6edcc507b813b079e241421fc087efcf09d23f1c41f998",
+    "transformations": [
+      "replace_machine_path_prefixes",
+      "redact_junit_hostname",
+      "remove_captured_stdout_stderr",
+      "redact_remaining_absolute_paths_and_credential_syntax",
+      "redact_posix_user_paths",
+      "LF_and_trailing_whitespace_normalization"
+    ],
+    "captured_output_elements_removed": 0
+  },
+  {
+    "raw_relative": "full3/junit.xml",
+    "raw_sha256": "02810e93f8538a66457493fa2fe32b52a59a3ff2f805704bb6571bee9cb1ecd4",
+    "derived": "full3.junit.xml",
+    "derived_sha256": "6a6eae987891e00d3def042c2ce2be5f91b21d7d1308abfcf885b599fb93f4a7",
+    "transformations": [
+      "replace_machine_path_prefixes",
+      "redact_junit_hostname",
+      "remove_captured_stdout_stderr",
+      "redact_remaining_absolute_paths_and_credential_syntax",
+      "redact_posix_user_paths",
+      "LF_and_trailing_whitespace_normalization"
+    ],
+    "captured_output_elements_removed": 0
+  }
+]

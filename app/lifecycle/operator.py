@@ -38,6 +38,7 @@ from app.ingestion.file_validation import (
     admit_source_event_asset,
 )
 from app.ingestion.email_parser import EmailParseError
+from app.ingestion.document_quality import DocumentQualityError
 from app.ingestion.revision_catalog import (
     CatalogApplication,
     CatalogConflict,
@@ -707,6 +708,11 @@ class LifecycleOperatorService:
                 "build",
                 exc.code,
                 "The incremental computation failed.",
+            ) from None
+        except DocumentQualityError as exc:
+            raise LifecycleOperationError(
+                "build", exc.code,
+                "Document quality requires review; no new index was published.",
             ) from None
         except LifecyclePublicationError as exc:
             category: LifecycleErrorCategory = (

@@ -18,6 +18,7 @@ from app.domain.queries import (
     SearchStopReason,
 )
 from app.retrieval.snapshot import V2IndexSnapshot
+from app.retrieval.query_normalization import retrieval_query
 from app.security.access import AccessPolicy
 from app.utils import tokenize_for_bm25
 
@@ -297,6 +298,7 @@ class HybridRetrievalPipeline:
         *,
         score_cache: dict[str, np.ndarray] | None = None,
     ) -> list[tuple[int, float]]:
+        query = retrieval_query(query)
         scores = score_cache.get(query) if score_cache is not None else None
         query_tokens = tokenize_for_bm25(query)
         if scores is None and score_cache is None:
@@ -330,6 +332,7 @@ class HybridRetrievalPipeline:
         query_vectors: dict[str, np.ndarray] | None = None,
         search_cache: dict[str, tuple[np.ndarray, np.ndarray]] | None = None,
     ) -> list[tuple[int, float]]:
+        query = retrieval_query(query)
         vector = query_vectors.get(query) if query_vectors is not None else None
         if vector is None:
             vector = self._normalized_query_vector(query)

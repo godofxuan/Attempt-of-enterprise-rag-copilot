@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata
 import sys
 from pathlib import Path, PurePosixPath
 
@@ -32,6 +33,7 @@ from app.security.identity import Principal
 
 NORMALIZER_VERSION = "1"
 _PARSER_MODULES = {
+    "markdown": ("parsers.py", "markdown_tables.py"),
     "docx": ("parsers.py", "parsers_docx.py"),
     "pdf": ("parsers.py", "parsers_pdf.py"),
     EMAIL_PARSER_NAME: ("email_parser.py",),
@@ -149,6 +151,10 @@ class ProductionRevisionContentMaterializer:
                     (
                         f"pydantic={pydantic.__version__}",
                         f"python={sys.version_info.major}.{sys.version_info.minor}",
+                        *(
+                            (f"markdown-it-py={importlib.metadata.version('markdown-it-py')}",)
+                            if materialization.parser_name == "markdown" else ()
+                        ),
                     )
                 )
             ),

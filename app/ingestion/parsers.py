@@ -12,6 +12,7 @@ from typing import Protocol
 from app.domain.documents import (
     DocumentParseError,
     ParseResult,
+    ParseWarning,
     ParsedSection,
     ParsedTable,
     SourceLocator,
@@ -181,11 +182,14 @@ class ParserRegistry:
 
 class MarkdownParser(_MemoryTextParser):
     name = "markdown"
-    version = PARSER_VERSION
+    version = "1.1"
     suffixes = (".md", ".markdown")
 
     def parse(self, path: Path) -> ParseResult:
         raw = _read_utf8(path, self.name)
+        from app.ingestion.markdown_tables import extract_markdown_tables
+
+        parsed_tables = [span.table for span in extract_markdown_tables(raw)]
         lines = raw.splitlines()
         headings: list[str] = []
         sections: list[ParsedSection] = []
@@ -256,7 +260,7 @@ class MarkdownParser(_MemoryTextParser):
             text=text,
             sections=sections,
             headings=headings,
-            tables=[],
+            tables=parsed_tables,
             metadata={},
             source_location=path.name,
             parse_warnings=[],
@@ -314,6 +318,7 @@ class _StructuredHTMLParser(HTMLParser):
         self._table_rows: list[list[str]] | None = None
         self._table_row: list[str] | None = None
         self._cell_buffer: list[str] | None = None
+        self.warnings: list[ParseWarning] = []
 
     def handle_starttag(self, tag: str, attrs) -> None:
         tag = tag.lower()
@@ -325,10 +330,14 @@ class _StructuredHTMLParser(HTMLParser):
             self._capture = "paragraph"
             self._buffer = []
         elif tag == "table":
+            if self._table_rows is not None:
+                self.warnings.append(ParseWarning(code="nested_table", message="HTML nested table requires layout review"))
             self._table_rows = []
         elif tag == "tr" and self._table_rows is not None:
             self._table_row = []
         elif tag in {"th", "td"} and self._table_row is not None:
+            if any(name.lower() in {"rowspan", "colspan"} and str(value).strip() != "1" for name, value in attrs):
+                self.warnings.append(ParseWarning(code="merged_table_cells", message="HTML spanning cell requires layout review"))
             self._cell_buffer = []
 
     def handle_data(self, data: str) -> None:
@@ -368,7 +377,7 @@ class _StructuredHTMLParser(HTMLParser):
 
 class HtmlDocumentParser(_MemoryTextParser):
     name = "html"
-    version = PARSER_VERSION
+    version = "1.1"
     suffixes = (".html", ".htm")
 
     def parse(self, path: Path) -> ParseResult:
@@ -443,7 +452,7 @@ class HtmlDocumentParser(_MemoryTextParser):
             tables=tables,
             metadata={},
             source_location=path.name,
-            parse_warnings=[],
+            parse_warnings=parser.warnings,
             parser_name=self.name,
             parser_version=self.version,
         )

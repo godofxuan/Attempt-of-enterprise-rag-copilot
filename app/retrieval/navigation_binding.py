@@ -28,6 +28,8 @@ def validate_navigation_binding(navigator, snapshot, action, result) -> None:
             resource = snapshot.chunks[index] if index is not None else None
         if resource is None or not policy.evaluate(request.user, resource).allowed:
             raise ValueError("navigation target unavailable")
+        if request.anchor_chunk_id and not navigator.bound_resource_allowed(request, resource):
+            raise ValueError("navigation target outside bound retrieval scope")
         sections = [] if isinstance(resource, DocumentRecord) else resource.section_path
         if (
             result.doc_id != resource.doc_id
@@ -41,6 +43,8 @@ def validate_navigation_binding(navigator, snapshot, action, result) -> None:
         document = snapshot.documents_by_id.get(request.doc_id)
         if document is None or not policy.evaluate(request.user, document).allowed:
             raise ValueError("navigation document unavailable")
+        if request.anchor_chunk_id and not navigator.bound_resource_allowed(request, document):
+            raise ValueError("navigation document outside bound retrieval scope")
         if result.doc_id != request.doc_id or len(result.matches) > request.max_results:
             raise ValueError("navigation document or limit mismatch")
         if len({match.chunk_id for match in result.matches}) != len(result.matches):
@@ -54,6 +58,9 @@ def validate_navigation_binding(navigator, snapshot, action, result) -> None:
                 or chunk.doc_id != request.doc_id
                 or match.doc_id != request.doc_id
                 or not policy.evaluate(request.user, chunk).allowed
+                or (request.anchor_chunk_id and (
+                    not chunk.indexable or not navigator.bound_resource_allowed(request, chunk)
+                ))
                 or match.section_path != chunk.section_path
                 or not _text_matches(request.pattern, chunk.text)
                 or match.preview != _preview(chunk.text, request.pattern)

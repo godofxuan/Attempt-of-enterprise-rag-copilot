@@ -11,3 +11,4 @@
 # Preserve byte-hashed audit evidence, including original log line endings.
 docs/review/bounded_correctness_public_20260907/** -text
 docs/review/runtime_closure_followup_20260907/** -text
+docs/local_closeout_20260910/** -text

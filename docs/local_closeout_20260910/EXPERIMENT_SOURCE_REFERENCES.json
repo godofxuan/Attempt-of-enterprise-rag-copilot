@@ -1,0 +1,9 @@
+{
+  "scope": "historical_local_trial_aggregate_references_not_rerun_in_this_delivery",
+  "local_report_sha256": "e2c54ae0b2e58822038e02888ce9ad2602d499a8858c45cdc1687f38d7369b62",
+  "local_results_sha256": "4bf6a1c05e4cab7f3d3f6365900ddd4993eccd24b0f75ea007903fb7b4f9dcc9",
+  "local_audit_zip_sha256": "9180c04026425ab89b3fdbfcf541e9b83631c739a640e1615b2a4cd5484925db",
+  "default_models_unchanged": true,
+  "learned_fusion_shadow": false,
+  "llm_query_rewrite_default": false
+}

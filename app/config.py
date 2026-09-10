@@ -43,7 +43,7 @@ class Settings(BaseSettings):
         "expanded",
         "expanded_benchmark",
     ] = "expanded"
-    v2_chunker_mode: Literal["fixed", "heading", "parent_child"] = "fixed"
+    v2_chunker_mode: Literal["fixed", "heading", "parent_child", "structure"] = "fixed"
 
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = "ollama"

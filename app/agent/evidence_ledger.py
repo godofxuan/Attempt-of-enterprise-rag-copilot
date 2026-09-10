@@ -29,6 +29,11 @@ def build_ledger(
         raise ValueError("analysis requires at least one required aspect")
     detected_conflicts = conflicts is None
     conflicts = _numeric_conflicts(evidence_by_aspect) if detected_conflicts else conflicts
+    if detected_conflicts:
+        # Reuse the conservative host path, but distinguish scope uncertainty
+        # from a comparable numeric conflict when rendering the response.
+        for aspect, values in _numeric_conflicts(evidence_by_aspect, scope_ambiguity=True).items():
+            conflicts[aspect] = _unique_hits([*conflicts.get(aspect, ()), *values])
     required = analysis.required_aspects
     required_set = set(required)
     supplied_aspects = set(evidence_by_aspect) | set(conflicts)
@@ -104,6 +109,8 @@ def _unique_hits(
 
 def _numeric_conflicts(
     evidence_by_aspect: EvidenceByAspect,
+    *,
+    scope_ambiguity: bool = False,
 ) -> dict[str, list[AdmittedEvidenceChunk]]:
     """Only same-scope, same-template single-value facts are comparable here."""
     result: dict[str, list[AdmittedEvidenceChunk]] = {}
@@ -166,7 +173,7 @@ def _numeric_conflicts(
         conflicting = [
             evidence
             for values in groups.values()
-            if len({value for value, _ in values}) > 1
+            if not scope_ambiguity and len({value for value, _ in values}) > 1
             for _, evidence in values
         ]
         conflicting.extend(
@@ -174,11 +181,29 @@ def _numeric_conflicts(
             for values in cross_policy.values()
             if len({item.hit.policy_id for _, item in values}) > 1
             and len({value for value, _ in values}) > 1
+            and (len({_explicit_scope(item) for _, item in values}) > 1) == scope_ambiguity
             for _, evidence in values
         )
         if conflicting:
             result[aspect] = _unique_hits(conflicting)
     return result
+
+
+def _explicit_scope(evidence: AdmittedEvidenceChunk) -> tuple[str, ...]:
+    """Only explicit scope declarations in already admitted text are compared.
+
+    Different or missing declarations do not prove the same fact conflicts.
+    No document lookup or inference from unadmitted parent material is used.
+    """
+    text = evidence.hit.matched_text + "\n" + evidence.hit.context_text
+    return tuple(
+        sorted(
+            {
+                " ".join(match.group().split()).casefold()
+                for match in re.finditer(r"(?:本规定(?:仅)?适用于|仅限)[^。；;!?\n]+", text)
+            }
+        )
+    )
 
 
 def _to_item(

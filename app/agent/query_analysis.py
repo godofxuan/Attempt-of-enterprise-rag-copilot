@@ -4,6 +4,7 @@ import re
 from collections.abc import Mapping
 from datetime import date
 from typing import Protocol
+from app.retrieval.query_normalization import retrieval_query
 
 from app.domain.queries import (
     QueryAnalysis,
@@ -186,6 +187,10 @@ class RuleFirstQueryAnalyzer:
             raise ValueError("question must not be empty")
 
         risk_flags = _risk_flags(normalized_question)
+        search_view = retrieval_query(normalized_question)
+        if search_view != normalized_question:
+            # Normalization may add a risk detection; it can never clear one.
+            risk_flags = _unique([*risk_flags, *_risk_flags(search_view)], limit=20)
         if risk_flags:
             return QueryAnalysis(
                 original_question=normalized_question,

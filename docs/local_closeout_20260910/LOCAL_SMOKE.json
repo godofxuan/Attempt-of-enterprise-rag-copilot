@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "scope": "LOCAL_LOOPBACK_HTTP_REAL_OLLAMA",
+  "readiness": {
+    "index_run_id": "20260724T024653Z_expanded_bge_m3_fixed",
+    "liveness": "alive",
+    "readiness": "ready"
+  },
+  "unauthorized_status": 401,
+  "identity_status": 200,
+  "ui_health_status": 200,
+  "sample_count": 2,
+  "answered": 1,
+  "partial": 1,
+  "all_samples_cited": true,
+  "not_an_accuracy_benchmark": true,
+  "observed_limitation": "materials_query_still_partial_missing_requested_materials",
+  "raw_result_sha256": "37a174e9bbe106b4dcd7dba3c211d112e4aeb145abb2e1c94d3a87046cf1269c"
+}

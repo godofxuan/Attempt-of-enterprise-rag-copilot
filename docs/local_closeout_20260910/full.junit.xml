@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="11.678" timestamp="2026-09-10T15:57:46.465236+08:00" hostname="local-host-redacted"><testcase classname="" name="tests.ingestion.test_docling_adapter_contract" time="0.000"><error message="collection failure">ImportError while importing test module '&lt;candidate&gt;\tests\ingestion\test_docling_adapter_contract.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests\ingestion\test_docling_adapter_contract.py:7: in &lt;module&gt;
+    from experiments.document_quality_v1.docling_worker import adapt_document, verify_models
+E   ModuleNotFoundError: No module named 'experiments'</error></testcase></testsuite></testsuites>

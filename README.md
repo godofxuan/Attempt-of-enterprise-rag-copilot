@@ -15,6 +15,16 @@
 Current public status: `MAIN_CANONICAL`, `PORTFOLIO_READY`,
 `PRODUCTION_NOT_VERIFIED`; `DURABILITY_SCOPE = ACCESS_REQUEST_DRAFT_ONLY`.
 
+## September 10 Candidate Delivery
+
+This branch includes bounded query coverage, structure-aware document handling,
+literal evidence applicability checks and a loopback-only local launcher.
+It is a **review candidate**, not a main promotion or public production service.
+LLM rewriting and learned fusion remain offline negative-result experiments.
+See the [candidate results and local runbook](docs/local_closeout_20260910/README.md)
+for the exact scope and current validation status. Historical results below
+retain their original versions and protocols.
+
 ## What it does
 
 This is a controlled enterprise knowledge Agent / Agentic RAG Runtime. Teams

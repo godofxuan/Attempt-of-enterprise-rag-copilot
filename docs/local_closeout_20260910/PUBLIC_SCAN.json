@@ -1,0 +1,274 @@
+{
+  "candidate_count": 2449,
+  "global_findings": 38,
+  "unchanged_historical_findings": 38,
+  "new_or_modified_file_findings": 0,
+  "findings": [
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/ENVIRONMENT.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "a98599ada133e37fc823f1d56cd72ebfd489e017b9bb15aa4a898f3779bccfa4"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/HISTORICAL_ERRATUM.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "98ef0db9d135fa6ce47f8db3be9e40f96a9e819ec6a681e9eb75d92728d7c590"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/REPORT.md",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "cbe8743c04ddc71d3a8b6d09c2f6db36a9f33bfd2d6b4a3c1dfd14a4ade9d7a7"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/TARGET_IDENTITY_AFTER.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "f4ed56effb9b5f81a5d8412f2b223264d260cb28badb3aa84dbc6457dac1cae9"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/TARGET_IDENTITY_BEFORE.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "a60aa06aeae8724877e611bed7d3117de0993dea18d15b29282829a0bd75e68b"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/TASK.md",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "405d6339293fd56c1e40e0ffdeeb1ec973f22af327014e3d26fe622f7ee22d79"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/TEST_RESULTS.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "ba79613169fb19a79f7ea52d5a32716e2eba59c77b24ae3330f0af4d7ffd415d"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G1_final/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "ed5c79ae5aedf9c5f49f3ce0a45b0574f0c05325c98b9f4c257d19e758373510"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G1_initial/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "ed5c79ae5aedf9c5f49f3ce0a45b0574f0c05325c98b9f4c257d19e758373510"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G1_red/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "ed5c79ae5aedf9c5f49f3ce0a45b0574f0c05325c98b9f4c257d19e758373510"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G2_final/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "66bd1cfaa57d804eb71dcedcc736d2b42e68813425c1f0913fc4fc9a30a6e58b"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G2_original25/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "66bd1cfaa57d804eb71dcedcc736d2b42e68813425c1f0913fc4fc9a30a6e58b"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G3_adjacent/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "51dd13c18a4ad7f80e35b9e0596afdf93406c1442223db1867e1caf19c71d5ae"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G3_final/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "51dd13c18a4ad7f80e35b9e0596afdf93406c1442223db1867e1caf19c71d5ae"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G4_external14/imports_external.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "f809e695bb6ca25e40928bf13844811378d5d98ddd13c24840101c4cbc2781eb"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G4_final/imports_external.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "f809e695bb6ca25e40928bf13844811378d5d98ddd13c24840101c4cbc2781eb"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/changes/RECONSTRUCTION.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "819127980c786630b57827c29f1a264f82f18179adaf84efe3c66630e2533eca"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/logs/G1_red.txt",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "eb432e01b945cc06bd2db1bf1905afac70ea0b4a530435a5805af9653e031812"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/RECONSTRUCTION.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "6a574768f52dc4ac3a45d088cb41b26bc4c33d4b9a2b022e5c83f27a53264840"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/REPORT.md",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "c257226dc89e9dbd7641dbae82ad10768ac6866d265914ab6a86cd680d550301"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/TARGET_IDENTITY_AFTER.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "0e6d46269887d0c1d4b53d653513a8bf6ce87ec42dae4157bae2948275db22ea"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/TEST_RESULTS.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "280120437d48e725adaa6d8ce687f2a57fc7193bf5ec9ceceb56d2afdb4170da"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G0_boundary_red/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "58edf49f414728a949cd0764371396705654df7b70903a7823f5ee7683f22498"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G0_red/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "ed5c79ae5aedf9c5f49f3ce0a45b0574f0c05325c98b9f4c257d19e758373510"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G1_final/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "0b8c88f2a82187704ba88ef189847739e2ff051f2712fbb229f6491e2c9c33c8"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G1_release/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "0b8c88f2a82187704ba88ef189847739e2ff051f2712fbb229f6491e2c9c33c8"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G2_final/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "66bd1cfaa57d804eb71dcedcc736d2b42e68813425c1f0913fc4fc9a30a6e58b"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G2_release/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "66bd1cfaa57d804eb71dcedcc736d2b42e68813425c1f0913fc4fc9a30a6e58b"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G3_final/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "6412fa46599863d2db2406032b4686c0164c21244c957dbb39dcaa373c271c52"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G3_release/imports_existing.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "6412fa46599863d2db2406032b4686c0164c21244c957dbb39dcaa373c271c52"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G4_final/imports_external.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "f809e695bb6ca25e40928bf13844811378d5d98ddd13c24840101c4cbc2781eb"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G4_release/imports_external.json",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "f809e695bb6ca25e40928bf13844811378d5d98ddd13c24840101c4cbc2781eb"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/logs/G0_boundary_red.txt",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "a46b2833493c4c3b468195fa7604355f5584778ebf18bc04fedd95a242404313"
+    },
+    {
+      "code": "absolute_user_path",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/logs/G0_red.txt",
+      "detail": "machine-specific absolute path detected",
+      "unchanged_from_base": true,
+      "file_sha256": "43135a00ec2bcf8cc4e8a705053c70c3c7a690872c1b2ca4945d04ef9e71e2b7"
+    },
+    {
+      "code": "local_identity",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/TARGET_IDENTITY_AFTER.json",
+      "detail": "local user identity detected",
+      "unchanged_from_base": true,
+      "file_sha256": "f4ed56effb9b5f81a5d8412f2b223264d260cb28badb3aa84dbc6457dac1cae9"
+    },
+    {
+      "code": "local_identity",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/TARGET_IDENTITY_BEFORE.json",
+      "detail": "local user identity detected",
+      "unchanged_from_base": true,
+      "file_sha256": "a60aa06aeae8724877e611bed7d3117de0993dea18d15b29282829a0bd75e68b"
+    },
+    {
+      "code": "non_example_email",
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/changes/this_round.patch",
+      "detail": "non-example email address detected",
+      "unchanged_from_base": true,
+      "file_sha256": "f3b14fd4cff4fb0180713bf8a1f6cac547750f9b215955ec5c5457530f54f7f7"
+    },
+    {
+      "code": "non_example_email",
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/changes/this_round.patch",
+      "detail": "non-example email address detected",
+      "unchanged_from_base": true,
+      "file_sha256": "9a2e12b2202fcc471cc855dbabe5a25804500e3b4a20d3742b5ce0acae251c81"
+    }
+  ]
+}
