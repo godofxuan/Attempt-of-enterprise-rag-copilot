@@ -93,6 +93,9 @@ def test_ci_is_read_only_deterministic_and_does_not_call_live_services() -> None
 
     assert workflow.count("fetch-depth: 0") == 3
 
+    assert '  push:\n    branches:\n      - "**"' in workflow
+    assert "tags:" not in workflow
+
     for forbidden in [
         "ollama",
         "uvicorn",

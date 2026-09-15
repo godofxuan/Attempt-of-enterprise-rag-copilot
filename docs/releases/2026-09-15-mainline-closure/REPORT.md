@@ -28,6 +28,10 @@ The final commit SHA is the Git commit referenced by the stable tag and the
 successful GitHub Actions run. It is intentionally not self-recorded inside
 the commit.
 
+The CI workflow runs on branch pushes and pull requests. Stable tags are
+created only after the same mainline SHA passes the full matrix; tag pushes do
+not rerun the branch-identity gate against a detached HEAD.
+
 ## Verification History
 
 The first repository-wide run preserved four real failures:
