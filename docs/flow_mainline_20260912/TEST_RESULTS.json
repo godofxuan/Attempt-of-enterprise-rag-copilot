@@ -1,0 +1,72 @@
+{
+  "final": {
+    "scope": "OFFLINE_COMPONENT_AND_IN_PROCESS_API_TESTS_NOT_REAL_MODEL_BENCHMARK",
+    "exit_code": 1,
+    "seconds": 71.6093054999983,
+    "args": [
+      "--import-mode=importlib",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "--basetemp=LOCAL_PATH_REDACTED",
+      "--junitxml=LOCAL_PATH_REDACTED",
+      "--import-mode=importlib",
+      "tests/agent_v2",
+      "tests/retrieval",
+      "tests/api_v2",
+      "tests/security",
+      "tests/runtime",
+      "tests/ui",
+      "tests/ingestion",
+      "tests/indexing/test_document_quality_publication.py",
+      "tests/indexing/test_document_quality_lifecycle.py"
+    ],
+    "total": 1398,
+    "failed": 2,
+    "errors": 0,
+    "skipped": 9,
+    "source_unchanged": true,
+    "imports_bound": true,
+    "passed": 1387
+  },
+  "new_cases": 33,
+  "new_failures": 0,
+  "skips": [
+    {
+      "test": "tests.security.test_demo_identity_lifecycle::test_identity_directory_accepts_a_real_windows_short_path_alias",
+      "reason": "this volume does not expose a distinct 8.3 alias"
+    },
+    {
+      "test": "tests.security.test_demo_identity_lifecycle::test_posix_held_chmod_targets_descriptor_after_path_replacement",
+      "reason": "POSIX descriptor chmod semantics"
+    },
+    {
+      "test": "tests.security.test_demo_identity_lifecycle::test_active_snapshot_rejects_fifo_descriptor_before_reading",
+      "reason": "POSIX nonblocking FIFO contract"
+    },
+    {
+      "test": "tests.security.test_demo_identity_lifecycle::test_demo_identity_rejects_redirecting_ancestor_directory",
+      "reason": "directory symlink creation is not available"
+    },
+    {
+      "test": "tests.security.test_demo_identity_lifecycle::test_posix_root_replacement_cannot_receive_writes_from_old_lock",
+      "reason": "POSIX directory rename semantics"
+    },
+    {
+      "test": "tests.security.test_identity_config::test_identity_config_preserves_symlink_for_runtime_rejection",
+      "reason": "symlink creation is not available"
+    },
+    {
+      "test": "tests.security.test_identity_jwks::test_jwks_rejects_symlink_when_platform_supports_it",
+      "reason": "symlink creation is not available"
+    },
+    {
+      "test": "tests.ingestion.test_file_validation::test_symbolic_link_source_escape_is_rejected_when_supported",
+      "reason": "symbolic-link creation is unavailable"
+    },
+    {
+      "test": "tests.ingestion.test_revision_catalog::test_broken_catalog_symlink_is_not_treated_as_empty",
+      "reason": "symbolic-link creation is unavailable on this platform"
+    }
+  ]
+}

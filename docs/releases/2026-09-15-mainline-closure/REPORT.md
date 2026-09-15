@@ -83,7 +83,7 @@ in:
 Final result:
 
 ```text
-public candidates=2500 findings=0
+public candidates=2522 findings=0
 ```
 
 ## Final Local Gates
@@ -96,7 +96,7 @@ Before the release commit, all five portfolio gates passed:
 | Python compile | PASS |
 | Final evidence consistency | PASS |
 | Agent, ACL, and Guard regression | PASS |
-| Public repository audit (`2500 candidates / 0 findings`) | PASS |
+| Public repository audit (`2522 candidates / 0 findings`) | PASS |
 
 Changed and newly added Python files also passed Ruff, and `git diff --check`
 reported no whitespace errors. A clean-commit gate and the GitHub Actions matrix

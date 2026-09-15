@@ -1,0 +1,155 @@
+{
+  "schema_version": "main-premerge-public-redaction-v1",
+  "source_identity": {
+    "branch": "codex/main-local-preservation-20260915",
+    "commit": "fb8f04d924703f50bd31013034773b14ffb75f2b"
+  },
+  "scope": "Only local paths and identities were replaced in public derivatives; the preservation branch retains the exact source bytes.",
+  "records": [
+    {
+      "path": "docs/broad_validation_20260910/REPORT.md",
+      "preserved_source_sha256": "9cf1fac59514a627c914733de1b07aedf167101d572c7188cf39db5d9d4ead3d",
+      "public_derivative_sha256": "0b42b276847d7d96b0e8e10ebe1d8874933d39b7d15829026454f4a1de93e294",
+      "replacement_counts": {
+        "windows_absolute_path": 2
+      }
+    },
+    {
+      "path": "docs/broad_validation_fixes_20260910/README.md",
+      "preserved_source_sha256": "b3f765acb5d965dd8b39a33458baadaafd8f0f60a6171b923d85b00b3204d0f8",
+      "public_derivative_sha256": "c0f0fae931372ffec2386d4d8e328aea5edb4dd4e63f06a33cc7e7cb4809f837",
+      "replacement_counts": {
+        "windows_absolute_path": 1
+      }
+    },
+    {
+      "path": "docs/document_quality_20260910/RESEARCH_AND_PLAN.md",
+      "preserved_source_sha256": "5ecc7afc6a0cbe0a7ce480ab6952e17b85bd17f2dc2e1ace3834c51c088e8fa6",
+      "public_derivative_sha256": "799a0247613dfad3b20361d411d3b2d322e744ec9c6a3567fc897f39525d0951",
+      "replacement_counts": {
+        "windows_absolute_path": 2
+      }
+    },
+    {
+      "path": "docs/document_quality_20260910/RESULTS_AND_LOCATION.md",
+      "preserved_source_sha256": "7d7f6f038a8f99b69df8150d530ad5b9728d42e1a6ebfdec147c14e5961b1a63",
+      "public_derivative_sha256": "39275e8ee9e9936dd7d8e59d83a9037c4f81617ede2392149f7d3009b5a96d1f",
+      "replacement_counts": {
+        "windows_absolute_path": 2,
+        "private_markdown_link_removed": 4
+      }
+    },
+    {
+      "path": "docs/flow_architecture_next_20260912/OPEN_SOURCE_AND_MAINLINE_DECISION.md",
+      "preserved_source_sha256": "8a4cddb6852bf4711e1f4dc84951d828a765f15f8308bab364d41f9e835ba8f7",
+      "public_derivative_sha256": "2922d7257e49731c4b90695365c9c9b5af88ba3bc9ead16b769d38f009b46ef6",
+      "replacement_counts": {
+        "windows_absolute_path": 1
+      }
+    },
+    {
+      "path": "docs/flow_architecture_next_20260912/PROPOSAL.md",
+      "preserved_source_sha256": "36cebd50ad06bedbdb8c4d1ca8dab81f02d3bb5fd6152fd792bdbb6e272edea3",
+      "public_derivative_sha256": "b840765cbd69f326a9a4d1cb09835b98039571f05c283a4517e72efd329fd409",
+      "replacement_counts": {
+        "windows_absolute_path": 1
+      }
+    },
+    {
+      "path": "docs/flow_fix_20260912/REPORT.md",
+      "preserved_source_sha256": "9b4331594fe26c58dce4f35c09e9d5371a20bc5c1179158bb99e5c1ff3261429",
+      "public_derivative_sha256": "9fa4a11027bdf91507248a9d0446594b99428dcf260b12879618641780c591cf",
+      "replacement_counts": {
+        "windows_absolute_path": 1
+      }
+    },
+    {
+      "path": "docs/flow_mainline_20260912/DELIVERY.json",
+      "preserved_source_sha256": "3ab8726f7af3dd88325e38eb4e9912f3e9924045a8142422ddb53ff84e82d63d",
+      "public_derivative_sha256": "e6973c997f7922401c46b582665ad1177904794daaeb323ce3e5b81f916ba01f",
+      "replacement_counts": {
+        "windows_absolute_path": 1
+      }
+    },
+    {
+      "path": "docs/flow_mainline_20260912/TEST_RESULTS.json",
+      "preserved_source_sha256": "3af75b5ebd1d5a1c331d73c0eb01611422d7ae8756c6f86be504cf4ba5d3fed6",
+      "public_derivative_sha256": "4576a908ed063f605f6c6b4333de7f5136027ee6b2074b54a08bf8c7811015e5",
+      "replacement_counts": {
+        "windows_absolute_path": 2
+      }
+    },
+    {
+      "path": "docs/flow_review_20260912/MANIFEST.json",
+      "preserved_source_sha256": "e79c588f6cd16b46351291974208822909e133bad0125c39c66caa8b1af7ed2c",
+      "public_derivative_sha256": "f2851611ce16650ebbd1115cd1ccdb7cbcd7cfda9b05870753054a0a0187c94f",
+      "replacement_counts": {
+        "windows_absolute_path": 29
+      }
+    },
+    {
+      "path": "docs/flow_review_20260912/REPORT.md",
+      "preserved_source_sha256": "faeae0fc294117de0b5628585fd9224e8ba486452f48dca48f0fb86c07863a6c",
+      "public_derivative_sha256": "2d48d2f9d5475e79376c399e512082cc567c6255a17c42aeee36f91446d811dc",
+      "replacement_counts": {
+        "windows_absolute_path": 3
+      }
+    },
+    {
+      "path": "docs/handoffs/QUERY_COVERAGE_V1_VERSION_NOTE_20260909.md",
+      "preserved_source_sha256": "89c9ef5e3c841bb9568b3e7d86590e37ad3bd72cb66747df33085f714697c3dd",
+      "public_derivative_sha256": "99544b59d530ac82d4a44ee50ef505d1dac31803da7d770aae9903456eb38bcc",
+      "replacement_counts": {
+        "windows_absolute_path": 2
+      }
+    },
+    {
+      "path": "docs/handoffs/QUERY_COVERAGE_V2_VERSION_NOTE_20260909.md",
+      "preserved_source_sha256": "4634aad4b843c788219bf6816f5a5249844aad0b77758f7b2c99a0e380a91c7c",
+      "public_derivative_sha256": "4d7afb01233d532c273f01e4faff2cf2a4b1bec3de745b7ad84d5e656c9d78a9",
+      "replacement_counts": {
+        "windows_absolute_path": 4
+      }
+    },
+    {
+      "path": "docs/local_model_trials_20260910/DELIVERY.json",
+      "preserved_source_sha256": "04c1d5f18ea9c2315748c436163680e24e6db72d8b0264c8e9d76a8e9342ff24",
+      "public_derivative_sha256": "d36f696cfb5ee5fd0fd57e3f531021f8db6dd4f53f479f11d6c989c5c8c6728c",
+      "replacement_counts": {
+        "windows_absolute_path": 10
+      }
+    },
+    {
+      "path": "docs/local_model_trials_20260910/RELEASE_HANDOFF.md",
+      "preserved_source_sha256": "4a04af38b07a6a4c199565d39f0d16c2ca194f29e37ac73572c3bba54459f5d3",
+      "public_derivative_sha256": "8f29b6462c94b18c391862d2689bf6bf4bc4cbd387a4d69e12e6ac7f36b09c5f",
+      "replacement_counts": {
+        "windows_absolute_path": 1
+      }
+    },
+    {
+      "path": "docs/query_understanding_review_20260910/RESEARCH_AND_PRESENTATION_DECISION.md",
+      "preserved_source_sha256": "893c84de5a88e8a09a5033084caef72d50c7f88fdf5704ea7be36d421889ef34",
+      "public_derivative_sha256": "3a3ca1417bbc0ac12d13b7e9b79ae9eb1d8a267b3ed0850c50ec9037922374fd",
+      "replacement_counts": {
+        "windows_absolute_path": 2
+      }
+    },
+    {
+      "path": "docs/release_claim_review_20260910/DELIVERY.md",
+      "preserved_source_sha256": "9a8ebc437fc3ba4e3f064cd42f882075a005b232a709995a772c60b9fbe71f91",
+      "public_derivative_sha256": "2cf9fd529b837fb52c11556535778944e1e946098bbe13c9cfe8d101004cbc8f",
+      "replacement_counts": {
+        "windows_absolute_path": 3
+      }
+    },
+    {
+      "path": "docs/release_claim_review_20260910/REPORT.md",
+      "preserved_source_sha256": "84ad7588e94bc1d35a3905e64a1901e0e430656d51ceba423238ce4923f4f4c9",
+      "public_derivative_sha256": "40efaf5a05dc23c488e5c7bd6aee7850465afc0284b795e2372001d8601756eb",
+      "replacement_counts": {
+        "windows_absolute_path": 6
+      }
+    }
+  ]
+}

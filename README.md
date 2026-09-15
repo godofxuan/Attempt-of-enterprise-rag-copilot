@@ -22,7 +22,7 @@ integration. It includes bounded multi-part query coverage, structure-aware
 document navigation, literal evidence applicability checks, fail-closed answer
 publication, local identity renewal, cooperative cancellation, and a
 loopback-only launcher. The release verified `4148 passed, 36 skipped`, with no
-test failures, and the public leak audit reported `2500 candidates / 0
+test failures, and the public leak audit reported `2522 candidates / 0
 findings`. This is a portfolio engineering release, not a public production
 service or a new model-quality claim. LLM rewriting and learned fusion remain
 offline negative-result experiments. See the
