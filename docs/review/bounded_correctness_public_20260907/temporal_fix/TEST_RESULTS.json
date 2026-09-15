@@ -25,7 +25,7 @@
     ],
     "before": "72dc29408bdf96f8d0fd53253ec5ba3a9d57c6598803613a2df5b7d90e5710e0",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -37,9 +37,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G0_red\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G0_red\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -47,7 +47,7 @@
       "PASSED": 0,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:37:52.081050+08:00",
     "exit_code": 1,
     "group": "G0",
@@ -63,7 +63,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "FAILED",
     "run_id": "G0_red",
@@ -516,7 +516,7 @@
     ],
     "before": "416e302c241762670dc2ee01b563f6f9bb25f40b52e52909cb92c442d76f43bf",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -528,9 +528,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G0_boundary_red\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G0_boundary_red\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -538,7 +538,7 @@
       "PASSED": 7,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:38:32.342354+08:00",
     "exit_code": 1,
     "group": "G0",
@@ -608,7 +608,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "FAILED",
     "run_id": "G0_boundary_red",
@@ -1342,7 +1342,7 @@
     ],
     "before": "5b30062fdadf52ccbd69e90f8b4db332f5b9fc9f92e9cb9184c60ff0de241faf",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -1355,9 +1355,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G1_final\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G1_final\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -1365,7 +1365,7 @@
       "PASSED": 69,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:39:16.135540+08:00",
     "exit_code": 0,
     "group": "G1",
@@ -1789,7 +1789,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "G1_final",
@@ -2243,7 +2243,7 @@
     ],
     "before": "5b30062fdadf52ccbd69e90f8b4db332f5b9fc9f92e9cb9184c60ff0de241faf",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -2256,9 +2256,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G2_final\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G2_final\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -2266,7 +2266,7 @@
       "PASSED": 25,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:39:25.441065+08:00",
     "exit_code": 0,
     "group": "G2",
@@ -2426,7 +2426,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "G2_final",
@@ -2880,7 +2880,7 @@
     ],
     "before": "5b30062fdadf52ccbd69e90f8b4db332f5b9fc9f92e9cb9184c60ff0de241faf",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -2897,9 +2897,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G3_final\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G3_final\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -2907,7 +2907,7 @@
       "PASSED": 75,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:39:40.991820+08:00",
     "exit_code": 0,
     "group": "G3",
@@ -3367,7 +3367,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "G3_final",
@@ -3876,11 +3876,11 @@
     ],
     "before": "5b30062fdadf52ccbd69e90f8b4db332f5b9fc9f92e9cb9184c60ff0de241faf",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G4_final\\external_checks\\test_counterexamples.py",
+      "LOCAL_PATH_REDACTED",
       "-q",
       "-rs",
       "-p",
@@ -3888,9 +3888,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G4_final\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G4_final\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -3898,7 +3898,7 @@
       "PASSED": 13,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:39:51.026413+08:00",
     "exit_code": 1,
     "group": "G4",
@@ -3992,7 +3992,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "FAILED",
     "run_id": "G4_final",
@@ -4436,7 +4436,7 @@
     ],
     "before": "5b30062fdadf52ccbd69e90f8b4db332f5b9fc9f92e9cb9184c60ff0de241faf",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "ruff",
@@ -4446,13 +4446,13 @@
       "tests/retrieval/test_current_validity.py"
     ],
     "counts": null,
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:40:36.011342+08:00",
     "exit_code": 1,
     "group": "G5",
     "nodes": [],
     "phase": "INITIAL",
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "FAILED",
     "run_id": "lint_initial",
@@ -4470,7 +4470,7 @@
     ],
     "before": "fcf97503ab5ebf56bf4a84ff39953ade3135841e190564308e668bb9e06323e5",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "ruff",
@@ -4480,13 +4480,13 @@
       "tests/retrieval/test_current_validity.py"
     ],
     "counts": null,
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:41:03.542273+08:00",
     "exit_code": 0,
     "group": "G5",
     "nodes": [],
     "phase": "FINAL",
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "lint_final",
@@ -4504,25 +4504,25 @@
     ],
     "before": "fcf97503ab5ebf56bf4a84ff39953ade3135841e190564308e668bb9e06323e5",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "scripts.verify_runtime_closure",
       "--evidence",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\reference\\audit\\evidence\\runtime_delivery_20260905",
+      "LOCAL_PATH_REDACTED",
       "--gold-directory",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\reference\\audit\\evidence\\followup_20260907",
+      "LOCAL_PATH_REDACTED",
       "--output",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\delivery\\replay"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": null,
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:41:05.559918+08:00",
     "exit_code": 0,
     "group": "G5",
     "nodes": [],
     "phase": "INITIAL",
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "evidence_verifier",
@@ -4830,7 +4830,7 @@
     ],
     "before": "fcf97503ab5ebf56bf4a84ff39953ade3135841e190564308e668bb9e06323e5",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -4843,9 +4843,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G1_release\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G1_release\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -4853,7 +4853,7 @@
       "PASSED": 69,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:41:25.928296+08:00",
     "exit_code": 0,
     "group": "G1",
@@ -5277,7 +5277,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "G1_release",
@@ -5731,7 +5731,7 @@
     ],
     "before": "fcf97503ab5ebf56bf4a84ff39953ade3135841e190564308e668bb9e06323e5",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -5744,9 +5744,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G2_release\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G2_release\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -5754,7 +5754,7 @@
       "PASSED": 25,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:41:39.436553+08:00",
     "exit_code": 0,
     "group": "G2",
@@ -5914,7 +5914,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "G2_release",
@@ -6368,7 +6368,7 @@
     ],
     "before": "fcf97503ab5ebf56bf4a84ff39953ade3135841e190564308e668bb9e06323e5",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -6385,9 +6385,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G3_release\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G3_release\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -6395,7 +6395,7 @@
       "PASSED": 75,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:41:43.599357+08:00",
     "exit_code": 0,
     "group": "G3",
@@ -6855,7 +6855,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "G3_release",
@@ -7364,11 +7364,11 @@
     ],
     "before": "fcf97503ab5ebf56bf4a84ff39953ade3135841e190564308e668bb9e06323e5",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G4_release\\external_checks\\test_counterexamples.py",
+      "LOCAL_PATH_REDACTED",
       "-q",
       "-rs",
       "-p",
@@ -7376,9 +7376,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G4_release\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_temporal_fix_20260907\\scratch\\runs\\G4_release\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -7386,7 +7386,7 @@
       "PASSED": 13,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:41:53.582060+08:00",
     "exit_code": 1,
     "group": "G4",
@@ -7480,7 +7480,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "FAILED",
     "run_id": "G4_release",

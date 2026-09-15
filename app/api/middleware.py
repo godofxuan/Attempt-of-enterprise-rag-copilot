@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import time
 import uuid
+from contextlib import suppress
 
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.responses import JSONResponse
@@ -16,7 +18,6 @@ from app.runtime.request_context import (
     reset_request_context,
 )
 from app.runtime.resources import ServiceContainer
-
 
 LOGGER = logging.getLogger("enterprise_rag.request")
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
@@ -43,6 +44,38 @@ class RequestContextMiddleware:
         started = time.perf_counter()
         status_code = 500
         response_started = False
+        receiver_task = None
+        active_receive = receive
+        if scope.get("path") == "/agent/v2/chat":
+            # One bounded relay owns ASGI receive. It observes disconnect even
+            # while the sync endpoint is in a worker; authentication still owns
+            # validation and body limits. No duplicate readers or unbounded body.
+            messages = asyncio.Queue(maxsize=1)
+            context = current_request_context()
+
+            async def relay():
+                try:
+                    while True:
+                        message = await receive()
+                        if message["type"] == "http.disconnect":
+                            context.cancelled.set()
+                        await messages.put(message)
+                        if message["type"] == "http.disconnect":
+                            return
+                except Exception as error:
+                    context.cancelled.set()
+                    await messages.put(error)
+
+            async def receive_from_relay():
+                if messages.empty() and receiver_task.done():
+                    return {"type": "http.disconnect"}
+                message = await messages.get()
+                if isinstance(message, Exception):
+                    raise message
+                return message
+
+            receiver_task = asyncio.create_task(relay())
+            active_receive = receive_from_relay
 
         async def send_with_request_id(message) -> None:
             nonlocal status_code, response_started
@@ -54,7 +87,7 @@ class RequestContextMiddleware:
             await send(message)
 
         try:
-            await self.app(scope, receive, send_with_request_id)
+            await self.app(scope, active_receive, send_with_request_id)
         except Exception:
             if response_started:
                 raise
@@ -71,6 +104,10 @@ class RequestContextMiddleware:
             )
             await response(scope, receive, send_with_request_id)
         finally:
+            if receiver_task is not None:
+                receiver_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await receiver_task
             duration_ms = max(0.0, (time.perf_counter() - started) * 1000.0)
             context = current_request_context()
             route = _route_template(scope)

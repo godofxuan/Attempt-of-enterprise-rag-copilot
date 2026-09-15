@@ -7,7 +7,6 @@ from dataclasses import dataclass
 
 from app.domain.evidence import AnswerResponse
 
-
 _LOCATION = re.compile(
     r"(?<![\w'-])(?P<name>[A-Za-z][A-Za-z'-]*"
     r"(?:[ \t]+[A-Za-z][A-Za-z'-]*){0,3})[ \t]+(?P<kind>office|branch)\b",
@@ -15,8 +14,24 @@ _LOCATION = re.compile(
 )
 _GRADE = re.compile(r"\b(?:staff\s+)?grade\s+([A-Za-z]*\d+[A-Za-z0-9-]*)\b", re.I)
 _PREFIX = {
-    "for", "in", "at", "the", "of", "is", "does", "what", "which", "compare",
-    "between", "and", "versus", "vs", "from", "about", "under", "to",
+    "for",
+    "in",
+    "at",
+    "the",
+    "of",
+    "is",
+    "does",
+    "what",
+    "which",
+    "compare",
+    "between",
+    "and",
+    "versus",
+    "vs",
+    "from",
+    "about",
+    "under",
+    "to",
 }
 _GENERIC = {"my", "your", "our", "their", "this", "that", "any", "each", "every"}
 
@@ -28,7 +43,7 @@ def _locations(text: str) -> frozenset[tuple[str, str]]:
         # Structural delimiters, not a dictionary of supported office names.
         delimiters = [i for i, word in enumerate(words) if word in _PREFIX]
         if delimiters:
-            words = words[delimiters[-1] + 1:]
+            words = words[delimiters[-1] + 1 :]
         if words and not set(words).intersection(_GENERIC):
             values.add((match["kind"].casefold(), " ".join(words)))
     return frozenset(values)
@@ -75,11 +90,20 @@ def scope_evidence_support(question: str, text: str, *, section_path: tuple[str,
     return True
 
 
-def enforce_answer_applicability(question: str, response: AnswerResponse) -> AnswerResponse:
-    """Cannot promote, add a source, alter authority or waive citation checks."""
+@dataclass(frozen=True)
+class ApplicabilityDecision:
+    claim_ids: frozenset[str]
+    notes: tuple[str, ...]
+    audit: dict
+
+
+def assess_answer_applicability(
+    question: str, response: AnswerResponse
+) -> ApplicabilityDecision | None:
+    """Supply a selection judgement, not another final mode authority."""
     scope = literal_query_scope(question)
     if not scope.active or response.mode not in {"answered", "partial"}:
-        return response
+        return None
     source_by_id = {source.chunk_id: source for source in response.sources}
     citation_by_id = {citation.claim_id: citation for citation in response.citations}
     kept = []
@@ -94,17 +118,31 @@ def enforce_answer_applicability(question: str, response: AnswerResponse) -> Ans
                 continue
             # UI previews are capped at 1000 characters. A verified span from
             # this exact source/version may legitimately lie beyond that cap.
-            spans = [span.quote for span in citation.supporting_spans
-                     if citation.support_kind == "exact_span" and span.citation_id == cid
-                     and span.index_run_id == source.index_run_id
-                     and span.version_id == source.version_id] if citation else []
+            spans = (
+                [
+                    span.quote
+                    for span in citation.supporting_spans
+                    if citation.support_kind == "exact_span"
+                    and span.citation_id == cid
+                    and span.index_run_id == source.index_run_id
+                    and span.version_id == source.version_id
+                ]
+                if citation
+                else []
+            )
             previews.append(("\n".join([source.preview, *spans]), tuple(source.section_path)))
         # Check each cited source independently: a correct header in source A
         # must not make an unrelated source B applicable by text concatenation.
-        if (not citation or not citation.supported or not previews
-                or len(previews) != len(claim.cited_chunk_ids)
-                or any(not scope_evidence_support(question, text, section_path=section)
-                       for text, section in previews)):
+        if (
+            not citation
+            or not citation.supported
+            or not previews
+            or len(previews) != len(claim.cited_chunk_ids)
+            or any(
+                not scope_evidence_support(question, text, section_path=section)
+                for text, section in previews
+            )
+        ):
             continue
         claim_locations = _locations(claim.text)
         if scope.locations and claim_locations and not claim_locations.issubset(scope.locations):
@@ -123,23 +161,34 @@ def enforce_answer_applicability(question: str, response: AnswerResponse) -> Ans
         "ambiguous_query": scope.ambiguous,
         "dropped_claims": dropped,
     }
-    trace = {**response.trace, "query_applicability": audit}
     if not missing and not dropped:
-        return response.model_copy(update={"trace": trace})
+        return ApplicabilityDecision(frozenset(c.claim_id for c in kept), (), audit)
     note = (
         "The visible evidence does not establish all requested office/branch and grade "
         "constraints. Unverified statements were withheld."
     )
+    return ApplicabilityDecision(frozenset(c.claim_id for c in kept), (note,), audit)
+
+
+def enforce_answer_applicability(question: str, response: AnswerResponse) -> AnswerResponse:
+    """Compatibility entry for extractive/custom builders and existing callers."""
+    decision = assess_answer_applicability(question, response)
+    if decision is None:
+        return response
+    trace = {**response.trace, "query_applicability": decision.audit}
+    if not decision.notes:
+        return response.model_copy(update={"trace": trace})
+    kept = [claim for claim in response.claims if claim.claim_id in decision.claim_ids]
     mode, reason = ("partial", "partial_evidence") if kept else ("not_found", "not_found")
-    claim_ids = {claim.claim_id for claim in kept}
+    claim_ids = decision.claim_ids
     source_ids = {cid for claim in kept for cid in claim.cited_chunk_ids}
     return AnswerResponse(
         mode=mode,
         stop_reason=reason,
-        answer="\n".join([*(claim.text for claim in kept), note]),
+        answer="\n".join([*(claim.text for claim in kept), *decision.notes]),
         claims=kept,
         citations=[c for c in response.citations if c.claim_id in claim_ids],
         sources=[s for s in response.sources if s.chunk_id in source_ids],
-        warnings=[*response.warnings, note],
+        warnings=[*response.warnings, *decision.notes],
         trace={**trace, "final_mode": mode, "stop_reason": reason},
     )

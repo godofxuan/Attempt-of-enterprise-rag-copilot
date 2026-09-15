@@ -612,7 +612,7 @@
 +        assert data["stop_reason"] == "partial_evidence" and data["warnings"]
 +
 +
-+@pytest.mark.parametrize(
+developer@example.com(
 +    "case,question,text,output,mode,slots,required,missing", CASES, ids=[r[0] for r in CASES]
 +)
 +def test_matrix_a(
@@ -665,7 +665,7 @@
 +    assert data["trace"]["generation_attempts"] == len(seen["llm"])
 +
 +
-+@pytest.fixture
+developer@example.com
 +def metadata_overrides(monkeypatch):
 +    updates = {}
 +    original_class = original.SmokeFixtureManifest
@@ -679,8 +679,8 @@
 +    return updates
 +
 +
-+@pytest.mark.parametrize("profile", ["hybrid_default", "safe_dense_raw20_bge"])
-+@pytest.mark.parametrize("case", ["B01", "B02", "B03", "B05", "B11", "B12"])
+developer@example.com("profile", ["hybrid_default", "safe_dense_raw20_bge"])
+developer@example.com("case", ["B01", "B02", "B03", "B05", "B11", "B12"])
 +def test_matrix_b_conflict(service, metadata_overrides, case, profile):
 +    start, seen, _ = service
 +    rows = [
@@ -721,7 +721,7 @@
 +        assert all(r["text"] in seen["scorer"] for r in rows)
 +
 +
-+@pytest.mark.parametrize(
+developer@example.com(
 +    "case,left,right",
 +    [
 +        ("B06", "退款争议处理期限为 7 天。", "退款争议处理期限为 7 天。"),
@@ -744,7 +744,7 @@
 +    consistent(data)
 +
 +
-+@pytest.mark.parametrize(
+developer@example.com(
 +    "case", ["B09_region", "B09_future", "B10_tenant", "B10_acl", "B10_supporting", "B10_guard"]
 +)
 +def test_matrix_b_admission(service, metadata_overrides, case):

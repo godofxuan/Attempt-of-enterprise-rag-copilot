@@ -18,7 +18,6 @@ from app.schemas import FeedbackResponse
 from app.security.identity import IdentityConfigurationError
 from app.security.token_source import BearerTokenSource
 
-
 RequestIdFactory = Callable[[], str]
 IdentityChannel = Literal["public", "persona", "operator"]
 
@@ -70,15 +69,11 @@ class EnterpriseRagClient:
         self.base_url = normalize_local_base_url(base_url)
         if session is None:
             self._sessions = {
-                channel: _new_cookie_free_session()
-                for channel in ("public", "persona", "operator")
+                channel: _new_cookie_free_session() for channel in ("public", "persona", "operator")
             }
         else:
             injected = _configure_cookie_free_session(session)
-            self._sessions = {
-                channel: injected
-                for channel in ("public", "persona", "operator")
-            }
+            self._sessions = {channel: injected for channel in ("public", "persona", "operator")}
         # Kept for callers that inject a recording session in tests.
         self.session = self._sessions["persona"]
         self.timeout_seconds = float(timeout_seconds)
@@ -111,10 +106,7 @@ class EnterpriseRagClient:
         if body_id != request_id:
             raise _invalid_response(request_id)
         feedback_receipt = _response_header(response, "X-Feedback-Receipt")
-        if (
-            feedback_receipt is None
-            or re.fullmatch(r"[0-9a-f]{64}", feedback_receipt) is None
-        ):
+        if feedback_receipt is None or re.fullmatch(r"[0-9a-f]{64}", feedback_receipt) is None:
             raise _invalid_response(request_id)
         return AskResult(
             request_id=request_id,
@@ -258,7 +250,13 @@ class EnterpriseRagClient:
             ) from None
         raise UiApiError(
             code=payload.error.code,
-            safe_message=payload.error.message,
+            safe_message=(
+                "The demo identity token is invalid or expired. The local operator can run "
+                "scripts.manage_demo_identity renew against the running API, then submit again. "
+                "Waiting does not renew it. If renewal fails, check the API key snapshot."
+                if payload.error.code == "invalid_token"
+                else payload.error.message
+            ),
             request_id=payload.error.request_id,
             retryable=payload.error.retryable,
         )

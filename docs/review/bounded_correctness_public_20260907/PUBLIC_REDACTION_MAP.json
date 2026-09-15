@@ -1,0 +1,361 @@
+{
+  "schema_version": "public-evidence-redaction-v1",
+  "scope": "Portable public derivatives only; business outcomes, test statuses, claims and source-code hashes were not rewritten.",
+  "private_original": "Original bytes remain in the local immutable audit packages and are not part of the public repository.",
+  "records": [
+    {
+      "path": "docs/flow_mainline_20260912/LOCAL_RUN.md",
+      "original_sha256": "884431c97984a684c74d47bcb9e72d064d53880e17389c665c2d54e2938354f6",
+      "public_sha256": "41dc0b2af2508af14436ed6ccde5b73f695c853ea5c84fe3553e623112b6ad36",
+      "replacement_counts": {
+        "windows_absolute_path": 4
+      }
+    },
+    {
+      "path": "docs/flow_mainline_20260912/REPORT.md",
+      "original_sha256": "51565c4ae06493ff29860814a7105248c6a108ad6f8f0ecc6520f489453d8ed1",
+      "public_sha256": "869303d4342df92f07ff7bce97eb23676b2f97e554008a3d98896ed11f5097e8",
+      "replacement_counts": {
+        "windows_absolute_path": 1
+      }
+    },
+    {
+      "path": "docs/model_default_qwen35_20260912/NOTE.md",
+      "original_sha256": "2cb134911fc602ff9733f69d58ec1d9d1e572875fc53f53c71e2f7a8a62abed5",
+      "public_sha256": "a9540b329d1bcd105b02b6a242061723e1291a4e799a0766d3c8a53411426309",
+      "replacement_counts": {
+        "windows_absolute_path": 1
+      }
+    },
+    {
+      "path": "docs/qwen35_recovery_validation_20260912/REPORT.md",
+      "original_sha256": "0b267162855493b8f21e552a147b52f23a7f696d01c7a89c1f449fe93d635e39",
+      "public_sha256": "49cb1c960725b1f6e83cb5a2e9742ae8e2ec3a9a278cc51a9eeaa6ccb4e59b90",
+      "replacement_counts": {
+        "windows_absolute_path": 1
+      }
+    },
+    {
+      "path": "docs/recovery_improvement_20260912/LOCAL_RUN.md",
+      "original_sha256": "12acc6455712e59a269cd159a4f46958bb018cda594b3d9df0efef4850960e58",
+      "public_sha256": "ff0a553be4dbef76bc3e046a7b7f434e377c7ff135d3a662e08bc0bf8aa82460",
+      "replacement_counts": {
+        "windows_absolute_path": 4
+      }
+    },
+    {
+      "path": "docs/recovery_improvement_20260912/REPORT.md",
+      "original_sha256": "233546a20a580afa2d3bdd3724c645ad50428ccd9c4727666e7d34fb2bf944c4",
+      "public_sha256": "ef0a16f579bec5342449b538e45c37e392bfa0a5c37c2f753cd6ab943f098430",
+      "replacement_counts": {
+        "windows_absolute_path": 2
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/ARTIFACT_MANIFEST.json",
+      "original_sha256": "fd2255e33c4733533c32dc5148a67ffece9b229ad403360c2059ad125bc56150",
+      "public_sha256": "9fa14ca252cdd01dc43056397f4acaca991fad915a15b36de97efaa638bd92c1",
+      "replacement_counts": {
+        "manifest_rebind": 1
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/ENVIRONMENT.json",
+      "original_sha256": "a98599ada133e37fc823f1d56cd72ebfd489e017b9bb15aa4a898f3779bccfa4",
+      "public_sha256": "b72f5a7dac7d1893420d2a49dfb9012d9dd2581bf5803c0d726bb6eb689c6a5a",
+      "replacement_counts": {
+        "windows_absolute_path": 1
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/HISTORICAL_ERRATUM.json",
+      "original_sha256": "98ef0db9d135fa6ce47f8db3be9e40f96a9e819ec6a681e9eb75d92728d7c590",
+      "public_sha256": "3ea1c86af552f98def601869b53779dc481ca6000292fdc0ad62ef38be00e74f",
+      "replacement_counts": {
+        "windows_absolute_path": 4
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/REPORT.md",
+      "original_sha256": "cbe8743c04ddc71d3a8b6d09c2f6db36a9f33bfd2d6b4a3c1dfd14a4ade9d7a7",
+      "public_sha256": "298f633fe67bc65270ddc0e9b7bdfdeddf27000b053dcb6db6c40df3332f3cdb",
+      "replacement_counts": {
+        "windows_absolute_path": 2
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/TARGET_IDENTITY_AFTER.json",
+      "original_sha256": "f4ed56effb9b5f81a5d8412f2b223264d260cb28badb3aa84dbc6457dac1cae9",
+      "public_sha256": "c5fdfc2cd20e9c742d1246c00c196e649053b4d96d01f77bea0bd1235bae02f3",
+      "replacement_counts": {
+        "windows_absolute_path": 4
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/TARGET_IDENTITY_BEFORE.json",
+      "original_sha256": "a60aa06aeae8724877e611bed7d3117de0993dea18d15b29282829a0bd75e68b",
+      "public_sha256": "de72351142e99ffeaa35e77ab3977206b405375855a76e43d9669ec0b93ac05c",
+      "replacement_counts": {
+        "windows_absolute_path": 6
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/TASK.md",
+      "original_sha256": "405d6339293fd56c1e40e0ffdeeb1ec973f22af327014e3d26fe622f7ee22d79",
+      "public_sha256": "5d34aa58097e2e1654ac37084301360645ac6c085fe8715632acc66129d7a8bd",
+      "replacement_counts": {
+        "windows_absolute_path": 4
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/TEST_RESULTS.json",
+      "original_sha256": "ba79613169fb19a79f7ea52d5a32716e2eba59c77b24ae3330f0af4d7ffd415d",
+      "public_sha256": "4f47f88780376b4d21a9f94a173dcc41fbf70098c474d46ecf8a327e7caf970f",
+      "replacement_counts": {
+        "windows_absolute_path": 59
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G1_final/imports_existing.json",
+      "original_sha256": "ed5c79ae5aedf9c5f49f3ce0a45b0574f0c05325c98b9f4c257d19e758373510",
+      "public_sha256": "acdd17719de0bc6a7172cd22d48c1867c5fdf6befb284de77e8569064f907f2a",
+      "replacement_counts": {
+        "windows_absolute_path": 100
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G1_initial/imports_existing.json",
+      "original_sha256": "ed5c79ae5aedf9c5f49f3ce0a45b0574f0c05325c98b9f4c257d19e758373510",
+      "public_sha256": "acdd17719de0bc6a7172cd22d48c1867c5fdf6befb284de77e8569064f907f2a",
+      "replacement_counts": {
+        "windows_absolute_path": 100
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G1_red/imports_existing.json",
+      "original_sha256": "ed5c79ae5aedf9c5f49f3ce0a45b0574f0c05325c98b9f4c257d19e758373510",
+      "public_sha256": "acdd17719de0bc6a7172cd22d48c1867c5fdf6befb284de77e8569064f907f2a",
+      "replacement_counts": {
+        "windows_absolute_path": 100
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G2_final/imports_existing.json",
+      "original_sha256": "66bd1cfaa57d804eb71dcedcc736d2b42e68813425c1f0913fc4fc9a30a6e58b",
+      "public_sha256": "56a8295411f557afd5c2ee6480303c655cc7a8208211ccd6f871f1e0786e246a",
+      "replacement_counts": {
+        "windows_absolute_path": 102
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G2_original25/imports_existing.json",
+      "original_sha256": "66bd1cfaa57d804eb71dcedcc736d2b42e68813425c1f0913fc4fc9a30a6e58b",
+      "public_sha256": "56a8295411f557afd5c2ee6480303c655cc7a8208211ccd6f871f1e0786e246a",
+      "replacement_counts": {
+        "windows_absolute_path": 102
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G3_adjacent/imports_existing.json",
+      "original_sha256": "51dd13c18a4ad7f80e35b9e0596afdf93406c1442223db1867e1caf19c71d5ae",
+      "public_sha256": "f817839db6537d60c2783f91a5bde65e9aaf3fbe6b6991c8d7c2e5926bcabcb3",
+      "replacement_counts": {
+        "windows_absolute_path": 59
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G3_final/imports_existing.json",
+      "original_sha256": "51dd13c18a4ad7f80e35b9e0596afdf93406c1442223db1867e1caf19c71d5ae",
+      "public_sha256": "f817839db6537d60c2783f91a5bde65e9aaf3fbe6b6991c8d7c2e5926bcabcb3",
+      "replacement_counts": {
+        "windows_absolute_path": 59
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G4_external14/imports_external.json",
+      "original_sha256": "f809e695bb6ca25e40928bf13844811378d5d98ddd13c24840101c4cbc2781eb",
+      "public_sha256": "ad506c8632db541909b022060ae17792c1bc4f1290fe668705340ba0b7562481",
+      "replacement_counts": {
+        "windows_absolute_path": 94
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/audit/G4_final/imports_external.json",
+      "original_sha256": "f809e695bb6ca25e40928bf13844811378d5d98ddd13c24840101c4cbc2781eb",
+      "public_sha256": "ad506c8632db541909b022060ae17792c1bc4f1290fe668705340ba0b7562481",
+      "replacement_counts": {
+        "windows_absolute_path": 94
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/changes/RECONSTRUCTION.json",
+      "original_sha256": "819127980c786630b57827c29f1a264f82f18179adaf84efe3c66630e2533eca",
+      "public_sha256": "0dab8d276e1a2454a8c20dbfab36976c05042505a22e7163e0b6d6d4793f50b7",
+      "replacement_counts": {
+        "windows_absolute_path": 2
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/changes/this_round.patch",
+      "original_sha256": "f3b14fd4cff4fb0180713bf8a1f6cac547750f9b215955ec5c5457530f54f7f7",
+      "public_sha256": "16f4ae8c9c1c0aabbaf0f35fbf01c20697e2612986760534ab4f21afed7e2449",
+      "replacement_counts": {
+        "non_example_email": 6
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/approval_conflict/logs/G1_red.txt",
+      "original_sha256": "eb432e01b945cc06bd2db1bf1905afac70ea0b4a530435a5805af9653e031812",
+      "public_sha256": "6bb58aa979ca45ccb5918b22c0658f180d7a7240b36e2d5f66f3ae38e1b2ce05",
+      "replacement_counts": {
+        "windows_absolute_path": 2,
+        "line_end_whitespace": 1
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/ARTIFACT_MANIFEST.json",
+      "original_sha256": "c2470dd509ad99f9c10d7285f927f738bf0255c02baf15d5e2020846d58f0ed8",
+      "public_sha256": "9377ff397b192f87c6895c6f424e97b51031518f176e4d81b52e97f1cacee402",
+      "replacement_counts": {
+        "manifest_rebind": 1
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/RECONSTRUCTION.json",
+      "original_sha256": "6a574768f52dc4ac3a45d088cb41b26bc4c33d4b9a2b022e5c83f27a53264840",
+      "public_sha256": "ddb483e29fe398b11c3b7d9ef2ddb978c1ea00a883a1a0404d6055c1861c1311",
+      "replacement_counts": {
+        "windows_absolute_path": 2
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/REPORT.md",
+      "original_sha256": "c257226dc89e9dbd7641dbae82ad10768ac6866d265914ab6a86cd680d550301",
+      "public_sha256": "c4cbb375a7ea00a24f6935cd9ec6428a66b0481aa01cb2c99229477adcb79f18",
+      "replacement_counts": {
+        "windows_absolute_path": 1
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/TARGET_IDENTITY_AFTER.json",
+      "original_sha256": "0e6d46269887d0c1d4b53d653513a8bf6ce87ec42dae4157bae2948275db22ea",
+      "public_sha256": "31acb9496acafe6345693ca807461eb44b1bd5e426b53694d50d86f9a563dd08",
+      "replacement_counts": {
+        "windows_absolute_path": 2
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/TEST_RESULTS.json",
+      "original_sha256": "280120437d48e725adaa6d8ce687f2a57fc7193bf5ec9ceceb56d2afdb4170da",
+      "public_sha256": "5263225a99e6f65336de2d3201f43d1f3b03d3d28e9dfdba735edf34d961c9c2",
+      "replacement_counts": {
+        "windows_absolute_path": 64
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G0_boundary_red/imports_existing.json",
+      "original_sha256": "58edf49f414728a949cd0764371396705654df7b70903a7823f5ee7683f22498",
+      "public_sha256": "bb553f5514b7f0a602c113c5e26ffb21d15219a8e798937a86894cdcb087718f",
+      "replacement_counts": {
+        "windows_absolute_path": 35
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G0_red/imports_existing.json",
+      "original_sha256": "ed5c79ae5aedf9c5f49f3ce0a45b0574f0c05325c98b9f4c257d19e758373510",
+      "public_sha256": "acdd17719de0bc6a7172cd22d48c1867c5fdf6befb284de77e8569064f907f2a",
+      "replacement_counts": {
+        "windows_absolute_path": 100
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G1_final/imports_existing.json",
+      "original_sha256": "0b8c88f2a82187704ba88ef189847739e2ff051f2712fbb229f6491e2c9c33c8",
+      "public_sha256": "e1e19c309028e5c0ac5a1e51590321a4fcc04adaa2ccd7bd4fcf874fd4f0bf9b",
+      "replacement_counts": {
+        "windows_absolute_path": 102
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G1_release/imports_existing.json",
+      "original_sha256": "0b8c88f2a82187704ba88ef189847739e2ff051f2712fbb229f6491e2c9c33c8",
+      "public_sha256": "e1e19c309028e5c0ac5a1e51590321a4fcc04adaa2ccd7bd4fcf874fd4f0bf9b",
+      "replacement_counts": {
+        "windows_absolute_path": 102
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G2_final/imports_existing.json",
+      "original_sha256": "66bd1cfaa57d804eb71dcedcc736d2b42e68813425c1f0913fc4fc9a30a6e58b",
+      "public_sha256": "56a8295411f557afd5c2ee6480303c655cc7a8208211ccd6f871f1e0786e246a",
+      "replacement_counts": {
+        "windows_absolute_path": 102
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G2_release/imports_existing.json",
+      "original_sha256": "66bd1cfaa57d804eb71dcedcc736d2b42e68813425c1f0913fc4fc9a30a6e58b",
+      "public_sha256": "56a8295411f557afd5c2ee6480303c655cc7a8208211ccd6f871f1e0786e246a",
+      "replacement_counts": {
+        "windows_absolute_path": 102
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G3_final/imports_existing.json",
+      "original_sha256": "6412fa46599863d2db2406032b4686c0164c21244c957dbb39dcaa373c271c52",
+      "public_sha256": "01500772798a64e86ef2483835b9e7014900bf5f53356f5c78dea98d61a3ed91",
+      "replacement_counts": {
+        "windows_absolute_path": 60
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G3_release/imports_existing.json",
+      "original_sha256": "6412fa46599863d2db2406032b4686c0164c21244c957dbb39dcaa373c271c52",
+      "public_sha256": "01500772798a64e86ef2483835b9e7014900bf5f53356f5c78dea98d61a3ed91",
+      "replacement_counts": {
+        "windows_absolute_path": 60
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G4_final/imports_external.json",
+      "original_sha256": "f809e695bb6ca25e40928bf13844811378d5d98ddd13c24840101c4cbc2781eb",
+      "public_sha256": "ad506c8632db541909b022060ae17792c1bc4f1290fe668705340ba0b7562481",
+      "replacement_counts": {
+        "windows_absolute_path": 94
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/audit/G4_release/imports_external.json",
+      "original_sha256": "f809e695bb6ca25e40928bf13844811378d5d98ddd13c24840101c4cbc2781eb",
+      "public_sha256": "ad506c8632db541909b022060ae17792c1bc4f1290fe668705340ba0b7562481",
+      "replacement_counts": {
+        "windows_absolute_path": 94
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/changes/this_round.patch",
+      "original_sha256": "9a2e12b2202fcc471cc855dbabe5a25804500e3b4a20d3742b5ce0acae251c81",
+      "public_sha256": "3c986b35846df4518b8c44555e8c0c05752b8cb2819f2599570b80d880b4025d",
+      "replacement_counts": {
+        "non_example_email": 3
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/logs/G0_boundary_red.txt",
+      "original_sha256": "a46b2833493c4c3b468195fa7604355f5584778ebf18bc04fedd95a242404313",
+      "public_sha256": "232a20bcd0e8078ae7f7f8e49360815de0bd8e86fc886ae3b803d32546d76b02",
+      "replacement_counts": {
+        "windows_absolute_path": 2
+      }
+    },
+    {
+      "path": "docs/review/bounded_correctness_public_20260907/temporal_fix/logs/G0_red.txt",
+      "original_sha256": "43135a00ec2bcf8cc4e8a705053c70c3c7a690872c1b2ca4945d04ef9e71e2b7",
+      "public_sha256": "b81c426d8a7b78eed21a396f39b9e61e8eababf979f52eddbdc4bac4e72caa74",
+      "replacement_counts": {
+        "windows_absolute_path": 2,
+        "line_end_whitespace": 1
+      }
+    }
+  ]
+}

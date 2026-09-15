@@ -301,7 +301,7 @@
     "before": "636305c145884e8f4b9bb4b9b77936c577c9044501d48b0494f787049bf76c01",
     "classification": "PRODUCT_ASSERTION_FAILURE",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -313,9 +313,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G1_red\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G1_red\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -323,7 +323,7 @@
       "PASSED": 16,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:15:22.969140+08:00",
     "exit_code": 1,
     "fixture_scope": "Actual JWT, app, controller, admission, citation; existing embedding/scorer/chat/readiness stubs. Other groups use their unchanged test-level fixtures. Real sockets blocked in pytest.",
@@ -689,7 +689,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "FAILED",
     "run_id": "G1_red",
@@ -1423,7 +1423,7 @@
     "before": "c45f5b6457632e05646f6cb9506a19dc6ea35fe7b0173cc8692406461d46a48b",
     "classification": "PRODUCT_ASSERTION_FAILURE",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -1435,9 +1435,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G1_initial\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G1_initial\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -1445,7 +1445,7 @@
       "PASSED": 58,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:18:59.024774+08:00",
     "exit_code": 1,
     "fixture_scope": "Actual JWT, app, controller, admission, citation; existing embedding/scorer/chat/readiness stubs. Other groups use their unchanged test-level fixtures. Real sockets blocked in pytest.",
@@ -1811,7 +1811,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "FAILED",
     "run_id": "G1_initial",
@@ -2265,7 +2265,7 @@
     "before": "c45f5b6457632e05646f6cb9506a19dc6ea35fe7b0173cc8692406461d46a48b",
     "classification": null,
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -2278,9 +2278,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G2_original25\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G2_original25\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -2288,7 +2288,7 @@
       "PASSED": 25,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:19:50.318103+08:00",
     "exit_code": 0,
     "fixture_scope": "Actual JWT, app, controller, admission, citation; existing embedding/scorer/chat/readiness stubs. Other groups use their unchanged test-level fixtures. Real sockets blocked in pytest.",
@@ -2450,7 +2450,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "G2_original25",
@@ -2904,7 +2904,7 @@
     "before": "c45f5b6457632e05646f6cb9506a19dc6ea35fe7b0173cc8692406461d46a48b",
     "classification": null,
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -2920,9 +2920,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G3_adjacent\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G3_adjacent\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -2930,7 +2930,7 @@
       "PASSED": 66,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:19:54.073585+08:00",
     "exit_code": 0,
     "fixture_scope": "Actual JWT, app, controller, admission, citation; existing embedding/scorer/chat/readiness stubs. Other groups use their unchanged test-level fixtures. Real sockets blocked in pytest.",
@@ -3338,7 +3338,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "G3_adjacent",
@@ -3847,11 +3847,11 @@
     "before": "c45f5b6457632e05646f6cb9506a19dc6ea35fe7b0173cc8692406461d46a48b",
     "classification": "LEGACY_PRECONDITION_MISMATCH",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G4_external14\\external_checks\\test_counterexamples.py",
+      "LOCAL_PATH_REDACTED",
       "-q",
       "-rs",
       "-p",
@@ -3859,9 +3859,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G4_external14\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G4_external14\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -3869,7 +3869,7 @@
       "PASSED": 13,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:20:01.338171+08:00",
     "exit_code": 1,
     "fixture_scope": "Actual JWT, app, controller, admission, citation; existing embedding/scorer/chat/readiness stubs. Other groups use their unchanged test-level fixtures. Real sockets blocked in pytest.",
@@ -3965,7 +3965,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "FAILED",
     "run_id": "G4_external14",
@@ -4409,7 +4409,7 @@
     "before": "c45f5b6457632e05646f6cb9506a19dc6ea35fe7b0173cc8692406461d46a48b",
     "classification": "LINT_FAILURE",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "ruff",
@@ -4422,7 +4422,7 @@
       "tests/api_v2/test_bounded_correctness_matrix.py"
     ],
     "counts": null,
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:21:12.582556+08:00",
     "exit_code": 1,
     "fixture_scope": "Actual JWT, app, controller, admission, citation; existing embedding/scorer/chat/readiness stubs. Other groups use their unchanged test-level fixtures. Real sockets blocked in pytest.",
@@ -4430,7 +4430,7 @@
     "nodes": [],
     "phase": "INITIAL",
     "platform": "Windows-10-10.0.26200-SP0",
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "FAILED",
     "run_id": "lint_before_format",
@@ -4449,7 +4449,7 @@
     "before": "72dc29408bdf96f8d0fd53253ec5ba3a9d57c6598803613a2df5b7d90e5710e0",
     "classification": null,
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "ruff",
@@ -4462,7 +4462,7 @@
       "tests/api_v2/test_bounded_correctness_matrix.py"
     ],
     "counts": null,
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:21:40.929310+08:00",
     "exit_code": 0,
     "fixture_scope": "Actual JWT, app, controller, admission, citation; existing embedding/scorer/chat/readiness stubs. Other groups use their unchanged test-level fixtures. Real sockets blocked in pytest.",
@@ -4470,7 +4470,7 @@
     "nodes": [],
     "phase": "FINAL",
     "platform": "Windows-10-10.0.26200-SP0",
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "lint_final",
@@ -4779,7 +4779,7 @@
     "before": "72dc29408bdf96f8d0fd53253ec5ba3a9d57c6598803613a2df5b7d90e5710e0",
     "classification": "PRODUCT_ASSERTION_FAILURE",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -4791,9 +4791,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G1_final\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G1_final\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -4801,7 +4801,7 @@
       "PASSED": 58,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:22:08.230034+08:00",
     "exit_code": 1,
     "fixture_scope": "Actual JWT, app, controller, admission, citation; existing embedding/scorer/chat/readiness stubs. Other groups use their unchanged test-level fixtures. Real sockets blocked in pytest.",
@@ -5167,7 +5167,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "FAILED",
     "run_id": "G1_final",
@@ -5621,7 +5621,7 @@
     "before": "72dc29408bdf96f8d0fd53253ec5ba3a9d57c6598803613a2df5b7d90e5710e0",
     "classification": null,
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -5634,9 +5634,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G2_final\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G2_final\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -5644,7 +5644,7 @@
       "PASSED": 25,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:22:25.164982+08:00",
     "exit_code": 0,
     "fixture_scope": "Actual JWT, app, controller, admission, citation; existing embedding/scorer/chat/readiness stubs. Other groups use their unchanged test-level fixtures. Real sockets blocked in pytest.",
@@ -5806,7 +5806,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "G2_final",
@@ -6260,7 +6260,7 @@
     "before": "72dc29408bdf96f8d0fd53253ec5ba3a9d57c6598803613a2df5b7d90e5710e0",
     "classification": null,
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
@@ -6276,9 +6276,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G3_final\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G3_final\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -6286,7 +6286,7 @@
       "PASSED": 66,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:22:28.579098+08:00",
     "exit_code": 0,
     "fixture_scope": "Actual JWT, app, controller, admission, citation; existing embedding/scorer/chat/readiness stubs. Other groups use their unchanged test-level fixtures. Real sockets blocked in pytest.",
@@ -6694,7 +6694,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "G3_final",
@@ -7203,11 +7203,11 @@
     "before": "72dc29408bdf96f8d0fd53253ec5ba3a9d57c6598803613a2df5b7d90e5710e0",
     "classification": "LEGACY_PRECONDITION_MISMATCH",
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "pytest",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G4_final\\external_checks\\test_counterexamples.py",
+      "LOCAL_PATH_REDACTED",
       "-q",
       "-rs",
       "-p",
@@ -7215,9 +7215,9 @@
       "-p",
       "offline_plugin",
       "--basetemp",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G4_final\\pytest",
+      "LOCAL_PATH_REDACTED",
       "--junitxml",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\runs\\G4_final\\results.xml"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": {
       "BLOCKED": 0,
@@ -7225,7 +7225,7 @@
       "PASSED": 13,
       "SKIPPED": 0
     },
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:22:35.320344+08:00",
     "exit_code": 1,
     "fixture_scope": "Actual JWT, app, controller, admission, citation; existing embedding/scorer/chat/readiness stubs. Other groups use their unchanged test-level fixtures. Real sockets blocked in pytest.",
@@ -7321,7 +7321,7 @@
     "plugins": [
       "offline_plugin"
     ],
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "FAILED",
     "run_id": "G4_final",
@@ -7765,19 +7765,19 @@
     "before": "72dc29408bdf96f8d0fd53253ec5ba3a9d57c6598803613a2df5b7d90e5710e0",
     "classification": null,
     "command": [
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+      "LOCAL_PATH_REDACTED",
       "-B",
       "-m",
       "scripts.verify_runtime_closure",
       "--evidence",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\reference\\audit\\evidence\\runtime_delivery_20260905",
+      "LOCAL_PATH_REDACTED",
       "--gold-directory",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch\\reference\\audit\\evidence\\followup_20260907",
+      "LOCAL_PATH_REDACTED",
       "--output",
-      "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\delivery\\replay"
+      "LOCAL_PATH_REDACTED"
     ],
     "counts": null,
-    "cwd": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+    "cwd": "LOCAL_PATH_REDACTED",
     "end": "2026-09-07T22:22:36.753756+08:00",
     "exit_code": 0,
     "fixture_scope": "Actual JWT, app, controller, admission, citation; existing embedding/scorer/chat/readiness stubs. Other groups use their unchanged test-level fixtures. Real sockets blocked in pytest.",
@@ -7785,7 +7785,7 @@
     "nodes": [],
     "phase": "FINAL",
     "platform": "Windows-10-10.0.26200-SP0",
-    "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+    "python": "LOCAL_PATH_REDACTED",
     "real_model_calls": 0,
     "result": "PASSED",
     "run_id": "evidence_verifier",

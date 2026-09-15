@@ -42,12 +42,12 @@
 +        return cls(2026, 9, 7, 12, tzinfo=UTC)
 +
 +
-+@pytest.fixture(autouse=True)
+developer@example.com(autouse=True)
 +def fixed_clock(monkeypatch):
 +    monkeypatch.setattr(module, "datetime", FixedUTC, raising=False)
 +
 +
-+@pytest.mark.parametrize(
+developer@example.com(
 +    "start,end,status,expected",
 +    [
 +        (date(2026, 9, 8), None, "active", False),
@@ -67,7 +67,7 @@
 +    assert bool(result.hits) is expected
 +
 +
-+@pytest.mark.parametrize("scope", ["all", "historical", "as_of"])
+developer@example.com("scope", ["all", "historical", "as_of"])
 +def test_explicit_temporal_scopes_unchanged(chunk_factory, scope):
 +    chunk = chunk_factory(
 +        effective_from=date(2027, 1, 1),

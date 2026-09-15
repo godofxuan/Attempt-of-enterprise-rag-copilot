@@ -4,7 +4,6 @@ from pathlib import Path
 
 from scripts.eval_enterprise_v2 import verify_frozen_test_hash
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 
@@ -24,6 +23,7 @@ EXPECTED_REQUIREMENTS = {
     "pytest==9.0.3",
     "pypdf==6.14.2",
     "python-docx==1.2.0",
+    "markdown-it-py==4.2.0",
     "PyJWT==2.13.0",
     "cryptography==49.0.0",
     "mcp==2.0.0",
@@ -70,7 +70,7 @@ def test_ci_is_read_only_deterministic_and_does_not_call_live_services() -> None
         "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
         "fetch-depth: 0",
         "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
-        "python-version: \"3.11.9\"",
+        'python-version: "3.11.9"',
         "cache: pip",
         "python -m pip install pip==26.0.1",
         "python -m pip install -r requirements.txt",

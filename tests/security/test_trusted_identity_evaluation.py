@@ -20,7 +20,6 @@ from app.evaluation.trusted_identity import (
 )
 from scripts.eval_trusted_identity import _write_new_result
 
-
 ROOT = Path(__file__).resolve().parents[2]
 MATRIX = ROOT / "data" / "v2" / "security" / "r2_s5_identity_matrix_v1.json"
 PUBLIC_RESULT = (
@@ -29,8 +28,12 @@ PUBLIC_RESULT = (
     / "security"
     / "r2_s5"
     / "evidence"
-    / "identity_matrix_result_e16.json"
+    / "identity_matrix_result_release_20260915_v2.json"
 )
+PRE_FORMAT_RELEASE_RESULT = PUBLIC_RESULT.with_name(
+    "identity_matrix_result_release_20260915.json"
+)
+HISTORICAL_E16_PUBLIC_RESULT = PUBLIC_RESULT.with_name("identity_matrix_result_e16.json")
 HISTORICAL_PUBLIC_RESULT = PUBLIC_RESULT.with_name("identity_matrix_result.json")
 
 
@@ -74,10 +77,7 @@ def test_frozen_trusted_identity_matrix_passes_without_side_effect_or_leak() -> 
     assert result.release_pass is True
     assert all(case.passed for case in result.cases)
     chat = next(case for case in result.cases if case.case_id == "chat_verified_user")
-    feedback = next(
-        case for case in result.cases
-        if case.case_id == "feedback_verified_user"
-    )
+    feedback = next(case for case in result.cases if case.case_id == "feedback_verified_user")
     assert chat.chat_receipt_match is True
     assert feedback.feedback_binding_match is True
     assert feedback.feedback_privacy_match is True
@@ -98,6 +98,27 @@ def test_historical_v2_identity_result_remains_parseable_and_immutable() -> None
 
     assert historical.schema_version == "trusted-identity-evaluation-v2"
     assert set(historical.source_sha256) == set(TRUSTED_IDENTITY_SOURCE_FILES_V2)
+    assert historical.release_pass is True
+
+
+def test_historical_e16_identity_result_remains_parseable() -> None:
+    historical = TrustedIdentityEvaluationResult.model_validate_json(
+        HISTORICAL_E16_PUBLIC_RESULT.read_text(encoding="utf-8")
+    )
+
+    assert historical.schema_version == "trusted-identity-evaluation-v3"
+    assert historical.total_cases == 20
+    assert historical.passed_cases == 20
+    assert historical.release_pass is True
+
+
+def test_pre_format_release_identity_result_remains_parseable() -> None:
+    historical = TrustedIdentityEvaluationResult.model_validate_json(
+        PRE_FORMAT_RELEASE_RESULT.read_text(encoding="utf-8")
+    )
+
+    assert historical.total_cases == 20
+    assert historical.passed_cases == 20
     assert historical.release_pass is True
 
 

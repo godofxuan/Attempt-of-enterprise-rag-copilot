@@ -1,13 +1,12 @@
-from functools import lru_cache
 import os
-from pathlib import Path
 import re
+from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 IDENTITY_CLOCK_SKEW_MAX_SECONDS = 120
@@ -33,9 +32,7 @@ class Settings(BaseSettings):
     v2_indexes_dir: Path = data_dir / "indexes_v2"
     lifecycle_input_root: Path = data_dir / "enterprise_bundle"
     lifecycle_index_root: Path = data_dir / "indexes_lifecycle"
-    lifecycle_private_root: Path = (
-        BASE_DIR / ".private" / "lifecycle" / "runtime"
-    )
+    lifecycle_private_root: Path = BASE_DIR / ".private" / "lifecycle" / "runtime"
     runtime_cache_dir: Path = Field(default_factory=_default_runtime_cache_dir)
     v2_corpus_profile: Literal[
         "demo",
@@ -47,17 +44,15 @@ class Settings(BaseSettings):
 
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = "ollama"
-    chat_model: str = "qwen2.5:3b"
-    evidence_model: str = "qwen3:8b"
+    chat_model: str = "qwen3.5:4b"
+    evidence_model: str = "qwen3.5:4b"
     embedding_model: str = "bge-m3"
 
     deployment_release_id: str | None = None
     deployment_expected_index_run_id: str | None = None
     deployment_expected_index_manifest_sha256: str | None = None
 
-    identity_jwks_path: Path = (
-        BASE_DIR / ".private" / "identity" / "jwks.json"
-    ).resolve()
+    identity_jwks_path: Path = (BASE_DIR / ".private" / "identity" / "jwks.json").resolve()
     identity_feedback_hmac_key_path: Path = (
         BASE_DIR / ".private" / "identity" / "feedback_actor_hmac.key"
     ).resolve()
@@ -96,6 +91,7 @@ class Settings(BaseSettings):
     agent_v2_max_steps: int = Field(default=12, ge=1, le=50)
     agent_v2_max_context_chars: int = Field(default=12_000, ge=100, le=100_000)
     agent_v2_deadline_ms: int = Field(default=15_000, ge=100, le=300_000)
+    agent_v2_task_advisor_enabled: bool = False
 
     api_request_deadline_ms: int = Field(default=15_000, ge=100, le=300_000)
     model_request_timeout_seconds: float = Field(default=12.0, gt=0, le=300)
@@ -107,9 +103,7 @@ class Settings(BaseSettings):
         default=60.0,
         gt=0,
         le=300,
-        description=(
-            "Total deadline shared by the complete readiness model probe."
-        ),
+        description=("Total deadline shared by the complete readiness model probe."),
     )
     readiness_ttl_seconds: float = Field(default=5.0, gt=0, le=300)
     trace_buffer_size: int = Field(default=200, ge=10, le=10_000)
@@ -157,18 +151,14 @@ class Settings(BaseSettings):
         if all(value is None for value in values):
             return self
         if any(value is None for value in values):
-            raise ValueError(
-                "deployment release and expected index binding must be set together"
-            )
+            raise ValueError("deployment release and expected index binding must be set together")
         assert self.deployment_release_id is not None
         assert self.deployment_expected_index_run_id is not None
         assert self.deployment_expected_index_manifest_sha256 is not None
         identifier_pattern = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
         if (
             not identifier_pattern.fullmatch(self.deployment_release_id)
-            or not identifier_pattern.fullmatch(
-                self.deployment_expected_index_run_id
-            )
+            or not identifier_pattern.fullmatch(self.deployment_expected_index_run_id)
             or not re.fullmatch(
                 r"[0-9a-f]{64}",
                 self.deployment_expected_index_manifest_sha256,
@@ -179,10 +169,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_dark_observation_boundary(self) -> "Settings":
-        if (
-            self.dark_observation_mode == "OFF"
-            and self.dark_observation_sample_basis_points != 0
-        ):
+        if self.dark_observation_mode == "OFF" and self.dark_observation_sample_basis_points != 0:
             raise ValueError("OFF dark observation requires zero sampling")
         if (
             self.dark_observation_mode == "LOCAL_TEST_ONLY"
@@ -232,9 +219,7 @@ class Settings(BaseSettings):
         resolved = Path(os.path.abspath(candidate))
         repository_root = BASE_DIR.resolve()
         private_root = (BASE_DIR / ".private").resolve()
-        if resolved.is_relative_to(repository_root) and not resolved.is_relative_to(
-            private_root
-        ):
+        if resolved.is_relative_to(repository_root) and not resolved.is_relative_to(private_root):
             raise ValueError("identity private file path must be under .private")
         return resolved
 

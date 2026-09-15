@@ -119,7 +119,7 @@ class DocumentNavigator:
                 not chunk.indexable or not self.bound_resource_allowed(request, chunk)
             ):
                 continue
-            if not _text_matches(request.pattern, chunk.text):
+            if not _find_matches_request(request, chunk, self.snapshot):
                 continue
             matches.append(
                 FindMatch(
@@ -127,6 +127,7 @@ class DocumentNavigator:
                     chunk_id=chunk.chunk_id,
                     section_path=chunk.section_path,
                     preview=_preview(chunk.text, request.pattern),
+                    preview_start=_preview_start(chunk.text, request.pattern),
                 )
             )
             if len(matches) == request.max_results:
@@ -167,14 +168,17 @@ class DocumentNavigator:
 
         if self._expired(started, request.timeout_ms):
             return _tool_error("timeout")
-        truncated = len(content) > request.max_chars
+        if request.start_char >= len(content):
+            return _tool_error("not_found")
+        truncated = request.start_char > 0 or len(content) > request.start_char + request.max_chars
         return OpenResult(
             request_id=request.request_id,
             target_type=request.target_type,
             target_id=request.target_id,
             doc_id=doc_id,
-            content=content[: request.max_chars],
+            content=content[request.start_char : request.start_char + request.max_chars],
             truncated=truncated,
+            start_char=request.start_char,
             source_path=source_path,
             section_path=section_path,
         )
@@ -192,18 +196,24 @@ class DocumentNavigator:
         if document is None or not self.access_policy.evaluate(request.user, document).allowed:
             return False
         if (document.document_version.version_id, document.tenant_id, document.policy_id) != (
-            anchor.version_id, anchor.tenant_id, anchor.policy_id
+            anchor.version_id,
+            anchor.tenant_id,
+            anchor.policy_id,
         ):
             return False
-        if resource.doc_id != anchor.doc_id or not self.access_policy.evaluate(request.user, resource).allowed:
+        if (
+            resource.doc_id != anchor.doc_id
+            or not self.access_policy.evaluate(request.user, resource).allowed
+        ):
             return False
         if isinstance(resource, DocumentRecord):
             return resource.doc_id == document.doc_id
-        return (
-            (resource.version_id, resource.tenant_id, resource.region, resource.policy_id) ==
-            (anchor.version_id, anchor.tenant_id, anchor.region, anchor.policy_id)
-            and _matches_filters(resource, request.filters)
-        )
+        return (resource.version_id, resource.tenant_id, resource.region, resource.policy_id) == (
+            anchor.version_id,
+            anchor.tenant_id,
+            anchor.region,
+            anchor.policy_id,
+        ) and _matches_filters(resource, request.filters)
 
     def _resolve_target(
         self,
@@ -222,6 +232,23 @@ class DocumentNavigator:
         return (self.clock() - started) * 1000 > timeout_ms
 
 
+def _find_matches_request(
+    request: FindRequest,
+    chunk: ChunkRecord,
+    snapshot: V2IndexSnapshot,
+) -> bool:
+    # ACL/version/filter checks remain mandatory at both the navigator and binding.
+    if request.match_mode == "text":
+        return _text_matches(request.pattern, chunk.text)
+    anchor = snapshot.all_chunks_by_id.get(request.anchor_chunk_id)
+    return bool(
+        anchor is not None
+        and request.filters is not None
+        and chunk.doc_id == anchor.doc_id
+        and chunk.section_path == anchor.section_path
+    )
+
+
 def _chunk_order(chunk: ChunkRecord) -> tuple[int, int, str]:
     return (
         chunk.locator.start,
@@ -235,23 +262,28 @@ def _text_matches(pattern: str, text: str) -> bool:
     normalized_text = text.casefold()
     if normalized_pattern in normalized_text:
         return True
-    pattern_tokens = {
-        token.casefold() for token in tokenize_for_bm25(pattern) if token.strip()
-    }
-    text_tokens = {
-        token.casefold() for token in tokenize_for_bm25(text) if token.strip()
-    }
+    pattern_tokens = {token.casefold() for token in tokenize_for_bm25(pattern) if token.strip()}
+    text_tokens = {token.casefold() for token in tokenize_for_bm25(text) if token.strip()}
     return bool(pattern_tokens) and pattern_tokens.issubset(text_tokens)
 
 
 def _preview(text: str, pattern: str, max_chars: int = 240) -> str:
+    start = _preview_start(text, pattern, max_chars)
+    return text[start : start + max_chars]
+
+
+def _preview_start(text: str, pattern: str, max_chars: int = 240) -> int:
+    from app.domain.evidence_packet import SOURCE_UNIT_END
+
     position = text.casefold().find(pattern.casefold())
     if position < 0:
         position = 0
     start = max(0, position - max_chars // 3)
     end = min(len(text), start + max_chars)
     start = max(0, end - max_chars)
-    return text[start:end]
+    # Keep the start of the containing sentence; a window must not erase its "if/not".
+    boundaries = [match.end() for match in SOURCE_UNIT_END.finditer(text[:start])]
+    return boundaries[-1] if boundaries else 0
 
 
 def _tool_error(code: ToolErrorCode) -> ToolError:

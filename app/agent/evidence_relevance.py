@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import re
 
-from app.agent.answer_contract import bounded_answer_slots
 from app.agent.answer_applicability import scope_evidence_support
+from app.agent.answer_contract import bounded_answer_slots
+from app.agent.question_parts import has_explicit_part_anchor
 from app.domain.retrieved_security import AdmittedEvidenceChunk
-from app.utils import tokenize_for_bm25
 from app.retrieval.query_normalization import retrieval_query
+from app.utils import tokenize_for_bm25
 
 _GENERIC_QUERY_TOKENS = {
     "a",
@@ -78,7 +79,12 @@ def _bare_policy_entity(query: str) -> str | None:
     return entity
 
 
-def has_query_anchor_support(query: str, evidence: AdmittedEvidenceChunk) -> bool:
+def has_query_anchor_support(
+    query: str,
+    evidence: AdmittedEvidenceChunk,
+    *,
+    advisory_partial: bool = False,
+) -> bool:
     if not isinstance(evidence, AdmittedEvidenceChunk):
         raise TypeError("query-anchor evidence must be an admitted chunk")
     hit = evidence.hit
@@ -124,7 +130,9 @@ def has_query_anchor_support(query: str, evidence: AdmittedEvidenceChunk) -> boo
         ):
             meaningful = {token for token in anchors if len(token) > 1}
             if meaningful:
-                return len(meaningful.intersection(evidence_tokens)) >= min(2, len(meaningful))
+                return len(meaningful.intersection(evidence_tokens)) >= min(
+                    1 if advisory_partial else 2, len(meaningful)
+                ) or has_explicit_part_anchor(query, evidence_text)
         return bool(anchors.intersection(evidence_tokens))
 
     entity_or_query = (entity_tokens or query_tokens) - _GENERIC_QUERY_TOKENS

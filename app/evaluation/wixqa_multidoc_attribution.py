@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import hashlib
 from collections import Counter
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Literal, Mapping, Sequence
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -19,7 +20,6 @@ from app.domain.retrieved_security import GuardedV2ToolExecution
 from app.external_datasets.wixqa import WixQAQuestion
 from app.external_datasets.wixqa_agent_eval import WixQARankedNavigator
 from app.retrieval.pipeline import RankedSearchPool
-
 
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
 STAGE_SEQUENCE = (
@@ -45,9 +45,7 @@ class FirstLossStage(StrEnum):
     CONTROLLER_SEARCH_INSUFFICIENT = "CONTROLLER_SEARCH_INSUFFICIENT"
     LEDGER_ASSEMBLY_LOSS = "LEDGER_ASSEMBLY_LOSS"
     PROMPT_BUDGET_LOSS = "PROMPT_BUDGET_LOSS"
-    RESPONSE_BUILDER_CITATION_OMISSION = (
-        "RESPONSE_BUILDER_CITATION_OMISSION"
-    )
+    RESPONSE_BUILDER_CITATION_OMISSION = "RESPONSE_BUILDER_CITATION_OMISSION"
     GENERATOR_CITATION_OMISSION = "GENERATOR_CITATION_OMISSION"
     GROUNDING_GATE_REMOVAL = "GROUNDING_GATE_REMOVAL"
     EVALUATOR_MISMATCH = "EVALUATOR_MISMATCH"
@@ -63,9 +61,7 @@ class FrozenMultiDocCase(BaseModel):
     gold_support_article_ids: list[str] = Field(min_length=2)
 
     @classmethod
-    def from_protocol_record(
-        cls, record: Mapping[str, object]
-    ) -> "FrozenMultiDocCase":
+    def from_protocol_record(cls, record: Mapping[str, object]) -> FrozenMultiDocCase:
         if record.get("case_type") != "multi_document":
             raise ValueError("protocol record is not a multi-document case")
         return cls.model_validate(
@@ -73,17 +69,13 @@ class FrozenMultiDocCase(BaseModel):
                 "question_id": record.get("question_id"),
                 "question_sha256": record.get("question_sha256"),
                 "answer_sha256": record.get("answer_sha256"),
-                "gold_support_article_ids": record.get(
-                    "gold_support_article_ids"
-                ),
+                "gold_support_article_ids": record.get("gold_support_article_ids"),
             }
         )
 
     @model_validator(mode="after")
-    def validate_gold_documents(self) -> "FrozenMultiDocCase":
-        if len(self.gold_support_article_ids) != len(
-            set(self.gold_support_article_ids)
-        ):
+    def validate_gold_documents(self) -> FrozenMultiDocCase:
+        if len(self.gold_support_article_ids) != len(set(self.gold_support_article_ids)):
             raise ValueError("gold document IDs must be distinct")
         return self
 
@@ -145,7 +137,7 @@ class MultiDocAttributionCase(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def validate_attribution(self) -> "MultiDocAttributionCase":
+    def validate_attribution(self) -> MultiDocAttributionCase:
         if self.gold_document_count != len(set(self.gold_document_ids)):
             raise ValueError("gold document count does not match distinct IDs")
         sequences = {
@@ -172,9 +164,7 @@ class MultiDocAttributionCase(BaseModel):
             gold_document_ids=self.gold_document_ids,
             retrieval_top20_document_ids=self.retrieval_top20_document_ids,
             retrieval_top5_document_ids=self.retrieval_top5_document_ids,
-            controller_retrieved_document_ids=(
-                self.controller_retrieved_document_ids
-            ),
+            controller_retrieved_document_ids=(self.controller_retrieved_document_ids),
             post_acl_document_ids=self.post_acl_document_ids,
             post_guard_document_ids=self.post_guard_document_ids,
             ledger_document_ids=self.ledger_document_ids,
@@ -200,9 +190,7 @@ def gold_coverage(gold_ids: Sequence[str], observed_ids: Sequence[str]) -> float
     return len(gold.intersection(observed_ids)) / len(gold)
 
 
-def all_gold_recalled(
-    gold_ids: Sequence[str], observed_ids: Sequence[str]
-) -> bool:
+def all_gold_recalled(gold_ids: Sequence[str], observed_ids: Sequence[str]) -> bool:
     return set(gold_ids).issubset(observed_ids)
 
 
@@ -259,9 +247,7 @@ def validate_frozen_case(
         raise ValueError("frozen gold document ID does not resolve")
 
 
-def citation_complete(
-    gold_document_ids: Sequence[str], cited_document_ids: Sequence[str]
-) -> bool:
+def citation_complete(gold_document_ids: Sequence[str], cited_document_ids: Sequence[str]) -> bool:
     return all_gold_recalled(gold_document_ids, cited_document_ids)
 
 
@@ -277,8 +263,7 @@ def aggregate_attribution_cases(
         (20, "retrieval_top20_document_ids"),
     ):
         coverages = [
-            gold_coverage(item.gold_document_ids, getattr(item, field_name))
-            for item in cases
+            gold_coverage(item.gold_document_ids, getattr(item, field_name)) for item in cases
         ]
         all_gold[str(k)] = {
             "all_gold_complete_count": sum(value == 1.0 for value in coverages),
@@ -293,9 +278,7 @@ def aggregate_attribution_cases(
         )
         for item in cases
     )
-    gate_downgrade_count = sum(
-        item.grounding_gate_downgraded_response for item in cases
-    )
+    gate_downgrade_count = sum(item.grounding_gate_downgraded_response for item in cases)
     status = (
         "ATTRIBUTION_COMPLETE_NO_OPTIMIZATION"
         if len(cases) == 20 and unknown_count <= 2
@@ -314,23 +297,14 @@ def aggregate_attribution_cases(
         "retrieval_all_gold": all_gold,
         "first_loss_distribution": dict(sorted(distribution.items())),
         "unknown_count": unknown_count,
-        "intent_distribution": dict(
-            sorted(Counter(item.intent for item in cases).items())
-        ),
+        "intent_distribution": dict(sorted(Counter(item.intent for item in cases).items())),
         "required_aspects_distribution": dict(
-            sorted(
-                Counter("|".join(item.required_aspects) for item in cases).items()
-            )
+            sorted(Counter("|".join(item.required_aspects) for item in cases).items())
         ),
-        "single_answer_aspect_count": sum(
-            item.required_aspects == ["answer"] for item in cases
-        ),
-        "ledger_false_completeness_count": sum(
-            item.ledger_false_completeness for item in cases
-        ),
+        "single_answer_aspect_count": sum(item.required_aspects == ["answer"] for item in cases),
+        "ledger_false_completeness_count": sum(item.ledger_false_completeness for item in cases),
         "guard_filtered_case_count": sum(
-            item.first_loss_stage == FirstLossStage.GUARD_FILTERED
-            for item in cases
+            item.first_loss_stage == FirstLossStage.GUARD_FILTERED for item in cases
         ),
         "grounding_gate_removal_case_count": gate_removal_count,
         "grounding_gate_response_downgrade_count": gate_downgrade_count,
@@ -422,6 +396,12 @@ class RecordingController:
         self.capture.decisions.append(decision)
         return decision
 
+    def prepare_advice(self, state: ControllerState) -> ControllerState:
+        """Preserve the production controller step while recording its state."""
+        next_state = self.delegate.prepare_advice(state)
+        self.capture.observed_states.append(next_state)
+        return next_state
+
     def observe(
         self,
         state: ControllerState,
@@ -442,9 +422,7 @@ class RecordingExtractiveResponseBuilder:
     ) -> None:
         self.capture = capture
         self.max_evidence_per_aspect = max_evidence_per_aspect
-        self.delegate = ExtractiveResponseBuilder(
-            max_evidence_per_aspect=max_evidence_per_aspect
-        )
+        self.delegate = ExtractiveResponseBuilder(max_evidence_per_aspect=max_evidence_per_aspect)
 
     def build(self, **kwargs) -> AnswerResponse:
         state: ControllerState = kwargs["state"]

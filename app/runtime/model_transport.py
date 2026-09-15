@@ -14,7 +14,6 @@ from app.runtime.request_context import (
     remaining_seconds,
 )
 
-
 ModelOperation = Literal["chat", "embed"]
 RETRYABLE_STATUS_CODES = frozenset({429, 502, 503, 504})
 
@@ -78,12 +77,18 @@ def perform_model_request(
         try:
             response = send(timeout)
             response.raise_for_status()
+            remaining = remaining_seconds(clock_ms=lambda: clock() * 1000.0)
+            if remaining is not None and remaining <= 0:
+                raise RequestDeadlineExceeded("request deadline exhausted")
         except Exception as exc:
             _record_attempt(
                 operation,
                 status="error",
                 duration_ms=max(0.0, (clock() - started) * 1000.0),
             )
+            if isinstance(exc, RequestDeadlineExceeded):
+                _record_final_error()
+                raise _deadline_error(attempts) from exc
             error = _safe_error(exc, attempts)
             if not error.retryable or attempts >= max_attempts:
                 _record_final_error()

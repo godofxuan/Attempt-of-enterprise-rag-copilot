@@ -30,12 +30,12 @@ E        +    where [SearchHit(index_run_id='synthetic-run', chunk_id='doc-a::fi
 tests\retrieval\test_current_validity.py:37: AssertionError
 ---------------------------- Captured stderr call -----------------------------
 Building prefix dict from the default dictionary ...
-Loading model from cache D:\文档\agent\RAG_try\.private\runtime_closure_20260907T160738\.private\runtime_cache\jieba\jieba.cache
+Loading model from cache LOCAL_PATH_REDACTED
 Loading model cost 0.528 seconds.
 Prefix dict has been built successfully.
 ------------------------------ Captured log call ------------------------------
 DEBUG    jieba:__init__.py:113 Building prefix dict from the default dictionary ...
-DEBUG    jieba:__init__.py:132 Loading model from cache D:\文档\agent\RAG_try\.private\runtime_closure_20260907T160738\.private\runtime_cache\jieba\jieba.cache
+DEBUG    jieba:__init__.py:132 Loading model from cache LOCAL_PATH_REDACTED
 DEBUG    jieba:__init__.py:164 Loading model cost 0.528 seconds.
 DEBUG    jieba:__init__.py:166 Prefix dict has been built successfully.
 _______ test_current_validity_before_ranking[start2-end2-active-False] ________

@@ -6,7 +6,7 @@ The runner separately verifies active-index identity before publication.
 
 from app.domain.documents import DocumentRecord
 from app.domain.queries import FindResult, OpenResult
-from app.retrieval.navigation import _preview, _text_matches
+from app.retrieval.navigation import _find_matches_request, _preview, _preview_start
 
 
 def validate_navigation_binding(navigator, snapshot, action, result) -> None:
@@ -35,8 +35,14 @@ def validate_navigation_binding(navigator, snapshot, action, result) -> None:
             result.doc_id != resource.doc_id
             or result.source_path != resource.source_path
             or result.section_path != sections
-            or result.content != resource.text[: request.max_chars]
-            or result.truncated != (len(resource.text) > request.max_chars)
+            or result.start_char != request.start_char
+            or result.content
+            != resource.text[request.start_char : request.start_char + request.max_chars]
+            or result.truncated
+            != (
+                request.start_char > 0
+                or len(resource.text) > request.start_char + request.max_chars
+            )
         ):
             raise ValueError("navigation content does not match bound snapshot")
     elif isinstance(result, FindResult):
@@ -58,12 +64,16 @@ def validate_navigation_binding(navigator, snapshot, action, result) -> None:
                 or chunk.doc_id != request.doc_id
                 or match.doc_id != request.doc_id
                 or not policy.evaluate(request.user, chunk).allowed
-                or (request.anchor_chunk_id and (
-                    not chunk.indexable or not navigator.bound_resource_allowed(request, chunk)
-                ))
+                or (
+                    request.anchor_chunk_id
+                    and (
+                        not chunk.indexable or not navigator.bound_resource_allowed(request, chunk)
+                    )
+                )
                 or match.section_path != chunk.section_path
-                or not _text_matches(request.pattern, chunk.text)
+                or not _find_matches_request(request, chunk, snapshot)
                 or match.preview != _preview(chunk.text, request.pattern)
+                or match.preview_start != _preview_start(chunk.text, request.pattern)
             ):
                 raise ValueError("navigation preview does not match bound snapshot")
     else:

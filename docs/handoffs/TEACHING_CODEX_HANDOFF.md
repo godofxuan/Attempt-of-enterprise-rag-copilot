@@ -5,12 +5,18 @@ Do not summarize the README and call that teaching. Read the evidence map first,
 then use the existing detailed chapters listed below. Do not change project
 facts to make an explanation easier.
 
-Canonical base branch/state: `codex/agent-runtime-vnext` / `RAG_VNEXT_CLOSED`.
-Current durable integrity overlay:
-`codex/durable-runtime-integrity-fix-v1`. For this overlay, read
+Canonical public branch/state: `main` / `PORTFOLIO_READY`. Stable release:
+`portfolio-v1.2.0-mainline-closure`. Start with
+`docs/releases/2026-09-15-mainline-closure/REPORT.md`; it separates the 4,148
+passing engineering regressions from model-quality evidence and records the
+publication-audit repair. The historical durable integrity overlay is
+`codex/durable-runtime-integrity-fix-v1`. For that overlay, read
 `docs/review/P1_INTEGRITY_FIX_REPORT.md` before tutorial section 9; teach the
 CAS/lease/fencing state machine, local transaction boundary, outbox projection,
 and upgrade migration without turning them into a general durable-runtime claim.
+`RAG_VNEXT_CLOSED` remains the preserved historical vNext closeout marker from
+`codex/agent-runtime-vnext`; neither value names the current branch or creates
+a production-readiness claim.
 This is portfolio-ready teaching material, not proof of production readiness.
 Teaching may use consumed cases for historical analysis, but must never rename
 them as blind validation. Runtime mechanisms also must not be presented as
@@ -30,6 +36,7 @@ answer-quality improvements.
 10. `docs/multidoc_candidate/04_LEARNING_AND_INTERVIEW_GUIDE.md` (historical rejection)
 11. `docs/final_evidence_closure/02_LEARNING_GUIDE.md`
 12. `docs/learning/RAG_INTERVIEW_UPDATE.md`
+13. `docs/releases/2026-09-15-mainline-closure/REPORT.md`
 
 ## Teaching contract
 

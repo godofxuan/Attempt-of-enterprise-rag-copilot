@@ -11,11 +11,11 @@
 - 唯一任务书：本包 `TASK.md`，对应 CODEX_RAG_BOUNDED_CORRECTNESS_FULL_PROMPT.md。独立复核包旧任务书没有用于覆盖它。
 - 原审核 ZIP SHA-256：`4b29e43e05daf2150b774d46ebe71f752f07754385e0bb4d76be3d232a6d7984`。实际 Downloads 文件名有 `(1)` 后缀，按内容摘要确认身份。
 - 独立复核 ZIP SHA-256：`43d936a99d202a1142d513b4ae954e2fd3bbf1387e1a8d244d44b3bd2c4a69b5`。
-- 实际修改位置：`D:\文档\agent\RAG_try\.private\runtime_closure_20260907T160738`。这是匹配的原 Git worktree，不是冒充原分支的无 Git 快照。
+- 实际修改位置：`LOCAL_PATH_REDACTED`。这是匹配的原 Git worktree，不是冒充原分支的无 Git 快照。
 - 分支：`fix/runtime-closure-20260907T160738`；HEAD 始终为 `c9984e92a10a6f417e2c1d8082af7e8f1e11aee1`。
 - 开始时 941 个 scoped 文件与原包 source_current 一致，指纹 `c939f2687301bca085b1c4702dbb508f588bd920b58dc4747498dde36b190b76`。
 - 最终 942 个 scoped 文件（包含新增测试），指纹 `72dc29408bdf96f8d0fd53253ec5ba3a9d57c6598803613a2df5b7d90e5710e0`。算法和逐文件摘要见 TARGET_IDENTITY_BEFORE/AFTER.json。
-- 使用现有 `D:\文档\agent\RAG_try\.venv\Scripts\python.exe`，Python 3.11.9，无依赖安装。
+- 使用现有 `LOCAL_PATH_REDACTED`，Python 3.11.9，无依赖安装。
 
 原工作树已应用本轮修改，仍未提交。没有 commit、push、merge、分支切换、部署或真实活动索引切换。普通主工作区不是本轮生产修改位置。
 

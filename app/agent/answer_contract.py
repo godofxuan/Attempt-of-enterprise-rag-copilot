@@ -2,6 +2,7 @@
 
 import re
 from dataclasses import dataclass
+
 from app.domain.evidence_packet import SOURCE_UNIT_END
 from app.retrieval.query_normalization import retrieval_query
 
@@ -22,7 +23,9 @@ _UNKNOWN = re.compile(r"未说明|未确定|不详|未知|没有说明|not speci
 _EXEMPT = re.compile(r"(?:无需|不需要|免于)\s*(?:审批|批准)|no approval (?:is )?required", re.I)
 _CONDITION = re.compile(r"(不超过|超过|不少于|少于)\s*(\d+(?:\.\d+)?)\s*(元|美元)")
 _OTHER_OBJECT = re.compile(r"另一|其他|其它|another|other\b", re.I)
-_NON_ACTOR = re.compile(r"流程|需要|提交|核验|是否|不是|并非|不得|不能|无需|未|审批|报销|申请|规定|required", re.I)
+_NON_ACTOR = re.compile(
+    r"流程|需要|提交|核验|是否|不是|并非|不得|不能|无需|未|审批|报销|申请|规定|required", re.I
+)
 
 # Explicit object heads and complete positive predicates, not substring proofs.
 _OBJECT = re.compile(r"报销|申请|合同|退款|expenses?\b|travel requests?\b", re.I)
@@ -39,12 +42,60 @@ _POSITIVE = re.compile(
 )
 
 
-def _positive_approval(clause: str) -> bool:
-    predicate = _SUBJECT.sub("", clause).strip()
+def explicit_request_subject(question: str) -> str | None:
+    """Extract a literal subject, never infer a business name from an answer."""
+    subjects = set()
+    for part in re.split(r"[，,；;。？?\n]|(?:并且|以及|同时)", question):
+        match = re.fullmatch(
+            r"([\u4e00-\u9fff]{2,80}?)(?:由谁(?:审批|批准)|审批人是谁)", part.strip()
+        )
+        if match:
+            subjects.add(match[1])
+    if not subjects:
+        for part in re.split(r"[，,；;。？?\n]|(?:并且|以及|同时)", question):
+            match = re.fullmatch(r"([\u4e00-\u9fff]{2,80}?)申请提前多久", part.strip())
+            if match:
+                subjects.add(match[1])
+    return next(iter(subjects)) if len(subjects) == 1 else None
+
+
+def _positive_approval(clause: str, literal_subject: str | None = None) -> bool:
+    if (
+        literal_subject
+        and not _SUBJECT.fullmatch(literal_subject)
+        and literal_subject not in {"合同", "退款"}
+    ):
+        if not clause.startswith(literal_subject):
+            return False
+        predicate = clause[len(literal_subject) :].strip()
+        # Do not parse "materials handled by X" as the requested approval actor.
+        if not re.match(r"^(?:由|仍需|需要|须|需(?!要)|审批|批准|无需|不需要|免于)", predicate):
+            return False
+    else:
+        predicate = _SUBJECT.sub("", clause).strip()
     if _EXEMPT.fullmatch(predicate):
         return True
     match = _POSITIVE.fullmatch(predicate)
     return bool(match and all(not _NON_ACTOR.search(v) for v in match.groups() if v))
+
+
+def complementary_explicit_claim(question: str, text: str) -> bool:
+    """Retain separately asked lead-time/limit facts for the literal same subject."""
+    from app.agent.question_parts import explicit_question_parts, part_is_addressed
+
+    subject = explicit_request_subject(question)
+    if not subject or _APPROVAL_RELATION.search(text):
+        return False
+    parts = [
+        part for part in explicit_question_parts(question) if not _APPROVER_QUESTION.search(part)
+    ]
+    if not any(part_is_addressed(part, [text]) for part in parts):
+        return False
+    relation = re.compile(
+        r"^" + re.escape(subject) + r"(?:申请)?"
+        r"(?:(?:须|需|应|必须|需要)?提前|(?:单次)?额度(?:上限)?(?:为|是))"
+    )
+    return any(relation.search(clause.strip()) for clause in re.split(r"[。；;!?\n]", text))
 
 
 @dataclass(frozen=True)
@@ -72,6 +123,7 @@ def bounded_answer_slots(question: str, claim_texts: list[str]) -> AnswerSlots:
     if not requested:
         return AnswerSlots((), (), tuple(range(len(claim_texts))))
     requested_condition = _CONDITION.search(question)
+    literal_subject = explicit_request_subject(question)
     satisfied: set[str] = set()
     retained = []
     conditional = False
@@ -121,7 +173,7 @@ def bounded_answer_slots(question: str, claim_texts: list[str]) -> AnswerSlots:
                 predicate = clause
                 if condition:
                     predicate = predicate[condition.end() :].lstrip("的 ")
-                if _positive_approval(predicate):
+                if _positive_approval(predicate, literal_subject):
                     satisfied.add("approver")
         # Preserve the old duration-only extractive partial contract. Approval
         # questions, however, must not retain wholly unrelated duration facts.
@@ -165,8 +217,19 @@ def requested_requirement_count(question: str) -> int | None:
     number = match.group(1)
     if number.isdigit():
         return int(number)
-    return {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5,
-            "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}[number]
+    return {
+        "一": 1,
+        "二": 2,
+        "两": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
+        "十": 10,
+    }[number]
 
 
 def requirement_units(texts: list[str]) -> set[str]:

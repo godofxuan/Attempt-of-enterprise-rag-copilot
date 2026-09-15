@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Annotated, Literal, Mapping
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -14,7 +15,6 @@ from app.domain.queries import (
     SearchHit,
     SearchStopReason,
 )
-
 
 DETECTOR_VERSION = "rcg-v1.2.0"
 MAX_SCAN_CHARS = 20_000
@@ -118,9 +118,7 @@ class GuardDecision(BaseModel):
         if self.scanned_length > self.original_length:
             raise ValueError("scanned length cannot exceed original length")
 
-        expected_categories = tuple(
-            sorted({RULE_SPECS[rule_id][0] for rule_id in self.rule_ids})
-        )
+        expected_categories = tuple(sorted({RULE_SPECS[rule_id][0] for rule_id in self.rule_ids}))
         if self.risk_categories != expected_categories:
             raise ValueError("risk categories must exactly match the rule allowlist")
 
@@ -139,9 +137,7 @@ class GuardDecision(BaseModel):
             raise ValueError("guard_error must exactly match the guard-error rule")
 
         expected_disposition = (
-            "QUARANTINE"
-            if expected_severity in {"quarantine", "error"}
-            else "ADMIT"
+            "QUARANTINE" if expected_severity in {"quarantine", "error"} else "ADMIT"
         )
         if self.disposition != expected_disposition:
             raise ValueError("disposition must exactly match rule severity")
@@ -236,9 +232,7 @@ class AdmittedSearchHitSnapshot(_GuardedModel):
         values["acl_groups"] = tuple(hit.acl_groups)
         values["fact_ids"] = tuple(hit.fact_ids)
         values["locator"] = (
-            AdmittedSourceLocatorSnapshot.from_raw(hit.locator)
-            if hit.locator is not None
-            else None
+            AdmittedSourceLocatorSnapshot.from_raw(hit.locator) if hit.locator is not None else None
         )
         return cls(**values)
 
@@ -248,6 +242,7 @@ class AdmittedFindMatchSnapshot(_GuardedModel):
     chunk_id: str = Field(min_length=1)
     section_path: tuple[str, ...] = Field(min_length=1)
     preview: str = Field(min_length=1, max_length=1000)
+    preview_start: int = Field(default=0, ge=0, le=10_000_000)
 
     @field_validator("section_path", mode="before")
     @classmethod
@@ -261,6 +256,7 @@ class AdmittedFindMatchSnapshot(_GuardedModel):
             chunk_id=match.chunk_id,
             section_path=tuple(match.section_path),
             preview=match.preview,
+            preview_start=match.preview_start,
         )
 
 
@@ -271,6 +267,7 @@ class AdmittedOpenResultSnapshot(_GuardedModel):
     doc_id: str = Field(min_length=1)
     content: str = Field(min_length=1)
     truncated: bool
+    start_char: int = Field(default=0, ge=0, le=10_000_000)
     source_path: str = Field(min_length=1)
     section_path: tuple[str, ...] = Field(default_factory=tuple)
 
@@ -288,6 +285,7 @@ class AdmittedOpenResultSnapshot(_GuardedModel):
             doc_id=result.doc_id,
             content=result.content,
             truncated=result.truncated,
+            start_char=result.start_char,
             source_path=result.source_path,
             section_path=tuple(result.section_path),
         )
@@ -328,13 +326,9 @@ class AdmittedEvidenceChunk(_GuardedModel):
             _require_admit(self.context_decision, "parent context")
         else:
             if self.context_decision is not None:
-                raise ValueError(
-                    "context_decision is only valid for distinct parent context"
-                )
+                raise ValueError("context_decision is only valid for distinct parent context")
             if self.hit.context_text != self.hit.matched_text:
-                raise ValueError(
-                    "child-only context must equal matched content"
-                )
+                raise ValueError("child-only context must equal matched content")
         return self
 
 
@@ -461,8 +455,7 @@ class ScannedContentUnit(_GuardedModel):
             raise ValueError("non-aggregate scan requires its exact item as one member")
 
         quarantined = any(
-            RULE_SPECS[rule_id][1] in {"quarantine", "error"}
-            for rule_id in self.rule_ids
+            RULE_SPECS[rule_id][1] in {"quarantine", "error"} for rule_id in self.rule_ids
         )
         expected_disposition = "QUARANTINE" if quarantined else "ADMIT"
         if self.disposition != expected_disposition:
@@ -506,18 +499,12 @@ class SecurityCounters(_GuardedModel):
     @model_validator(mode="after")
     def validate_counter_state(self) -> SecurityCounters:
         if self.scanned_count != self.admitted_count + self.quarantined_count:
-            raise ValueError(
-                "scanned_count must equal admitted_count plus quarantined_count"
-            )
+            raise ValueError("scanned_count must equal admitted_count plus quarantined_count")
         if self.post_guard_evidence_count > self.admitted_count:
-            raise ValueError(
-                "post_guard_evidence_count cannot exceed admitted_count"
-            )
+            raise ValueError("post_guard_evidence_count cannot exceed admitted_count")
         if self.guard_error_count > self.quarantined_count:
             raise ValueError("guard_error_count cannot exceed quarantined_count")
-        expected_categories = tuple(
-            sorted({RULE_SPECS[rule_id][0] for rule_id in self.rule_ids})
-        )
+        expected_categories = tuple(sorted({RULE_SPECS[rule_id][0] for rule_id in self.rule_ids}))
         if self.risk_categories != expected_categories:
             raise ValueError("risk categories must exactly match rule IDs")
         return self
@@ -534,9 +521,7 @@ class RetrievedContentSecurityTrace(SecurityCounters):
             and self.quarantined_count > 0
         )
         if filtered != (self.stop_reason == "evidence_filtered"):
-            raise ValueError(
-                "public stop reason must exactly identify all-filtered evidence"
-            )
+            raise ValueError("public stop reason must exactly identify all-filtered evidence")
         return self
 
     @classmethod
@@ -613,9 +598,7 @@ class GuardedV2ToolExecution(_GuardedModel):
     status: Literal["ok", "error"]
     visible_count: int = Field(ge=0)
     context_chars_added: int = Field(ge=0)
-    quarantine_summaries: tuple[QuarantineSummary, ...] = Field(
-        default_factory=tuple
-    )
+    quarantine_summaries: tuple[QuarantineSummary, ...] = Field(default_factory=tuple)
     security_counters: SecurityCounters
     security_stop_reason: Literal["evidence_filtered"] | None = None
 
@@ -651,16 +634,9 @@ class GuardedV2ToolExecution(_GuardedModel):
         if self.visible_count != expected_visible:
             raise ValueError("visible_count must match admitted result objects")
         if self.security_counters.post_guard_evidence_count != expected_visible:
-            raise ValueError(
-                "post_guard_evidence_count must match admitted result objects"
-            )
-        if (
-            len(self.quarantine_summaries)
-            != self.security_counters.quarantined_count
-        ):
-            raise ValueError(
-                "quarantine summaries must match quarantined content count"
-            )
+            raise ValueError("post_guard_evidence_count must match admitted result objects")
+        if len(self.quarantine_summaries) != self.security_counters.quarantined_count:
+            raise ValueError("quarantine summaries must match quarantined content count")
         filtered = (
             self.status == "ok"
             and self.security_counters.candidate_count > 0
@@ -668,9 +644,7 @@ class GuardedV2ToolExecution(_GuardedModel):
             and self.security_counters.quarantined_count > 0
         )
         if filtered != (self.security_stop_reason == "evidence_filtered"):
-            raise ValueError(
-                "evidence_filtered must exactly identify an all-quarantined result"
-            )
+            raise ValueError("evidence_filtered must exactly identify an all-quarantined result")
         return self
 
 

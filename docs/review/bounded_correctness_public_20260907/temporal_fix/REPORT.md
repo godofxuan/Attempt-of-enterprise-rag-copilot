@@ -6,7 +6,7 @@
 
 ## 实际身份
 
-修改的是原工作树 `D:\文档\agent\RAG_try\.private\runtime_closure_20260907T160738`，分支 `fix/runtime-closure-20260907T160738`，HEAD 未变，为 c9984e92a10a6f417e2c1d8082af7e8f1e11aee1。没有 commit/push/merge/部署/切换索引。主工作区和 GitHub 不代表这些未提交修改。
+修改的是原工作树 `LOCAL_PATH_REDACTED`，分支 `fix/runtime-closure-20260907T160738`，HEAD 未变，为 c9984e92a10a6f417e2c1d8082af7e8f1e11aee1。没有 commit/push/merge/部署/切换索引。主工作区和 GitHub 不代表这些未提交修改。
 
 起始源码指纹：72dc29408bdf96f8d0fd53253ec5ba3a9d57c6598803613a2df5b7d90e5710e0。
 最终源码指纹：fcf97503ab5ebf56bf4a84ff39953ade3135841e190564308e668bb9e06323e5（943 scoped 文件）。逐文件及算法沿用前包，见 TARGET_IDENTITY_AFTER.json。

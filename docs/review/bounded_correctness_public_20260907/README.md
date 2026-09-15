@@ -38,7 +38,7 @@ G4 仍为真实 FAILED：旧 test_cross_policy_conflict 强制双方进入 LLM�
 
 [PUBLICATION_MANIFEST.json](PUBLICATION_MANIFEST.json) 是复制文件的公开清单；其中列明未公开的嵌套 ZIP、私有执行器和重复源码。原内部 ARTIFACT_MANIFEST 保留原包清单，不能用它推断那些被明确排除的文件也已公开。本 README 和 frozen_external_checks 是额外的导航/原样外部源码，由 Git 提交绑定。
 
-本机路径为历史 provenance，未改造日志/XML 字节。没有上传原输入 ZIP、私钥、JWT、模型或缓存。历史完整脱敏 XML 并未交付，详见 approval_conflict/HISTORICAL_ERRATUM.json。公开材料足以做源码及已发布测试证据审核；原 ZIP 独立重建属于另外的材料核验，不得声称已下载未公开原包。
+公开仓库中的证据是可移植脱敏派生：本机绝对路径、本地用户名和非示例邮箱已替换，业务结果、测试状态、源码摘要和失败结论未改写。[PUBLIC_REDACTION_MAP.json](PUBLIC_REDACTION_MAP.json) 记录每个派生文件的原始摘要、公开摘要及替换类别；原始字节只保存在不公开的本地审核包。内部 ARTIFACT_MANIFEST 已重新绑定公开派生字节，PUBLICATION_MANIFEST 同时保留原 `source_sha256` 和公开 `sha256`，两者不能混称。没有上传原输入 ZIP、私钥、JWT、模型或缓存。历史完整脱敏 XML 并未交付，详见 approval_conflict/HISTORICAL_ERRATUM.json。公开材料足以做源码及已发布测试证据审核；原 ZIP 独立重建属于另外的材料核验，不得声称已下载未公开原包。
 
 生产变更包含上一轮保全的未提交修复，不全是 B09 新增。approval_conflict/changes/ 与 temporal_fix/changes/ 将各轮差异分开。最终提交只是冻结和发布，不改变测试时的 scoped 源码字节。
 

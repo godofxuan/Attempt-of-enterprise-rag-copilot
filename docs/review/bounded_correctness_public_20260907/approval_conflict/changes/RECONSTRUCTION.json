@@ -76,7 +76,7 @@
         "core.autocrlf=false",
         "apply",
         "--check",
-        "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\delivery\\changes\\this_round.patch"
+        "LOCAL_PATH_REDACTED"
       ],
       "exit_code": 0,
       "output": ""
@@ -87,7 +87,7 @@
         "-c",
         "core.autocrlf=false",
         "apply",
-        "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\delivery\\changes\\this_round.patch"
+        "LOCAL_PATH_REDACTED"
       ],
       "exit_code": 0,
       "output": ""

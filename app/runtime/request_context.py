@@ -4,7 +4,7 @@ import time
 from collections.abc import Callable
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
-
+from threading import Event
 
 ClockMs = Callable[[], float]
 
@@ -22,6 +22,7 @@ class RequestContext:
     model_calls: int = 0
     model_retries: int = 0
     model_errors: int = 0
+    cancelled: Event = field(default_factory=Event, repr=False)
 
 
 _CURRENT_REQUEST: ContextVar[RequestContext | None] = ContextVar(
@@ -71,6 +72,8 @@ def remaining_seconds(*, clock_ms: ClockMs | None = None) -> float | None:
     context = current_request_context()
     if context is None:
         return None
+    if context.cancelled.is_set():
+        return 0.0
     clock = clock_ms or _default_clock_ms
     return max(0.0, (context.deadline_at_ms - float(clock())) / 1000.0)
 

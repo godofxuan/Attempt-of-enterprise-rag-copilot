@@ -13,6 +13,7 @@ from app.security.demo_identity import (
     activate_demo_identity,
     demo_identity_status,
     initialize_demo_identity,
+    renew_demo_identity,
     retire_demo_identity_key,
     rotate_demo_identity,
 )
@@ -35,7 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--force", action="store_true")
     init.add_argument("--token-lifetime-seconds", type=int, default=900)
 
-    rotate = subparsers.add_parser(
+    subparsers.add_parser(
         "rotate",
         help="Stage a new verification key without replacing client tokens.",
     )
@@ -51,6 +52,13 @@ def build_parser() -> argparse.ArgumentParser:
         default="http://127.0.0.1:8000",
     )
     activate.add_argument("--timeout-seconds", type=float, default=5.0)
+
+    renew = subparsers.add_parser(
+        "renew", help="Renew short-lived tokens with the active key; API must be running."
+    )
+    renew.add_argument("--token-lifetime-seconds", type=int, default=900)
+    renew.add_argument("--api-base-url", default="http://127.0.0.1:8000")
+    renew.add_argument("--timeout-seconds", type=float, default=5.0)
 
     retire = subparsers.add_parser(
         "retire",
@@ -68,10 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
     retire.add_argument(
         "--confirm-emergency-revoke",
         default=None,
-        help=(
-            "Required exact phrase for --emergency-revoke: "
-            f"{EMERGENCY_RETIRE_CONFIRMATION}"
-        ),
+        help=(f"Required exact phrase for --emergency-revoke: {EMERGENCY_RETIRE_CONFIRMATION}"),
     )
 
     subparsers.add_parser("status", help="Print non-secret keyring status.")
@@ -100,31 +105,32 @@ def main(argv: list[str] | None = None) -> None:
                 directory,
                 kid=args.kid,
                 token_lifetime_seconds=args.token_lifetime_seconds,
-                snapshot_verifier=lambda token, expected_kid: (
-                    _api_snapshot_accepts_pending_key(
-                        base_url=args.api_base_url,
-                        token=token,
-                        expected_kid=expected_kid,
-                        timeout_seconds=args.timeout_seconds,
-                    )
+                snapshot_verifier=lambda token, expected_kid: _api_snapshot_accepts_pending_key(
+                    base_url=args.api_base_url,
+                    token=token,
+                    expected_kid=expected_kid,
+                    timeout_seconds=args.timeout_seconds,
+                ),
+            )
+        elif args.command == "renew":
+            status = renew_demo_identity(
+                directory,
+                token_lifetime_seconds=args.token_lifetime_seconds,
+                snapshot_verifier=lambda token, kid: _api_snapshot_accepts_pending_key(
+                    base_url=args.api_base_url,
+                    token=token,
+                    expected_kid=kid,
+                    timeout_seconds=args.timeout_seconds,
                 ),
             )
         elif args.command == "retire":
             if (
                 args.emergency_revoke
-                and args.confirm_emergency_revoke
-                != EMERGENCY_RETIRE_CONFIRMATION
+                and args.confirm_emergency_revoke != EMERGENCY_RETIRE_CONFIRMATION
             ):
-                raise ValueError(
-                    "emergency revocation requires the exact confirmation phrase"
-                )
-            if (
-                not args.emergency_revoke
-                and args.confirm_emergency_revoke is not None
-            ):
-                raise ValueError(
-                    "emergency confirmation requires --emergency-revoke"
-                )
+                raise ValueError("emergency revocation requires the exact confirmation phrase")
+            if not args.emergency_revoke and args.confirm_emergency_revoke is not None:
+                raise ValueError("emergency confirmation requires --emergency-revoke")
             status = retire_demo_identity_key(
                 directory,
                 kid=args.kid,
@@ -144,12 +150,9 @@ def main(argv: list[str] | None = None) -> None:
                 "pending_kid": status.pending_kid,
                 "restart_required": status.restart_required,
                 "retirement_not_before": {
-                    kid: deadline
-                    for kid, deadline in status.retirement_not_before
+                    kid: deadline for kid, deadline in status.retirement_not_before
                 },
-                "emergency_revocation_count": (
-                    status.emergency_revocation_count
-                ),
+                "emergency_revocation_count": (status.emergency_revocation_count),
                 "emergency_revocations": [
                     {"kid": kid, "revoked_at": revoked_at}
                     for kid, revoked_at in status.emergency_revocations
@@ -201,10 +204,7 @@ def _api_snapshot_accepts_pending_key(
         if response.status != 200 or len(payload) > 16_384:
             return False
         decoded = json.loads(payload.decode("utf-8"))
-        return (
-            isinstance(decoded, dict)
-            and decoded.get("key_id") == expected_kid
-        )
+        return isinstance(decoded, dict) and decoded.get("key_id") == expected_kid
     except (
         http.client.HTTPException,
         json.JSONDecodeError,

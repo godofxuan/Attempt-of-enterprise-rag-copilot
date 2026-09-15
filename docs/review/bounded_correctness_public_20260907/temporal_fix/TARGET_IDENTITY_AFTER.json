@@ -4722,7 +4722,7 @@
   "historical_evidence_unchanged": true,
   "original_inputs_unchanged": true,
   "original_worktree_applied": true,
-  "python": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
+  "python": "LOCAL_PATH_REDACTED",
   "source_fingerprint": "fcf97503ab5ebf56bf4a84ff39953ade3135841e190564308e668bb9e06323e5",
-  "worktree": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738"
+  "worktree": "LOCAL_PATH_REDACTED"
 }

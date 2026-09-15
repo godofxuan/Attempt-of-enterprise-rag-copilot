@@ -33,19 +33,19 @@ case = 'B09_future'
         observe(case, question, rows, data, seen)
 >       assert data["mode"] == "answered"
 E       AssertionError: assert 'partial' == 'answered'
-E         
+E
 E         - answered
 E         + partial
 
 tests\api_v2\test_bounded_correctness_matrix.py:447: AssertionError
 ---------------------------- Captured stderr call -----------------------------
 Building prefix dict from the default dictionary ...
-Loading model from cache D:\文档\agent\RAG_try\.private\runtime_closure_20260907T160738\.private\runtime_cache\jieba\jieba.cache
+Loading model from cache LOCAL_PATH_REDACTED
 Loading model cost 0.628 seconds.
 Prefix dict has been built successfully.
 ------------------------------ Captured log call ------------------------------
 DEBUG    jieba:__init__.py:113 Building prefix dict from the default dictionary ...
-DEBUG    jieba:__init__.py:132 Loading model from cache D:\文档\agent\RAG_try\.private\runtime_closure_20260907T160738\.private\runtime_cache\jieba\jieba.cache
+DEBUG    jieba:__init__.py:132 Loading model from cache LOCAL_PATH_REDACTED
 DEBUG    jieba:__init__.py:164 Loading model cost 0.628 seconds.
 DEBUG    jieba:__init__.py:166 Prefix dict has been built successfully.
 ============================== warnings summary ===============================

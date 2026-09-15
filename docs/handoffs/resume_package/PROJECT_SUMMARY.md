@@ -1,12 +1,19 @@
 # Project Summary
 
 Current public branch/state: `main` / `PORTFOLIO_READY`.
-Stable snapshot: `portfolio-v1.0.0`. Legacy `codex/*` refs remain only for
+Stable snapshot: `portfolio-v1.2.0-mainline-closure`. Legacy `codex/*` refs remain only for
 submitted-resume and historical-review link compatibility. Portfolio, resume,
 teaching, and interview use are supported within the evidence boundaries below;
 production readiness is not established. `RAG_VNEXT_CLOSED` remains the
 historical vNext closeout marker originally recorded on
 `codex/agent-runtime-vnext`; neither value names the current public branch.
+
+The 2026-09-15 mainline closure ran the full local repository suite with
+`4148 passed, 0 failed, 36 skipped`, passed all five release gates, and reduced
+the public repository leak audit from 44 findings to zero through documented
+public-derivative redaction. These are engineering verification facts, not
+answer-accuracy or production-readiness metrics. See
+`docs/releases/2026-09-15-mainline-closure/REPORT.md`.
 
 ## One sentence
 

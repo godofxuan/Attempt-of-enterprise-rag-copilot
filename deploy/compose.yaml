@@ -13,8 +13,8 @@ services:
       LIFECYCLE_PRIVATE_ROOT: /var/lib/rag/private/lifecycle
       LLM_BASE_URL: ${LLM_BASE_URL:-http://127.0.0.1:11434/v1}
       LLM_API_KEY: ollama
-      CHAT_MODEL: ${CHAT_MODEL:-qwen2.5:3b}
-      EVIDENCE_MODEL: ${EVIDENCE_MODEL:-qwen3:8b}
+      CHAT_MODEL: ${CHAT_MODEL:-qwen3.5:4b}
+      EVIDENCE_MODEL: ${EVIDENCE_MODEL:-qwen3.5:4b}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-bge-m3}
       IDENTITY_JWKS_PATH: /run/secrets/rag-identity/jwks.json
       IDENTITY_FEEDBACK_HMAC_KEY_PATH: /run/secrets/rag-identity/feedback_actor_hmac.key

@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from app.domain.documents import DocumentStatus, SourceLocator
-
 
 QueryIntent = Literal[
     "fact",
@@ -207,15 +213,33 @@ class FindRequest(BoundNavigationRequest):
     user: UserContext
     doc_id: str = Field(min_length=1)
     pattern: str = Field(min_length=1, max_length=500)
+    match_mode: Literal["text", "anchor_section"] = "text"
     max_results: int = Field(default=5, ge=1, le=20)
     timeout_ms: int = Field(default=3000, ge=1, le=120_000)
+
+    @model_validator(mode="after")
+    def validate_section_anchor(self):
+        if self.match_mode == "anchor_section" and self.anchor_chunk_id is None:
+            raise ValueError("section navigation requires an admitted anchor and filters")
+        return self
 
 
 class FindMatch(StrictModel):
     doc_id: str = Field(min_length=1)
     chunk_id: str = Field(min_length=1)
     section_path: list[str] = Field(min_length=1)
-    preview: str = Field(min_length=1, max_length=1000)
+    # This is an offset-bound source slice, not user input to normalize.
+    preview: Annotated[str, StringConstraints(strip_whitespace=False)] = Field(
+        min_length=1, max_length=1000
+    )
+    preview_start: int = Field(default=0, ge=0, le=10_000_000)
+
+    @field_validator("preview")
+    @classmethod
+    def validate_nonblank_preview(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("preview must contain non-whitespace text")
+        return value
 
 
 class FindResult(StrictModel):
@@ -231,6 +255,7 @@ class OpenRequest(BoundNavigationRequest):
     target_type: Literal["chunk", "parent", "document"]
     target_id: str = Field(min_length=1)
     max_chars: int = Field(default=4000, ge=1, le=20_000)
+    start_char: int = Field(default=0, ge=0, le=10_000_000)
     timeout_ms: int = Field(default=3000, ge=1, le=120_000)
 
 
@@ -239,10 +264,18 @@ class OpenResult(StrictModel):
     target_type: Literal["chunk", "parent", "document"]
     target_id: str = Field(min_length=1)
     doc_id: str = Field(min_length=1)
-    content: str = Field(min_length=1)
+    content: Annotated[str, StringConstraints(strip_whitespace=False)] = Field(min_length=1)
     truncated: bool
+    start_char: int = Field(default=0, ge=0, le=10_000_000)
     source_path: str = Field(min_length=1)
     section_path: list[str] = Field(default_factory=list)
+
+    @field_validator("content")
+    @classmethod
+    def validate_nonblank_content(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("content must contain non-whitespace text")
+        return value
 
 
 __all__ = [

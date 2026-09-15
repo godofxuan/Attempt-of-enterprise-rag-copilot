@@ -5,7 +5,7 @@
 [![Portfolio status](https://img.shields.io/badge/status-portfolio--ready-2F7D4A)](PROJECT_STATUS.md)
 
 > Recruiter or reviewer: `main` is the canonical public entry. Use the
-> [`portfolio-v1.1.0-final-closure`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/tree/portfolio-v1.1.0-final-closure)
+> [`portfolio-v1.2.0-mainline-closure`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/tree/portfolio-v1.2.0-mainline-closure)
 > tag for a stable portfolio snapshot and the
 > [public review packet](docs/review/FINAL_REVIEW_PACKET.md) for exact historical
 > evidence. Legacy `codex/*` refs remain available only so submitted resumes and
@@ -15,15 +15,20 @@
 Current public status: `MAIN_CANONICAL`, `PORTFOLIO_READY`,
 `PRODUCTION_NOT_VERIFIED`; `DURABILITY_SCOPE = ACCESS_REQUEST_DRAFT_ONLY`.
 
-## September 10 Candidate Delivery
+## September 15 Mainline Closure
 
-This branch includes bounded query coverage, structure-aware document handling,
-literal evidence applicability checks and a loopback-only local launcher.
-It is a **review candidate**, not a main promotion or public production service.
-LLM rewriting and learned fusion remain offline negative-result experiments.
-See the [candidate results and local runbook](docs/local_closeout_20260910/README.md)
-for the exact scope and current validation status. Historical results below
-retain their original versions and protocols.
+The September candidate completed local release verification and mainline
+integration. It includes bounded multi-part query coverage, structure-aware
+document navigation, literal evidence applicability checks, fail-closed answer
+publication, local identity renewal, cooperative cancellation, and a
+loopback-only launcher. The release verified `4148 passed, 36 skipped`, with no
+test failures, and the public leak audit reported `2500 candidates / 0
+findings`. This is a portfolio engineering release, not a public production
+service or a new model-quality claim. LLM rewriting and learned fusion remain
+offline negative-result experiments. See the
+[release closure report](docs/releases/2026-09-15-mainline-closure/REPORT.md)
+and [candidate runbook](docs/local_closeout_20260910/README.md). Historical
+results below retain their original versions and protocols.
 
 ## What it does
 

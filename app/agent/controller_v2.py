@@ -5,9 +5,11 @@ from collections.abc import Callable
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.agent.evidence_ledger import build_ledger
+from app.agent.evidence_ledger import build_ledger, evidence_view, with_open_evidence
 from app.agent.evidence_relevance import has_query_anchor_support
 from app.agent.query_needs import material_terms, relevant_need_count, requested_needs
+from app.agent.task_advisor import TaskAdvisor
+from app.agent.task_plan import TaskPlan, build_task_plan, need_matches, observe_task
 from app.domain.agent import (
     AgentAction,
     AgentBudget,
@@ -55,6 +57,11 @@ class ControllerState(BaseModel):
     security_filtered_signal: bool = False
     ledger: EvidenceLedger | None = None
     last_error: ToolError | None = None
+    task_plan: TaskPlan = Field(default_factory=TaskPlan)
+    retry_query: str | None = None
+    retry_attempted: bool = False
+    advice_status: str = "off"
+    recovery_candidates: list[AdmittedEvidenceChunk] = Field(default_factory=list, max_length=5)
 
 
 class ControllerDecision(BaseModel):
@@ -75,8 +82,18 @@ class ControllerDecision(BaseModel):
 
 
 class V2AgentController:
-    def __init__(self, *, clock_ms: ClockMs | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        clock_ms: ClockMs | None = None,
+        task_advisor: TaskAdvisor | None = None,
+        recovery_advisor: TaskAdvisor | None = None,
+    ) -> None:
+        if task_advisor is not None and recovery_advisor is not None:
+            raise ValueError("eager and gap-driven advice are mutually exclusive")
         self.clock_ms = clock_ms or (lambda: time.monotonic() * 1000)
+        self.task_advisor = task_advisor
+        self.recovery_advisor = recovery_advisor
 
     def initialize(
         self,
@@ -88,14 +105,158 @@ class V2AgentController:
     ) -> ControllerState:
         active_budget = budget or AgentBudget()
         now = self.clock_ms()
-        return ControllerState(
+        state = ControllerState(
             analysis=analysis,
+            task_plan=build_task_plan(analysis),
             user=user,
             top_k=top_k or 5,
             budget_state=BudgetState(
                 budget=active_budget,
                 deadline_at_ms=now + active_budget.deadline_ms,
             ),
+        )
+        if self.task_advisor and analysis.intent not in {"unsafe", "comparison"}:
+            state.task_plan = self.task_advisor.plan(analysis.original_question, state.task_plan)
+        return state
+
+    def prepare_advice(self, state: ControllerState) -> ControllerState:
+        """Run at most one post-read suggestion; it cannot certify an answer."""
+        if self.recovery_advisor is not None:
+            return self._prepare_recovery(state)
+        if (
+            self.task_advisor is None
+            or state.task_plan.assessor_calls
+            or state.analysis.intent in {"unsafe", "comparison"}
+            or state.last_error
+            or self._hard_budget_exhausted(state)
+            or set(state.analysis.required_aspects) - set(state.attempted_search_aspects)
+            or not _all_visible_hits(state.evidence_by_aspect)
+            or (state.ledger and state.ledger.conflicting_aspects)
+        ):
+            return state
+        sequence = state.budget_state.steps + 1
+        if self._focused_read(state, sequence) or self._completeness_open(state, sequence):
+            return state
+        values = with_open_evidence(state.evidence_by_aspect, state.open_results)
+        evidence = {
+            evidence_view(item).citation_id: evidence_view(item)
+            for items in values.values()
+            for item in items
+        }
+        advice = self.task_advisor.assess(
+            state.analysis.original_question, state.task_plan, list(evidence.values())
+        )
+        task = state.task_plan.model_copy(update={"assessor_calls": 1})
+        retry = None
+        if (
+            advice.status == "accepted"
+            and state.budget_state.search_calls < state.budget_state.budget.max_search_calls
+        ):
+            missing = {item.need_id for item in advice.assessments if item.status == "missing"}
+            need = next(
+                (
+                    item
+                    for item in task.needs
+                    if item.need_id in missing
+                    and not item.clarification_needed
+                    and item.kind != "whole"
+                ),
+                None,
+            )
+            if need is not None:
+                candidate = state.analysis.original_question + "\n" + need.text
+                if len(candidate) <= 1000 and candidate not in state.analysis.search_queries:
+                    retry = candidate
+        return _validated_state(
+            state, task_plan=task, retry_query=retry, advice_status=advice.status
+        )
+
+    def _prepare_recovery(self, state: ControllerState) -> ControllerState:
+        if (
+            state.task_plan.recovery_calls
+            or state.retry_attempted
+            or state.analysis.intent in {"unsafe", "comparison"}
+            or state.last_error
+            or self._hard_budget_exhausted(state)
+            or state.denied_only_signal
+            or state.security_filtered_signal
+            or state.budget_state.search_calls >= state.budget_state.budget.max_search_calls
+            or set(state.analysis.required_aspects) - set(state.attempted_search_aspects)
+            or (state.ledger and state.ledger.conflicting_aspects)
+        ):
+            return state
+        sequence = state.budget_state.steps + 1
+        if self._focused_read(state, sequence) or self._completeness_open(state, sequence):
+            return state
+        missing = [
+            need.need_id
+            for need in state.task_plan.needs
+            if not need.evidence_ids and not need.clarification_needed
+        ]
+        if not missing:
+            return state
+        values = with_open_evidence(state.evidence_by_aspect, state.open_results)
+        views = {
+            evidence_view(v).citation_id: evidence_view(v)
+            for items in values.values()
+            for v in items
+        }
+        # These are already ACL/version/Guard-admitted hits. A lexical relevance
+        # rejection must not be confused with a security rejection.
+        for candidate in state.recovery_candidates:
+            view = evidence_view(candidate)
+            views.setdefault(view.citation_id, view)
+        advice = self.recovery_advisor.recover(
+            state.analysis.original_question,
+            state.task_plan,
+            list(views.values()),
+            missing_ids=missing,
+        )
+        retry = (
+            advice.query if advice.status == "accepted" and advice.decision == "search" else None
+        )
+        if retry and retry.strip() in {q.strip() for q in state.analysis.search_queries}:
+            retry = None
+        if advice.status == "accepted" and advice.decision == "read":
+            selected = next(
+                (
+                    h
+                    for h in state.recovery_candidates
+                    if h.hit.chunk_id == advice.citation_id
+                    and has_query_anchor_support(
+                        state.analysis.original_question, h, advisory_partial=True
+                    )
+                ),
+                None,
+            )
+            if selected is not None:
+                evidence = {k: list(v) for k, v in state.evidence_by_aspect.items()}
+                aspect = state.analysis.required_aspects[0]
+                evidence[aspect] = _merge_hits(evidence.get(aspect, []), [selected])
+                task = observe_task(
+                    state.task_plan,
+                    state.analysis.original_question,
+                    [
+                        evidence_view(v)
+                        for items in with_open_evidence(evidence, state.open_results).values()
+                        for v in items
+                    ],
+                    read_incomplete=state.task_plan.read_incomplete,
+                )
+                return _validated_state(
+                    state,
+                    evidence_by_aspect=evidence,
+                    ledger=build_ledger(state.analysis, evidence, open_results=state.open_results),
+                    task_plan=task.model_copy(
+                        update={"recovery_calls": 1, "model_relevance_used": True}
+                    ),
+                    advice_status="recovery_read_partial",
+                )
+        return _validated_state(
+            state,
+            task_plan=state.task_plan.model_copy(update={"recovery_calls": 1}),
+            retry_query=retry,
+            advice_status="recovery_" + advice.status,
         )
 
     def next_decision(self, state: ControllerState) -> ControllerDecision:
@@ -140,7 +301,29 @@ class V2AgentController:
                 )
             )
 
-        open_decision = self._focused_read(state, sequence) or self._completeness_open(state, sequence)
+        if state.retry_query and not state.retry_attempted:
+            return ControllerDecision(
+                action=AgentAction(
+                    sequence=sequence,
+                    tool="search",
+                    purpose="bounded task-gap retry with original question preserved",
+                    aspect=state.analysis.required_aspects[0],
+                    search_request=SearchRequest(
+                        request_id=f"agent-step-{sequence}",
+                        query=state.retry_query,
+                        purpose="one optional task-gap retry",
+                        user=state.user,
+                        filters=state.analysis.filters,
+                        top_k=state.top_k,
+                        candidate_k=min(200, max(state.top_k, state.top_k * 4)),
+                        mode="hybrid",
+                        include_parent=True,
+                    ),
+                )
+            )
+        open_decision = self._focused_read(state, sequence) or self._completeness_open(
+            state, sequence
+        )
         if open_decision is not None:
             return open_decision
 
@@ -156,6 +339,7 @@ class V2AgentController:
         ledger = state.ledger or build_ledger(
             state.analysis,
             state.evidence_by_aspect,
+            open_results=state.open_results,
             denied_only=state.denied_only_signal
             and not _all_visible_hits(state.evidence_by_aspect),
             budget_exhausted=self._hard_budget_exhausted(state),
@@ -169,12 +353,15 @@ class V2AgentController:
                 purpose="return unresolved conflicting evidence without choosing a winner",
             )
         if ledger.recommended_action == "answer":
+            advisory = state.task_plan.model_relevance_used
             return _terminal(
                 sequence,
                 tool="answer",
-                mode="answered",
-                stop_reason="completed",
-                purpose="answer because every required aspect has visible evidence",
+                mode="partial" if advisory else "answered",
+                stop_reason="partial_evidence" if advisory else "completed",
+                purpose="return model-suggested relevant evidence without certifying completeness"
+                if advisory
+                else "answer because every required aspect has visible evidence",
             )
         if ledger.recommended_action == "partial":
             return _terminal(
@@ -243,6 +430,7 @@ class V2AgentController:
         last_error: ToolError | None = None
         focused_find_doc_id = state.focused_find_doc_id
         focused_open_count = state.focused_open_count
+        recovery_candidates = list(state.recovery_candidates)
         action = execution.action
         result = execution.result
 
@@ -250,11 +438,15 @@ class V2AgentController:
             if action.aspect not in attempted:
                 attempted.append(action.aspect)
             if isinstance(result, GuardedSearchResult):
+                if self.recovery_advisor is not None and not recovery_candidates:
+                    recovery_candidates = list(result.hits[:5])
                 supported_hits = [
                     hit
                     for hit in result.hits
                     if has_query_anchor_support(
-                        action.search_request.query,
+                        state.analysis.original_question
+                        if self.recovery_advisor is not None
+                        else action.search_request.query,
                         hit,
                     )
                 ]
@@ -295,15 +487,40 @@ class V2AgentController:
             last_error=last_error,
             focused_find_doc_id=focused_find_doc_id,
             focused_open_count=focused_open_count,
+            recovery_candidates=recovery_candidates,
+            retry_attempted=state.retry_attempted
+            or bool(
+                action.tool == "search"
+                and state.retry_query
+                and action.search_request.query == state.retry_query
+            ),
         )
         if state.analysis.intent != "unsafe":
             ledger = build_ledger(
                 state.analysis,
                 evidence,
+                open_results=open_results,
                 denied_only=denied_signal and not _all_visible_hits(evidence),
                 budget_exhausted=self._hard_budget_exhausted(next_state),
             )
             next_state = _validated_state(next_state, ledger=ledger)
+            views = with_open_evidence(evidence, open_results)
+            unique_views = {
+                evidence_view(view).citation_id: evidence_view(view)
+                for values in views.values()
+                for view in values
+            }
+            read_ids = {hit.hit.chunk_id for hits in evidence.values() for hit in hits}
+            read_ids.update(item.result.target_id for item in open_results)
+            task = observe_task(
+                state.task_plan,
+                state.analysis.original_question,
+                list(unique_views.values()),
+                searched=action.tool == "search",
+                read_incomplete=any(item.result.truncated for item in open_results)
+                or any(item.match.chunk_id not in read_ids for item in find_results),
+            )
+            next_state = _validated_state(next_state, task_plan=task)
         return next_state
 
     def _decision_for_error(
@@ -364,7 +581,11 @@ class V2AgentController:
 
     def _focused_read(self, state: ControllerState, sequence: int) -> ControllerDecision | None:
         needs = requested_needs(state.analysis.original_question)
-        if not ("materials" in needs or len(needs) > 1) or state.analysis.intent == "comparison":
+        generic = state.analysis.intent == "process" or len(state.task_plan.needs) > 1
+        if (
+            not ("materials" in needs or len(needs) > 1 or generic)
+            or state.analysis.intent == "comparison"
+        ):
             return None
         hits = _all_visible_hits(state.evidence_by_aspect)
         if not hits or (state.ledger and state.ledger.conflicting_aspects):
@@ -374,37 +595,73 @@ class V2AgentController:
         if state.focused_find_doc_id is None:
             if state.budget_state.find_calls >= budget.max_find_calls:
                 return None
-            return ControllerDecision(action=AgentAction(
-                sequence=sequence, tool="find", purpose="locate bounded reimbursement evidence in the admitted document",
-                aspect=state.analysis.required_aspects[0], find_request=FindRequest(
-                    request_id=f"agent-step-{sequence}", user=state.user, doc_id=anchor.doc_id,
-                    pattern="报销", max_results=20, anchor_chunk_id=anchor.chunk_id, filters=state.analysis.filters,
-                ),
-            ))
+            return ControllerDecision(
+                action=AgentAction(
+                    sequence=sequence,
+                    tool="find",
+                    purpose="locate bounded evidence in the admitted anchor section",
+                    aspect=state.analysis.required_aspects[0],
+                    find_request=FindRequest(
+                        request_id=f"agent-step-{sequence}",
+                        user=state.user,
+                        doc_id=anchor.doc_id,
+                        pattern=state.analysis.original_question[:500],
+                        match_mode="anchor_section",
+                        max_results=20,
+                        anchor_chunk_id=anchor.chunk_id,
+                        filters=state.analysis.filters,
+                    ),
+                )
+            )
         if state.focused_open_count >= 2 or state.budget_state.open_calls >= budget.max_open_calls:
             return None
-        seen_text = '\n'.join([*(h.hit.matched_text for h in hits),
-                               *(o.result.content for o in state.open_results)])
+        seen_text = "\n".join(
+            [*(h.hit.matched_text for h in hits), *(o.result.content for o in state.open_results)]
+        )
         known_materials = material_terms(seen_text)
-        seen_ids = {h.hit.chunk_id for h in hits} | set(state.opened_doc_ids)
-        candidates = [m.match for m in state.find_results
-                      if m.match.doc_id == anchor.doc_id and m.match.chunk_id not in seen_ids
-                      and relevant_need_count(m.match.preview, needs)]
-        candidates.sort(key=lambda match: (
-            -len(material_terms(match.preview) - known_materials),
-            -relevant_need_count(match.preview, needs), match.chunk_id,
-        ))
+        seen_ids = set(state.opened_doc_ids)
+        delivered_prefixes = {h.hit.chunk_id: h.hit.matched_text[:1200] for h in hits}
+        candidates = [
+            m.match
+            for m in state.find_results
+            if m.match.doc_id == anchor.doc_id
+            and m.match.chunk_id not in seen_ids
+            and m.match.preview not in delivered_prefixes.get(m.match.chunk_id, "")
+            and (generic or relevant_need_count(m.match.preview, needs))
+        ]
+        candidates.sort(
+            key=lambda match: (
+                -sum(
+                    need_matches(need, state.analysis.original_question, [match.preview])
+                    for need in state.task_plan.needs
+                    if not need.evidence_ids
+                ),
+                -len(material_terms(match.preview) - known_materials),
+                -relevant_need_count(match.preview, needs),
+                match.chunk_id,
+            )
+        )
         remaining = budget.max_context_chars - state.budget_state.context_chars
         if not candidates or remaining <= 0:
             return None
-        return ControllerDecision(action=AgentAction(
-            sequence=sequence, tool="open", purpose="read a located same-scope evidence chunk",
-            aspect=state.analysis.required_aspects[0], open_request=OpenRequest(
-                request_id=f"agent-step-{sequence}", user=state.user, target_type="chunk",
-                target_id=candidates[0].chunk_id, max_chars=min(2000, remaining),
-                anchor_chunk_id=anchor.chunk_id, filters=state.analysis.filters,
-            ),
-        ))
+        return ControllerDecision(
+            action=AgentAction(
+                sequence=sequence,
+                tool="open",
+                purpose="read a located same-scope evidence chunk",
+                aspect=state.analysis.required_aspects[0],
+                open_request=OpenRequest(
+                    request_id=f"agent-step-{sequence}",
+                    user=state.user,
+                    target_type="chunk",
+                    target_id=candidates[0].chunk_id,
+                    max_chars=min(2000, remaining),
+                    start_char=candidates[0].preview_start,
+                    anchor_chunk_id=anchor.chunk_id,
+                    filters=state.analysis.filters,
+                ),
+            )
+        )
 
     def _completeness_open(
         self,
@@ -414,7 +671,7 @@ class V2AgentController:
         if state.analysis.intent != "completeness":
             return None
         needs = requested_needs(state.analysis.original_question)
-        if "materials" in needs or len(needs) > 1:
+        if "materials" in needs or len(needs) > 1 or len(state.task_plan.needs) > 1:
             # The focused path must never fall back to an unscoped full-document prefix.
             return None
         for hit in _all_visible_hits(state.evidence_by_aspect):

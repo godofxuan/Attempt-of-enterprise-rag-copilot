@@ -1,5 +1,60 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-09-15 Mainline Release Closure
+
+The bounded September candidate completed local release verification and is
+being promoted to the canonical `main` branch under the stable tag
+`portfolio-v1.2.0-mainline-closure`.
+
+```text
+full repository tests              4148 passed / 0 failed / 36 skipped
+portfolio release gates            5 passed / 0 failed
+public repository audit            2500 candidates / 0 findings
+changed/new Python Ruff check       PASS
+git diff whitespace check           PASS
+production deployment               NOT CLAIMED
+new answer/retrieval quality claim   NONE
+```
+
+The release fixes an observation-wrapper regression, updates the dependency
+contract for `markdown-it-py==4.2.0`, and creates append-only current identity
+and dark-observation evidence after the final source formatting. Historical
+artifacts remain intact. The public bounded-correctness derivative was redacted
+without changing private originals or historical result fields, and its
+manifest chain was recomputed. Details and claim boundaries are in
+[the release report](docs/releases/2026-09-15-mainline-closure/REPORT.md).
+
+The real Qwen3.5 development experiment did not pass its quality promotion gate:
+its deterministic publication proxy improved, but one additional wrong-answer
+publication appeared. The consumed-output replay diagnostics therefore remain
+diagnostic only and are not resume accuracy claims.
+
+## 2026-09-12 Qwen3.5 Real Development Confirmation
+
+Same consumed 44-case diagnostic: Qwen3.5 recovery OFF 34/40, ON 39/40.
+Additional Chinese generation guidance reduced ON to 38/40 and was withdrawn.
+Keep the original generation prompt and the tested workday application lead-time
+coverage fix. Selected runtime ON confirmation: 40/40 term-and-citation checks,
+28 answered + 12 partial, 4 controls passed, p95 3.51s, 53 chat calls. Not a fresh
+human accuracy or retrieval benchmark. Final scoped tests: 1432 passed,
+2 historical evidence-binding failures, 9 existing skips; 11 new behavior tests pass.
+No new model/index/framework, no push/deployment, no historical metric rewrite.
+Full details: `docs/qwen35_recovery_validation_20260912/REPORT.md`.
+
+## 2026-09-12 Current Model Preference: Qwen3.5
+
+Use the installed `qwen3.5:4b` for new chat, recovery and evidence-model work.
+Its local Ollama digest is
+`2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd`.
+Settings and the local launcher now agree. `bge-m3` embeddings, indexes,
+retrieval parameters and rerankers are unchanged. Existing Qwen2.5/Qwen3
+benchmark protocols and historical reports remain immutable, not renamed.
+
+The preceding 29/40 versus 34/40 recovery result used `qwen2.5:3b`, not this
+model. Use a fresh output directory for future Qwen3.5 runs. This is a local
+configuration change, not a GitHub release or a new quality claim.
+See `docs/model_default_qwen35_20260912/NOTE.md`.
+
 ## 2026-09-04 Final evidence repair and portfolio release
 
 ```text

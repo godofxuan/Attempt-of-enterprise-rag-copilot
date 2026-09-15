@@ -12,27 +12,29 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    PrivateAttr,
     ValidationError,
     field_validator,
     model_validator,
 )
 
-from app.agent.answer_contract import answer_sufficiency, bounded_answer_slots
-from app.agent.answer_contract import requested_requirement_count, requirement_units
-from app.agent.query_needs import NEED_LABELS, assess_need_coverage, complementary_claim, relevant_need_count, requested_needs
+from app.agent.answer_contract import answer_sufficiency
 from app.agent.citation_verifier import verify_claims
 from app.agent.controller_v2 import ControllerState
+from app.agent.query_needs import requested_needs
 from app.agent.runner_v2 import ExtractiveResponseBuilder, build_conflict_response
+from app.agent.source_unit_completion import complete_claim_quotes
+from app.agent.task_plan import prompt_needs
 from app.config import get_settings
 from app.domain.agent import AgentStopReason, AnswerMode
 from app.domain.evidence import AnswerResponse, AnswerSource, Claim
 from app.domain.evidence_packet import DeliveredEvidence, complete_evidence_prefix
 from app.domain.retrieved_security import AdmittedEvidenceChunk
+from app.retrieval.query_normalization import retrieval_query
 from app.runtime.model_transport import ModelRequestError
 from app.runtime.request_context import RequestDeadlineExceeded, remaining_seconds
 from app.runtime.serving_chat import SERVING_CONTEXT_TOKENS, SERVING_OUTPUT_TOKENS
 from app.runtime.serving_chat import serving_chat as chat_with_ollama
-from app.retrieval.query_normalization import retrieval_query
 
 MAX_SOURCE_COUNT = 8
 MAX_HIT_CONTEXT_CHARS = 1200
@@ -120,6 +122,8 @@ class GeneratedAnswer(BaseModel):
 
     answer: str = Field(min_length=1, max_length=20_000)
     claims: list[GeneratedClaim] = Field(min_length=1, max_length=20)
+    _wire_claim_ids_rebound: int = PrivateAttr(default=0)
+    _invalid_claim_rows: int = PrivateAttr(default=0)
 
     @model_validator(mode="after")
     def validate_claim_ids(self) -> GeneratedAnswer:
@@ -253,15 +257,32 @@ class GenerationV2ResponseBuilder:
             response_trace = {
                 **response_trace,
                 "generation_attempts": generation_attempts,
+                "wire_claim_ids_rebound": _generated._wire_claim_ids_rebound,
+                "invalid_claim_rows_quarantined": _generated._invalid_claim_rows,
             }
             visible_hits = [source.delivered for source in sources]
+            # Request metadata is a different type of input from evidence.
+            # A literal copied question cannot become a fact merely because a
+            # document repeats that question as a heading. No semantic blacklist.
+            request_texts = {
+                _request_text_key(text)
+                for text in [question, *(need.text for need in state.task_plan.needs)]
+            }
+            original_claim_count = len(claims) + _generated._invalid_claim_rows
+            claims = [
+                claim for claim in claims if _request_text_key(claim.text) not in request_texts
+            ]
+            echo_count = original_claim_count - _generated._invalid_claim_rows - len(claims)
+            response_trace["request_echo_claims_omitted"] = echo_count
             citations = verify_claims(claims, visible_hits)
+            claims, citations, completion = complete_claim_quotes(claims, citations, visible_hits)
+            response_trace["source_unit_completion"] = completion
             citation_by_claim = {citation.claim_id: citation for citation in citations}
             supported_claims = [
                 claim for claim in claims if citation_by_claim[claim.claim_id].supported
             ]
             supported_citations = [citation for citation in citations if citation.supported]
-            unsupported_count = len(claims) - len(supported_claims)
+            unsupported_count = original_claim_count - len(supported_claims)
             response_trace["unsupported_claim_reasons"] = {
                 reason: sum(citation.unsupported_reason == reason for citation in citations)
                 for reason in sorted(
@@ -272,6 +293,14 @@ class GenerationV2ResponseBuilder:
                     }
                 )
             }
+            if echo_count:
+                response_trace["unsupported_claim_reasons"]["request_metadata_is_not_a_fact"] = (
+                    echo_count
+                )
+            if _generated._invalid_claim_rows:
+                response_trace["unsupported_claim_reasons"]["invalid_claim_shape"] = (
+                    _generated._invalid_claim_rows
+                )
             covered_aspects = {
                 aspect
                 for claim in supported_claims
@@ -299,7 +328,10 @@ class GenerationV2ResponseBuilder:
             if not supported_claims:
                 response_trace["generation_error_category"] = "unsupported"
                 return self._apply_answer_contract(
-                    question, state, _delivered_extractive_fallback(sources, response_trace), sources
+                    question,
+                    state,
+                    _delivered_extractive_fallback(sources, response_trace),
+                    sources,
                 )
 
             cited_chunk_ids = {
@@ -316,6 +348,11 @@ class GenerationV2ResponseBuilder:
             verified_mode: AnswerMode = mode
             verified_stop_reason = stop_reason
             warnings: list[str] = []
+            if completion["expanded"]:
+                warnings.append(
+                    "Host quotations retain complete source units, including "
+                    "their headings and conditions."
+                )
             if unsupported_count:
                 verified_mode = "partial"
                 verified_stop_reason = "partial_evidence"
@@ -350,150 +387,10 @@ class GenerationV2ResponseBuilder:
                 trace=response_trace,
             )
 
-    def _apply_answer_contract(
-        self, question: str, state: ControllerState, response: AnswerResponse,
-        sources: list[_PromptSource] | None = None,
-    ) -> AnswerResponse:
-        response = self._apply_slot_contract(question, state, response)
-        response = self._apply_bounded_needs(question, state, response, sources or [])
-        return self._apply_requirement_list(question, state, response, sources or [])
+    def _apply_answer_contract(self, question, state, response, sources=None) -> AnswerResponse:
+        from app.agent.answer_publication import publish_answer
 
-    def _apply_requirement_list(
-        self, question: str, state: ControllerState, response: AnswerResponse,
-        sources: list[_PromptSource],
-    ) -> AnswerResponse:
-        requested = requested_requirement_count(question)
-        if (response.mode not in {"answered", "partial"}
-                or state.analysis.intent != "completeness" or requested is None):
-            return response
-        available = requirement_units([s.delivered.text for s in sources])
-        stated = requirement_units([c.text for c in response.claims])
-        covered = len(available & stated)
-        incomplete = bool(
-            any(o.result.truncated for o in state.open_results)
-            or sum(response.trace.get("packet_drop_reasons", {}).values())
-            or sum(response.trace.get("packet_truncation_reasons", {}).values())
-        )
-        trace = {**response.trace, "requirement_list_coverage": {
-            "basis": "explicit_count_and_delivered_units_not_global_semantics",
-            "requested": requested, "available_units": len(available),
-            "verified_units": covered, "incomplete_read": incomplete,
-        }}
-        if covered >= requested and available <= stated and not incomplete:
-            return response.model_copy(update={"trace": trace})
-        note = f"当前可核验的完整条款为{covered}项，尚未完整核验所问的{requested}项要求。"
-        return response.model_copy(update={
-            "mode": "partial", "stop_reason": "partial_evidence",
-            "answer": response.answer + "\n" + note,
-            "warnings": [*response.warnings, note],
-            "trace": {**trace, "final_mode": "partial", "stop_reason": "partial_evidence"},
-        })
-
-    def _apply_slot_contract(
-        self, question: str, state: ControllerState, response: AnswerResponse,
-    ) -> AnswerResponse:
-        if response.mode not in {"answered", "partial"}:
-            return response
-        slots = bounded_answer_slots(question, [claim.text for claim in response.claims])
-        if not slots.requested:
-            return response
-        retained = sorted(set(slots.retained) | {
-            i for i, claim in enumerate(response.claims) if complementary_claim(question, claim.text)
-        })
-        trace = {
-            **response.trace,
-            "requested_answer_aspect_count": len(slots.requested),
-            "answered_aspect_count": len(slots.satisfied),
-            "missing_answer_aspect_count": len(slots.missing),
-            "answer_coverage_basis": "bounded_answer_slots_v1",
-            "retrieval_coverage_basis": "query_anchor_relevance_not_semantic_proof",
-            "answer_sufficiency": answer_sufficiency(
-                question, [response.claims[i].text for i in slots.retained]
-            ),
-        }
-        if not retained:
-            return self.source_free_builder.build(
-                question=question,
-                state=state,
-                mode="not_found",
-                stop_reason="not_found",
-                trace=trace,
-            )
-        claims = [response.claims[i] for i in retained]
-        claim_ids = {claim.claim_id for claim in claims}
-        cited_ids = {cid for claim in claims for cid in claim.cited_chunk_ids}
-        warnings = list(response.warnings)
-        notes = []
-        english = not re.search(r"[\u4e00-\u9fff]", question)
-        for slot in slots.missing:
-            label = {"duration": "天数", "approver": "审批人"}[slot]
-            note = (
-                f"The verified answer has not yet determined the requested {slot}."
-                if english
-                else f"当前已核验的回答尚未确定所问的{label}。"
-            )
-            notes.append(note)
-        if slots.conditional:
-            notes.append(
-                "The applicable condition is not yet determined."
-                if english
-                else "当前适用条件尚未确定，无法确定应使用哪一分支。"
-            )
-        warnings.extend(notes)
-        mode = "partial" if slots.missing else response.mode
-        reason = "partial_evidence" if slots.missing else response.stop_reason
-        return response.model_copy(
-            update={
-                "mode": mode,
-                "stop_reason": reason,
-                "answer": "\n".join([*(claim.text for claim in claims), *notes]),
-                "claims": claims,
-                "citations": [c for c in response.citations if c.claim_id in claim_ids],
-                "sources": [s for s in response.sources if s.chunk_id in cited_ids],
-                "warnings": warnings,
-                "trace": {**trace, "stop_reason": reason, "final_mode": mode},
-            }
-        )
-
-    def _apply_bounded_needs(
-        self, question: str, state: ControllerState, response: AnswerResponse,
-        sources: list[_PromptSource],
-    ) -> AnswerResponse:
-        if response.mode not in {"answered", "partial"} or not requested_needs(question):
-            return response
-        read_ids = {h.hit.chunk_id for hits in state.evidence_by_aspect.values() for h in hits}
-        read_ids.update(o.result.target_id for o in state.open_results)
-        unread_located = any(
-            match.match.chunk_id not in read_ids
-            and relevant_need_count(match.match.preview, requested_needs(question))
-            for match in state.find_results
-        )
-        incomplete = bool(
-            any(o.result.truncated for o in state.open_results)
-            or sum(response.trace.get("packet_drop_reasons", {}).values())
-            or sum(response.trace.get("packet_truncation_reasons", {}).values())
-            or unread_located
-            or (state.focused_find_doc_id is not None and len(state.find_results) >= 20)
-        )
-        coverage = assess_need_coverage(question, [c.text for c in response.claims],
-                                       [s.delivered.text for s in sources], incomplete_read=incomplete)
-        notes = [f"当前回答尚未完整覆盖所问的{NEED_LABELS[need]}。" for need in coverage.missing]
-        if 'eligibility' in coverage.missing:
-            notes.append("请补充费用类型、金额和实际适用条件，不能仅凭制度摘录确定本次是否可报销。")
-        if incomplete:
-            notes.append("部分证据因读取或上下文预算未完整交付，无法确认要求已全部覆盖。")
-        trace = {**response.trace, 'query_need_coverage': {
-            'basis': 'bounded_reimbursement_statements_v2_not_global_completeness',
-            'requested': len(coverage.requested), 'covered': len(coverage.requested) - len(coverage.missing),
-            'missing': len(coverage.missing), 'incomplete_read': incomplete,
-        }}
-        if not notes:
-            return response.model_copy(update={'trace': trace})
-        return response.model_copy(update={
-            'mode': 'partial', 'stop_reason': 'partial_evidence',
-            'answer': '\n'.join([response.answer, *notes]), 'warnings': [*response.warnings, *notes],
-            'trace': {**trace, 'stop_reason': 'partial_evidence', 'final_mode': 'partial'},
-        })
+        return publish_answer(question, state, response, sources or [])
 
     def _generate_valid_shape(
         self,
@@ -524,8 +421,11 @@ class GenerationV2ResponseBuilder:
                 response_format=GENERATION_RESPONSE_FORMAT,
                 think=False,
             )
+            remaining = remaining_seconds()
+            if remaining is not None and remaining <= 0:
+                raise RequestDeadlineExceeded("generation deadline exhausted")
             try:
-                generated = _parse_generated_answer(raw)
+                generated = _parse_generated_answer(raw, quarantine_invalid_claims=True)
                 claims = _map_claims(generated.claims, source_by_id)
                 return generated, claims, attempt
             except (json.JSONDecodeError, ValidationError, ValueError) as exc:
@@ -619,7 +519,10 @@ def _build_prompt_sources(
         {
             "packet_candidate_count": 0,
             "packet_duplicate_reasons": {
-                "chunk": 0, "open_target": 0, "matched_context": 0, "search_open_text": 0,
+                "chunk": 0,
+                "open_target": 0,
+                "matched_context": 0,
+                "search_open_text": 0,
             },
             "packet_drop_reasons": {
                 "source_limit": 0,
@@ -648,6 +551,26 @@ def _build_prompt_sources(
     )
     aspects = state.ledger.supported_aspects
     remaining_bytes = max_bytes
+    search_hits = [
+        item.hit for aspect in aspects for item in state.evidence_by_aspect.get(aspect, [])
+    ]
+    useful_opens = {
+        (item.result.target_type, item.result.target_id)
+        for item in state.open_results
+        if any(
+            (hit.doc_id, hit.source_path) == (item.result.doc_id, item.result.source_path)
+            for hit in search_hits
+        )
+        and not any(
+            hit.doc_id == item.result.doc_id and hit.matched_text == item.result.content
+            for hit in search_hits
+        )
+    }
+    # A bounded expansion must get space before redundant first-pass candidates.
+    # Keep at least one search anchor per aspect; never increase packet limits.
+    reserved_slots = min(len(useful_opens), 2, MAX_SOURCE_COUNT - len(aspects))
+    reserved_chars = min(remaining // 2, MAX_OPEN_CONTEXT_CHARS * reserved_slots)
+    reserved_bytes = 0 if max_bytes is None else min(max_bytes // 2, 6000 * reserved_slots)
     depth = max((len(state.evidence_by_aspect.get(aspect, [])) for aspect in aspects), default=0)
     for index in range(depth):
         for aspect in aspects:
@@ -661,7 +584,7 @@ def _build_prompt_sources(
                 count("packet_duplicate_reasons", "chunk")
                 continue
             seen.add(hit.chunk_id)
-            if len(result) >= MAX_SOURCE_COUNT:
+            if len(result) >= MAX_SOURCE_COUNT - reserved_slots:
                 count("packet_drop_reasons", "source_limit")
                 continue
             source_id = f"S{len(result) + 1}"
@@ -687,11 +610,18 @@ def _build_prompt_sources(
                 "version": hit.version,
             }
             # Reserve room for aspects not yet represented before filling extras.
-            allocation = remaining // max(1, len(set(aspects) - covered_aspects))
+            allocation = max(0, remaining - reserved_chars) // max(
+                1, len(set(aspects) - covered_aspects)
+            )
             byte_allocation = (
                 None
                 if remaining_bytes is None
-                else max(0, remaining_bytes // max(1, len(set(aspects) - covered_aspects)) - 1)
+                else max(
+                    0,
+                    (remaining_bytes - reserved_bytes)
+                    // max(1, len(set(aspects) - covered_aspects))
+                    - 1,
+                )
             )
             if record["matched_text"] != hit.matched_text or (
                 hit_context != hit.context_text and hit.context_text != hit.matched_text
@@ -885,7 +815,8 @@ def _delivered_extractive_fallback(
         # Search attribution is not proof a hit covers both named objects.
         # Do not broaden single-aspect fallback to every retrieved fragment.
         supported = {
-            aspect for aspect in source.aspects
+            aspect
+            for aspect in source.aspects
             if not multiple_aspects or aspect.casefold() in source.delivered.text.casefold()
         }
         if supported - covered:
@@ -949,9 +880,21 @@ def _generation_messages(
         {
             "intent": state.analysis.intent,
             "question": question,
-            **({"normalized_question": retrieval_query(question)}
-               if requested_needs(question) and retrieval_query(question) != question else {}),
-            **({"requested_needs": list(requested_needs(question))} if requested_needs(question) else {}),
+            **(
+                {"request_needs": prompt_needs(state.task_plan)}
+                if len(state.task_plan.needs) > 1
+                else {}
+            ),
+            **(
+                {"normalized_question": retrieval_query(question)}
+                if requested_needs(question) and retrieval_query(question) != question
+                else {}
+            ),
+            **(
+                {"requested_needs": list(requested_needs(question))}
+                if requested_needs(question)
+                else {}
+            ),
             "requested_mode": (
                 "partial" if state.ledger and state.ledger.coverage < 1 else "answered"
             ),
@@ -984,6 +927,13 @@ def _generation_messages(
             "and limits too. Use a unique claim_id for every claim, e.g. C1, C2, C3. "
             "These are NOT source IDs: cited_source_ids use S IDs and may repeat across claims."
         )
+    if len(state.task_plan.needs) > 1:
+        user += (
+            " Address each request_needs item separately using supported atomic claims. "
+            "Keep conditions and exceptions. Missing evidence is not permission to "
+            "invent a fact or assume the user's circumstances. The N IDs identify "
+            "questions only, never cite them as evidence."
+        )
     return [
         {"role": "system", "content": system},
         {"role": "user", "content": user},
@@ -994,6 +944,10 @@ def _default_prompt_nonce() -> str:
     return secrets.token_urlsafe(24)
 
 
+def _request_text_key(text: str) -> str:
+    return "".join(text.split()).strip("?？。.!！;；\"'“”").casefold()
+
+
 def _validated_prompt_nonce(factory: NonceFactory) -> str:
     nonce = factory()
     if not isinstance(nonce, str) or PROMPT_NONCE_PATTERN.fullmatch(nonce) is None:
@@ -1001,7 +955,9 @@ def _validated_prompt_nonce(factory: NonceFactory) -> str:
     return nonce
 
 
-def _parse_generated_answer(raw: str) -> GeneratedAnswer:
+def _parse_generated_answer(
+    raw: str, *, quarantine_invalid_claims: bool = False
+) -> GeneratedAnswer:
     text = raw.strip()
     if text.startswith("```"):
         lines = text.splitlines()
@@ -1015,7 +971,35 @@ def _parse_generated_answer(raw: str) -> GeneratedAnswer:
     payload = json.loads(text)
     if not isinstance(payload, dict):
         raise ValueError("generation response must be a JSON object")
-    return GeneratedAnswer.model_validate(payload)
+    rebound = 0
+    invalid_rows = 0
+    rows = payload.get("claims")
+    if isinstance(rows, list) and 1 <= len(rows) <= 20:
+        # claim_id is a wire label, not a citation. Validate all original rows
+        # first, then re-key duplicate labels without touching facts/source IDs.
+        validated = []
+        for row in rows:
+            try:
+                validated.append(GeneratedClaim.model_validate(row))
+            except ValidationError:
+                if not quarantine_invalid_claims:
+                    raise
+                invalid_rows += 1
+        if invalid_rows:
+            payload = {**payload, "claims": [row.model_dump() for row in validated]}
+        if len({row.claim_id for row in validated}) != len(validated):
+            rebound = len(validated)
+            payload = {
+                **payload,
+                "claims": [
+                    {**row.model_dump(), "claim_id": f"host-claim-{i}"}
+                    for i, row in enumerate(validated, 1)
+                ],
+            }
+    result = GeneratedAnswer.model_validate(payload)
+    result._wire_claim_ids_rebound = rebound
+    result._invalid_claim_rows = invalid_rows
+    return result
 
 
 def _map_claims(

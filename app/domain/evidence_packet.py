@@ -70,6 +70,8 @@ class DeliveredEvidence:
                 result.content,
             )
         )
+        if result.start_char:
+            binding += f"\nstart_char={result.start_char}"
         digest = hashlib.sha256(binding.encode("utf-8")).hexdigest()[:24]
         return f"open::{digest}"
 

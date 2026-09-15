@@ -7,8 +7,8 @@ from pathlib import Path
 from threading import RLock
 from typing import Protocol
 
-from app.agent.citation_verifier import verify_claims
 from app.agent.answer_applicability import enforce_answer_applicability
+from app.agent.citation_verifier import verify_claims
 from app.agent.controller_v2 import (
     ControllerDecision,
     ControllerState,
@@ -122,17 +122,17 @@ class ExtractiveResponseBuilder:
 
 
 def build_conflict_response(state: ControllerState, trace: dict) -> AnswerResponse:
-    from app.agent.evidence_ledger import _numeric_conflicts
+    from app.agent.evidence_ledger import _numeric_conflicts, evidence_view, with_open_evidence
 
-    admitted = {"comparison": _all_visible_hits(state)}
+    admitted = with_open_evidence(state.evidence_by_aspect, state.open_results)
     scope_only = bool(_numeric_conflicts(admitted, scope_ambiguity=True)) and not bool(
         _numeric_conflicts(admitted)
     )
     note = (
         "现有材料的适用范围不同或不完整，当前范围信息不足以比较或确定唯一适用制度。"
         "以下为各自摘录，不构成同一事实冲突或制度优先级裁决。"
-        if scope_only else
-        "现有可见材料存在潜在不一致，无法据此确定唯一期限或数值。"
+        if scope_only
+        else "现有可见材料存在潜在不一致，无法据此确定唯一期限或数值。"
         "以下结论仅限已展示摘录，不构成制度优先级裁决。"
     )
     conflict_ids = (
@@ -141,12 +141,21 @@ def build_conflict_response(state: ControllerState, trace: dict) -> AnswerRespon
         else set()
     )
     views = []
-    for evidence in _all_visible_hits(state):
-        if evidence.hit.chunk_id not in conflict_ids or len(views) >= 8:
+    seen = set()
+    for evidence in (item for values in admitted.values() for item in values):
+        view = evidence_view(evidence)
+        if view.citation_id not in conflict_ids or view.citation_id in seen or len(views) >= 8:
             continue
-        text = complete_evidence_prefix(evidence.hit.matched_text, 1000)
+        seen.add(view.citation_id)
+        text = complete_evidence_prefix(view.matched_text, 1000)
         if text.strip():
-            views.append(DeliveredEvidence(anchor=evidence, matched_text=text))
+            views.append(
+                DeliveredEvidence(
+                    anchor=view.anchor,
+                    opened=view.opened,
+                    matched_text=text,
+                )
+            )
     claims = [
         Claim(
             claim_id=f"conflict-{index}",
@@ -162,10 +171,12 @@ def build_conflict_response(state: ControllerState, trace: dict) -> AnswerRespon
     return AnswerResponse(
         mode="partial",
         stop_reason="partial_evidence",
-        answer="\n".join([
-            *(claim.text for claim in claims),
-            note,
-        ]),
+        answer="\n".join(
+            [
+                *(claim.text for claim in claims),
+                note,
+            ]
+        ),
         claims=claims,
         citations=[citation for citation in citations if citation.supported],
         sources=[
@@ -177,19 +188,26 @@ def build_conflict_response(state: ControllerState, trace: dict) -> AnswerRespon
                 preview=view.matched_text,
                 index_run_id=view.anchor.hit.index_run_id,
                 version_id=view.anchor.hit.version_id,
-                target_id=view.citation_id,
+                evidence_kind="open" if view.opened else "search",
+                target_type=view.opened.result.target_type if view.opened else "chunk",
+                target_id=view.opened.result.target_id if view.opened else view.citation_id,
             )
             for view in views
             if view.citation_id in cited_ids
         ],
         warnings=[
             "Explicit scope differs or is incomplete; insufficient scope to compare."
-            if scope_only else
-            "Potential same-scope evidence conflict; excerpts are not a selected policy answer."
+            if scope_only
+            else (
+                "Potential same-scope evidence conflict; excerpts are not a selected policy answer."
+            )
         ],
         trace={
-            **trace, "answer_strategy": "conflict_excerpts", "generation_attempts": 0,
-            "stop_reason": "partial_evidence", "final_mode": "partial",
+            **trace,
+            "answer_strategy": "conflict_excerpts",
+            "generation_attempts": 0,
+            "stop_reason": "partial_evidence",
+            "final_mode": "partial",
             "comparison_status": (
                 "scope_insufficient" if scope_only else "potential_numeric_conflict"
             ),
@@ -226,6 +244,7 @@ class V2AgentRunner:
         from app.runtime.request_context import (
             bind_request_context,
             current_request_context,
+            remaining_seconds,
             reset_request_context,
         )
 
@@ -239,7 +258,16 @@ class V2AgentRunner:
                 existing.deadline_at_ms, time.monotonic() * 1000 + self.budget.deadline_ms
             )
         try:
-            return self._run_version_bound(question, user, top_k)
+            if remaining_seconds() == 0:
+                return _source_free_response(
+                    "system", "system_error", {"request_termination": "cancelled_or_deadline"}
+                )
+            response = self._run_version_bound(question, user, top_k)
+            if remaining_seconds() == 0:
+                return _source_free_response(
+                    "system", "system_error", {"request_termination": "cancelled_or_deadline"}
+                )
+            return response
         finally:
             if token is not None:
                 reset_request_context(token)
@@ -319,6 +347,11 @@ class V2AgentRunner:
         guard_limit = self.budget.max_steps + 2
         for _ in range(guard_limit):
             try:
+                from app.runtime.request_context import remaining_seconds
+
+                if remaining_seconds() == 0:
+                    return self._system_response(analysis, state, step_traces)
+                state = self.controller.prepare_advice(state)
                 decision = self.controller.next_decision(state)
             except Exception:
                 return self._system_response(analysis, state, step_traces)
@@ -339,6 +372,13 @@ class V2AgentRunner:
                     ),
                 )
                 try:
+                    from app.agent.task_plan import task_summary
+
+                    trace["task_coverage"] = task_summary(state.task_plan)
+                    trace["task_advice"] = {
+                        "status": state.advice_status,
+                        "retry_attempted": state.retry_attempted,
+                    }
                     response = self.response_builder.build(
                         question=question,
                         state=state,
@@ -346,7 +386,14 @@ class V2AgentRunner:
                         stop_reason=decision.stop_reason,
                         trace=trace,
                     )
-                    response = enforce_answer_applicability(question, response)
+                    # Generated answers already evaluate applicability before
+                    # coverage in their one publication decision. Preserve the
+                    # legacy adapter for extractive/custom response builders.
+                    if (
+                        response.trace.get("answer_decision", {}).get("version")
+                        != "answer-publication-v1"
+                    ):
+                        response = enforce_answer_applicability(question, response)
                 except Exception:
                     response = _source_free_response(
                         "system",
@@ -673,11 +720,24 @@ def _get_versioned_v2_runner(
     )
     return V2AgentRunner(
         registry=registry,
+        controller=_configured_controller(settings),
         response_builder=GenerationV2ResponseBuilder(
             model=settings.chat_model,
         ),
         budget=budget_from_settings(settings),
         index_binding=(Path(root), run_id, manifest_sha256),
+    )
+
+
+def _configured_controller(settings):
+    from app.agent.task_advisor import TaskAdvisor
+
+    return V2AgentController(
+        recovery_advisor=(
+            TaskAdvisor(model=settings.chat_model)
+            if settings.agent_v2_task_advisor_enabled
+            else None
+        )
     )
 
 

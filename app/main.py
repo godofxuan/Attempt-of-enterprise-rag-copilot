@@ -12,14 +12,18 @@ from app.api.identity import (
     authenticated_principal,
     document_bearer_authentication,
 )
-from app.api.middleware import RequestContextMiddleware
 from app.api.lifecycle import create_lifecycle_router
+from app.api.middleware import RequestContextMiddleware
 from app.config import get_settings
 from app.db import save_feedback_metadata
 from app.domain.evidence import AnswerResponse
 from app.observability.tracing import RequestTrace, trace_span
-from app.runtime.request_context import current_request_id
 from app.runtime.dark_observation import safe_dark_observation_snapshot
+from app.runtime.request_context import (
+    current_request_context,
+    current_request_id,
+    remaining_seconds,
+)
 from app.runtime.resources import ServiceContainer, build_service_container
 from app.schemas import (
     AgentV2ChatRequest,
@@ -116,12 +120,14 @@ def _create_application(
             service.feedback_actor_hasher.ready()
         except IdentityConfigurationError:
             raise _identity_unavailable() from None
+        _require_active_request()
         with trace_span("agent.run"):
             answer = run_agent_v2_chat(
                 payload.question,
                 principal.to_user_context(),
                 payload.top_k,
             )
+        _require_active_request()
         safe_trace = redact_trace_payload(
             {**answer.trace, "request_id": current_request_id() or "untracked"}
         )
@@ -224,9 +230,7 @@ def _create_application(
     def metrics(request: Request) -> dict:
         request.state.outcome = "observed"
         snapshot = service.metrics.snapshot()
-        snapshot["dark_observation"] = safe_dark_observation_snapshot(
-            service.dark_observation
-        )
+        snapshot["dark_observation"] = safe_dark_observation_snapshot(service.dark_observation)
         return snapshot
 
     @application.get(
@@ -246,6 +250,25 @@ def _create_application(
         return record
 
     return application
+
+
+def _require_active_request() -> None:
+    context = current_request_context()
+    if context is not None and context.cancelled.is_set():
+        raise ApiError(
+            status_code=499,
+            code="request_cancelled",
+            message="The request was cancelled.",
+            retryable=False,
+        )
+    remaining = remaining_seconds()
+    if remaining is not None and remaining <= 0:
+        raise ApiError(
+            status_code=504,
+            code="request_deadline_exceeded",
+            message="The request exceeded its deadline.",
+            retryable=True,
+        )
 
 
 def _require_service_dependencies(

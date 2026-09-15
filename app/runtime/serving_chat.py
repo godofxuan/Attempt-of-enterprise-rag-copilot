@@ -17,12 +17,17 @@ def serving_chat(
     think: bool | str | None = None,
     max_output_tokens: int = SERVING_OUTPUT_TOKENS,
     seed: int | None = None,
+    request_attempts: int | None = None,
 ) -> str:
     # Keep the generation capture hook compatible without allowing policy drift.
     if type(max_output_tokens) is not int or max_output_tokens != SERVING_OUTPUT_TOKENS:
         raise ValueError("serving output limit is fixed at 1024")
     if seed is not None and (type(seed) is not int or not 0 <= seed <= 2_147_483_647):
         raise ValueError("Ollama seed must be an integer between 0 and 2147483647")
+    if request_attempts is not None and (
+        type(request_attempts) is not int or request_attempts != 1
+    ):
+        raise ValueError("advisory calls may only reduce request attempts to one")
     settings = get_settings()
     endpoint = parse_pinned_model_endpoint(settings.llm_base_url)
     payload = {
@@ -45,7 +50,7 @@ def serving_chat(
         lambda timeout: _post_ollama(f"{endpoint.origin}/api/chat", payload, timeout),
         operation="chat",
         timeout_seconds=settings.model_request_timeout_seconds,
-        max_attempts=settings.model_max_attempts,
+        max_attempts=settings.model_max_attempts if request_attempts is None else request_attempts,
         backoff_seconds=settings.model_retry_backoff_ms / 1000.0,
     )
     return result.response.json()["message"]["content"]

@@ -58,15 +58,15 @@
 ### 1.3 审核包记录的原机器位置
 
 原工作区：
-`D:\文档\agent\RAG_try\.private\runtime_closure_20260907T160738`
+`LOCAL_PATH_REDACTED`
 
 原项目目录：
-`D:\文档\agent\RAG_try`
+`LOCAL_PATH_REDACTED`
 
 原 Python 解释器：
-`D:\文档\agent\RAG_try\.venv\Scripts\python.exe`
+`LOCAL_PATH_REDACTED`
 
-这些是 `TARGET_IDENTITY.json` 中的历史路径，不保证当前机器存在。先检查，不能直接假设可用，更不能在 Linux 环境创建名为 `D:\...` 的伪路径。
+这些是 `TARGET_IDENTITY.json` 中的历史路径，不保证当前机器存在。先检查，不能直接假设可用，更不能在 Linux 环境创建名为 `LOCAL_PATH_REDACTED` 的伪路径。
 
 ### 1.4 自动定位规则
 

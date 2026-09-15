@@ -11,11 +11,12 @@ import secrets
 import stat
 import threading
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import jwt
 from cryptography.hazmat.primitives import serialization
@@ -38,7 +39,6 @@ from app.security.private_fs import (
     replace_private_file,
     sync_directory,
 )
-
 
 _MANIFEST_SCHEMA = "demo-identity-keyring-v3"
 _PREVIOUS_MANIFEST_SCHEMA = "demo-identity-keyring-v2"
@@ -182,9 +182,7 @@ def initialize_demo_identity(
             extra={str(record["private_key_file"]): private_bytes},
         )
         deletes = [
-            stale.name
-            for stale in old_private_files
-            if stale.name != record["private_key_file"]
+            stale.name for stale in old_private_files if stale.name != record["private_key_file"]
         ]
         _commit_operation(
             root,
@@ -204,9 +202,7 @@ def rotate_demo_identity(directory: Path) -> DemoIdentityStatus:
         _recover_pending_operation(root)
         manifest = _load_manifest(root)
         if _pending_kid(manifest) is not None:
-            raise ValueError(
-                "a staged identity key must be activated or retired first"
-            )
+            raise ValueError("a staged identity key must be activated or retired first")
         if len(manifest["keys"]) >= _MAX_KEYRING_KEYS:
             raise ValueError("demo identity keyring is full; retire an old key first")
         private_key, record = _generate_key_record(
@@ -274,9 +270,7 @@ def activate_demo_identity(
         previous_active_kid = str(manifest["active_kid"])
         manifest["active_kid"] = kid
         manifest["retire_not_before"][previous_active_kid] = (
-            activation_time
-            + _MAX_TOKEN_LIFETIME_SECONDS
-            + IDENTITY_CLOCK_SKEW_MAX_SECONDS
+            activation_time + _MAX_TOKEN_LIFETIME_SECONDS + IDENTITY_CLOCK_SKEW_MAX_SECONDS
         )
         manifest["retire_not_before"].pop(kid, None)
         runtime = _render_runtime_artifacts(
@@ -306,6 +300,59 @@ def activate_demo_identity(
         return _status(manifest)
 
 
+def renew_demo_identity(
+    directory: Path,
+    *,
+    token_lifetime_seconds: int,
+    snapshot_verifier: Callable[[str, str], bool],
+) -> DemoIdentityStatus:
+    """Explicit local operator action; preserve keys and require a live API probe."""
+    root, expected_identity = _prepare_directory(directory)
+    _validate_lifetime(token_lifetime_seconds)
+    if not callable(snapshot_verifier):
+        raise TypeError("snapshot verifier must be callable")
+    with _identity_lock(root, expected_identity=expected_identity):
+        _recover_pending_operation(root)
+        manifest = _load_manifest(root)
+        kid = str(manifest["active_kid"])
+        private_key = _load_private_key(root, manifest, kid=kid)
+        probe = _issue_token(
+            private_key,
+            kid=kid,
+            issuer=str(manifest["issuer"]),
+            audience=str(manifest["audience"]),
+            subject="demo-renewal-probe",
+            groups=["all_employees"],
+            roles=[],
+            issued_at=_now_epoch(),
+            lifetime=60,
+        )
+        try:
+            accepted = snapshot_verifier(probe, kid)
+        except Exception:
+            accepted = False
+        if accepted is not True:
+            raise IdentityConfigurationError(
+                "active identity key is not loaded by the API snapshot"
+            )
+        runtime = _render_runtime_artifacts(
+            manifest,
+            private_key=private_key,
+            token_lifetime_seconds=token_lifetime_seconds,
+            hmac_key=_read_identity_file_snapshot(root / _HMAC_FILE, max_bytes=256),
+        )
+        _commit_operation(
+            root,
+            _new_operation(
+                kind="renew",
+                subject_kid=kid,
+                writes=_committed_writes(manifest, runtime),
+                deletes=[],
+            ),
+        )
+        return _status(manifest)
+
+
 def retire_demo_identity_key(
     directory: Path,
     *,
@@ -316,13 +363,9 @@ def retire_demo_identity_key(
     if not isinstance(emergency_revoke, bool):
         raise TypeError("emergency revoke must be a boolean")
     if emergency_revoke and emergency_confirmation != EMERGENCY_RETIRE_CONFIRMATION:
-        raise ValueError(
-            "emergency revocation requires the exact confirmation phrase"
-        )
+        raise ValueError("emergency revocation requires the exact confirmation phrase")
     if not emergency_revoke and emergency_confirmation is not None:
-        raise ValueError(
-            "emergency confirmation is only valid with emergency revocation"
-        )
+        raise ValueError("emergency confirmation is only valid with emergency revocation")
     root, expected_identity = _prepare_directory(directory)
     with _identity_lock(root, expected_identity=expected_identity):
         _recover_pending_operation(root)
@@ -337,33 +380,21 @@ def retire_demo_identity_key(
         now = _now_epoch()
         retire_not_before = manifest["retire_not_before"].get(kid)
         emergency_used = (
-            isinstance(retire_not_before, int)
-            and now < retire_not_before
-            and emergency_revoke
+            isinstance(retire_not_before, int) and now < retire_not_before and emergency_revoke
         )
-        if (
-            isinstance(retire_not_before, int)
-            and now < retire_not_before
-            and not emergency_revoke
-        ):
+        if isinstance(retire_not_before, int) and now < retire_not_before and not emergency_revoke:
             deadline = datetime.fromtimestamp(
                 retire_not_before,
-                tz=timezone.utc,
+                tz=UTC,
             ).strftime("%Y-%m-%dT%H:%M:%SZ")
-            raise ValueError(
-                f"identity key overlap window remains active until {deadline}"
-            )
+            raise ValueError(f"identity key overlap window remains active until {deadline}")
         if len(manifest["retired_kids"]) >= _MAX_RETIRED_KEY_IDS:
             raise ValueError("demo identity retired-key history is full")
-        manifest["keys"] = [
-            item for item in manifest["keys"] if item["kid"] != kid
-        ]
+        manifest["keys"] = [item for item in manifest["keys"] if item["kid"] != kid]
         manifest["retired_kids"].append(kid)
         manifest["retire_not_before"].pop(kid, None)
         if emergency_used:
-            manifest["emergency_revocations"].append(
-                {"kid": kid, "revoked_at": now}
-            )
+            manifest["emergency_revocations"].append({"kid": kid, "revoked_at": now})
         runtime = _read_runtime_artifacts(root)
         runtime[_JWKS_FILE] = _json_bytes(_public_jwks(manifest))
         _commit_operation(
@@ -434,9 +465,7 @@ def _render_runtime_artifacts(
     )
     return {
         _JWKS_FILE: _json_bytes(_public_jwks(manifest)),
-        _PERSONA_FILE: _json_bytes(
-            {"schema_version": _BUNDLE_SCHEMA, "tokens": tokens}
-        ),
+        _PERSONA_FILE: _json_bytes({"schema_version": _BUNDLE_SCHEMA, "tokens": tokens}),
         _LOAD_USER_FILE: (tokens["load-demo-employee"] + "\n").encode("ascii"),
         _OPERATOR_FILE: (operator_token + "\n").encode("ascii"),
         _HMAC_FILE: hmac_key,
@@ -449,7 +478,7 @@ def _generate_key_record(
 ) -> tuple[rsa.RSAPrivateKey, dict[str, Any]]:
     excluded = excluded or set()
     while True:
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         kid = f"demo-{stamp}-{secrets.token_hex(4)}"
         if kid not in excluded:
             break
@@ -487,9 +516,7 @@ def _load_private_key(
     try:
         private_key = serialization.load_pem_private_key(raw, None)
     except (TypeError, ValueError):
-        raise IdentityConfigurationError(
-            "identity private key is unavailable"
-        ) from None
+        raise IdentityConfigurationError("identity private key is unavailable") from None
     if not isinstance(private_key, rsa.RSAPrivateKey):
         raise IdentityConfigurationError("identity private key is unavailable")
     return private_key
@@ -555,17 +582,21 @@ def _load_manifest(
         )
         if upgraded is not None:
             upgraded.append(True)
-    if set(manifest) != {
-        "schema_version",
-        "issuer",
-        "audience",
-        "active_kid",
-        "keys",
-        "retired_kids",
-        "retire_not_before",
-        "emergency_revocations",
-        "artifacts",
-    } or manifest["schema_version"] != _MANIFEST_SCHEMA:
+    if (
+        set(manifest)
+        != {
+            "schema_version",
+            "issuer",
+            "audience",
+            "active_kid",
+            "keys",
+            "retired_kids",
+            "retire_not_before",
+            "emergency_revocations",
+            "artifacts",
+        }
+        or manifest["schema_version"] != _MANIFEST_SCHEMA
+    ):
         raise IdentityConfigurationError("demo identity manifest is invalid")
     keys = manifest["keys"]
     if not isinstance(keys, list) or not 1 <= len(keys) <= _MAX_KEYRING_KEYS:
@@ -607,13 +638,9 @@ def _load_manifest(
         ):
             raise IdentityConfigurationError("demo identity manifest is invalid")
         key_ids.add(kid)
-    if not isinstance(manifest["active_kid"], str) or manifest[
-        "active_kid"
-    ] not in key_ids:
+    if not isinstance(manifest["active_kid"], str) or manifest["active_kid"] not in key_ids:
         raise IdentityConfigurationError("demo identity manifest is invalid")
-    if not isinstance(manifest["issuer"], str) or not isinstance(
-        manifest["audience"], str
-    ):
+    if not isinstance(manifest["issuer"], str) or not isinstance(manifest["audience"], str):
         raise IdentityConfigurationError("demo identity manifest is invalid")
     retired = manifest["retired_kids"]
     if (
@@ -633,9 +660,7 @@ def _load_manifest(
         error_message="demo identity manifest is invalid",
     )
     artifacts = manifest["artifacts"]
-    if not isinstance(artifacts, dict) or set(artifacts) != set(
-        _RUNTIME_ARTIFACT_FILES
-    ):
+    if not isinstance(artifacts, dict) or set(artifacts) != set(_RUNTIME_ARTIFACT_FILES):
         raise IdentityConfigurationError("demo identity manifest is invalid")
     runtime = _read_runtime_artifacts(root)
     for name, payload in runtime.items():
@@ -708,8 +733,7 @@ def _upgrade_legacy_manifest(root: Path, manifest: dict[str, Any]) -> dict[str, 
         "keys": upgraded_keys,
         "retired_kids": [],
         "artifacts": {
-            name: hashlib.sha256(payload).hexdigest()
-            for name, payload in runtime.items()
+            name: hashlib.sha256(payload).hexdigest() for name, payload in runtime.items()
         },
     }
 
@@ -718,15 +742,19 @@ def _upgrade_previous_manifest(
     root: Path,
     manifest: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, bytes]]:
-    if set(manifest) != {
-        "schema_version",
-        "issuer",
-        "audience",
-        "active_kid",
-        "keys",
-        "retired_kids",
-        "artifacts",
-    } or manifest.get("schema_version") != _PREVIOUS_MANIFEST_SCHEMA:
+    if (
+        set(manifest)
+        != {
+            "schema_version",
+            "issuer",
+            "audience",
+            "active_kid",
+            "keys",
+            "retired_kids",
+            "artifacts",
+        }
+        or manifest.get("schema_version") != _PREVIOUS_MANIFEST_SCHEMA
+    ):
         raise IdentityConfigurationError("demo identity manifest is invalid")
     keys = manifest.get("keys")
     if not isinstance(keys, list) or any(not isinstance(item, dict) for item in keys):
@@ -737,9 +765,7 @@ def _upgrade_previous_manifest(
     active_kid = manifest.get("active_kid")
     pending_kid = _pending_kid(manifest)
     retirement_deadline = (
-        _now_epoch()
-        + _MAX_TOKEN_LIFETIME_SECONDS
-        + IDENTITY_CLOCK_SKEW_MAX_SECONDS
+        _now_epoch() + _MAX_TOKEN_LIFETIME_SECONDS + IDENTITY_CLOCK_SKEW_MAX_SECONDS
     )
     upgraded = {
         **manifest,
@@ -773,8 +799,7 @@ def _status(
         restart_required=restart_required or _pending_kid(manifest) is not None,
         retirement_not_before=tuple(
             sorted(
-                (str(kid), int(deadline))
-                for kid, deadline in manifest["retire_not_before"].items()
+                (str(kid), int(deadline)) for kid, deadline in manifest["retire_not_before"].items()
             )
         ),
         emergency_revocations=tuple(
@@ -858,9 +883,7 @@ def _private_key_bytes(private_key: rsa.RSAPrivateKey) -> bytes:
 
 
 def _json_bytes(payload: dict[str, Any]) -> bytes:
-    return (
-        json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n"
-    ).encode("ascii")
+    return (json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n").encode("ascii")
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -891,8 +914,7 @@ def _committed_writes(
         raise IdentityConfigurationError("identity runtime artifact set is invalid")
     manifest["schema_version"] = _MANIFEST_SCHEMA
     manifest["artifacts"] = {
-        name: hashlib.sha256(runtime[name]).hexdigest()
-        for name in _RUNTIME_ARTIFACT_FILES
+        name: hashlib.sha256(runtime[name]).hexdigest() for name in _RUNTIME_ARTIFACT_FILES
     }
     writes = dict(runtime)
     writes.update(extra or {})
@@ -909,7 +931,7 @@ def _new_operation(
     activation_policy: dict[str, Any] | None = None,
     retirement_authorization: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    if kind not in {"init", "rotate", "activate", "retire", "upgrade"}:
+    if kind not in {"init", "rotate", "activate", "retire", "upgrade", "renew"}:
         raise ValueError("identity operation kind is invalid")
     if not _DEMO_KID_PATTERN.fullmatch(subject_kid):
         raise ValueError("identity operation key ID is invalid")
@@ -935,14 +957,10 @@ def _new_operation(
             or isinstance(activation_policy["activated_at"], bool)
             or not isinstance(activation_policy["activated_at"], int)
             or not 0 < activation_policy["activated_at"] <= _MAX_EPOCH_SECONDS
-            or activation_policy["clock_skew_seconds"]
-            != IDENTITY_CLOCK_SKEW_MAX_SECONDS
-            or activation_policy["max_token_lifetime_seconds"]
-            != _MAX_TOKEN_LIFETIME_SECONDS
+            or activation_policy["clock_skew_seconds"] != IDENTITY_CLOCK_SKEW_MAX_SECONDS
+            or activation_policy["max_token_lifetime_seconds"] != _MAX_TOKEN_LIFETIME_SECONDS
             or not isinstance(activation_policy["previous_active_kid"], str)
-            or not _DEMO_KID_PATTERN.fullmatch(
-                activation_policy["previous_active_kid"]
-            )
+            or not _DEMO_KID_PATTERN.fullmatch(activation_policy["previous_active_kid"])
             or activation_policy["previous_active_kid"] == subject_kid
         ):
             raise ValueError("identity activation policy is invalid")
@@ -955,15 +973,11 @@ def _new_operation(
             or retirement_authorization["mode"] not in {"scheduled", "emergency"}
             or isinstance(retirement_authorization["authorized_at"], bool)
             or not isinstance(retirement_authorization["authorized_at"], int)
-            or not 0
-            < retirement_authorization["authorized_at"]
-            <= _MAX_EPOCH_SECONDS
+            or not 0 < retirement_authorization["authorized_at"] <= _MAX_EPOCH_SECONDS
         ):
             raise ValueError("identity retirement authorization is invalid")
     elif retirement_authorization is not None:
-        raise ValueError(
-            "identity retirement authorization is only valid for retirement"
-        )
+        raise ValueError("identity retirement authorization is only valid for retirement")
     return {
         "schema_version": _OPERATION_SCHEMA,
         "operation_id": secrets.token_hex(16),
@@ -1031,12 +1045,14 @@ def _validate_operation(
         payload["schema_version"] != _OPERATION_SCHEMA
         or not isinstance(payload["operation_id"], str)
         or not re.fullmatch(r"[0-9a-f]{32}", payload["operation_id"])
-        or payload["kind"] not in {
+        or payload["kind"]
+        not in {
             "init",
             "rotate",
             "activate",
             "retire",
             "upgrade",
+            "renew",
         }
         or not isinstance(payload["subject_kid"], str)
         or not _DEMO_KID_PATTERN.fullmatch(payload["subject_kid"])
@@ -1058,20 +1074,13 @@ def _validate_operation(
             or isinstance(activation_policy["activated_at"], bool)
             or not isinstance(activation_policy["activated_at"], int)
             or not 0 < activation_policy["activated_at"] <= _MAX_EPOCH_SECONDS
-            or activation_policy["clock_skew_seconds"]
-            != IDENTITY_CLOCK_SKEW_MAX_SECONDS
-            or activation_policy["max_token_lifetime_seconds"]
-            != _MAX_TOKEN_LIFETIME_SECONDS
+            or activation_policy["clock_skew_seconds"] != IDENTITY_CLOCK_SKEW_MAX_SECONDS
+            or activation_policy["max_token_lifetime_seconds"] != _MAX_TOKEN_LIFETIME_SECONDS
             or not isinstance(activation_policy["previous_active_kid"], str)
-            or not _DEMO_KID_PATTERN.fullmatch(
-                activation_policy["previous_active_kid"]
-            )
-            or activation_policy["previous_active_kid"]
-            == payload["subject_kid"]
+            or not _DEMO_KID_PATTERN.fullmatch(activation_policy["previous_active_kid"])
+            or activation_policy["previous_active_kid"] == payload["subject_kid"]
         ):
-            raise IdentityConfigurationError(
-                "identity operation journal is invalid"
-            )
+            raise IdentityConfigurationError("identity operation journal is invalid")
     elif activation_policy is not None:
         raise IdentityConfigurationError("identity operation journal is invalid")
     retirement_authorization = payload["retirement_authorization"]
@@ -1082,13 +1091,9 @@ def _validate_operation(
             or retirement_authorization["mode"] not in {"scheduled", "emergency"}
             or isinstance(retirement_authorization["authorized_at"], bool)
             or not isinstance(retirement_authorization["authorized_at"], int)
-            or not 0
-            < retirement_authorization["authorized_at"]
-            <= _MAX_EPOCH_SECONDS
+            or not 0 < retirement_authorization["authorized_at"] <= _MAX_EPOCH_SECONDS
         ):
-            raise IdentityConfigurationError(
-                "identity operation journal is invalid"
-            )
+            raise IdentityConfigurationError("identity operation journal is invalid")
     elif retirement_authorization is not None:
         raise IdentityConfigurationError("identity operation journal is invalid")
     encoded_writes = payload["writes"]
@@ -1112,8 +1117,7 @@ def _validate_operation(
         raise IdentityConfigurationError("identity operation journal is invalid") from None
     deletes = payload["deletes"]
     if len(deletes) != len(set(deletes)) or any(
-        not isinstance(name, str) or not _private_key_filename(name)
-        for name in deletes
+        not isinstance(name, str) or not _private_key_filename(name) for name in deletes
     ):
         raise IdentityConfigurationError("identity operation journal is invalid")
     total_bytes = sum(len(value) for value in writes.values())
@@ -1187,7 +1191,10 @@ def _validate_operation_semantics(
         raise IdentityConfigurationError("identity operation journal is invalid")
     if subject not in keys and kind != "retire":
         raise IdentityConfigurationError("identity operation journal is invalid")
-    if any(name in {item["private_key_file"] for item in keys.values()} for name in operation["deletes"]):
+    if any(
+        name in {item["private_key_file"] for item in keys.values()}
+        for name in operation["deletes"]
+    ):
         raise IdentityConfigurationError("identity operation journal is invalid")
 
     current = _current_manifest_metadata(root)
@@ -1197,13 +1204,9 @@ def _validate_operation_semantics(
     current_ids = set(current["key_ids"]) if current is not None else set()
     new_ids = set(keys)
     deletes = set(operation["deletes"])
-    current_deadlines = (
-        dict(current["retire_not_before"]) if current is not None else {}
-    )
+    current_deadlines = dict(current["retire_not_before"]) if current is not None else {}
     target_deadlines = dict(manifest["retire_not_before"])
-    current_emergency = (
-        list(current["emergency_revocations"]) if current is not None else []
-    )
+    current_emergency = list(current["emergency_revocations"]) if current is not None else []
     target_emergency = list(manifest["emergency_revocations"])
     current_retired = list(current["retired_kids"]) if current is not None else []
     if kind == "init":
@@ -1240,8 +1243,7 @@ def _validate_operation_semantics(
             current is None
             or current["schema"] != _MANIFEST_SCHEMA
             or current["pending_kid"] != subject
-            or current["active_kid"]
-            != activation_policy["previous_active_kid"]
+            or current["active_kid"] != activation_policy["previous_active_kid"]
             or new_ids != current_ids
             or manifest["active_kid"] != subject
             or _pending_kid(manifest) is not None
@@ -1252,14 +1254,29 @@ def _validate_operation_semantics(
             )
             or (
                 current is not None
-                and target_deadlines.get(str(current["active_kid"]))
-                != expected_added_deadline
+                and target_deadlines.get(str(current["active_kid"])) != expected_added_deadline
             )
             or target_emergency != current_emergency
             or manifest["retired_kids"] != current_retired
             or deletes
         ):
             raise IdentityConfigurationError("identity operation journal is invalid")
+    elif kind == "renew":
+        if current is None or current["schema"] != _MANIFEST_SCHEMA or deletes:
+            raise IdentityConfigurationError("identity renewal requires an existing keyring")
+        previous = json.loads(current["raw"].decode("ascii"), object_pairs_hook=_unique_object)
+        if (
+            subject != manifest["active_kid"]
+            or {k: v for k, v in previous.items() if k != "artifacts"}
+            != {k: v for k, v in manifest.items() if k != "artifacts"}
+            or any(
+                previous["artifacts"][name] != manifest["artifacts"][name]
+                for name in (_JWKS_FILE, _HMAC_FILE)
+            )
+        ):
+            raise IdentityConfigurationError(
+                "identity renewal cannot change keyring or verifier state"
+            )
     elif kind == "retire":
         current_deadline = current_deadlines.get(subject)
         retirement_grant = operation["retirement_authorization"]
@@ -1271,16 +1288,12 @@ def _validate_operation_semantics(
             and authorized_at < current_deadline
             and len(target_emergency) == len(current_emergency) + 1
             and target_emergency[:-1] == current_emergency
-            and target_emergency[-1]
-            == {"kid": subject, "revoked_at": authorized_at}
+            and target_emergency[-1] == {"kid": subject, "revoked_at": authorized_at}
         )
         scheduled_retirement = (
             grant_mode == "scheduled"
             and target_emergency == current_emergency
-            and (
-                current_deadline is None
-                or authorized_at >= current_deadline
-            )
+            and (current_deadline is None or authorized_at >= current_deadline)
         )
         if (
             current is None
@@ -1295,17 +1308,13 @@ def _validate_operation_semantics(
                 for existing_kid, deadline in current_deadlines.items()
                 if existing_kid != subject
             }
-            or (
-                target_emergency != current_emergency
-                and not emergency_append
-            )
+            or (target_emergency != current_emergency and not emergency_append)
             or not (scheduled_retirement or emergency_append)
         ):
             raise IdentityConfigurationError("identity operation journal is invalid")
     elif (
         current is None
-        or current["schema"]
-        not in {_LEGACY_MANIFEST_SCHEMA, _PREVIOUS_MANIFEST_SCHEMA}
+        or current["schema"] not in {_LEGACY_MANIFEST_SCHEMA, _PREVIOUS_MANIFEST_SCHEMA}
         or new_ids != current_ids
         or manifest["active_kid"] != subject
         or manifest["retired_kids"] != current_retired
@@ -1339,12 +1348,7 @@ def _validate_completed_operation_semantics(
             and not emergency
         )
     elif kind == "rotate":
-        valid = (
-            subject in key_ids
-            and active != subject
-            and pending == subject
-            and not deletes
-        )
+        valid = subject in key_ids and active != subject and pending == subject and not deletes
     elif kind == "activate":
         policy = operation["activation_policy"]
         previous_active = policy["previous_active_kid"]
@@ -1361,6 +1365,8 @@ def _validate_completed_operation_semantics(
             and deadlines.get(previous_active) == expected_deadline
             and not deletes
         )
+    elif kind == "renew":
+        valid = active == subject and subject in key_ids and not deletes
     elif kind == "retire":
         authorization = operation["retirement_authorization"]
         expected_emergency_event = {
@@ -1368,8 +1374,7 @@ def _validate_completed_operation_semantics(
             "revoked_at": authorization["authorized_at"],
         }
         event_matches = (
-            bool(emergency)
-            and emergency[-1] == expected_emergency_event
+            bool(emergency) and emergency[-1] == expected_emergency_event
             if authorization["mode"] == "emergency"
             else all(event["kid"] != subject for event in emergency)
         )
@@ -1382,12 +1387,7 @@ def _validate_completed_operation_semantics(
             and event_matches
         )
     else:
-        valid = (
-            kind == "upgrade"
-            and subject in key_ids
-            and active == subject
-            and not deletes
-        )
+        valid = kind == "upgrade" and subject in key_ids and active == subject and not deletes
 
     if not valid:
         raise IdentityConfigurationError("identity operation journal is invalid")
@@ -1398,17 +1398,22 @@ def _validate_staged_manifest(
     manifest: Any,
     writes: dict[str, bytes],
 ) -> None:
-    if not isinstance(manifest, dict) or set(manifest) != {
-        "schema_version",
-        "issuer",
-        "audience",
-        "active_kid",
-        "keys",
-        "retired_kids",
-        "retire_not_before",
-        "emergency_revocations",
-        "artifacts",
-    } or manifest["schema_version"] != _MANIFEST_SCHEMA:
+    if (
+        not isinstance(manifest, dict)
+        or set(manifest)
+        != {
+            "schema_version",
+            "issuer",
+            "audience",
+            "active_kid",
+            "keys",
+            "retired_kids",
+            "retire_not_before",
+            "emergency_revocations",
+            "artifacts",
+        }
+        or manifest["schema_version"] != _MANIFEST_SCHEMA
+    ):
         raise IdentityConfigurationError("staged manifest is invalid")
     if not isinstance(manifest["issuer"], str) or not isinstance(manifest["audience"], str):
         raise IdentityConfigurationError("staged manifest is invalid")
@@ -1511,11 +1516,16 @@ def _current_manifest_metadata(root: Path) -> dict[str, Any] | None:
         manifest = json.loads(raw.decode("ascii"), object_pairs_hook=_unique_object)
     except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
         raise IdentityConfigurationError("identity operation journal is invalid") from None
-    if not isinstance(manifest, dict) or manifest.get("schema_version") not in {
-        _MANIFEST_SCHEMA,
-        _PREVIOUS_MANIFEST_SCHEMA,
-        _LEGACY_MANIFEST_SCHEMA,
-    } or not isinstance(manifest.get("keys"), list):
+    if (
+        not isinstance(manifest, dict)
+        or manifest.get("schema_version")
+        not in {
+            _MANIFEST_SCHEMA,
+            _PREVIOUS_MANIFEST_SCHEMA,
+            _LEGACY_MANIFEST_SCHEMA,
+        }
+        or not isinstance(manifest.get("keys"), list)
+    ):
         raise IdentityConfigurationError("identity operation journal is invalid")
     key_ids: list[str] = []
     private_files: list[str] = []
@@ -1611,16 +1621,9 @@ def _identity_lock(
                     held_directory,
                 )
             except PrivatePathError:
-                raise IdentityConfigurationError(
-                    "identity directory is unsafe"
-                ) from None
-            if (
-                expected_identity is not None
-                and directory_identity != expected_identity
-            ):
-                raise IdentityConfigurationError(
-                    "identity directory changed before lock"
-                )
+                raise IdentityConfigurationError("identity directory is unsafe") from None
+            if expected_identity is not None and directory_identity != expected_identity:
+                raise IdentityConfigurationError("identity directory changed before lock")
             previous_directory_descriptor = getattr(
                 _ACTIVE_DIRECTORY,
                 "descriptor",
@@ -1639,13 +1642,8 @@ def _identity_lock(
                     held=held_directory,
                     identity=directory_identity,
                 )
-                if (
-                    require_valid_state
-                    and not _status_target_has_valid_identity_state(root)
-                ):
-                    raise IdentityConfigurationError(
-                        "demo identity is unavailable"
-                    )
+                if require_valid_state and not _status_target_has_valid_identity_state(root):
+                    raise IdentityConfigurationError("demo identity is unavailable")
                 try:
                     harden_held_private_directory(
                         root,
@@ -1664,12 +1662,7 @@ def _identity_lock(
                 lock_path = root / _LOCK_FILE
                 _assert_active_directory_target(lock_path)
                 validate_private_path_ancestors(lock_path)
-                create_flags = (
-                    os.O_RDWR
-                    | os.O_CREAT
-                    | os.O_EXCL
-                    | getattr(os, "O_BINARY", 0)
-                )
+                create_flags = os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
                 try:
                     descriptor = _open_active_entry(
                         lock_path,
@@ -1679,14 +1672,10 @@ def _identity_lock(
                 except FileExistsError:
                     metadata = _active_entry_metadata(lock_path)
                     if not _secure_regular_entry(metadata):
-                        raise IdentityConfigurationError(
-                            "identity lock file is unsafe"
-                        )
+                        raise IdentityConfigurationError("identity lock file is unsafe") from None
                     descriptor = _open_active_entry(
                         lock_path,
-                        os.O_RDWR
-                        | getattr(os, "O_BINARY", 0)
-                        | getattr(os, "O_NOFOLLOW", 0),
+                        os.O_RDWR | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0),
                     )
                 try:
                     descriptor_metadata = os.fstat(descriptor)
@@ -1700,9 +1689,7 @@ def _identity_lock(
                         )
                         != (path_metadata.st_dev, path_metadata.st_ino)
                     ):
-                        raise IdentityConfigurationError(
-                            "identity lock file is unsafe"
-                        )
+                        raise IdentityConfigurationError("identity lock file is unsafe")
                     if descriptor_metadata.st_size < 1:
                         _assert_active_directory_target(lock_path)
                         os.write(descriptor, b"\0")
@@ -1710,10 +1697,7 @@ def _identity_lock(
                     _lock_descriptor(descriptor)
                     try:
                         _assert_active_directory_path(root)
-                        if (
-                            _validate_identity_directory(root)
-                            != directory_identity
-                        ):
+                        if _validate_identity_directory(root) != directory_identity:
                             raise IdentityConfigurationError(
                                 "identity directory changed while locked"
                             )
@@ -1742,9 +1726,7 @@ def _lock_descriptor(descriptor: int) -> None:
                 break
             except OSError:
                 if time.monotonic() >= deadline:
-                    raise IdentityConfigurationError(
-                        "identity lifecycle lock timed out"
-                    ) from None
+                    raise IdentityConfigurationError("identity lifecycle lock timed out") from None
                 time.sleep(_LOCK_POLL_SECONDS)
         return
     import fcntl
@@ -1773,14 +1755,10 @@ def _lock_posix_descriptor(
             pass
         except OSError as exc:
             if exc.errno not in {errno.EACCES, errno.EAGAIN}:
-                raise IdentityConfigurationError(
-                    "identity lifecycle lock failed"
-                ) from None
+                raise IdentityConfigurationError("identity lifecycle lock failed") from None
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            raise IdentityConfigurationError(
-                "identity lifecycle lock timed out"
-            )
+            raise IdentityConfigurationError("identity lifecycle lock timed out")
         time.sleep(min(_LOCK_POLL_SECONDS, remaining))
 
 
@@ -1807,12 +1785,7 @@ def _atomic_write(path: Path, payload: bytes) -> None:
         if not _secure_regular_entry(metadata):
             raise IdentityConfigurationError("identity artifact target is unsafe")
     temporary = target.parent / f".{target.name}.tmp-{secrets.token_hex(8)}"
-    flags = (
-        os.O_WRONLY
-        | os.O_CREAT
-        | os.O_EXCL
-        | getattr(os, "O_BINARY", 0)
-    )
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
     descriptor: int | None = _open_active_entry(temporary, flags, 0o600)
     try:
         handle = os.fdopen(descriptor, "wb")
@@ -1902,13 +1875,9 @@ def _status_target_has_valid_identity_state(root: Path) -> bool:
         ):
             pass
     if manifest_invalid:
-        raise IdentityConfigurationError(
-            "demo identity manifest is invalid"
-        )
+        raise IdentityConfigurationError("demo identity manifest is invalid")
     if journal_present:
-        raise IdentityConfigurationError(
-            "identity operation journal is invalid"
-        )
+        raise IdentityConfigurationError("identity operation journal is invalid")
     return False
 
 
@@ -1960,18 +1929,14 @@ def _cleanup_stale_temporary_files(root: Path) -> None:
 
 
 def _managed_atomic_target(name: str) -> bool:
-    return (
-        name == _OPERATION_FILE
-        or _safe_operation_filename(name, allow_manifest=True)
-    )
+    return name == _OPERATION_FILE or _safe_operation_filename(name, allow_manifest=True)
 
 
 def _active_directory_path_is_current(root: Path) -> bool:
     binding = getattr(_ACTIVE_DIRECTORY, "binding", None)
     candidate = Path(root).absolute()
     if not isinstance(binding, _ActiveDirectoryBinding) or (
-        os.path.normcase(str(candidate))
-        != os.path.normcase(str(binding.root))
+        os.path.normcase(str(candidate)) != os.path.normcase(str(binding.root))
     ):
         return False
     return private_directory_identity_is_current(
@@ -1983,21 +1948,16 @@ def _active_directory_path_is_current(root: Path) -> bool:
 
 def _assert_active_directory_path(root: Path) -> None:
     if not _active_directory_path_is_current(root):
-        raise IdentityConfigurationError(
-            "identity directory changed while locked"
-        )
+        raise IdentityConfigurationError("identity directory changed while locked")
 
 
 def _assert_active_directory_target(path: Path) -> None:
     target = Path(path).absolute()
     binding = getattr(_ACTIVE_DIRECTORY, "binding", None)
     if not isinstance(binding, _ActiveDirectoryBinding) or (
-        os.path.normcase(str(target.parent))
-        != os.path.normcase(str(binding.root))
+        os.path.normcase(str(target.parent)) != os.path.normcase(str(binding.root))
     ):
-        raise IdentityConfigurationError(
-            "identity directory changed while locked"
-        )
+        raise IdentityConfigurationError("identity directory changed while locked")
     _assert_active_directory_path(binding.root)
 
 
@@ -2038,8 +1998,7 @@ def _read_identity_file_snapshot(path: Path, *, max_bytes: int) -> bytes:
     target = Path(path).absolute()
     binding = getattr(_ACTIVE_DIRECTORY, "binding", None)
     if isinstance(binding, _ActiveDirectoryBinding) and (
-        os.path.normcase(str(target.parent))
-        == os.path.normcase(str(binding.root))
+        os.path.normcase(str(target.parent)) == os.path.normcase(str(binding.root))
     ):
         return _read_active_private_file_snapshot(target, max_bytes=max_bytes)
     return read_private_file_snapshot(target, max_bytes=max_bytes)
@@ -2054,17 +2013,11 @@ def _read_active_private_file_snapshot(
     try:
         before_path = _active_entry_metadata(target)
     except OSError:
-        raise IdentityConfigurationError(
-            "identity private file is unavailable"
-        ) from None
+        raise IdentityConfigurationError("identity private file is unavailable") from None
     if not _secure_regular_entry(before_path):
-        raise IdentityConfigurationError(
-            "identity private file must be a regular file"
-        )
+        raise IdentityConfigurationError("identity private file must be a regular file")
     if before_path.st_size > max_bytes:
-        raise IdentityConfigurationError(
-            "identity private file exceeds the size limit"
-        )
+        raise IdentityConfigurationError("identity private file exceeds the size limit")
 
     flags = (
         os.O_RDONLY
@@ -2075,15 +2028,11 @@ def _read_active_private_file_snapshot(
     try:
         descriptor = _open_active_entry(target, flags)
     except OSError:
-        raise IdentityConfigurationError(
-            "identity private file is unavailable"
-        ) from None
+        raise IdentityConfigurationError("identity private file is unavailable") from None
     try:
         before_descriptor = os.fstat(descriptor)
         if not _secure_regular_entry(before_descriptor):
-            raise IdentityConfigurationError(
-                "identity private file must be a regular file"
-            )
+            raise IdentityConfigurationError("identity private file must be a regular file")
         chunks: list[bytes] = []
         remaining = max_bytes + 1
         while remaining > 0:
@@ -2094,23 +2043,17 @@ def _read_active_private_file_snapshot(
             remaining -= len(chunk)
         after_descriptor = os.fstat(descriptor)
     except OSError:
-        raise IdentityConfigurationError(
-            "identity private file is unavailable"
-        ) from None
+        raise IdentityConfigurationError("identity private file is unavailable") from None
     finally:
         os.close(descriptor)
 
     raw = b"".join(chunks)
     if len(raw) > max_bytes:
-        raise IdentityConfigurationError(
-            "identity private file exceeds the size limit"
-        )
+        raise IdentityConfigurationError("identity private file exceeds the size limit")
     try:
         after_path = _active_entry_metadata(target)
     except OSError:
-        raise IdentityConfigurationError(
-            "identity private file changed while loading"
-        ) from None
+        raise IdentityConfigurationError("identity private file changed while loading") from None
     if not (
         _secure_regular_entry(before_descriptor)
         and _secure_regular_entry(after_descriptor)
@@ -2118,9 +2061,7 @@ def _read_active_private_file_snapshot(
         and os.path.samestat(before_descriptor, after_descriptor)
         and os.path.samestat(after_descriptor, after_path)
     ):
-        raise IdentityConfigurationError(
-            "identity private file changed while loading"
-        )
+        raise IdentityConfigurationError("identity private file changed while loading")
     return raw
 
 
@@ -2163,12 +2104,9 @@ def _unlink_active_entry(
     target = Path(path)
     binding = getattr(_ACTIVE_DIRECTORY, "binding", None)
     if not isinstance(binding, _ActiveDirectoryBinding) or (
-        os.path.normcase(str(target.absolute().parent))
-        != os.path.normcase(str(binding.root))
+        os.path.normcase(str(target.absolute().parent)) != os.path.normcase(str(binding.root))
     ):
-        raise IdentityConfigurationError(
-            "identity directory changed while locked"
-        )
+        raise IdentityConfigurationError("identity directory changed while locked")
     if require_current_path:
         _assert_active_directory_path(binding.root)
     descriptor = _active_posix_directory_descriptor()
@@ -2197,10 +2135,7 @@ def _secure_regular_entry(metadata: os.stat_result) -> bool:
         stat.S_ISREG(metadata.st_mode)
         and not _is_reparse_point(metadata)
         and metadata.st_nlink == 1
-        and (
-            os.name == "nt"
-            or metadata.st_uid == os.geteuid()
-        )
+        and (os.name == "nt" or metadata.st_uid == os.geteuid())
     )
 
 
@@ -2212,9 +2147,7 @@ def _validate_lifetime(value: int) -> None:
     if (
         isinstance(value, bool)
         or not isinstance(value, int)
-        or not _MIN_TOKEN_LIFETIME_SECONDS
-        <= value
-        <= _MAX_TOKEN_LIFETIME_SECONDS
+        or not _MIN_TOKEN_LIFETIME_SECONDS <= value <= _MAX_TOKEN_LIFETIME_SECONDS
     ):
         raise ValueError("demo token lifetime must be between 60 and 900 seconds")
 

@@ -1,9 +1,9 @@
 {
   "HEAD": "c9984e92a10a6f417e2c1d8082af7e8f1e11aee1",
-  "OUT": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\delivery",
-  "PYTHON": "D:\\\u6587\u6863\\agent\\RAG_try\\.venv\\Scripts\\python.exe",
-  "SCRATCH": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\bounded_correctness_20260907T140845Z\\scratch",
-  "WORKTREE": "D:\\\u6587\u6863\\agent\\RAG_try\\.private\\runtime_closure_20260907T160738",
+  "OUT": "LOCAL_PATH_REDACTED",
+  "PYTHON": "LOCAL_PATH_REDACTED",
+  "SCRATCH": "LOCAL_PATH_REDACTED",
+  "WORKTREE": "LOCAL_PATH_REDACTED",
   "branch": "fix/runtime-closure-20260907T160738",
   "files": [
     {
@@ -4717,14 +4717,14 @@
       "crc": true,
       "manifest_entries": 2212,
       "members": 2213,
-      "path": "C:\\Users\\xuan\\Downloads\\RAG_RUNTIME_CLOSURE_AUDIT_20260907T194621(1).zip",
+      "path": "LOCAL_PATH_REDACTED).zip",
       "sha256": "4b29e43e05daf2150b774d46ebe71f752f07754385e0bb4d76be3d232a6d7984"
     },
     {
       "crc": true,
       "manifest_entries": 15,
       "members": 16,
-      "path": "C:\\Users\\xuan\\Downloads\\RAG_INDEPENDENT_REVIEW_20260907.zip",
+      "path": "LOCAL_PATH_REDACTED",
       "sha256": "43d936a99d202a1142d513b4ae954e2fd3bbf1387e1a8d244d44b3bd2c4a69b5"
     }
   ],
