@@ -395,12 +395,15 @@ class RuntimeResources:
         connect_timeout = float(
             self.settings.readiness_probe_timeout_seconds
         )
-        deadline = self._deadline_clock() + float(
+        total_timeout = float(
             self.settings.readiness_model_load_timeout_seconds
         )
+        deadline = self._deadline_clock() + total_timeout
 
         def request_timeout() -> Timeout:
-            remaining = deadline - self._deadline_clock()
+            # Large monotonic-clock values can make deadline subtraction exceed
+            # the configured budget by one floating-point rounding unit.
+            remaining = min(total_timeout, deadline - self._deadline_clock())
             if remaining <= 0:
                 raise RuntimeError("model readiness probe deadline exceeded")
             return Timeout(

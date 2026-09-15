@@ -7,7 +7,7 @@ facts to make an explanation easier.
 
 Canonical public branch/state: `main` / `PORTFOLIO_READY`. Stable release:
 `portfolio-v1.2.0-mainline-closure`. Start with
-`docs/releases/2026-09-15-mainline-closure/REPORT.md`; it separates the 4,148
+`docs/releases/2026-09-15-mainline-closure/REPORT.md`; it separates the 4,155
 passing engineering regressions from model-quality evidence and records the
 publication-audit repair. The historical durable integrity overlay is
 `codex/durable-runtime-integrity-fix-v1`. For that overlay, read

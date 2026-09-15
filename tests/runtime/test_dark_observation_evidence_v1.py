@@ -11,7 +11,10 @@ from app.runtime.dark_observation_protocol_v1 import (
 ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE = ROOT / "docs/external_datasets/evidence"
 PROTOCOL = EVIDENCE / "dark_observation_service_protocol_v1.json"
-PUBLIC = EVIDENCE / "dark_observation_service_public_release_20260915_v2.json"
+PUBLIC = EVIDENCE / "dark_observation_service_public_release_20260915_v3.json"
+PRE_TIMEOUT_FIX_RELEASE = (
+    EVIDENCE / "dark_observation_service_public_release_20260915_v2.json"
+)
 PRE_FORMAT_RELEASE = EVIDENCE / "dark_observation_service_public_release_20260915.json"
 HISTORICAL_PUBLIC = EVIDENCE / "dark_observation_service_public_v1.json"
 IMPLEMENTATION_PATHS = (
@@ -107,6 +110,14 @@ def test_historical_e16_public_evidence_remains_parseable() -> None:
 
 def test_pre_format_release_public_evidence_remains_parseable() -> None:
     payload = json.loads(PRE_FORMAT_RELEASE.read_text(encoding="ascii"))
+
+    assert payload["schema_version"] == "dark_observation_service_public_v1"
+    assert payload["gate_checks"]
+    assert all(payload["gate_checks"].values())
+
+
+def test_pre_timeout_fix_release_public_evidence_remains_parseable() -> None:
+    payload = json.loads(PRE_TIMEOUT_FIX_RELEASE.read_text(encoding="ascii"))
 
     assert payload["schema_version"] == "dark_observation_service_public_v1"
     assert payload["gate_checks"]

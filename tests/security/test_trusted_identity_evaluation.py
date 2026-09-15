@@ -28,7 +28,10 @@ PUBLIC_RESULT = (
     / "security"
     / "r2_s5"
     / "evidence"
-    / "identity_matrix_result_release_20260915_v2.json"
+    / "identity_matrix_result_release_20260915_v3.json"
+)
+PRE_TIMEOUT_FIX_RELEASE_RESULT = PUBLIC_RESULT.with_name(
+    "identity_matrix_result_release_20260915_v2.json"
 )
 PRE_FORMAT_RELEASE_RESULT = PUBLIC_RESULT.with_name(
     "identity_matrix_result_release_20260915.json"
@@ -115,6 +118,16 @@ def test_historical_e16_identity_result_remains_parseable() -> None:
 def test_pre_format_release_identity_result_remains_parseable() -> None:
     historical = TrustedIdentityEvaluationResult.model_validate_json(
         PRE_FORMAT_RELEASE_RESULT.read_text(encoding="utf-8")
+    )
+
+    assert historical.total_cases == 20
+    assert historical.passed_cases == 20
+    assert historical.release_pass is True
+
+
+def test_pre_timeout_fix_release_identity_result_remains_parseable() -> None:
+    historical = TrustedIdentityEvaluationResult.model_validate_json(
+        PRE_TIMEOUT_FIX_RELEASE_RESULT.read_text(encoding="utf-8")
     )
 
     assert historical.total_cases == 20

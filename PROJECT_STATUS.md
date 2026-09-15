@@ -7,9 +7,9 @@ being promoted to the canonical `main` branch under the stable tag
 `portfolio-v1.2.0-mainline-closure`.
 
 ```text
-full repository tests              4148 passed / 0 failed / 36 skipped
+full repository tests              4155 passed / 0 failed / 32 skipped
 portfolio release gates            5 passed / 0 failed
-public repository audit            2522 candidates / 0 findings
+public repository audit            2524 candidates / 0 findings
 changed/new Python Ruff check       PASS
 git diff whitespace check           PASS
 production deployment               NOT CLAIMED
@@ -28,6 +28,14 @@ The real Qwen3.5 development experiment did not pass its quality promotion gate:
 its deterministic publication proxy improved, but one additional wrong-answer
 publication appeared. The consumed-output replay diagnostics therefore remain
 diagnostic only and are not resume accuracy claims.
+
+The first GitHub `main` run at pre-fix SHA `43f6c6b` preserved a Windows-only
+floating-point deadline failure: a configured 10-second request budget became
+`10.000000000000057` after monotonic-clock subtraction. The runtime now clamps
+the computed remainder to the configured upper bound and includes a stable
+large-clock regression. Current identity and dark-observation evidence was
+regenerated append-only after this source change; prior release artifacts remain
+parseable historical records.
 
 ## 2026-09-12 Qwen3.5 Real Development Confirmation
 

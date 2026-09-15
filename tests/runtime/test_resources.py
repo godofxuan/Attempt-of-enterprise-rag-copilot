@@ -665,6 +665,55 @@ def test_model_probe_fails_when_a_listed_model_cannot_be_loaded(
     ]
 
 
+def test_model_probe_clamps_float_rounding_to_configured_deadline(monkeypatch) -> None:
+    deadline_clock = MutableClock()
+    deadline_clock.value = 4092.2559906841902
+    configured = SimpleNamespace(
+        readiness_ttl_seconds=5.0,
+        llm_base_url="http://127.0.0.1:11434/v1",
+        readiness_probe_timeout_seconds=1.0,
+        readiness_model_load_timeout_seconds=10.0,
+        embedding_model="bge-m3",
+        chat_model="qwen-chat",
+        evidence_model="qwen-evidence",
+    )
+    observed_totals: list[float] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return {"models": []}
+
+    class FakeSession:
+        trust_env = True
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def get(self, _url, *, timeout):
+            observed_totals.append(timeout.total)
+            return FakeResponse()
+
+    monkeypatch.setattr(resources_module.requests, "Session", FakeSession)
+    resources = RuntimeResources(
+        configured,
+        database_probe=lambda: None,
+        index_probe=index_info,
+        identity_probe=lambda: None,
+        deadline_clock=deadline_clock,
+    )
+
+    with pytest.raises(RuntimeError, match="required models"):
+        resources._probe_models(index_info())
+
+    assert observed_totals == [10.0]
+
+
 @pytest.mark.parametrize(
     "embedding",
     [

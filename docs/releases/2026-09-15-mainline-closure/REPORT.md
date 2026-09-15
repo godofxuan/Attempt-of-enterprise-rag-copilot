@@ -58,15 +58,37 @@ made the newly bound artifacts stale:
 ```
 
 That failure demonstrates that implementation binding is active. Evidence was
-regenerated after the final source formatting. The final repository-wide run
-was:
+regenerated after the final source formatting. The candidate repository-wide
+run was:
 
 ```text
 4148 passed, 0 failed, 36 skipped
 ```
 
-The 36 skips are existing conditional environment or integration tests and are
-retained in the JUnit output; they are not counted as passes.
+After integrating the preserved main-worktree reports, the same candidate tree
+again produced `4148 passed, 0 failed, 36 skipped`. The candidate SHA
+`43f6c6b40a0be4ab093116e06bc50a425360ff5b` then passed Ubuntu, Windows,
+PostgreSQL, and container jobs in GitHub Actions run `34951582738`.
+
+The first GitHub `main` run of that SHA preserved two Windows failures. A large
+monotonic-clock value made a 10-second configured budget subtract to
+`10.000000000000057`, violating the deterministic upper-bound contract. The
+runtime now clamps the computed remainder to the configured budget and a new
+regression reproduces the pre-fix rounding deterministically. Because
+`app/runtime/resources.py` is evidence-bound, new append-only v3 identity and
+dark-observation evidence was generated after the fix; v1/v2 evidence remains
+historical and parseable.
+
+The final main-worktree repository run was:
+
+```text
+4155 passed, 0 failed, 32 skipped
+```
+
+Four conditional public-data replay/protocol tests that skipped in the isolated
+candidate path ran and passed from the main worktree. The 32 remaining skips are
+retained in the JUnit output and are not counted as passes. The final GitHub
+`main` run is still required before tagging.
 
 ## Public Repository Audit
 
@@ -83,7 +105,7 @@ in:
 Final result:
 
 ```text
-public candidates=2522 findings=0
+public candidates=2524 findings=0
 ```
 
 ## Final Local Gates
@@ -96,7 +118,7 @@ Before the release commit, all five portfolio gates passed:
 | Python compile | PASS |
 | Final evidence consistency | PASS |
 | Agent, ACL, and Guard regression | PASS |
-| Public repository audit (`2522 candidates / 0 findings`) | PASS |
+| Public repository audit (`2524 candidates / 0 findings`) | PASS |
 
 Changed and newly added Python files also passed Ruff, and `git diff --check`
 reported no whitespace errors. A clean-commit gate and the GitHub Actions matrix
@@ -120,6 +142,6 @@ not resume claims.
 
 The repository can be described as a mainline, locally reproducible portfolio
 release with bounded Agent control, evidence-governed publication, defense in
-depth, append-only evidence, and 4,148 passing tests at release verification.
+depth, append-only evidence, and 4,155 passing tests at release verification.
 It cannot be described as deployed to production, independently validated for
 answer accuracy, universally secure, or governed by a production SLA.
