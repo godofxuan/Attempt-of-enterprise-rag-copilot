@@ -47,8 +47,8 @@ class Settings(BaseSettings):
 
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = "ollama"
-    chat_model: str = "qwen2.5:3b"
-    evidence_model: str = "qwen3:8b"
+    chat_model: str = "qwen3.5:4b"
+    evidence_model: str = "qwen3.5:4b"
     embedding_model: str = "bge-m3"
 
     deployment_release_id: str | None = None

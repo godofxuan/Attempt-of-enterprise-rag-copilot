@@ -1,0 +1,10 @@
+{
+  "implementation": "BOUNDED_CANDIDATE_IMPLEMENTED_AND_TESTED",
+  "structural_strategy": "KEEP_CANDIDATE",
+  "advisor": "DEFAULT_OFF_NO_INCREMENTAL_UTILITY",
+  "release": "NOT_MERGED_NOT_PUSHED_HISTORICAL_BINDINGS_REQUIRE_REVIEW",
+  "semantic_accuracy": "NOT_HUMAN_VERIFIED",
+  "reranking_benchmark": "NOT_RUN_THIS_ROUND",
+  "server": "OWN_SMOKE_SERVERS_STOPPED",
+  "resume_metrics_updated": false
+}

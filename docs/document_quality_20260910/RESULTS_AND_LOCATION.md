@@ -1,0 +1,42 @@
+# 文档质量升级：本轮结果与入口
+
+记录日期：2026-09-10。状态：**RELEASE_BLOCKED，未达到上线门槛**。
+
+这轮不是只做方案。已经实现简单表格结构保留、显式 structure 分块、质量预检、索引报告校验、生命周期缓存绑定及相应回归，并执行了真实本地模型开发实验。
+
+## 实际修改位置
+
+`D:\文档\agent\RAG_try\.private\runtime_closure_20260907T160738`
+
+该工作树分支为 `fix/runtime-closure-20260907T160738`，HEAD 为 `b07c03d0256c393db5dfbb969e5d20abd70155b0`，另有此前及本轮未提交修改。没有把 main 的 `c9984e92a10a6f417e2c1d8082af7e8f1e11aee1` 当作最新候选，也没有覆盖原改动。
+
+## 阅读入口
+
+- [详细中文学习记录](../../.private/runtime_closure_20260907T160738/docs/document_quality_v1/LEARNING.md)
+- [正式结果、失败与上线清单](../../.private/runtime_closure_20260907T160738/docs/document_quality_v1/REPORT.md)
+- [阶段状态](../../.private/runtime_closure_20260907T160738/docs/document_quality_v1/EXECUTION.md)
+- [实验协议](../../.private/runtime_closure_20260907T160738/docs/document_quality_v1/PROTOCOL.md)
+
+本目录旧 RESEARCH_AND_PLAN.md 保留原研究状态，不回写历史。
+
+## 真实结果
+
+- 新增回归：38 passed；相邻回归：530 passed / 7 skipped。
+- 完整回归：3958 passed / 3 failed / 32 skipped，不能称全绿。两项涉及历史源码证据绑定，另一项是本轮新增直接依赖与冻结依赖列表不一致。
+- 当前 240 份扩展语料通过结构预检，不等于 100% 语义正确或真人审核。
+- 24 文档、48 题的受控开发实验完成 A/B/M 三组共 144 请求。原子证据支持从 28/40 到 33/40；正文含 gold 金额并带完整 gold 行引用的代理指标从 21/40 到 32/40。不是 WixQA、外部独立准确率或简历新成绩。
+- 最终硬化版本复测只完成 36/144 后因资源争用中断；不能将上一轮完整结果称为最终版本验收。
+- 重大阻断：Quarry/Summit 问题引用 Elm 材料，引用真实但对象错误，仍发布 answered。完整问答与 trace 已保留。
+- Docling 隔离环境已建立，但官方模型获取两次超时，真实 OCR/布局解析仍未验证。
+
+## 审核包
+
+真实 ZIP 绝对路径：
+
+`D:\文档\agent\RAG_try\.private\runtime_closure_20260907T160738\.private\document_quality_v1\audit\DOCUMENT_QUALITY_V1_AUDIT_20260910_02.zip`
+
+SHA256：`981448ed674beac7d23f96919833bc19c7cdfb3cc69997b94e9f4897666ccaf8`
+
+大小 12,173,519 字节，3,417 个文件；全部 manifest 项及 ZIP CRC 已核验。包含真实源码、起始快照、既有/本轮分离的 patch、原始测试日志/XML、完整与中断模型输出及缺项说明。环境、缓存和模型权重不打包；本地路径等未脱敏，不自动公开上传。
+
+没有部署、切索引、commit、push、merge，也没有更新简历。下一步应先处理明确的错误对象回答契约，再完成真实解析和最终版本验收，不继续堆检索方案。

@@ -1,0 +1,198 @@
+{
+  "status": "REVIEW_COMPLETE_WITH_OPEN_FINDINGS",
+  "head": "152981aba3bc9a15a1035dbfa53dc57651b3c97f",
+  "production_modified": false,
+  "local_report_links_checked": true,
+  "run_results": {
+    "probes_v1": {
+      "scope": "OFFLINE_COMPONENT_AND_IN_PROCESS_API_TESTS_NOT_REAL_MODEL_BENCHMARK",
+      "exit_code": 1,
+      "seconds": 3.8994118999980856,
+      "args": [
+        "--import-mode=importlib",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp=D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\probes_v1\\tmp\\pytest",
+        "--junitxml=D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\probes_v1\\junit.xml",
+        "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\test_flow_probes.py"
+      ],
+      "total": 6,
+      "failed": 4,
+      "errors": 0,
+      "skipped": 0,
+      "source_unchanged": true,
+      "imports_bound": true,
+      "passed": 2
+    },
+    "adjacent_v1": {
+      "scope": "OFFLINE_COMPONENT_AND_IN_PROCESS_API_TESTS_NOT_REAL_MODEL_BENCHMARK",
+      "exit_code": 0,
+      "seconds": 9.351058900007047,
+      "args": [
+        "--import-mode=importlib",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp=D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\adjacent_v1\\tmp\\pytest",
+        "--junitxml=D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\adjacent_v1\\junit.xml",
+        "tests/agent_v2/test_query_analysis.py",
+        "tests/agent_v2/test_controller_v2.py",
+        "tests/agent_v2/test_runner_v2.py",
+        "tests/agent_v2/test_generation_v2.py",
+        "tests/agent_v2/test_evidence_ledger.py",
+        "tests/agent_v2/test_query_coverage_v1.py",
+        "tests/agent_v2/test_query_coverage_v2.py",
+        "tests/agent_v2/test_query_coverage_v2_prompt.py",
+        "tests/agent_v2/test_answer_applicability_followup.py",
+        "tests/retrieval/test_navigation.py",
+        "tests/retrieval/test_navigation_binding.py",
+        "tests/retrieval/test_pipeline_acl.py",
+        "tests/retrieval/test_pipeline_parent.py",
+        "tests/security/test_navigation_zero_leak.py",
+        "tests/api_v2/test_query_coverage_v1_api.py",
+        "tests/api_v2/test_query_coverage_v2_api.py",
+        "tests/api_v2/test_answer_applicability_api.py",
+        "tests/ingestion/test_document_quality_v1.py",
+        "tests/ingestion/test_document_quality_gate.py",
+        "tests/ingestion/test_document_quality_preflight.py",
+        "tests/ingestion/test_document_quality_adversarial.py",
+        "tests/security/test_identity_jwt.py"
+      ],
+      "total": 207,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "source_unchanged": true,
+      "imports_bound": true,
+      "passed": 207
+    }
+  },
+  "artifacts": [
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\adjacent_v1\\IMPORTS.json",
+      "bytes": 17526,
+      "sha256": "7f9923a92687f303b4cf2f5b8223a9767a175dec4f1c51be3fbcbbdb60e5d0f4"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\adjacent_v1\\junit.xml",
+      "bytes": 40353,
+      "sha256": "230529a58cc91b6186b67d8a771dce50cfad06ec6083127524ec009eeb01c7fa"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\adjacent_v1\\RESULT.json",
+      "bytes": 1684,
+      "sha256": "f163dcb5803675ccfbc9b0daf32e2781f0f5429b2ed15b616b8ca30073f42a0a"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\adjacent_v1\\SOURCE_AFTER.json",
+      "bytes": 114644,
+      "sha256": "d53afdd0159f59b5fdb335db684acb35531c154f1c4caa59d0de34c0a08e980b"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\adjacent_v1\\SOURCE_BEFORE.json",
+      "bytes": 114644,
+      "sha256": "d53afdd0159f59b5fdb335db684acb35531c154f1c4caa59d0de34c0a08e980b"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\adjacent_v1\\stdout_stderr.log",
+      "bytes": 876,
+      "sha256": "725f29d642164e8d2fc653d4a3776ceb01954484a319bd279820803f7c8d611e"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\CONTRACT_DIAGNOSTICS.json",
+      "bytes": 11825,
+      "sha256": "0b1823682612f381ad4ec39e06a15c787573a28891d55e1661591e948e728d43"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\finalize_review.py",
+      "bytes": 2014,
+      "sha256": "c1f8efb6c29ff9eb5760d8d0af0b9d1c5bd00d08732064c208d49c39a5d2aa1f"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\inspect_contracts.py",
+      "bytes": 3457,
+      "sha256": "a6637444caabbbc51b0f4721fe2b2834e15ffbb3d594968d74abe54b58271a3b"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\observations\\general_long_document.json",
+      "bytes": 11469,
+      "sha256": "7de89752e14542b52e63dab9bf3bc587bcbfc7729665a2a70a8d71d93e917e7e"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\observations\\known_complete_material.json",
+      "bytes": 7262,
+      "sha256": "a5f80345fd2da7dc85a8b5559e02e0d9852638c5daa73068071a9818b000f35c"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\observations\\known_material_protection.json",
+      "bytes": 8587,
+      "sha256": "dcc711b02fce9c40a9a6edd84e2deb037630c31da9dbd6afb7dbe0894d42e51f"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\observations\\late_implicit_material.json",
+      "bytes": 7202,
+      "sha256": "bf7ecee715a779901c3e2ad0ec6079ac81dbf01eb7eaf610129bbaa2e15cdc07"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\observations\\non_reimbursement_multi_need.json",
+      "bytes": 7338,
+      "sha256": "1e0c00c4a2510651e9264f72df0ba40b847c3a1b7741e047255702e51df4a2f4"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\observations\\open_numeric_disagreement.json",
+      "bytes": 7353,
+      "sha256": "263644f5b3bd389b41f9ee2a1faa605a4b699f513b100b566554d45328041dd9"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\probes_v1\\IMPORTS.json",
+      "bytes": 7014,
+      "sha256": "c161f91e534899946a9b22f3e100b5b5895b95e7ec26d1298c5b30c17877ef77"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\probes_v1\\junit.xml",
+      "bytes": 6347,
+      "sha256": "dcf6713c17bf0efe61cd4ff2e4d66cdd4405906d9b02959e993c7fa2098e08fd"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\probes_v1\\RESULT.json",
+      "bytes": 661,
+      "sha256": "f6ed9b4eab8b824ab42d6219a064d346f0bbdc3c0db63213658c25d5542516e6"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\probes_v1\\SOURCE_AFTER.json",
+      "bytes": 114644,
+      "sha256": "d53afdd0159f59b5fdb335db684acb35531c154f1c4caa59d0de34c0a08e980b"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\probes_v1\\SOURCE_BEFORE.json",
+      "bytes": 114644,
+      "sha256": "d53afdd0159f59b5fdb335db684acb35531c154f1c4caa59d0de34c0a08e980b"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\probes_v1\\stdout_stderr.log",
+      "bytes": 6770,
+      "sha256": "66c24cb486565ba9a507352a71cf74ffce80b7c4c7e342b59a88241f6b1da429"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\run_review.py",
+      "bytes": 3634,
+      "sha256": "8d82be8227d128260c8b20cbc57bef6730d2b6d820c71458c66f947b136d9024"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\.private\\flow_review_20260912\\test_flow_probes.py",
+      "bytes": 4394,
+      "sha256": "7bd4a6c9c41a1910a3ea9f100988d357f3ac4aa6469dc895afea11eb27fb0956"
+    },
+    {
+      "path": "D:\\文档\\agent\\RAG_try\\docs\\flow_review_20260912\\REPORT.md",
+      "bytes": 21555,
+      "sha256": "faeae0fc294117de0b5628585fd9224e8ba486452f48dca48f0fb86c07863a6c"
+    }
+  ],
+  "excluded": [
+    "pytest temporary fixtures",
+    "Python bytecode",
+    "manifest itself"
+  ]
+}

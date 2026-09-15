@@ -1,0 +1,72 @@
+{
+  "timestamp": "2026-09-10T08:35:28.493755+00:00",
+  "status": "LOCAL_REVIEW_CANDIDATE_WITH_LIMITS",
+  "branch": "codex/local-closeout-20260910",
+  "head": "152981aba3bc9a15a1035dbfa53dc57651b3c97f",
+  "github": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/tree/codex/local-closeout-20260910",
+  "review_url": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/tree/152981aba3bc9a15a1035dbfa53dc57651b3c97f/docs/local_closeout_20260910",
+  "original_worktree_preserved": true,
+  "main_business_code_unchanged": true,
+  "main_head": "c9984e92a10a6f417e2c1d8082af7e8f1e11aee1",
+  "current_checkout": "D:\\文档\\agent\\RAG_try\\.private\\release_candidate_20260910",
+  "source_fingerprint": "5ebfbea12595e850149d6a77f3965c58e14e92ee6a4d7d56b149d09af3666164",
+  "tests": {
+    "passed": 3973,
+    "failed": 3,
+    "skipped": 36,
+    "total": 4012
+  },
+  "public_scan": {
+    "global_findings": 38,
+    "unchanged_from_base": 38,
+    "new_or_modified_findings": 0
+  },
+  "local_http_smoke": "PASS",
+  "local_http_restart": "PASS",
+  "api_url": "http://127.0.0.1:8010",
+  "ui_url": "http://127.0.0.1:8510",
+  "server_scope": "LOOPBACK_ONLY",
+  "internet_deployment": false,
+  "token_lifetime_seconds": 900,
+  "identity_note": "Refresh was rejected under a different elevated execution context; it succeeded under the original owner without weakening private-directory checks.",
+  "ci_url": "https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/34455517994",
+  "ci_last_observed": "IN_PROGRESS_NOT_CLAIMED_PASS",
+  "resume_version": "R20_DOCUMENT_APPLICABILITY",
+  "resumes": {
+    "01-陆暄-AI应用-RAG-Agent.pdf": {
+      "path": "D:\\文档\\工具\\CURRENT_APPLICATION_RESUMES_20260910_R20_DOCUMENT_APPLICABILITY\\01-陆暄-AI应用-RAG-Agent.pdf",
+      "sha256": "0aa3a1af0140a021ecb70ee1ff9d2f7bc3aa26ef541df627307ca2c56dc8ae8d"
+    },
+    "02-陆暄-Python后端-AI平台.pdf": {
+      "path": "D:\\文档\\工具\\CURRENT_APPLICATION_RESUMES_20260910_R20_DOCUMENT_APPLICABILITY\\02-陆暄-Python后端-AI平台.pdf",
+      "sha256": "e0a1b9bcd03da18b783fd65937cd470b3e8def5dd9e6d076884fb8afdbd38aa1"
+    },
+    "03-陆暄-银行央国企-信息科技.pdf": {
+      "path": "D:\\文档\\工具\\CURRENT_APPLICATION_RESUMES_20260910_R20_DOCUMENT_APPLICABILITY\\03-陆暄-银行央国企-信息科技.pdf",
+      "sha256": "b3ec80ec1efaf7486e77f4c6983af31772ceefb2e447a3806210698cc9509fb2"
+    },
+    "04-陆暄-BOSS直聘-通用简历.pdf": {
+      "path": "D:\\文档\\工具\\CURRENT_APPLICATION_RESUMES_20260910_R20_DOCUMENT_APPLICABILITY\\04-陆暄-BOSS直聘-通用简历.pdf",
+      "sha256": "0f011052851fa0a41d2b03511668cc5fd87b0889a877d542d8f6e7b335a9266e"
+    }
+  },
+  "resume_pointer": "D:/文档/工具/CURRENT_RESUME_POINTER.md",
+  "teaching_files": [
+    "D:\\文档\\工具\\秋招冲刺_2026\\学习任务\\项目本人验收\\20260809_RAG首投教学衔接\\COURSE_INDEX_V5.md",
+    "D:\\文档\\工具\\秋招冲刺_2026\\学习任务\\项目本人验收\\20260809_RAG首投教学衔接\\CURRENT_BREAKPOINT.md",
+    "D:\\文档\\工具\\秋招冲刺_2026\\学习任务\\项目本人验收\\20260809_RAG首投教学衔接\\INTERVIEW_QUESTION_BANK_V5.md"
+  ],
+  "evalops_sync": "D:/文档/工具/PROJECT_SYNC_RAG_EVALOPS_20260902.md",
+  "archive": {
+    "path": "D:\\文档\\agent\\RAG_try\\.private\\release_closeout_20260910\\LOCAL_CANDIDATE_DELIVERY_152981a.zip",
+    "sha256": "1b3925f979e13f8357a3737d0a10e9a068a6cbac0049e7899aee364f70b2d330",
+    "bytes": 11934911,
+    "files": 39,
+    "verified": true,
+    "scope": "LOCAL_RAW_AUDIT_NOT_PUBLIC_UPLOAD"
+  },
+  "code_zip": {
+    "path": "D:\\文档\\agent\\RAG_try\\.private\\release_closeout_20260910\\CANDIDATE_SOURCE_152981a.zip",
+    "sha256": "a0a54ab624bf932c537c5541dd3282a698a37c8aedbf5f5acc52d05406b5a9d4"
+  }
+}

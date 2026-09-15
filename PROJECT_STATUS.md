@@ -1,5 +1,174 @@
 # Enterprise Agentic RAG - Current Status
 
+## 2026-09-12 Qwen3.5 Real Development Confirmation
+
+Actual candidate: `.private/release_candidate_20260910`, unchanged HEAD
+`152981aba3bc9a15a1035dbfa53dc57651b3c97f`, with uncommitted work. Qwen3.5 OFF/ON
+on the same consumed 44 development probes produced 34/40 vs 39/40 complete
+term-and-citation checks among 40 answerable cases. A Chinese-guidance attempt
+regressed to 38/40 ON and was withdrawn, with evidence retained. The selected
+version keeps the original generation prompt plus a tested application lead-time
+workday coverage fix. Its separate 44-request ON confirmation produced 40/40
+checks, 28 answered + 12 partial, 4/4 controls, p95 3.51s and 53 chat calls.
+These are NOT fresh human accuracy or WixQA recall metrics.
+
+Final scoped regression: 1432 passed, 2 historical source-binding failures,
+9 existing skips. Eleven new behavior regressions pass. Main business code was
+not overwritten with the candidate; no commit/push/deployment/resume update.
+See `docs/qwen35_recovery_validation_20260912/REPORT.md` for full causal analysis,
+failed experiments, code locations and actual audit paths.
+
+## 2026-09-12 Current Model Preference: Qwen3.5
+
+User-requested default for new local work: `qwen3.5:4b`, already installed in
+Ollama (digest `2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd`).
+Main local settings, `.env`, the candidate settings and its launcher now use
+this model for chat/recovery and evidence-model calls. Embedding remains
+`bge-m3`; existing indexes and rerankers are unchanged. Do not silently use
+Qwen2.5 for new experiments. Historical fixed-model reproduction must remain
+explicitly labeled and must not overwrite its original results.
+
+This does not relabel the preceding recovery experiment: its 29/40 versus
+34/40 observations used `qwen2.5:3b`. New Qwen3.5 quality scores require new
+executions. No GitHub push or model-quality promotion is implied by this
+configuration change. See `docs/model_default_qwen35_20260912/NOTE.md`.
+
+## 2026-09-10 Published Local Review Candidate
+
+The previously dirty runtime repairs are now available on the separate branch
+`codex/local-closeout-20260910`, commit
+`152981aba3bc9a15a1035dbfa53dc57651b3c97f`. GitHub remote identity was verified.
+Main business code remains `c9984e9`; this is not a main promotion or internet
+deployment. The original dirty worktree is preserved. The isolated delivery
+checkout is `.private/release_candidate_20260910` and its Python runtime sources
+match the original candidate fingerprint
+`5ebfbea12595e850149d6a77f3965c58e14e92ee6a4d7d56b149d09af3666164`.
+
+Final full local regression: **3973 passed, 3 failed, 36 skipped**. Two old
+source-bound evidence equality checks and one historical exact dependency-set
+check remain failed. Local HTTP/Ollama smoke verified readiness, authentication,
+cited answered/partial responses and the existing UI health endpoint. It is not
+a new accuracy benchmark. No default model, learned fusion or query rewrite was
+promoted. The candidate used loopback API/UI ports 8010/8510 for this delivery;
+the services were stopped afterward, and the material question remained
+`partial`. The 15-minute demonstration token must be refreshed under its
+original execution identity. This is not a public deployment or production
+SLO.
+
+The full public scan reported 38 findings, all in byte-unchanged files inherited
+from `b07`; new or modified files contributed zero findings. Public JUnit is a
+redacted derivative with raw-hash mapping, not the complete original XML. Raw
+logs remain in the local audit archive. GitHub Actions run `34455517994` was
+last observed in progress, so no CI pass is claimed here.
+
+The resume maintainer published R20 in the existing single-page formats; the
+teaching task updated its existing course index, breakpoint and question bank;
+EvalOps updated its cross-project fact register. See
+[delivery handoff](docs/local_model_trials_20260910/RELEASE_HANDOFF.md) and the
+machine-readable `DELIVERY.json` beside it for final paths and receipts. Public
+source/results: [immutable candidate review](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/tree/152981aba3bc9a15a1035dbfa53dc57651b3c97f/docs/local_closeout_20260910).
+
+## 2026-09-10 Broad validation and bounded-fix local snapshot
+
+```text
+canonical public branch            main @ c9984e9 / UNCHANGED
+GitHub business code               DOES NOT CONTAIN THIS SNAPSHOT
+candidate working tree             .private/runtime_closure_20260907T160738
+candidate base HEAD                b07c03d / WITH UNCOMMITTED MODIFICATIONS
+final Python source fingerprint    677f35a979c2ac41e5d6b3b8f2f1cee02a2bfb21d43d0a8e742e52fbccad1f8c
+commit / push / deployment         NOT PERFORMED
+active index / default runtime     UNCHANGED
+software regression                3921 PASSED / 2 FAILED / 32 SKIPPED
+production / independent accuracy  NOT ESTABLISHED
+```
+
+The local candidate was broadly retested and received five bounded production
+file fixes covering duration parsing, evidence relevance, exact continuous
+prefix citations, evidence-packet/fallback completeness, and readiness refresh
+timing. It remains an uncommitted private working-tree snapshot, not a GitHub or
+`main` release. The two failures are preserved historical source-hash binding
+checks after `resources.py` changed; 32 skips are unsupported or unconfigured
+local environments. The full-library Ruff backlog remains 1,173 findings, so
+this result must not be described as an all-green repository validation.
+
+On consumed synthetic data, the enterprise TEST automatic answer contract
+changed from `28/56` to `42/56`. A fixed authenticated local API contract over
+40 questions, two configurations, and three repeats changed from `170/240` to
+`193/240` (`+9.58pp`); erroneous `answered` outcomes changed from `5` to `0`,
+and valid answered requests from `123` to `139`. The paired record also retains
+39 recoveries and 16 regressions. These are automated local contracts, not a
+fresh holdout, human-reviewed accuracy, production SLO, or general zero-error
+claim.
+
+WixQA was actually rerun for 800 configuration-question executions and its
+rankings and metrics were unchanged. Dense to safe raw50+BGE remains Recall@5
+`65.92%` to `74.25%` and nDCG@5 `52.08%` to `59.93%`; those are previously
+established retrieval results, not this repair's incremental gain or answer
+accuracy. See the local
+[`broad-validation reading entry`](docs/broad_validation_fixes_20260910/README.md)
+and the V2 follow-up section in
+[`docs/handoffs/QUERY_COVERAGE_V2_VERSION_NOTE_20260909.md`](docs/handoffs/QUERY_COVERAGE_V2_VERSION_NOTE_20260909.md).
+
+## 2026-09-09 Query coverage V2 local development candidate
+
+```text
+canonical public branch            main @ c9984e9 / UNCHANGED
+candidate working tree             .private/runtime_closure_20260907T160738
+candidate base HEAD                b07c03d / WITH UNCOMMITTED PATCH
+merge / release / deployment       NOT PERFORMED
+GitHub business code               DOES NOT CONTAIN THIS CANDIDATE
+active index / default runtime     UNCHANGED
+scope                              LIMITED EXPENSE QUERY CONSISTENCY
+targeted adjacent regression       513 PASSED / 0 FAILED / 0 SKIPPED
+independent user validation        NOT ESTABLISHED
+```
+
+The V2 local candidate extends, but does not replace or rewrite, the V1
+historical record below. It applies bounded expense-domain typo/colloquial
+normalization consistently across retrieval, relevance, generation, and the
+answer contract; preserves supported material and amount-limit claims that the
+approval contract previously removed; checks complete requirement sentences;
+and prompts for unique claim IDs distinct from source IDs. It adds no model,
+dependency, LLM call, or MCP wiring change.
+
+Across 36 consumed synthetic development questions run in three stages, exact
+reference statements retained in final verified claims changed from `26/69`
+in V1 to `58/69` in final V2, while erroneous `answered` outcomes changed from
+`10` to `0` and format failures from `6` to `0`. This is not a fresh holdout,
+human accuracy measure, WixQA result, or online metric. Final V2 still omits at
+least one reference statement on 11 questions, regresses this exact-match
+metric on 5 questions versus V1, and returns 2 conservative partial responses.
+The candidate is therefore a bounded local improvement, not a generally solved
+query-understanding problem. See
+[`docs/handoffs/QUERY_COVERAGE_V2_VERSION_NOTE_20260909.md`](docs/handoffs/QUERY_COVERAGE_V2_VERSION_NOTE_20260909.md).
+
+## 2026-09-09 Query coverage V1 limited development candidate
+
+```text
+canonical public branch            main @ c9984e9 / UNCHANGED
+candidate working tree             .private/runtime_closure_20260907T160738
+candidate base HEAD                b07c03d / WITH UNCOMMITTED PATCH
+merge / release / deployment       NOT PERFORMED
+active index                       UNCHANGED
+default runtime                    UNCHANGED
+scope                              LIMITED EXPENSE-QUERY COVERAGE
+targeted adjacent regression       389 PASSED / 0 FAILED / 0 SKIPPED
+independent user validation        NOT ESTABLISHED
+```
+
+A limited, unmerged development candidate adds scoped expense-query needs,
+same-anchor/filter/version `find`/chunk-`open` follow-up reading, and explicit
+missing-need publication. On eight fixed first-hit development probes, the
+local Qwen arm improved facts delivered into the generation packet from
+`7/14` to `12/14` and facts retained with citations from `6/14` to `10/14`;
+two cases showed actual content gains. These consumed probes are not an
+independent user evaluation, and the three-need case still loses supported
+material/limit claims at the existing answer-publication contract. No new
+planner or grader was added, search strings remain unchanged, and this work
+must not be described as deployed, default, generally solving multi-intent
+queries, or improving the frozen WixQA metrics. See
+[`docs/handoffs/QUERY_COVERAGE_V1_VERSION_NOTE_20260909.md`](docs/handoffs/QUERY_COVERAGE_V1_VERSION_NOTE_20260909.md).
+
 ## 2026-09-04 Final evidence repair and portfolio release
 
 ```text
