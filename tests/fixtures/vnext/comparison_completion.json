@@ -1,0 +1,38 @@
+{
+  "origin": "Saved actual local 9B reply; synthetic policies only",
+  "model_call_from_commit": "955bf690",
+  "question": "比较临时电脑借用与会议室预订的时长上限，分别有哪些适用条件？",
+  "records": [
+    {
+      "aspect": "临时电脑借用",
+      "authority_level": 100,
+      "context_text": "",
+      "matched_text": "合成电脑借用制度\n只有存在有效维修记录的员工可以申请临时电脑。借用期限为1至14天，开始日期不得早于申请当天。同一员工只能有一个未关闭的借用申请。提交后工单为待审批；待审批不等于已批准、已分配或已预留。该制度没有规定押金。",
+      "source_id": "S1",
+      "source_units": [
+        "S1U1",
+        "S1U2",
+        "S1U3",
+        "S1U4",
+        "S1U5"
+      ],
+      "status": "active",
+      "version": "1"
+    },
+    {
+      "aspect": "临时电脑借用",
+      "authority_level": 100,
+      "context_text": "",
+      "matched_text": "合成会议室规则\n会议室每日开放时间为09:00至18:00。每次预订不得超过2小时。使用结束后必须清理桌面并关闭设备。",
+      "source_id": "S2",
+      "source_units": [
+        "S2U1",
+        "S2U2",
+        "S2U3"
+      ],
+      "status": "active",
+      "version": "1"
+    }
+  ],
+  "response_content": "{\n  \"answer\": \"临时电脑借用的时长上限为1至14天，适用条件包括：只有存在有效维修记录的员工可以申请；同一员工只能有一个未关闭的借用申请。会议室预订的时长上限为每次不得超过2小时，适用条件包括：会议室每日开放时间为09:00至18:00；使用结束后必须清理桌面并关闭设备。\",\n  \"claims\": [\n    {\n      \"claim_id\": \"C1\",\n      \"critical\": true,\n      \"source_unit_id\": \"S1U2\",\n      \"cited_source_ids\": [\"S1\"],\n      \"need_refs\": [\"N1\"]\n    },\n    {\n      \"claim_id\": \"C2\",\n      \"critical\": true,\n      \"source_unit_id\": \"S1U1\",\n      \"cited_source_ids\": [\"S1\"],\n      \"need_refs\": [\"N1\"]\n    },\n    {\n      \"claim_id\": \"C3\",\n      \"critical\": true,\n      \"source_unit_id\": \"S1U3\",\n      \"cited_source_ids\": [\"S1\"],\n      \"need_refs\": [\"N1\"]\n    },\n    {\n      \"claim_id\": \"C4\",\n      \"critical\": true,\n      \"source_unit_id\": \"S2U2\",\n      \"cited_source_ids\": [\"S2\"],\n      \"need_refs\": [\"N1\"]\n    },\n    {\n      \"claim_id\": \"C5\",\n      \"critical\": true,\n      \"source_unit_id\": \"S2U1\",\n      \"cited_source_ids\": [\"S2\"],\n      \"need_refs\": [\"N1\"]\n    },\n    {\n      \"claim_id\": \"C6\",\n      \"critical\": true,\n      \"source_unit_id\": \"S2U3\",\n      \"cited_source_ids\": [\"S2\"],\n      \"need_refs\": [\"N1\"]\n    }\n  ],\n  \"request_coverage\": [\n    {\n      \"need_id\": \"N1\",\n      \"claim_ids\": [\"C1\", \"C2\", \"C3\", \"C4\", \"C5\", \"C6\"],\n      \"status\": \"supported\",\n      \"subject_matches\": true,\n      \"attribute_matches\": true,\n      \"conditions_preserved\": true\n    }\n  ]\n}"
+}

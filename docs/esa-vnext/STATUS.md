@@ -145,9 +145,21 @@
   the b81 archive remains a checkpoint. Focused regression and final bounded live evidence follow.
 
 ## Next Action
-Commit current runnable R2, export committed source, install/launch it in its own environment,
-finish one bounded detailed knowledge demonstration and a targeted current loan parameter check.
-Then freeze and deliver R1/R2 with exact costs and sync state; no new feature/benchmark expansion.
+Final comparison reply from955bf690 reproduced a duplicated completion authority: whole-question
+need relations and delivered units were complete, but lexical entity repetition forcedpartial.
+Semantic mode now leaves those lexical counts diagnostic; publisher, unknown/missing relations,
+unsupported claims and upstreampartial remain authoritative. Saved reply RED then positive/negative
+GREEN,40 related generation/A1 checks passed. No new reviewer or model added.
+
+The independent default environment exposed missingtzdata (16 failures) and one omitted HTTP helper
+in the source export. The direct locked dependency and explicit export helper list fix those inputs.
+The prior clean failures remain saved. A subsequent related batch had128pass/1fail: its1ms-deadline
+test slept10ms on Windows and accidentally touched the local model port. OneERROR attempt retained
+inOFFLINE_TEST_UNEXPECTED_SENDS.json, separate from product calls. The test now uses a controlled
+clock and fail-on-send transport; its original zero-call and settings assertions pass.
+
+Commit this focused correction, export/install in an independent environment, finish affected real
+knowledge pair and CLI startup. Then freeze/deliver exact costs and sync state; no extra feature/benchmark.
 
 ## Milestones
 M0: IMPLEMENTED; first startup failure reproduced and common startup separation fixed.

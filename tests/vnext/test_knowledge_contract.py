@@ -88,3 +88,42 @@ def test_saved_live_reply_recovered_unit_keeps_unambiguous_need_and_unknown_stay
     _,repair=generation._preserve_draft_units(generated,mapped,by_id,q)
     assert repair['restored_claim_ids']
     assert all(not c.need_refs for c in generated.claims if c.claim_id in repair['restored_claim_ids']), 'Shared source does not authorize guessing between needs'
+
+
+def test_saved_comparison_uses_semantic_delivery_not_lexical_entity_repetition():
+    import json
+    from pathlib import Path
+    from app.agent.controller_v2 import V2AgentController
+    from app.agent.evidence_ledger import build_ledger
+    from app.agent.generation_v2 import GenerationV2ResponseBuilder
+    from app.agent.query_analysis import RuleFirstQueryAnalyzer
+    from tests.v2_test_support import admitted_search_hit, user_context
+    from tests.agent_v2.test_generation_v2 import CapturingChat
+
+    fixture = json.loads((Path(__file__).resolve().parents[1] / 'fixtures/vnext/comparison_completion.json').read_text('utf8'))
+    question = fixture['question']
+    analysis = RuleFirstQueryAnalyzer().analyze(question, user_context())
+    assert analysis.intent == 'comparison' and len(analysis.required_aspects) == 2
+    state = V2AgentController(semantic_question=True, clock_ms=lambda: 0).initialize(analysis, user_context())
+    hits = [admitted_search_hit(chunk_id=row['source_id'], doc_id=row['source_id'],
+                policy_id='policy-'+row['source_id'], matched_text=row['matched_text'],
+                context_text=row['context_text'] or row['matched_text']) for row in fixture['records']]
+    state.evidence_by_aspect = {aspect: hits for aspect in analysis.required_aspects}
+    state.ledger = build_ledger(analysis, state.evidence_by_aspect)
+
+    def replay(payload, mode='answered'):
+        return GenerationV2ResponseBuilder(chat_fn=CapturingChat(payload), model='RECORDED_NOT_LIVE', max_attempts=1).build(
+            question=question, state=state, mode=mode, stop_reason='completed', trace={})
+
+    payload = json.loads(fixture['response_content'])
+    result = replay(payload)
+    assert result.mode == 'answered', result.warnings
+    assert all(text in result.answer for text in ('1至14天', '不得早于申请当天', '有效维修记录', '未关闭', '2小时', '09:00至18:00', '关闭设备'))
+    assert result.trace['draft_delivery_binding']['complete']
+    assert result.trace['missing_answer_aspect_count'] == 2, 'Keep the lexical diagnostic without making it semantic proof'
+    assert not any('required aspect(s)' in warning for warning in result.warnings)
+    assert replay(payload, 'partial').mode != 'answered', 'Preserve upstream budget/conflict partial'
+    payload['request_coverage'][0].update(status='unknown', conditions_preserved=False)
+    assert replay(payload).mode != 'answered'
+    payload.pop('request_coverage')
+    assert replay(payload).mode != 'answered'

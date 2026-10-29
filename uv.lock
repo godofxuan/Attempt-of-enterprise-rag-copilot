@@ -285,6 +285,7 @@ dependencies = [
     { name = "python-multipart" },
     { name = "rank-bm25" },
     { name = "requests" },
+    { name = "tzdata" },
     { name = "uvicorn" },
 ]
 
@@ -329,6 +330,7 @@ requires-dist = [
     { name = "rank-bm25", specifier = "==0.2.2" },
     { name = "requests", specifier = "==2.33.1" },
     { name = "streamlit", marker = "extra == 'legacy'", specifier = "==1.56.0" },
+    { name = "tzdata", specifier = "==2026.6" },
     { name = "uvicorn", specifier = "==0.44.0" },
 ]
 provides-extras = ["dev", "legacy"]

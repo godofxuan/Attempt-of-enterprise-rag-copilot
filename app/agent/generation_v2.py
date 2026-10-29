@@ -391,6 +391,10 @@ class GenerationV2ResponseBuilder:
             sufficiency = answer_sufficiency(question, [claim.text for claim in supported_claims])
             response_trace["answer_sufficiency"] = sufficiency
             response_trace["retrieval_coverage_basis"] = "query_anchor_relevance_not_semantic_proof"
+            response_trace["completion_coverage_authority"] = (
+                "published_need_relations_and_delivered_units"
+                if state.task_plan.mode == "task" else "legacy_aspect_coverage"
+            )
             response_trace.update(
                 {
                     "packed_aspect_count": len(
@@ -437,7 +441,11 @@ class GenerationV2ResponseBuilder:
                     f"{unsupported_count} generated claim(s) were omitted because "
                     "visible evidence did not pass deterministic citation checks."
                 )
-            if missing_aspects:
+            # In semantic mode, entity labels are retrieval anchors, not the
+            # original obligations. The publisher checks bound need relations
+            # against delivered claims; repeating entity names in each quote
+            # is neither necessary nor sufficient to answer a comparison.
+            if missing_aspects and state.task_plan.mode != "task":
                 verified_mode = "partial"
                 verified_stop_reason = "partial_evidence"
                 warnings.append(

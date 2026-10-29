@@ -136,15 +136,22 @@ def test_actual_generation_transport_uses_the_output_reserve_used_by_packing(tmp
         assert observed[0]['options']['num_ctx']==MODEL_CONTEXT_FLOOR
 
 
-def test_expired_run_does_not_send_and_active_settings_cannot_change(tmp_path):
+def test_expired_run_does_not_send_and_active_settings_cannot_change(tmp_path,monkeypatch):
     from app.runtime.request_context import bind_request_context,reset_request_context,RequestDeadlineExceeded
+    from app.runtime import request_context
+    import httpx
     import pytest
     with client_for(tmp_path) as client:
         workspace=client.app.state.workspace
         async def expired():
+            clock=[1000.0]
+            monkeypatch.setattr(request_context,'_default_clock_ms',lambda:clock[0])
+            async def unexpected_send(request):raise AssertionError('Expired run attempted HTTP')
+            await workspace.models.client.aclose()
+            workspace.models.client=httpx.AsyncClient(transport=httpx.MockTransport(unexpected_send))
             token=bind_request_context('expired-before-send',deadline_ms=1)
             try:
-                await asyncio.sleep(.01)
+                clock[0]=1002.0
                 with pytest.raises(RequestDeadlineExceeded):await workspace.models.chat([{'role':'user','content':'No send'}])
             finally:reset_request_context(token)
         asyncio.run(expired())
