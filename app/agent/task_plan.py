@@ -121,27 +121,10 @@ def apply_need_evaluations(plan, question, claims, bound):
 def build_task_plan(analysis: QueryAnalysis) -> TaskPlan:
     if analysis.intent == "unsafe":
         return TaskPlan()
-    question = analysis.original_question
-    parts = explicit_question_parts(question)
-    if len(parts) >= 2:
-        items = [(part, "explicit", None) for part in parts]
-    elif needs := requested_needs(question):
-        items = [(NEED_LABELS[key], "domain", key) for key in needs]
-    else:
-        items = [(question, "whole", None)]
-    return TaskPlan(
-        needs=tuple(
-            RequestNeed(
-                need_id=f"N{i}",
-                text=text,
-                kind=kind,
-                domain_key=key,
-                clarification_needed=key in {"eligibility","business_amount:"},
-            )
-            for i, (text, kind, key) in enumerate(items[:8], 1)
-        ),
-        overflow=len(items) > 8,
-    )
+    # Default knowledge need is the whole original user obligation, never a
+    # punctuation-derived subset or a domain-keyword expansion.
+    return TaskPlan(needs=(RequestNeed(need_id="N1", text=analysis.original_question,
+                                      kind="whole"),))
 
 
 def need_matches(need: RequestNeed, question: str, texts: list[str]) -> bool:

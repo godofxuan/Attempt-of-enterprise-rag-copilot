@@ -1027,6 +1027,11 @@ def _generation_messages(
     system += (' Include request_coverage for every original request_needs ID. Link only actual claim_ids. '
                'Check that subject, requested attribute and necessary conditions match the original question. '
                'A supported source is not by itself proof that the question was answered; unknown stays unknown.')
+    system += (' Here supported means the selected claims fully ANSWER the original question, including a '
+               'source-backed negative answer or an explicit unspecified policy item. It does not mean the '
+               'employee is eligible, a request was approved, or a business action happened. Do not require '
+               'unasked facts or live business checks for a policy question. Judge all requested facets and '
+               'necessary conditions of the whole original question, then choose the status consistently.')
     begin = f"[BEGIN_UNTRUSTED_EVIDENCE nonce={nonce}]"
     end = f"[END_UNTRUSTED_EVIDENCE nonce={nonce}]"
     reminder = f"[TRUSTED_REMINDER nonce={nonce}]"

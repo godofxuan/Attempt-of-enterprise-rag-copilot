@@ -68,8 +68,9 @@ class TaskService:
     def list(self):
         actor=local_actor()
         with self.store.transaction() as db:
-            ids=[r['task_id'] for r in db.execute('SELECT task_id FROM agent_tasks WHERE tenant=? AND owner=?',(actor.tenant_id,actor.subject))]
-        return [self.view(task_id) for task_id in reversed(ids)]
+            rows=db.execute('SELECT payload FROM agent_tasks WHERE tenant=? AND owner=? ORDER BY rowid DESC LIMIT 50',(actor.tenant_id,actor.subject)).fetchall()
+        tasks=[json.loads(row['payload']) for row in rows]
+        return [{key:task.get(key) for key in ('task_id','status','revision','facts_revision','goal','facts','guided_request')} for task in tasks]
 
     def view(self,task_id):
         actor=local_actor();task=self.store.get_task(actor,task_id)

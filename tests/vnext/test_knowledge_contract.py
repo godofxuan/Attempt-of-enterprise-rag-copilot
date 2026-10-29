@@ -10,6 +10,7 @@ def test_independent_question_clauses_do_not_invent_materials_obligation():
     analysis=QueryAnalysis(original_question=question,intent='fact',required_aspects=[question],search_queries=[question],source='rules')
     plan=build_task_plan(analysis)
     assert plan.needs and all(n.text in question for n in plan.needs)
+    assert any(n.text==question for n in plan.needs), 'The whole original obligation must survive clause layout'
     assert all('材料' not in n.text for n in plan.needs)
 
 

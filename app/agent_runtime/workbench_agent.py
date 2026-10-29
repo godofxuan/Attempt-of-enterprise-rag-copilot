@@ -24,7 +24,7 @@ class ServiceAgent:
         tools=[{'type':'function','function':{'name':name,'description':description,
                 'parameters':{'type':'object','properties':properties,'required':list(properties),'additionalProperties':False}}}
                for name,(description,properties) in DEFINITIONS.items()]
-        seen=set();messages=[]
+        seen=set();messages=[];observed_this_run=set()
         try:
             for step in range(8):
                 current=self.store.get_task(actor,task_id)
@@ -36,7 +36,7 @@ class ServiceAgent:
                     'preferred_asset_id':current.get('preferred_asset_id'),
                     'question':current['guided_request'].get('question'),
                     'required_outputs':current['task_goal']['required_outputs'],
-                    'valid_observations':self.service.valid_observations(current),
+                    'valid_observations':{k:v for k,v in self.service.valid_observations(current).items() if k not in observed_this_run},
                     'missing_fields':[k for k in ('loan_start','loan_end','purpose') if not current['facts'].get(k)]}
                 system=('You are the ESA local service assistant. Choose tools from actual observations. '
                     'Never invent tool results, approval or stock. User scope cannot be expanded. '
@@ -87,6 +87,7 @@ class ServiceAgent:
                                 'tickets_list_mine':'tickets.list_mine','tickets_get':'tickets.get'}.get(name,name),result)
                         elif result['status']=='error':self.store.observe(actor,task_id,'tickets.propose_create',result)
                     self.workspace.runs.event(run_id,'tool_result',{'tool':name,'result':result})
+                    observed_this_run.add(name)
                     messages.append({'role':'tool','tool_name':name,'content':json.dumps(result,ensure_ascii=False)})
                     signature=digest({'name':name,'arguments':arguments,'result':result})
                     if signature in seen:raise ServiceError('NO_PROGRESS')
