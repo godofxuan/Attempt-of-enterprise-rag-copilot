@@ -8,11 +8,14 @@ sys.path[:0]=[str(code.resolve()),str(dependencies.resolve())]
 from app.config import Settings
 from app.runtime.resources import build_service_container
 from app.main import create_app
+from app.agent_runtime.workbench_agent import build_service_agent
 from app.workspace import initialize
 import app
 from fastapi.testclient import TestClient
 
 assert Path(app.__file__).resolve().is_relative_to(code.resolve())
+assert 'app.agent_runtime.durable_orchestrator' not in sys.modules
+assert 'app.agent_runtime.evaluation' not in sys.modules
 initialize(data,sample=True)
 settings=Settings(workbench_enabled=True,data_dir=data.resolve(),sqlite_path=(data/'app.sqlite3').resolve())
 with TestClient(create_app(build_service_container(settings))) as client:

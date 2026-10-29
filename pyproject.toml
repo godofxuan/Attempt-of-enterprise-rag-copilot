@@ -32,12 +32,12 @@ dependencies = [
   "PyJWT==2.13.0", "cryptography==49.0.0", "openai==2.32.0",
   "faiss-cpu==1.13.2", "rank-bm25==0.2.2", "numpy==2.4.4", "jieba==0.42.1",
   "pypdf==6.14.2", "python-docx==1.2.0", "markdown-it-py==4.2.0",
-  "langgraph==1.2.11", "python-multipart==0.0.32"
+  "python-multipart==0.0.32"
 ]
 
 [project.optional-dependencies]
 dev = ["pytest==9.0.3"]
-legacy = ["streamlit==1.56.0", "mcp==2.0.0", "langgraph-checkpoint-sqlite==3.1.1",
+legacy = ["langgraph==1.2.11", "streamlit==1.56.0", "mcp==2.0.0", "langgraph-checkpoint-sqlite==3.1.1",
           "langgraph-checkpoint-postgres==3.1.2", "opentelemetry-sdk==1.44.0", "psycopg[binary,pool]==3.3.4"]
 
 [project.scripts]
