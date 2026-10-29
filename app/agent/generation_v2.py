@@ -6,7 +6,7 @@ import re
 import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, Literal
 
 from pydantic import (
     BaseModel,
@@ -24,7 +24,7 @@ from app.agent.controller_v2 import ControllerState
 from app.agent.query_needs import requested_needs
 from app.agent.runner_v2 import ExtractiveResponseBuilder, build_conflict_response
 from app.agent.source_unit_completion import complete_claim_quotes
-from app.agent.task_plan import prompt_needs
+from app.agent.task_plan import prompt_needs, NeedEvaluation, bind_need_evaluations
 from app.config import get_settings
 from app.domain.agent import AgentStopReason, AnswerMode
 from app.domain.evidence import AnswerResponse, AnswerSource, Claim
@@ -72,6 +72,8 @@ GENERATION_RESPONSE_FORMAT = {
                     "claim_id": {"type": "string"},
                     "text": {"type": "string"},
                     "critical": {"type": "boolean"},
+                    "source_unit_id": {"type":"string"},
+                    "need_refs": {"type":"array", "items":{"type":"string"}},
                     "cited_source_ids": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -86,8 +88,16 @@ GENERATION_RESPONSE_FORMAT = {
             },
         },
     },
-    "required": ["answer", "claims"],
+    "required": ["answer", "claims", "request_coverage"],
 }
+GENERATION_RESPONSE_FORMAT['properties']['request_coverage'] = {
+    'type':'array','items':{
+        'type':'object','properties':{
+            'need_id':{'type':'string'},'claim_ids':{'type':'array','items':{'type':'string'}},
+            'status':{'enum':['supported','unknown','evidence_insufficient']},
+            'subject_matches':{'type':'boolean'},'attribute_matches':{'type':'boolean'},
+            'conditions_preserved':{'type':'boolean'}},
+        'required':['need_id','claim_ids','status','subject_matches','attribute_matches','conditions_preserved']}}
 
 
 class ChatFn(Protocol):
@@ -101,13 +111,39 @@ class ChatFn(Protocol):
     ) -> str: ...
 
 
+class GeneratedUnitSpan(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    source_id: str
+    field: Literal['matched_text','context_text','open_content']
+    quote: str = Field(min_length=1,max_length=2000)
+
+
 class GeneratedClaim(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     claim_id: str = Field(min_length=1, max_length=200)
-    text: str = Field(min_length=1, max_length=2000)
+    text: str = Field(default='', max_length=2000)
     critical: bool = True
     cited_source_ids: list[str] = Field(min_length=1, max_length=20)
+    need_refs: list[str] = Field(default_factory=list, max_length=8)
+    unit_span: GeneratedUnitSpan | None = None
+    source_unit_id: str | None = None
+    evidence_role: Literal['direct','necessary_condition'] = 'direct'
+    requested_attribute: str = Field(default='',max_length=120)
+    condition_claim_ids: list[str] = Field(default_factory=list,max_length=8)
+
+    @model_validator(mode='after')
+    def bound_content(self):
+        if not self.source_unit_id and not self.text:
+            raise ValueError('claim requires text or a selected complete source unit')
+        return self
+
+    @field_validator("need_refs")
+    @classmethod
+    def validate_need_refs(cls, values):
+        if len(values) != len(set(values)) or any(not re.fullmatch(r"N[1-8]", v) for v in values):
+            raise ValueError("invalid need references")
+        return values
 
     @field_validator("cited_source_ids")
     @classmethod
@@ -121,12 +157,15 @@ class GeneratedAnswer(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     answer: str = Field(min_length=1, max_length=20_000)
-    claims: list[GeneratedClaim] = Field(min_length=1, max_length=20)
+    claims: list[GeneratedClaim] = Field(min_length=0, max_length=20)
+    request_coverage: list[NeedEvaluation] | None = Field(default=None,max_length=8)
     _wire_claim_ids_rebound: int = PrivateAttr(default=0)
     _invalid_claim_rows: int = PrivateAttr(default=0)
 
     @model_validator(mode="after")
     def validate_claim_ids(self) -> GeneratedAnswer:
+        if not self.claims and self.request_coverage is None:
+            raise ValueError('Empty claims require an explicit bounded coverage result')
         claim_ids = [claim.claim_id for claim in self.claims]
         if len(claim_ids) != len(set(claim_ids)):
             raise ValueError("generated claim IDs must be unique")
@@ -144,6 +183,21 @@ class _PromptSource:
 
 
 NonceFactory = Callable[[], str]
+
+
+def generation_response_format(sources,plan):
+    from copy import deepcopy
+    from app.agent.source_unit_completion import complete_units
+    schema=deepcopy(GENERATION_RESPONSE_FORMAT)
+    ids=[source.source_id+'U'+str(i) for source in sources
+         for i,unit in enumerate(complete_units(source.delivered),1) if len(unit.quote)<=2000]
+    if ids:
+        row=schema['properties']['claims']['items']
+        row['properties']['source_unit_id']={'enum':ids}
+        row['required']=['claim_id','source_unit_id','critical','cited_source_ids']
+    need_ids=[need.need_id for need in plan.needs]
+    if need_ids:schema['properties']['request_coverage']['items']['properties']['need_id']={'enum':need_ids}
+    return schema
 
 
 def _bounded_default_chat(model, messages, *, response_format=None, think=None):
@@ -187,14 +241,23 @@ class GenerationV2ResponseBuilder:
         stop_reason: AgentStopReason,
         trace: dict,
     ) -> AnswerResponse:
+        if mode == "clarify" or (
+            (state.terminal_request or {}).get("type") == "clarify"
+            and state.ledger is not None and state.ledger.conflicting_aspects
+        ):
+            return self._apply_answer_contract(question, state, AnswerResponse(
+                mode="partial", answer="Clarification required.", trace=trace,
+                stop_reason="partial_evidence"), [])
         if mode not in {"answered", "partial"}:
-            return self.source_free_builder.build(
+            response = self.source_free_builder.build(
                 question=question,
                 state=state,
                 mode=mode,
                 stop_reason=stop_reason,
                 trace=trace,
             )
+            return (self._apply_answer_contract(question, state, response, [])
+                    if mode == "not_found" and state.terminal_request else response)
         response_trace = dict(trace)
         response_trace["generation_attempts"] = 0
         try:
@@ -253,7 +316,15 @@ class GenerationV2ResponseBuilder:
                 source_by_id,
                 retry_messages_factory=build_messages,
                 trace=response_trace,
+                response_format=generation_response_format(sources,state.task_plan),
             )
+            claims, draft_units = _preserve_draft_units(_generated, claims, source_by_id, question)
+            response_trace['generation_draft_units'] = draft_units
+            if not claims:
+                response_trace['answer_strategy'] = 'bounded_insufficiency'
+                return self._apply_answer_contract(question,state,AnswerResponse(
+                    mode='partial',answer='当前已获取资料尚不足以核验所问事实。',
+                    stop_reason='partial_evidence',trace=response_trace),sources)
             response_trace = {
                 **response_trace,
                 "generation_attempts": generation_attempts,
@@ -281,7 +352,13 @@ class GenerationV2ResponseBuilder:
             supported_claims = [
                 claim for claim in claims if citation_by_claim[claim.claim_id].supported
             ]
-            supported_citations = [citation for citation in citations if citation.supported]
+            supported_claims = retain_condition_dependencies(supported_claims,_generated.claims)
+            supported_ids = {c.claim_id for c in supported_claims}
+            if _generated.request_coverage is not None:
+                response_trace['generation_need_relations'] = bind_need_evaluations(
+                    state.task_plan,question,claims,
+                    [] if _generated._wire_claim_ids_rebound else [r.model_dump() for r in _generated.request_coverage])
+            supported_citations = [citation for citation in citations if citation.supported and citation.claim_id in supported_ids]
             unsupported_count = original_claim_count - len(supported_claims)
             response_trace["unsupported_claim_reasons"] = {
                 reason: sum(citation.unsupported_reason == reason for citation in citations)
@@ -399,12 +476,14 @@ class GenerationV2ResponseBuilder:
         *,
         retry_messages_factory: Callable[[], list[dict[str, str]]],
         trace: dict,
+        response_format=None,
     ) -> tuple[GeneratedAnswer, list[Claim], int]:
+        response_format=response_format or GENERATION_RESPONSE_FORMAT
         active_messages = list(messages)
         for attempt in range(1, self.max_attempts + 1):
             total = (
                 _prompt_bytes(active_messages)
-                + len(_safe_compact_json(GENERATION_RESPONSE_FORMAT).encode("utf-8"))
+                + len(_safe_compact_json(response_format).encode("utf-8"))
                 + CHAT_SCHEMA_MARGIN
                 + MAX_OUTPUT_TOKENS
             )
@@ -418,7 +497,7 @@ class GenerationV2ResponseBuilder:
             raw = self.chat_fn(
                 self.model,
                 active_messages,
-                response_format=GENERATION_RESPONSE_FORMAT,
+                response_format=response_format,
                 think=False,
             )
             remaining = remaining_seconds()
@@ -555,7 +634,7 @@ def _build_prompt_sources(
         item.hit for aspect in aspects for item in state.evidence_by_aspect.get(aspect, [])
     ]
     useful_opens = {
-        (item.result.target_type, item.result.target_id)
+        (item.result.target_type, item.result.target_id, item.result.start_char, item.result.content)
         for item in state.open_results
         if any(
             (hit.doc_id, hit.source_path) == (item.result.doc_id, item.result.source_path)
@@ -656,10 +735,11 @@ def _build_prompt_sources(
                 remaining_bytes -= (
                     len(json.dumps(json_record, ensure_ascii=False).encode("utf-8")) - 2 + 1
                 )
-    opened_ids: set[tuple[str, str]] = set()
+    opened_ids: set[tuple] = set()
     for admitted in state.open_results:
         candidate()
-        identity = (admitted.result.target_type, admitted.result.target_id)
+        identity = (admitted.result.target_type, admitted.result.target_id,
+                    admitted.result.start_char, admitted.result.content)
         if identity in opened_ids:
             count("packet_duplicate_reasons", "open_target")
             continue
@@ -699,8 +779,9 @@ def _build_prompt_sources(
         }
         json_record = _bounded_json_record(
             record,
-            remaining,
-            max_bytes=None if remaining_bytes is None else max(0, remaining_bytes - 1),
+            remaining // max(1, len(useful_opens - opened_ids) + 1),
+            max_bytes=None if remaining_bytes is None else
+            max(0, remaining_bytes // max(1, len(useful_opens - opened_ids) + 1) - 1),
         )
         if record["matched_text"] != admitted.result.content:
             count("packet_truncation_reasons", "unit_limit")
@@ -731,7 +812,9 @@ def _build_prompt_sources(
             remaining_bytes -= (
                 len(json.dumps(json_record, ensure_ascii=False).encode("utf-8")) - 2 + 1
             )
-    return result
+    from app.agent.answer_applicability import business_scope_matches
+    return [source for source in result
+            if business_scope_matches(state.task_plan.business_scope,source.delivered.text,source_context=True)]
 
 
 def _safe_compact_json(value: object) -> str:
@@ -744,7 +827,41 @@ def _safe_compact_json(value: object) -> str:
 
 
 def _json_record(record: dict[str, str | int]) -> str:
-    return _safe_compact_json(record)
+    from app.domain.evidence_packet import source_unit_ranges
+    units=[]
+    seen=set()
+    for field in ('matched_text','context_text'):
+        text=record.get(field,'')
+        if not isinstance(text,str) or text in seen:continue
+        seen.add(text)
+        for start,end in source_unit_ranges(text):
+            while start<end and text[start].isspace():start+=1
+            if start<end and end-start<=2000:
+                actual_field='open_content' if field=='matched_text' and record.get('evidence_kind')=='open' else field
+                units.append({'unit_id':record['source_id']+'U'+str(len(units)+1),
+                    'field':actual_field, **({'start':start} if start else {}),
+                    **({'end':end} if end != len(text) else {})})
+    return _safe_compact_json({**record,'source_units':units})
+
+
+def _model_source_record(json_record: str) -> dict:
+    """Render IDs beside exact units; canonical packing and host binding stay intact."""
+    record=json.loads(json_record)
+    units=record['source_units']
+    for field in ('matched_text','context_text'):
+        text=record[field]
+        spans=[u for u in units if ('matched_text' if u['field']=='open_content' else u['field'])==field]
+        for unit in reversed(spans):
+            # Offsets are always evaluated against the unmodified canonical field.
+            original=record[field]
+            start=unit.get('start',0)
+            end=unit.get('end',len(original))
+            if not 0<=start<end<=len(original):raise ValueError('INVALID_HOST_UNIT_POSITION')
+            label=unit['unit_id']
+            text=text[:start]+'['+label+']'+text[start:end]+'[/'+label+']'+text[end:]
+        record[field]=text
+    record['source_units']=[u['unit_id'] for u in units]
+    return record
 
 
 def _bounded_json_record(
@@ -880,9 +997,11 @@ def _generation_messages(
         {
             "intent": state.analysis.intent,
             "question": question,
+            **({"clarification_replies_untrusted": state.clarification_replies}
+               if state.clarification_replies else {}),
             **(
                 {"request_needs": prompt_needs(state.task_plan)}
-                if len(state.task_plan.needs) > 1
+                if state.task_plan.needs
                 else {}
             ),
             **(
@@ -900,7 +1019,14 @@ def _generation_messages(
             ),
         },
     )
-    evidence_json = "[" + ",".join(source.json_record for source in sources) + "]"
+    evidence_json = _safe_compact_json([_model_source_record(source.json_record) for source in sources])
+    system += (' Host source_units label complete source sentences. Prefer source_unit_id for each '
+               'critical claim, selecting one exact complete unit per claim. The host maps the ID to verified '
+               'source bytes. Do not combine separate units into one critical claim or copy label delimiters. '
+               'Select relevant answers with their necessary conditions; omit unrelated background facts.')
+    system += (' Include request_coverage for every original request_needs ID. Link only actual claim_ids. '
+               'Check that subject, requested attribute and necessary conditions match the original question. '
+               'A supported source is not by itself proof that the question was answered; unknown stays unknown.')
     begin = f"[BEGIN_UNTRUSTED_EVIDENCE nonce={nonce}]"
     end = f"[END_UNTRUSTED_EVIDENCE nonce={nonce}]"
     reminder = f"[TRUSTED_REMINDER nonce={nonce}]"
@@ -933,6 +1059,15 @@ def _generation_messages(
             "Keep conditions and exceptions. Missing evidence is not permission to "
             "invent a fact or assume the user's circumstances. The N IDs identify "
             "questions only, never cite them as evidence."
+        )
+    if state.task_plan.mode == "task":
+        user += (
+            " This is a semantic investigation. For EVERY claim provide need_refs: the N IDs "
+            "of the actual questions that claim answers. Merely sharing a topic is not support. "
+            "Copy complete supporting source units including scope, conditions and exceptions. "
+            "Do not attach all needs to an unrelated quotation. Preserve the original user's "
+            "requirements even if the proposed plan omitted one. Do not assert personal "
+            "eligibility without the relevant user facts. Missing support must stay unresolved."
         )
     return [
         {"role": "system", "content": system},
@@ -1007,6 +1142,16 @@ def _map_claims(
     source_by_id: dict[str, _PromptSource],
 ) -> list[Claim]:
     claims: list[Claim] = []
+    by_id={g.claim_id:g for g in generated_claims}
+    validated=set()
+    def visit(cid,path):
+        if cid in path:raise ValueError('cyclic necessary conditions')
+        if cid in validated:return
+        for dependency in by_id[cid].condition_claim_ids:
+            if dependency not in by_id:raise ValueError('unknown necessary condition')
+            visit(dependency,path|{cid})
+        validated.add(cid)
+    for cid in by_id:visit(cid,set())
     for generated in generated_claims:
         source_ids = _deduplicate(generated.cited_source_ids)
         if any(source_id not in source_by_id for source_id in source_ids):
@@ -1014,15 +1159,130 @@ def _map_claims(
         chunk_ids = _deduplicate(
             [source_by_id[source_id].delivered.citation_id for source_id in source_ids]
         )
+        text=generated.text
+        if generated.source_unit_id:
+            from app.agent.source_unit_completion import complete_units
+            selected=[(source_id,u) for source_id,source in source_by_id.items()
+                for i,u in enumerate(complete_units(source.delivered),1)
+                if source_id+'U'+str(i)==generated.source_unit_id]
+            if len(selected)!=1 or source_ids!=[selected[0][0]]:
+                raise ValueError('selected complete source unit identity mismatch')
+            source_id,unit=selected[0]
+            bound=GeneratedUnitSpan(source_id=source_id,field=unit.field,quote=unit.quote)
+            if generated.unit_span is not None and generated.unit_span!=bound:
+                raise ValueError('conflicting complete unit references')
+            generated.unit_span=bound
+        if generated.unit_span:
+            from app.agent.source_unit_completion import complete_units
+            from app.agent.citation_verifier import narrow_layout_key
+            span=generated.unit_span
+            if source_ids!=[span.source_id]:raise ValueError('selected unit citation mismatch')
+            source=source_by_id[span.source_id]
+            matches=[u for u in complete_units(source.delivered)
+                if (u.field==span.field or span.field=='context_text'
+                    and source.delivered.context_text==source.delivered.matched_text)
+                and (u.quote==span.quote
+                    or narrow_layout_key(u.quote)==narrow_layout_key(span.quote)
+                    or ' '.join(u.quote.split()).casefold()==' '.join(span.quote.split()).casefold())]
+            if len(matches)!=1:raise ValueError('selected unit must uniquely bind a complete delivered source unit')
+            text=matches[0].quote
+            # Record the exact verified source bytes, not the model's layout variant.
+            generated.unit_span=span.model_copy(update={'field':matches[0].field,'quote':text})
+            generated.text=text
+        for dependency in generated.condition_claim_ids:
+            condition=by_id.get(dependency)
+            if not condition or condition.evidence_role!='necessary_condition' or dependency==generated.claim_id:
+                raise ValueError('unknown or invalid necessary condition')
+            origins={(source_by_id[s].delivered.anchor.hit.doc_id,
+                source_by_id[s].delivered.anchor.hit.version_id) for s in source_ids}
+            if any(s not in source_by_id for s in condition.cited_source_ids):
+                raise ValueError('condition cites unknown source')
+            if {(source_by_id[s].delivered.anchor.hit.doc_id,
+                source_by_id[s].delivered.anchor.hit.version_id) for s in condition.cited_source_ids}!=origins:
+                raise ValueError('necessary condition must retain same policy and version')
         claims.append(
             Claim(
                 claim_id=generated.claim_id,
-                text=generated.text,
+                text=text,
                 critical=generated.critical,
                 cited_chunk_ids=chunk_ids,
+                need_refs=generated.need_refs,
             )
         )
     return claims
+
+
+
+def retain_condition_dependencies(claims,generated_claims):
+    retained={c.claim_id for c in claims}
+    by_id={g.claim_id:g for g in generated_claims}
+    while True:
+        next_ids={cid for cid in retained if set(by_id[cid].condition_claim_ids)<=retained}
+        if next_ids==retained:break
+        retained=next_ids
+    direct={cid for cid in retained if by_id[cid].evidence_role=='direct'}
+    needed=set(direct)
+    while True:
+        expanded=needed|{dependency for cid in needed for dependency in by_id[cid].condition_claim_ids}
+        if expanded==needed:break
+        needed=expanded
+    return [c for c in claims if c.claim_id in needed]
+
+
+
+def _claim_binding(claim):
+    return hashlib.sha256(_safe_compact_json(claim.model_dump(mode='json')).encode('utf8')).hexdigest()
+
+
+
+def _preserve_draft_units(generated, claims, source_by_id, question):
+    """Preserve authored exact units, not free prose or the whole source catalog."""
+    from app.agent.source_unit_completion import complete_units
+    cited = {sid for row in generated.claims for sid in row.cited_source_ids}
+    candidates = {}
+    positions = {}
+    for sid in sorted(source_by_id):
+        source = source_by_id[sid]
+        origin = (source.evidence.hit.doc_id, source.evidence.hit.version_id,
+                  source.evidence.hit.index_run_id, source.evidence.hit.policy_id)
+        for i, unit in enumerate(complete_units(source.delivered), 1):
+            positions[(sid, unit.field, unit.quote)] = unit.start
+            if unit.quote in generated.answer:
+                candidates.setdefault(unit.quote, []).append((origin, sid, i, unit))
+    restored, unresolved = [], []
+    for quote, matches in candidates.items():
+        if any(quote in claim.text for claim in claims):
+            continue
+        repair_matches = [row for row in matches if row[1] in cited]
+        origins = {row[0] for row in repair_matches}
+        if len(origins) != 1 or len(generated.claims) >= 20 or len(quote) > 2000:
+            unresolved.append(hashlib.sha256(quote.encode('utf8')).hexdigest())
+            continue
+        _, sid, index, unit = repair_matches[0]
+        serial = 1
+        ids = {c.claim_id for c in generated.claims}
+        while 'host-answer-unit-' + str(serial) in ids:
+            serial += 1
+        added = GeneratedClaim(claim_id='host-answer-unit-' + str(serial),
+            source_unit_id=sid + 'U' + str(index), cited_source_ids=[sid], critical=True)
+        # Keep a recovered condition beside later units of that same source.
+        position = next((i for i, c in enumerate(generated.claims)
+            if c.unit_span and c.unit_span.source_id == sid and c.unit_span.field == unit.field
+            and positions.get((sid, c.unit_span.field, c.unit_span.quote), -1) > unit.start),
+            len(generated.claims))
+        generated.claims.insert(position, added)
+        restored.append(added.claim_id)
+        # The normal mapper still binds complete units, dependencies and origins.
+        claims = _map_claims(generated.claims, source_by_id)
+    required = [{'unit_sha256': hashlib.sha256(quote.encode('utf8')).hexdigest(), 'claim_bindings': {
+        c.claim_id: _claim_binding(c) for c in claims if quote in c.text}}
+        for quote in candidates]
+    return claims, {'version': 'exact-draft-units-v1',
+        'question_sha256': hashlib.sha256(question.encode('utf8')).hexdigest(),
+        'draft_sha256': hashlib.sha256(generated.answer.encode('utf8')).hexdigest(),
+        'restored_claim_ids': restored, 'unresolved_unit_sha256': unresolved,
+        'required_content': required,
+        'basis': 'authored_delivered_quotes_repair_only_in_uniquely_cited_origins_not_free_prose_or_semantic_proof'}
 
 
 def _answer_source(evidence: DeliveredEvidence) -> AnswerSource:

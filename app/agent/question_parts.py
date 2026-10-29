@@ -38,7 +38,7 @@ class QuestionPartCoverage:
 
 
 def explicit_question_parts(question: str) -> tuple[str, ...]:
-    fragments = re.split(r"[，,；;。？?\n]|(?:并且|以及|同时)", question)
+    fragments = re.split(r"[，,；;。？?、\n]|(?:并且|以及|同时)", question)
     return tuple(dict.fromkeys(s.strip() for s in fragments if _ASK.search(s)))
 
 
@@ -67,13 +67,23 @@ def assess_question_parts(question: str, claims: list[str]) -> QuestionPartCover
         return QuestionPartCoverage((), ())
     return QuestionPartCoverage(
         parts[:8],
-        tuple(part for part in parts[:8] if not part_is_addressed(part, claims)),
+        tuple(part for part in parts[:8] if not part_is_addressed(part, claims, context=question)),
         len(parts) > 8,
     )
 
 
-def part_is_addressed(part: str, texts: list[str]) -> bool:
+def part_is_addressed(part: str, texts: list[str], *, context: str = "") -> bool:
     """Reuse the same finite necessary checks at retrieval and answer stages."""
+    from app.retrieval.query_normalization import retrieval_query
+    part = retrieval_query(context + "\n" + part).rsplit("\n", 1)[-1]
+    amount = re.search(r"(?:每晚|每月|每次).*(?:多少|上限|额度)|(?:额度|上限|限额).*(?:多少|什么)", part)
+    if amount:
+        subject = re.split(r"额度|上限|限额|多少",part)[0].strip()
+        period = re.search(r"每晚|每月|每次",part)
+        if period:
+            subject=period[0]
+        return any(subject in unit and re.search(r"\d+(?:\.\d+)?\s*(?:元|美元)",unit)
+                   for text in texts for unit in re.split(r"[。；;\n]",text))
     additional = _ADDITIONAL_MATERIAL_QUERY.fullmatch(part.strip())
     if additional:
         # Generic submission elsewhere must not satisfy this scoped obligation.
@@ -118,3 +128,13 @@ def part_is_addressed(part: str, texts: list[str]) -> bool:
             continue
         return True
     return False
+
+
+def claim_is_relevant(question: str, text: str) -> bool:
+    """Topic relevance is weaker than completion; keep the two checks separate."""
+    if re.search(r"代用机|电脑.{0,8}修",question):
+        return bool(re.search(r"代用机|维修|工单|资产管理员|供应商",text))
+    content=_FILLER.sub("",_ASK.sub("",question))
+    generic={"材料","需要","分别","上限","额度","申请","什么","多少","可以","不可以","哪些","负责"}
+    anchors={w for w in tokenize_for_bm25(content) if len(w)>=2 and w not in generic}
+    return any(a in text for a in anchors)

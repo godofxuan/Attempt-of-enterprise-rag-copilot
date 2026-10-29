@@ -150,7 +150,7 @@ class V2ToolRegistry:
                 raw_result = self.navigator.find(action.find_request)
             else:
                 raw_result = self.navigator.open(action.open_request)
-        except Exception:
+        except Exception as exc:
             if self.clock_ms() >= deadline_at_ms:
                 return _error_execution(
                     action,
@@ -165,6 +165,7 @@ class V2ToolRegistry:
                 code="system",
                 message="The tool is temporarily unavailable.",
                 retryable=True,
+                failure_origin="backend_transient" if isinstance(exc, (TimeoutError, ConnectionError)) else "unknown",
             )
 
         if self.clock_ms() >= deadline_at_ms:
@@ -185,6 +186,7 @@ class V2ToolRegistry:
                 code="system",
                 message="The tool returned an invalid response.",
                 retryable=True,
+                failure_origin="contract",
             )
         if isinstance(raw_result, ToolError):
             return _error_execution(
@@ -193,6 +195,7 @@ class V2ToolRegistry:
                 code=raw_result.code,
                 message=raw_result.safe_message,
                 retryable=raw_result.retryable,
+                failure_origin=raw_result.failure_origin,
             )
 
         try:
@@ -228,6 +231,7 @@ class V2ToolRegistry:
                 code="system",
                 message="The retrieved-content safety boundary is unavailable.",
                 retryable=True,
+                failure_origin="admission",
             )
         if not isinstance(admission, GuardedAdmissionOutcome):
             return _error_execution(
@@ -236,6 +240,7 @@ class V2ToolRegistry:
                 code="system",
                 message="The retrieved-content safety boundary returned an invalid response.",
                 retryable=True,
+                failure_origin="admission",
             )
         if self.clock_ms() >= deadline_at_ms:
             return _error_execution(
@@ -381,6 +386,7 @@ def _error_execution(
     code: ToolErrorCode,
     message: str,
     retryable: bool = False,
+    failure_origin: str = "unknown",
     security_counters: SecurityCounters | None = None,
     quarantine_summaries: tuple = (),
 ) -> GuardedV2ToolExecution:
@@ -390,6 +396,7 @@ def _error_execution(
             code=code,
             retryable=retryable,
             safe_message=message,
+            failure_origin=failure_origin,
         ),
         budget_state=budget_state,
         status="error",
@@ -408,6 +415,7 @@ def build_tool_error_execution(
     code: ToolErrorCode,
     message: str,
     retryable: bool = False,
+    failure_origin: str = "unknown",
 ) -> GuardedV2ToolExecution:
     """Build a zero-evidence failure for a rejected contract call."""
     return _error_execution(
@@ -416,6 +424,7 @@ def build_tool_error_execution(
         code=code,
         message=message,
         retryable=retryable,
+        failure_origin=failure_origin,
     )
 
 

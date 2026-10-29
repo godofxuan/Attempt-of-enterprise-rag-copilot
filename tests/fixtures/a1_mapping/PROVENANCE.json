@@ -1,0 +1,40 @@
+{
+  "kind": "MINIMAL_SAVED_REPLY_REGRESSION_NOT_LIVE",
+  "inputs": [
+    {
+      "number": "09694",
+      "original_sha256": "34c7fccee57dab0a43bdaffc4cbadb12c90eae19a0b3d013b4e970e6a96a2fe6",
+      "response_sha256": "c131ddd15442df2c00dcd55a1848b793406a4a204bdae318401a42376399e1c7"
+    },
+    {
+      "number": "09697",
+      "original_sha256": "f7d0450a1a1e548b4372a84113113d140d7fe95b5afa0076f1c1079bd4c25b02",
+      "response_sha256": "e7406ab6176b383b07aa17a47303ed794c9e74ee624d85bd1774be1d487d6bd3"
+    }
+  ],
+  "unchanged": [
+    "question",
+    "reply",
+    "source_text",
+    "source_unit_ids",
+    "version",
+    "ACL"
+  ],
+  "removed": [
+    "model_messages",
+    "accounting",
+    "timings",
+    "tokens",
+    "business_database"
+  ],
+  "anonymized": [
+    "source_path"
+  ],
+  "offset_basis": "unchanged Unicode source text",
+  "fixture_files": {
+    "09694.json": "3419591ac03afb5916da457b461b8ed19aca144277ce9cee848e8ced6ea8713b",
+    "09697.json": "dd532572e3fbc925a29a5e72fdfa0cbf2ef3c339a2759ccfe5c89cc38cc5be3e",
+    "chunks.json": "244ddaa0a45969e5be20b73f56c71e9965dc2c779ed28ebb8f17dc6e0444e916",
+    "packet_trace.json": "0b43adef46341484f90fcd2909374493227b42206f294ab7894dff8d6ddc6c75"
+  }
+}

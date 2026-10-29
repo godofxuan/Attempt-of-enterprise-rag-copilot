@@ -16,6 +16,7 @@ AnswerMode = Literal[
     "system",
     "budget",
     "security_filtered",
+    "clarify",
 ]
 AgentStopReason = Literal[
     "completed",
@@ -29,6 +30,7 @@ AgentStopReason = Literal[
     "budget",
     "budget_exhausted",
     "evidence_filtered",
+    "clarification_needed",
 ]
 AgentToolName = Literal["search", "find", "open", "answer", "refuse", "stop"]
 ToolErrorCode = Literal[
@@ -82,6 +84,7 @@ class ToolError(StrictModel):
     code: ToolErrorCode
     retryable: bool
     safe_message: str = Field(min_length=1, max_length=500)
+    failure_origin: Literal["unknown", "backend_transient", "authorization", "binding", "admission", "contract", "budget", "deadline"] = "unknown"
 
 
 class AgentAction(StrictModel):

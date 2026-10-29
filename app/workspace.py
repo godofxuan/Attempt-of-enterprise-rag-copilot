@@ -2,17 +2,31 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import asyncio
 import json
 from pathlib import Path
 import sqlite3
 from urllib.parse import urlsplit
+from typing import Literal
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.security.model_endpoint import parse_pinned_model_endpoint
+
+
+class WorkspaceError(Exception):
+    def __init__(self,status,code,data=None):
+        self.status=status;self.code=code;self.data=data or {}
+
+
+def install_workspace_errors(application):
+    from fastapi.responses import JSONResponse
+    async def handle(request,exc):
+        return JSONResponse(status_code=exc.status,content={'error':{'code':exc.code,'message':exc.code,'data':exc.data}})
+    application.add_exception_handler(WorkspaceError,handle)
 
 
 class WorkspaceConfig(BaseModel):
@@ -56,6 +70,9 @@ def initialize(root, *, sample=False):
     with sqlite3.connect(root/"app.sqlite3") as db:
         db.execute("CREATE TABLE IF NOT EXISTS workspace_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)")
         db.execute("INSERT OR IGNORE INTO workspace_meta VALUES('initialized_at',?)", (datetime.now(timezone.utc).isoformat(),))
+    if sample and load_config(root).sample_data:
+        from app.workbench_service import seed_sample
+        seed_sample(root)
 
 
 class Workspace:
@@ -73,9 +90,21 @@ class Workspace:
         with sqlite3.connect(self.db_path) as db:
             db.execute("CREATE TABLE IF NOT EXISTS workspace_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)")
         self.client = httpx.AsyncClient(trust_env=False, timeout=2, follow_redirects=False)
+        from app.runtime.workbench_models import ModelService
+        from app.workbench_knowledge import Library
+        from app.runtime.workbench_runs import Runs
+        from app.workbench_service import TaskService
+        self.models = ModelService(self)
+        self.library = Library(self)
+        self.runs = Runs(self)
+        self.service = TaskService(self)
+        await self.library.start()
         self.started = True
 
     async def close(self):
+        await self.runs.close()
+        await self.library.close()
+        await self.models.close()
         if self.client: await self.client.aclose()
         self.started = False
 
@@ -90,12 +119,13 @@ class Workspace:
         found = {m["name"].removesuffix(":latest") for m in models}
         with sqlite3.connect(self.db_path) as db:
             initialized = db.execute("SELECT value FROM workspace_meta WHERE key='initialized_at'").fetchone()
+            calls = db.execute("SELECT COUNT(*) FROM model_calls WHERE kind='chat'").fetchone()[0]
         return {"web":True,"storage":self.started,"data_dir":str(self.root),"database":str(self.db_path),
                 "initialized_at":initialized[0] if initialized else None,"models":models,
                 "chat":{"ready":self.config.chat_model.removesuffix(":latest") in found,"model":self.config.chat_model},
                 "embedding":{"ready":self.config.embedding_model.removesuffix(":latest") in found,"model":self.config.embedding_model},
                 "model_error":error,"mode":"SYNTHETIC_LOCAL" if self.config.sample_data else "LOCAL_OWNER",
-                "generation_calls":0}
+                "generation_calls":calls}
 
     def save_settings(self, changes):
         updated = self.config.model_copy(update=changes)
@@ -115,6 +145,65 @@ class SettingsPatch(BaseModel):
     request_timeout_seconds: float | None = Field(default=None,ge=1,le=300)
 
 
+class CreateKnowledgeBase(BaseModel):
+    name: str = Field(min_length=1,max_length=200)
+
+
+class AskKnowledge(BaseModel):
+    kb_id: str
+    question: str = Field(min_length=1,max_length=2000)
+    conversation_id: str | None = None
+    detailed: bool = False
+
+
+class CreateTask(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    request: dict
+    kb_id: str | None = None
+    answer_id: str | None = None
+
+
+class UpdateFacts(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    changes: dict
+    expected_facts_revision: int = Field(ge=1)
+
+
+class SubmitTask(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    proposal_id: str
+    content_digest: str
+    accepted: bool = Field(strict=True)
+    expected_facts_revision: int = Field(ge=1)
+
+
+class TaskMessage(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    text: str = Field(min_length=1,max_length=2000)
+    message_id: str = Field(min_length=1,max_length=100)
+    expected_facts_revision: int = Field(ge=1)
+
+
+class SelectAsset(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    asset_id: str
+    expected_facts_revision: int = Field(ge=1)
+
+
+class AddDirectory(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    kb_id: str
+    path: str = Field(min_length=1,max_length=1000)
+
+
+class Feedback(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    target_kind: Literal['answer','task']
+    target_id: str
+    category: Literal['parse','retrieval','generation','business','ux','other']
+    message: str = Field(min_length=1,max_length=2000)
+
+
 def require_local_request(request: Request):
     """Single-user loopback mode, not an enterprise login or a relaxed legacy ACL."""
     if request.client and request.client.host not in ("127.0.0.1", "::1", "localhost", "testclient"):
@@ -128,6 +217,12 @@ def require_local_request(request: Request):
 
 def workspace_router(workspace):
     router = APIRouter(dependencies=[Depends(require_local_request)])
+
+    def service_call(action):
+        from app.service_desk.store import ServiceError
+        try:return action()
+        except ServiceError as exc:raise WorkspaceError(409,exc.code,exc.data) from exc
+        except ValueError as exc:raise WorkspaceError(422,'INVALID_REQUEST',{'reason':str(exc)}) from exc
 
     @router.get("/", include_in_schema=False)
     def home():
@@ -147,6 +242,136 @@ def workspace_router(workspace):
 
     @router.get("/api/history")
     def history():
-        return {"tasks":[],"conversations":[],"database":str(workspace.db_path)}
+        return {"tasks":workspace.service.list(),"conversations":workspace.library.answers(),"database":str(workspace.db_path)}
+
+    @router.get('/api/library')
+    def library(): return workspace.library.list()
+
+    @router.post('/api/library')
+    def create_library(payload: CreateKnowledgeBase): return workspace.library.create(payload.name)
+
+    @router.post('/api/library/{kb_id}/documents')
+    async def upload(kb_id: str, file: UploadFile = File(...)):
+        try: return await workspace.library.upload(kb_id,file.filename,await file.read(20*1024*1024+1))
+        except ValueError as exc: raise HTTPException(422,str(exc)) from exc
+
+    @router.post('/api/library/{kb_id}/build')
+    async def build(kb_id: str):
+        try: return workspace.library.enqueue(kb_id)
+        except ValueError as exc: raise HTTPException(422,str(exc)) from exc
+
+    @router.post('/api/library/directories')
+    def add_directory(payload: AddDirectory):
+        return service_call(lambda:workspace.library.register_directory(payload.kb_id,payload.path))
+
+    @router.post('/api/library/directories/{source_id}/sync')
+    async def sync_directory(source_id: str):
+        try:return await workspace.library.sync_directory(source_id)
+        except ValueError as exc:raise WorkspaceError(422,'DIRECTORY_SYNC_FAILED',{'reason':str(exc)}) from exc
+
+    @router.post('/api/feedback')
+    def feedback(payload: Feedback):return service_call(lambda:workspace.library.feedback(**payload.model_dump()))
+
+    @router.get('/api/documents/{doc_id}')
+    def document(doc_id: str):
+        with workspace.library.db() as db:
+            row = db.execute('SELECT name,version,parsed FROM library_documents WHERE id=?',(doc_id,)).fetchone()
+        if not row: raise HTTPException(404,'DOCUMENT_NOT_FOUND')
+        return {'name':row['name'],'version':row['version'],'parsed':json.loads(row['parsed']) if row['parsed'] else None}
+
+    @router.post('/api/knowledge/ask')
+    async def ask(payload: AskKnowledge):
+        try:
+            run=workspace.runs.start('knowledge',payload.model_dump())
+            # Compatibility synchronous result; the durable run is the same one as the UI.
+            await workspace.runs.tasks[run['id']]
+            done=workspace.runs.get(run['id'])
+            if done['status']!='succeeded':raise HTTPException(503,done['error'] or done['status'])
+            return done['result']
+        except (ValueError,FileNotFoundError) as exc: raise HTTPException(422,str(exc)) from exc
+        except httpx.HTTPError as exc: raise HTTPException(503,'MODEL_UNAVAILABLE: '+str(exc)) from exc
+
+    @router.post('/api/knowledge/runs',status_code=202)
+    async def knowledge_run(payload: AskKnowledge):
+        try:return workspace.runs.start('knowledge',payload.model_dump())
+        except ValueError as exc:raise HTTPException(409,str(exc)) from exc
+
+    @router.get('/api/runs/{run_id}')
+    def run(run_id: str):
+        try:return workspace.runs.get(run_id)
+        except ValueError as exc:raise HTTPException(404,str(exc)) from exc
+
+    @router.post('/api/runs/{run_id}/cancel')
+    def cancel_run(run_id: str):
+        workspace.runs.get(run_id);workspace.runs.cancel(run_id)
+        return {'requested':'cancelled','id':run_id}
+
+    @router.get('/api/tasks')
+    def tasks():return workspace.service.list()
+
+    @router.post('/api/tasks')
+    def create_task(payload: CreateTask):
+        def create():
+            answer=None
+            if payload.answer_id:
+                with workspace.library.db() as db:answer=db.execute('SELECT * FROM knowledge_answers WHERE id=?',(payload.answer_id,)).fetchone()
+                if not answer or (payload.kb_id and answer['kb_id']!=payload.kb_id):raise ValueError('ANSWER_NOT_BOUND')
+            task=workspace.service.create(payload.request,payload.kb_id or (answer['kb_id'] if answer else None))
+            if answer:
+                from app.workbench_service import local_actor
+                with workspace.service.store.transaction() as db:
+                    current=workspace.service.store._task(db,local_actor(),task['task_id'])
+                    current['linked_answer_id']=answer['id'];workspace.service.store._save(db,current)
+                task=workspace.service.view(task['task_id'])
+            return task
+        return service_call(create)
+
+    @router.get('/api/tasks/{task_id}')
+    def task(task_id: str):return service_call(lambda:workspace.service.view(task_id))
+
+    @router.get('/api/tasks/{task_id}/alternatives')
+    def alternatives(task_id: str):return service_call(lambda:workspace.service.alternatives(task_id))
+
+    @router.post('/api/tasks/{task_id}/asset')
+    def select_asset(task_id: str,payload: SelectAsset):
+        return service_call(lambda:workspace.service.choose_asset(task_id,payload.asset_id,payload.expected_facts_revision))
+
+    @router.patch('/api/tasks/{task_id}/facts')
+    def facts(task_id: str,payload: UpdateFacts):
+        return service_call(lambda:workspace.service.facts(task_id,payload.changes,payload.expected_facts_revision))
+
+    @router.post('/api/tasks/{task_id}/runs',status_code=202)
+    async def start_task(task_id: str):
+        return service_call(lambda:workspace.runs.start('service',{'task_id':task_id}))
+
+    @router.post('/api/tasks/{task_id}/submit')
+    def submit(task_id: str,payload: SubmitTask):return service_call(lambda:workspace.service.submit(task_id,payload.model_dump()))
+
+    @router.post('/api/tasks/{task_id}/messages',status_code=202)
+    async def message(task_id: str,payload: TaskMessage):
+        return service_call(lambda:workspace.runs.start('message',{'task_id':task_id,**payload.model_dump()}))
+
+    @router.post('/api/tasks/{task_id}/cancel')
+    def cancel(task_id: str):
+        def execute():
+            from app.workbench_service import local_actor
+            workspace.service.store.cancel_task(local_actor(),task_id)
+            for run_id in list(workspace.runs.tasks):
+                if workspace.runs.get(run_id)['target']==task_id:workspace.runs.cancel(run_id)
+            return workspace.service.view(task_id)
+        return service_call(execute)
+
+    @router.get('/api/runs/{run_id}/events')
+    async def events(run_id: str,after_seq: int=0):
+        from fastapi.responses import StreamingResponse
+        async def stream():
+            seq=after_seq
+            while True:
+                for row in workspace.runs.events(run_id,seq):
+                    seq=row['seq']
+                    yield 'id: '+str(seq)+'\nevent: progress\ndata: '+json.dumps(row,ensure_ascii=False)+'\n\n'
+                if workspace.runs.get(run_id)['status'] not in ('queued','running'):break
+                yield ': keepalive\n\n';await asyncio.sleep(1)
+        return StreamingResponse(stream(),media_type='text/event-stream')
 
     return router

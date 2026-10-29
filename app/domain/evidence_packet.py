@@ -10,16 +10,32 @@ SOURCE_UNIT_END = re.compile(
     r"[。！？；]|[!?;][\"'`\u201d\u2019]*|\.(?!\d)[\"'`\u201d\u2019]*(?=\s|$)"
 )
 
+_DEPENDENT_CLAUSE = re.compile(
+    r"^\s*(?:仅限|只限|但|但是|不适用|除非|除外|上述|以上|该|此|其中|前提|条件为|"
+    r"only\b|except\b|unless\b|however\b|provided\b|subject to\b)",re.I
+)
+
+
+def source_unit_ranges(text: str):
+    """Keep explicit trailing qualifiers with the preceding unit, not entailment."""
+    start=0
+    for boundary in SOURCE_UNIT_END.finditer(text):
+        end=boundary.end()
+        if _DEPENDENT_CLAUSE.match(text[end:]):
+            continue
+        yield start,end
+        start=end
+
 
 def complete_evidence_prefix(text: str, limit: int) -> str:
     """Do not promote a budget-truncated trailing clause to a complete fact."""
     if len(text) <= limit:
         return text
     end = 0
-    for boundary in SOURCE_UNIT_END.finditer(text):
-        if boundary.end() > limit:
+    for _,boundary_end in source_unit_ranges(text):
+        if boundary_end > limit:
             break
-        end = boundary.end()
+        end = boundary_end
     return text[:end]
 
 

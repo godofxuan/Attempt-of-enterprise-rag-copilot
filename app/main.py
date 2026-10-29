@@ -93,11 +93,12 @@ def _create_application(
     install_error_handlers(application)
     application.include_router(create_lifecycle_router(service))
     if workspace is not None:
-        from app.workspace import workspace_router
+        from app.workspace import workspace_router, install_workspace_errors
         from fastapi.staticfiles import StaticFiles
         from pathlib import Path
         from starlette.middleware.trustedhost import TrustedHostMiddleware
         application.state.workspace = workspace
+        install_workspace_errors(application)
         application.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"])
         application.include_router(workspace_router(workspace))
         application.mount("/assets", StaticFiles(directory=Path(__file__).with_name("web")), name="workspace-assets")
@@ -138,6 +139,9 @@ def _create_application(
         response: Response,
     ) -> AnswerResponse:
         principal = authenticated_principal(request)
+        if payload.interaction_mode == "investigate" and not service.settings.agent_v2_task_mode_enabled:
+            raise ApiError(status_code=403, code="task_mode_disabled",
+                           message="Agent investigation is not enabled on this server.")
         _require_service_dependencies(service, require_all=True)
         try:
             service.feedback_actor_hasher.ready()
@@ -149,6 +153,9 @@ def _create_application(
                 payload.question,
                 principal.to_user_context(),
                 payload.top_k,
+                **({"interaction_mode":payload.interaction_mode} if payload.interaction_mode else {}),
+                **({"clarification_replies": [reply.model_dump() for reply in payload.clarification_replies]}
+                   if payload.clarification_replies else {}),
             )
         _require_active_request()
         safe_trace = redact_trace_payload(

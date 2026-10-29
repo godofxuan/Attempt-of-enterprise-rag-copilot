@@ -18,6 +18,7 @@ from app.agent.answer_contract import (
     answer_sufficiency,
     bounded_answer_slots,
     complementary_explicit_claim,
+    explicit_request_subject,
     requested_requirement_count,
     requirement_units,
 )
@@ -28,8 +29,8 @@ from app.agent.query_needs import (
     requested_needs,
 )
 from app.agent.question_parts import assess_question_parts
-from app.agent.task_plan import answer_task, task_summary
-from app.domain.evidence import AnswerResponse
+from app.agent.task_plan import answer_task, task_summary, need_matches
+from app.domain.evidence import AnswerResponse, Clarification
 
 RequirementStatus = Literal[
     "not_retrieved",
@@ -53,6 +54,7 @@ class RequirementDecision:
     status: RequirementStatus
     delivered_ids: tuple[str, ...]
     claim_ids: tuple[str, ...]
+    basis: str = 'bounded_coverage_not_independent_semantic_proof'
 
 
 @dataclass(frozen=True)
@@ -77,6 +79,7 @@ class AnswerDecision:
             "final_mode": self.final_mode,
             "stop_reason": self.stop_reason,
             "requirement_counts": {key: counts[key] for key in STATUSES},
+            "requirements": [vars(item) for item in self.requirements],
             "claim_count": len(self.claim_ids),
             "source_count": len(self.source_bindings),
             "binding_sha256": hashlib.sha256(
@@ -104,20 +107,42 @@ def _requirements(state, task) -> tuple[RequirementDecision, ...]:
             else "not_retrieved"
         )
         decisions.append(
-            RequirementDecision(need.need_id, status, need.evidence_ids, need.answer_claim_ids)
+            RequirementDecision(need.need_id, status, need.evidence_ids, need.answer_claim_ids,
+                'bound_generation_relation_not_independent_semantic_proof' if need.answer_relation_status is not None
+                else 'bounded_coverage_not_independent_semantic_proof')
         )
     return tuple(decisions)
 
 
 def publish_answer(question, state, response: AnswerResponse, sources) -> AnswerResponse:
     """Select facts first, compute all coverage on them, render the response once."""
+    from app.runtime.request_context import remaining_seconds, RequestDeadlineExceeded
+    if remaining_seconds() == 0:
+        raise RequestDeadlineExceeded("publication cancelled or past deadline")
+    terminal = state.terminal_request or {}
+    clarification = None
+    if terminal.get("type") == "clarify":
+        clarification = Clarification.model_validate({k: terminal[k] for k in
+            ("question", "reason", "missing_need_ids", "options")})
+    if response.mode == "clarify":
+        if clarification is None:
+            raise ValueError("clarification requires a validated host terminal request")
+        decision = AnswerDecision("clarify", "clarification_needed", (), (), (), ())
+        return AnswerResponse(mode="clarify", answer=clarification.question,
+            clarification=clarification, stop_reason="clarification_needed",
+            trace={**response.trace, "final_mode": "clarify", "stop_reason": "clarification_needed",
+                   "answer_decision": decision.summary()})
     if response.mode not in {"answered", "partial"}:
+        if response.mode == "not_found" and terminal:
+            decision = AnswerDecision("not_found", "not_found", (), (), (), ())
+            return response.model_copy(update={"trace": {**response.trace, "answer_decision": decision.summary()}})
         return response
     claims = list(response.claims)
+    task_mode = state.task_plan.mode == "task"
     notes = []
     warnings = list(response.warnings)
     trace = dict(response.trace)
-    partial = response.mode == "partial"
+    partial = response.mode == "partial" or clarification is not None
     blocked_all = False
     delivered_by_id = {s.delivered.citation_id: s.delivered for s in sources}
     citation_by_claim = {c.claim_id: c for c in response.citations}
@@ -153,6 +178,34 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
         blocked_all = not claims
         notes.append("部分断言无法绑定本次实际交付的有效来源，未予发布。")
 
+    from app.agent.answer_applicability import business_scope_matches
+    scoped=[c for c in claims if business_scope_matches(state.task_plan.business_scope,c.text)
+            and all(business_scope_matches(state.task_plan.business_scope,delivered_by_id[cid].text,source_context=True) for cid in c.cited_chunk_ids)]
+    trace["business_scope_dropped_claims"]=len(claims)-len(scoped)
+    if len(scoped)!=len(claims):
+        notes.append("与已补充业务归属不符的条款未予发布。")
+        partial=True
+    claims=scoped
+    # Navigation admission establishes access, not relevance to this question.
+    if task_mode:
+        need_ids = {n.need_id for n in state.task_plan.needs}
+        relevant = [c for c in claims if c.need_refs and set(c.need_refs) <= need_ids
+                    and citation_by_claim[c.claim_id].support_kind == "exact_span"]
+        trace["task_unbound_claims_dropped"] = len(claims)-len(relevant)
+        if len(relevant) != len(claims):
+            partial = True
+            notes.append("部分陈述缺少有效诉求映射或完整原文绑定，未予发布。")
+        claims = relevant
+    elif terminal and state.task_plan.needs:
+        from app.agent.question_parts import claim_is_relevant
+        relevant=[c for c in claims if claim_is_relevant(question,c.text)]
+        trace["task_irrelevant_claims_dropped"]=len(claims)-len(relevant)
+        if len(relevant)!=len(claims):
+            partial=True
+            notes.append("无法确认回答所问诉求的条款未予发布。")
+        claims=relevant
+    blocked_all |= not claims
+
     # Applicability is a selection policy, not a later response override. This
     # prevents coverage computed from discarded facts surviving publication.
     applicability = assess_answer_applicability(question, response)
@@ -172,6 +225,13 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
                 for i, claim in enumerate(claims)
                 if complementary_claim(question, claim.text)
                 or complementary_explicit_claim(question, claim.text)
+                or any(
+                    n.kind in {"explicit", "domain"}
+                    and need_matches(n, question, [claim.text])
+                    and (not explicit_request_subject(question)
+                         or explicit_request_subject(question) in claim.text)
+                    for n in state.task_plan.needs
+                )
             }
         )
         trace.update(
@@ -211,7 +271,7 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
         or sum(trace.get("packet_drop_reasons", {}).values())
         or sum(trace.get("packet_truncation_reasons", {}).values())
     )
-    if requested_needs(question):
+    if not task_mode and requested_needs(question):
         read_ids = {h.hit.chunk_id for hits in state.evidence_by_aspect.values() for h in hits}
         read_ids.update(o.result.target_id for o in state.open_results)
         incomplete = bool(
@@ -237,7 +297,7 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
         partial |= bool(coverage.missing or incomplete)
 
     parts = assess_question_parts(question, texts)
-    if parts.requested:
+    if not task_mode and parts.requested:
         trace["question_part_coverage"] = {
             "basis": "explicit_clause_necessary_checks_not_semantic_proof",
             "requested": len(parts.requested),
@@ -251,7 +311,7 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
 
     requested = requested_requirement_count(question)
     exhaustive = bool(re.search(r"全部|所有|\ball\b", question, re.I))
-    if state.analysis.intent == "completeness" and (
+    if not task_mode and state.analysis.intent == "completeness" and (
         requested is not None or (exhaustive and not requested_needs(question))
     ):
         available = requirement_units([s.text for s in delivered])
@@ -273,21 +333,67 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
             )
 
     task = answer_task(state.task_plan, question, claims, delivered)
+    if 'generation_need_relations' in trace:
+        from app.agent.task_plan import apply_need_evaluations
+        task = apply_need_evaluations(task,question,claims,trace['generation_need_relations'])
+        trace['need_relation_authority'] = 'BOUND_GENERATION_PROPOSAL_RECHECKED_AFTER_FINAL_CLAIM_SELECTION'
+    draft = trace.get('generation_draft_units')
+    if draft is not None:
+        from app.agent.generation_v2 import _claim_binding
+        current = {c.claim_id: _claim_binding(c) for c in claims}
+        valid = (draft.get('version') == 'exact-draft-units-v1'
+            and draft.get('question_sha256') == hashlib.sha256(question.encode('utf8')).hexdigest())
+        missing_content = [row['unit_sha256'] for row in draft.get('required_content', [])
+            if not valid or not set(row.get('claim_bindings', {})).intersection(
+                cid for cid, fingerprint in current.items()
+                if fingerprint == row.get('claim_bindings', {}).get(cid))]
+        lost = bool(not valid or missing_content or draft.get('unresolved_unit_sha256'))
+        trace['draft_delivery_binding'] = {'valid_request_binding': valid,
+            'missing_content': missing_content, 'unresolved_units': len(draft.get('unresolved_unit_sha256', [])),
+            'restored_claim_ids': draft.get('restored_claim_ids', []), 'complete': not lost,
+            'basis': 'exact_source_backed_draft_units_rechecked_on_final_published_claims'}
+        if lost:
+            partial = True
+            notes.append('模型候选中的来源条款未完整交付，尚不能确认原问题已完整回答。')
+            task = task.model_copy(update={'needs': tuple(n.model_copy(update={
+                'answer_claim_ids': ()}) for n in task.needs)})
     trace["task_coverage"] = task_summary(task)
+    if task_mode:
+        # Public labels come from user-owned origins, never retrieved/model prose.
+        trace["task_requirements"] = [{"need_id":n.need_id,
+            "request_quote":" / ".join(o.quote for o in n.origins)[:600],
+            "status":"supported_and_stated" if n.answer_claim_ids else
+                     "needs_user" if n.clarification_needed else "unresolved",
+            "claim_ids":list(n.answer_claim_ids)} for n in task.needs]
+    if task.overflow:
+        partial = True
+        notes.append("问题诉求超过本次处理范围，请缩小问题范围；当前回答未覆盖全部诉求。")
+    unresolved = set(terminal.get("unresolved_need_ids", []))
+    if unresolved:
+        partial = True
+        notes.extend(f"当前回答尚未核验这一问题：{(' / '.join(o.quote for o in n.origins) if task_mode else n.text)[:200]}。" for n in task.needs if n.need_id in unresolved)
+    if terminal.get("type") == "abstain":
+        partial = True
+        notes.append("当前仅保留已核验事实，尚无更多可用证据完成该问题。")
+    if clarification is not None:
+        notes.append(clarification.question)
     if task.model_relevance_used:
         partial = True
         notes.append(
             "以下包含按问题关联到的相关资料，尚不足以完整确认该问题，请结合原文核对适用条件。"
         )
-    missing = [n for n in task.needs if n.kind in {"explicit", "model"} and not n.answer_claim_ids]
-    incomplete = task.read_incomplete and (
-        state.analysis.intent == "process" or len(task.needs) > 1
-    )
+    missing = [n for n in task.needs if (n.kind in {"explicit", "model"} or terminal or 'generation_need_relations' in trace
+               or (n.domain_key or "").startswith(("device_","business_amount:"))) and not n.answer_claim_ids]
+    incomplete = (task.read_incomplete or (packet_incomplete if task_mode else False)) and (
+        task_mode or state.analysis.intent == "process" or len(task.needs) > 1)
+    if task_mode and (not task.needs or any(n.model_assessment == "conflict" for n in task.needs)):
+        partial = True
+        notes.append("任务需求或证据适用范围仍有未解决的问题，不能确认已完整回答。")
     if missing or incomplete:
         partial = True
         # Explain every known missing obligation, even when a prior policy had
         # already required partial; identical diagnostics are rendered once.
-        notes.extend(f"当前回答尚未核验这一问题：{n.text[:200]}。" for n in missing)
+        notes.extend(f"当前回答尚未核验这一问题：{(' / '.join(o.quote for o in n.origins) if task_mode else n.text)[:200]}。" for n in missing)
         if incomplete:
             notes.append("相关章节存在未完整读取的内容，尚不能确认流程或多项问题已全部覆盖。")
     notes = list(dict.fromkeys(notes))
@@ -298,6 +404,10 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
     citations = [c for c in response.citations if c.claim_id in claim_ids]
     mode = "not_found" if blocked_all else "partial" if partial else response.mode
     reason = "not_found" if blocked_all else "partial_evidence" if partial else response.stop_reason
+    if trace.get('answer_strategy') == 'bounded_insufficiency' and not claims:
+        mode, reason = 'partial', 'partial_evidence'
+    if clarification is not None and not claims:
+        mode, reason = "clarify", "clarification_needed"
     decision = AnswerDecision(
         mode,
         reason,
@@ -307,7 +417,7 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
         tuple((s.chunk_id, s.index_run_id or "", s.version_id or "") for s in kept_sources),
     )
     trace.update(final_mode=mode, stop_reason=reason, answer_decision=decision.summary())
-    answer = "\n".join([*(c.text for c in claims), *notes])
+    answer = "\n".join(dict.fromkeys([*(c.text for c in claims), *notes]))
     if not answer:
         answer = "No supported answer was found in the visible knowledge base."
     return AnswerResponse(
@@ -319,4 +429,5 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
         sources=kept_sources,
         warnings=warnings,
         trace=trace,
+        clarification=clarification,
     )

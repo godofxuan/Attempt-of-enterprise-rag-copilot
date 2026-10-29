@@ -89,6 +89,7 @@ class Claim(StrictModel):
     text: str = Field(min_length=1, max_length=2000)
     critical: bool = True
     cited_chunk_ids: list[str] = Field(default_factory=list, max_length=20)
+    need_refs: list[str] = Field(default_factory=list, max_length=8, exclude_if=lambda value: not value)
 
 
 class SupportingSpan(StrictModel):
@@ -156,6 +157,13 @@ class AnswerSource(StrictModel):
     version_id: str | None = None
 
 
+class Clarification(StrictModel):
+    question: str = Field(min_length=1, max_length=300)
+    reason: Literal["missing_user_fact", "ambiguous_scope"]
+    missing_need_ids: list[str] = Field(min_length=1, max_length=8)
+    options: list[str] = Field(default_factory=list, max_length=4)
+
+
 class AnswerResponse(StrictModel):
     mode: AnswerMode
     answer: str = Field(min_length=1, max_length=20_000)
@@ -165,6 +173,7 @@ class AnswerResponse(StrictModel):
     warnings: list[str] = Field(default_factory=list)
     stop_reason: AgentStopReason | None = None
     trace: dict[str, Any] = Field(default_factory=dict)
+    clarification: Clarification | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def validate_response_shape(self) -> AnswerResponse:
@@ -179,6 +188,11 @@ class AnswerResponse(StrictModel):
                 raise ValueError("answered response requires claims, citations, and sources")
             if set(citation_claim_ids) != set(claim_ids):
                 raise ValueError("answered response requires citation for every claim")
+        if self.mode == "clarify":
+            if self.clarification is None or self.claims or self.citations or self.sources:
+                raise ValueError("clarify requires a question and no factual claims or sources")
+        if self.clarification is not None and self.mode not in {"clarify", "partial"}:
+            raise ValueError("clarification is only valid in clarify or partial")
         source_free_modes = {
             "unsafe",
             "permission",

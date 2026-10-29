@@ -296,7 +296,9 @@ def _tool_error(code: ToolErrorCode) -> ToolError:
         "budget": (False, "The tool budget has been exhausted."),
     }
     retryable, message = messages[code]
-    return ToolError(code=code, retryable=retryable, safe_message=message)
+    return ToolError(code=code, retryable=retryable, safe_message=message,
+                     failure_origin="authorization" if code == "permission" else
+                     "deadline" if code == "timeout" else "unknown")
 
 
 __all__ = [

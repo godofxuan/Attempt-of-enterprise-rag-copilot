@@ -4,7 +4,7 @@ import re
 from collections.abc import Sequence
 
 from app.domain.evidence import Claim, ClaimCitation, SupportingSpan
-from app.domain.evidence_packet import SOURCE_UNIT_END, DeliveredEvidence
+from app.domain.evidence_packet import SOURCE_UNIT_END, DeliveredEvidence, source_unit_ranges, _DEPENDENT_CLAUSE
 from app.domain.retrieved_security import AdmittedEvidenceChunk
 from app.utils import tokenize_for_bm25
 
@@ -111,7 +111,11 @@ def verify_claims(
             continue
 
         evidence_text = "\n".join(_evidence_text(visible_by_id[chunk_id]) for chunk_id in cited_ids)
-        lexical_support = _lexical_support(claim.text, evidence_text)
+        spans = _exact_supporting_spans(claim.text, [(cid,visible_by_id[cid]) for cid in cited_ids])
+        # A permitted layout variant may only recover one original complete unit.
+        # Check the original quote afterwards; never normalize arbitrary numbers.
+        checked_text=spans[0].quote if spans else claim.text
+        lexical_support = _lexical_support(checked_text, evidence_text)
         if lexical_support == 0.0:
             results.append(
                 _unsupported(
@@ -123,7 +127,7 @@ def verify_claims(
                 )
             )
             continue
-        shared_tokens = _shared_content_token_count(claim.text, evidence_text)
+        shared_tokens = _shared_content_token_count(checked_text, evidence_text)
         if lexical_support < _MIN_LEXICAL_SUPPORT or shared_tokens < _MIN_SHARED_CONTENT_TOKENS:
             results.append(
                 _unsupported(
@@ -135,7 +139,7 @@ def verify_claims(
                 )
             )
             continue
-        if _date_mismatch(claim.text, evidence_text):
+        if _date_mismatch(checked_text, evidence_text):
             results.append(
                 _unsupported(
                     claim_id=claim.claim_id,
@@ -146,7 +150,7 @@ def verify_claims(
                 )
             )
             continue
-        if _numeric_mismatch(claim.text, evidence_text):
+        if _numeric_mismatch(checked_text, evidence_text):
             results.append(
                 _unsupported(
                     claim_id=claim.claim_id,
@@ -157,7 +161,7 @@ def verify_claims(
                 )
             )
             continue
-        if _negation_mismatch(claim.text, evidence_text):
+        if _negation_mismatch(checked_text, evidence_text):
             results.append(
                 _unsupported(
                     claim_id=claim.claim_id,
@@ -168,10 +172,15 @@ def verify_claims(
                 )
             )
             continue
-        spans = _exact_supporting_spans(
-            claim.text, [(chunk_id, visible_by_id[chunk_id]) for chunk_id in cited_ids]
+        qualifier_missing=any(
+            unit.startswith(claim.text) and _DEPENDENT_CLAUSE.match(unit[len(claim.text):])
+            for cid in cited_ids for unit in _complete_quote_texts(visible_by_id[cid])
         )
-        if _CRITICAL_FACT_PATTERN.search(claim.text) and not spans:
+        conditional_source = bool(re.search(
+            r"仅当|仅限|只有[^。！？]*才|only\s+if\b|provided\s+that\b|subject\s+to\b",
+            evidence_text, re.I,
+        ))
+        if (_CRITICAL_FACT_PATTERN.search(claim.text) or qualifier_missing or conditional_source) and not spans:
             results.append(
                 _unsupported(
                     claim_id=claim.claim_id,
@@ -200,7 +209,14 @@ def verify_claims(
 def _exact_supporting_spans(claim_text, cited_evidence) -> list[SupportingSpan]:
     """Resolve complete source units, never a substring with a removed qualifier."""
     normalized = " ".join(claim_text.split()).casefold()
+    layout=narrow_layout_key(claim_text)
+    found=[]
     for citation_id, evidence in cited_evidence:
+        if any(unit.startswith(claim_text) and _DEPENDENT_CLAUSE.match(unit[len(claim_text):])
+               for unit in _complete_quote_texts(evidence)):
+            # A short matched projection cannot overrule the condition in its
+            # actually delivered parent. Both belong to the same citation.
+            continue
         if isinstance(evidence, DeliveredEvidence):
             hit = evidence.anchor.hit
             fields = [
@@ -211,19 +227,23 @@ def _exact_supporting_spans(claim_text, cited_evidence) -> list[SupportingSpan]:
         else:
             hit = evidence.hit
             fields = [("matched_text", hit.matched_text), ("context_text", hit.context_text)]
+        seen_fields=set()
         for field, text in fields:
+            if text in seen_fields:
+                continue
+            seen_fields.add(text)
             ranges = [(0, len(text))]
             start = 0
             # A decimal point is not a sentence boundary; a line wrap is not one either.
-            for match in SOURCE_UNIT_END.finditer(text):
-                ranges.append((start, match.end()))
+            for unit_start,unit_end in source_unit_ranges(text):
+                ranges.append((unit_start, unit_end))
                 # A prefix ending at a complete unit retains every preceding
                 # subject/condition. Never accept arbitrary skipped fragments
                 # or a prefix that ends in the middle of a source unit.
-                ranges.append((0, match.end()))
-                start = match.end()
-            ranges.append((start, len(text)))
-            for start, end in ranges:
+                ranges.append((0, unit_end))
+                start = unit_end
+            # A trailing unfinished clause must not become an independent fact.
+            for start, end in sorted(set(ranges)):
                 while start < end and text[start].isspace():
                     start += 1
                 # Only explicit neutral labels may be omitted; scope-bearing lines
@@ -240,8 +260,8 @@ def _exact_supporting_spans(claim_text, cited_evidence) -> list[SupportingSpan]:
                 while end > start and text[end - 1].isspace():
                     end -= 1
                 quote = text[start:end]
-                if quote and " ".join(quote.split()).casefold() == normalized:
-                    return [
+                if quote and (" ".join(quote.split()).casefold() == normalized or narrow_layout_key(quote)==layout):
+                    found.extend([
                         SupportingSpan(
                             citation_id=citation_id,
                             index_run_id=hit.index_run_id,
@@ -251,8 +271,25 @@ def _exact_supporting_spans(claim_text, cited_evidence) -> list[SupportingSpan]:
                             end=end,
                             quote=quote,
                         )
-                    ]
-    return []
+                    ])
+    unique={}
+    for span in found:
+        # Matched text repeated at the same offset in its parent projection is
+        # one bound occurrence, unlike two positions inside a source field.
+        key=(span.citation_id,span.start,span.end,span.quote)
+        unique.setdefault(key,span)
+    return list(unique.values()) if len(unique)==1 else []
+
+
+def narrow_layout_key(text: str) -> str:
+    """Only CJK-digit ASCII space/tab boundaries; never join digits or words."""
+    text=re.sub(r"(?<=[\u3400-\u9fff])[ \t]+(?=[0-9])","",text.strip(" \t"))
+    return re.sub(r"(?<=[0-9])[ \t]+(?=[\u3400-\u9fff])","",text)
+
+
+def _complete_quote_texts(evidence):
+    fields=(evidence.matched_text,evidence.context_text) if isinstance(evidence,DeliveredEvidence) else (evidence.hit.matched_text,evidence.hit.context_text)
+    return [text[start:end].strip() for text in fields for start,end in source_unit_ranges(text)]
 
 
 def _evidence_text(evidence: AdmittedEvidenceChunk | DeliveredEvidence) -> str:
