@@ -37,7 +37,7 @@ class ServiceAgent:
                     'question':current['guided_request'].get('question'),
                     'required_outputs':current['task_goal']['required_outputs'],
                     'valid_observations':{k:v for k,v in self.service.valid_observations(current).items() if k not in observed_this_run},
-                    'missing_fields':[k for k in ('loan_start','loan_end','purpose') if not current['facts'].get(k)]}
+                    'missing_fields':[k for k in self.service.required_fields(current) if not current['facts'].get(k)]}
                 system=('You are the ESA local service assistant. Choose tools from actual observations. '
                     'Never invent tool results, approval or stock. User scope cannot be expanded. '
                     'Read policy, repair eligibility, stock and owned applications as necessary before a loan preview. '

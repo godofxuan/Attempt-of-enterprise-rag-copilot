@@ -49,7 +49,18 @@
   generated composite quotation crossed separate complete units; generic changes/sources dictionaries
   let the model use mismatched keys and concatenate dates into purpose. Removed those planner branches,
   made the wire select host complete-unit IDs, and changed updates to typed field/value/exact-quote rows.
-  Relevant offline regression: 83 passed; this newer fix still needs finite live verification.
+  Relevant offline regression: 83 passed at that point (not additive with later batches).
+- Later typed update succeeded on the same natural request; readonly owned-ticket branch completed,
+  DB ticket count1->1. Knowledge body became complete but status remained partial: old clause splitting
+  omitted the first obligation; model conflated a source-supported negative answer with inability to answer.
+- d25b4048 now retains the whole original knowledge obligation and defines that semantic distinction.
+  Real pair in logs/M2_KNOWLEDGE_PAIR_20261029T184116.json: both entries answered, all required clauses retained.
+- M6 clean-source check caught an omitted untracked KnowledgeService module. Fixed in78379f8a.
+  Independent committed code then started without editable paths. Actual uv sync installed64 pinned
+  public dependencies in its own venv, and the probe passed there too; no model calls in either probe.
+- Current uncommitted continuation: unresolved user-message safety/recovery and optional original-question
+  parameter prefill. Host preview/confirmation/resume blocked until input is applied or explicitly resolved;
+  no invented consumption of failed input. Latest targeted bootstrap/message/lifecycle batch11 passed.
 - Directory import/unchanged/replace/missing-source retention/recovery and existing embedding cache
   implemented. Program check: identical documents publish next generation with0 embedding misses.
 - Interview issue log: `IMPLEMENTATION_INTERVIEW_NOTES.md`, updated from real failures only.
@@ -63,21 +74,29 @@
 - No giant audit bundles, full-tree duplication or unrelated historical suite.
 
 ## Next Action
-Commit current integration without unrelated Streamlit/README edits; run finite live verification of
-the typed-update/unit-selection repair. Then complete remaining R1 journeys and second-service R2.
+Finish current pending-update/prefill UI and tests, run J10 knowledge-to-task/choice in an isolated
+synthetic journey, browser-check current controls, record a real cache rebuild comparison, then
+freeze R1 and continue M7 IT repair through shared lifecycle plumbing (no copied Agent loop).
 
 ## Milestones
 M0: IMPLEMENTED; first startup failure reproduced and common startup separation fixed.
 M1: IN_PROGRESS; CLI/UI/settings/lock/browser implemented and verified;
      persistent task recovery and explicit legacy-data integration depend on M3.
-M2: IN_PROGRESS; library/index/shared knowledge implemented, newer source-unit live check pending.
+M2: IMPLEMENTED vertical path; real shared pair answered. Conversation follow-up and source presentation
+    still need final journey coverage; this is not a claim that all QA matches main.
 M3: IMPLEMENTED vertical loan lifecycle; conflict/clear/repeated edits/idempotency/restart tested.
-M4: IN_PROGRESS; thin native-tool loop, durable runs/SSE and actual loan UI journey verified;
-     natural messages, branch journey and final restart tests still pending.
-M5-M8: NOT_STARTED; no R1/R2 completion claim.
+M4: IN_PROGRESS; native-tool loop, durable runs/SSE, loan UI, natural update and readonly branch live-verified;
+    latest unresolved-input recovery covered offline, current browser/final restart checks pending.
+M5: IN_PROGRESS; answer link, optional original-question prefill, dependency reuse and actual asset options implemented;
+    complete J10 not yet verified.
+M6: IN_PROGRESS; clean source and clean dependency installation verified. Release journey matrix/docs still pending.
+M7: NOT_STARTED.
+M8: PARTIAL_EARLY; directory incrementality and cache reuse tested offline; real cache comparison/feedback UI pending.
 
 ## External / Delivery State
-- Models: installed local 9B/BGE used. At latest inspection 6 chat and4 embedding POSTs,
-  all recorded in the product DB; query/index texts separated in the next usage projection.
-- New commit: 540cfa55 (M1 scoped bootstrap). Later integration remains uncommitted; remote sync/PR not performed.
+- Models: installed local 9B/BGE used; all attempts remain appended in product model_calls. Historical
+  grant ledger is untouched. Recompute current totals from DB rather than copying old checkpoint counts.
+- Commits:540cfa55 bootstrap;38a5b69d integration;d25b4048 knowledge;78379f8a packaging correction.
+  Later pending-input/prefill changes uncommitted; unrelated preexisting README/Streamlit work retained.
+  No remote sync or PR performed.
 - Goal is active, not complete.

@@ -161,6 +161,7 @@ class CreateTask(BaseModel):
     request: dict
     kb_id: str | None = None
     answer_id: str | None = None
+    use_original_parameters: bool = False
 
 
 class UpdateFacts(BaseModel):
@@ -188,6 +189,13 @@ class SelectAsset(BaseModel):
     model_config=ConfigDict(extra='forbid')
     asset_id: str
     expected_facts_revision: int = Field(ge=1)
+
+
+class ResolveUpdate(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    execution_ceiling: Literal['READ_ONLY','PREVIEW_ONLY','SUBMIT_AFTER_CONFIRMATION']
+    expected_facts_revision: int = Field(ge=1)
+    reviewed: bool = Field(strict=True)
 
 
 class AddDirectory(BaseModel):
@@ -310,8 +318,13 @@ def workspace_router(workspace):
     def tasks():return workspace.service.list()
 
     @router.post('/api/tasks')
-    def create_task(payload: CreateTask):
+    async def create_task(payload: CreateTask):
+        if payload.use_original_parameters and not payload.answer_id:
+            raise WorkspaceError(422,'ORIGINAL_QUESTION_REQUIRED')
         def create():
+            if payload.kb_id:workspace.library.require(payload.kb_id)
+            if payload.request.get('kind')=='knowledge' and not payload.kb_id and not payload.answer_id:
+                raise ValueError('KNOWLEDGE_BASE_REQUIRED')
             answer=None
             if payload.answer_id:
                 with workspace.library.db() as db:answer=db.execute('SELECT * FROM knowledge_answers WHERE id=?',(payload.answer_id,)).fetchone()
@@ -324,7 +337,14 @@ def workspace_router(workspace):
                     current['linked_answer_id']=answer['id'];workspace.service.store._save(db,current)
                 task=workspace.service.view(task['task_id'])
             return task
-        return service_call(create)
+        task=service_call(create)
+        if payload.use_original_parameters:
+            with workspace.library.db() as db:
+                source=db.execute('SELECT question FROM knowledge_answers WHERE id=?',(payload.answer_id,)).fetchone()
+            task['prefill_run']=workspace.runs.start('message',{'task_id':task['task_id'],
+                'text':source['question'],'message_id':'answer-'+task['task_id'],
+                'expected_facts_revision':task['facts_revision']})
+        return task
 
     @router.get('/api/tasks/{task_id}')
     def task(task_id: str):return service_call(lambda:workspace.service.view(task_id))
@@ -350,6 +370,10 @@ def workspace_router(workspace):
     @router.post('/api/tasks/{task_id}/messages',status_code=202)
     async def message(task_id: str,payload: TaskMessage):
         return service_call(lambda:workspace.runs.start('message',{'task_id':task_id,**payload.model_dump()}))
+
+    @router.post('/api/tasks/{task_id}/resolve-update')
+    def resolve_update(task_id: str,payload: ResolveUpdate):
+        return service_call(lambda:workspace.service.resolve_update(task_id,payload.execution_ceiling,payload.expected_facts_revision,payload.reviewed))
 
     @router.post('/api/tasks/{task_id}/cancel')
     def cancel(task_id: str):

@@ -59,6 +59,9 @@ class Runs:
             with self.db() as db:db.execute("UPDATE workbench_runs SET status=?,error=? WHERE id=?",(status,'Process stopping' if self.closing else None,run_id))
             self.event(run_id,status,{})
         except Exception as exc:
+            if kind=='message':
+                try:self.workspace.service.message_failed(payload['task_id'],payload['message_id'],str(exc))
+                except Exception:pass  # Preserve the original failed run; never resume a write path.
             with self.db() as db:db.execute("UPDATE workbench_runs SET status='failed',error=? WHERE id=?",(type(exc).__name__+': '+str(exc),run_id))
             self.event(run_id,'failed',{'error':type(exc).__name__+': '+str(exc)})
         finally:

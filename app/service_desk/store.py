@@ -499,6 +499,7 @@ class ServiceDeskStore:
         with self.transaction() as db:
             task = self._task(db,actor,task_id)
             self._live(task)
+            if task.get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
             if self._proposal_declined(db,actor,task):raise ServiceError('USER_DECLINED')
             if task.get('understanding_pending'):
                 raise ServiceError('NO_WRITE_GOAL')
@@ -635,6 +636,7 @@ class ServiceDeskStore:
         with self.transaction() as db:
             task = self._task(db,actor,task_id)
             self._live(task)
+            if task.get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
             from app.service_desk.goals import execution_ceiling
             if execution_ceiling(task)!='SUBMIT_AFTER_CONFIRMATION':
                 raise ServiceError('EXECUTION_CEILING')
@@ -686,6 +688,7 @@ class ServiceDeskStore:
                 if committed['content_digest'] != row['content_digest']:
                     raise ServiceError('COMMAND_CONFLICT')
                 return json.loads(committed['receipt'])
+            if task.get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
             if db.execute('SELECT 1 FROM tickets WHERE task_id=?',(task_id,)).fetchone():
                 raise ServiceError('ALREADY_SUBMITTED')
             self._bound_proposal(db,actor,task,proposal_id)

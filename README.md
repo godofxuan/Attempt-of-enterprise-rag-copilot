@@ -1,5 +1,36 @@
 # Enterprise Agentic RAG Copilot - Evidence-Governed Retrieval, Tool Security, and Reliability Evaluation
 
+## 当前 vNext 工作台（本地开发分支）
+
+本分支收敛为一个应用：**知识问答**和**引导式服务任务**两个入口，均使用本机大模型。
+服务任务由用户明确操作上限，模型选择工具，程序负责实际事务。
+下方 main 的历史作品集标记不代表本轮 R1/R2 已全部验收。
+当前进度见 [STATUS](docs/esa-vnext/STATUS.md)，支持范围见 [START](docs/esa-vnext/START.md)。
+
+需要 Python 3.11/3.12、uv，以及已安装并运行的本地 Ollama 模型。
+本轮实际验证 Windows/Python 3.11、`qwen3.5:9b`、`bge-m3`。
+
+```powershell
+uv sync --locked --no-dev
+uv run --no-sync esa init --sample --data-dir .private/esa-vnext
+uv run --no-sync esa serve --data-dir .private/esa-vnext --port 8740
+```
+
+打开 `http://127.0.0.1:8740/`。init 显式、幂等地创建合成演示数据；serve 不重置数据。
+不提供目录时采用 `ESA_DATA_DIR`，否则是用户目录下 `.esa`。
+模型断开仍可打开设置、资料和历史，不自动下载模型。
+当前是本地单用户工作台，不是多人企业部署。
+
+资料库支持 Markdown、TXT、PDF、DOCX 及明确选择目录的增量导入，再建立 FAISS/BM25 索引。
+可使用 [合成制度示例](examples/esa/demo_policies)。索引完成后提问、打开来源，
+选择任务范围进入服务任务；补日期/用途、查看工具进展、核对预览、改期，最后对当前预览精确确认。
+提交只产生本地 TEST 的 **PENDING_APPROVAL**，不会审批、分配或预留设备。
+已有申请时读取实际结果，不创建重复业务单。
+
+自然补充用于明确的日期/用途更新；解释失败时保留原文并阻断继续办理，由用户检查参数和范围后恢复。
+自由文本 auto 仍为历史实验能力。尚未证明追平 main。
+R1/R2 全部完成情况不能由测试数量或运行标签推导。
+
 [![CI](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml?query=branch%3Amain)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB)](https://www.python.org/)
 [![Portfolio status](https://img.shields.io/badge/status-portfolio--ready-2F7D4A)](PROJECT_STATUS.md)

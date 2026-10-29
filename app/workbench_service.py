@@ -55,6 +55,13 @@ class TaskService:
                     task.update(active_run_id=None,status='BLOCKED',last_error='PROCESS_INTERRUPTED',
                                 run_fence=task.get('run_fence',0)+1)
                     self.store._save(db,task)
+                pending=db.execute("SELECT id FROM workbench_messages WHERE task_id=? AND status IN ('PENDING','FAILED') ORDER BY rowid DESC LIMIT 1",(task['task_id'],)).fetchone()
+                committed=db.execute('SELECT 1 FROM tickets WHERE task_id=?',(task['task_id'],)).fetchone()
+                if pending and not task.get('pending_user_update') and not task.get('receipt') and not committed and task['status']!='CANCELLED':
+                    task.update(pending_user_update=pending['id'],status='WAITING_USER',last_error='USER_UPDATE_PENDING')
+                    self.store._save(db,task)
+                    self.store._event(db,task['task_id'],'pending_update_recovered',{'message_id':pending['id'],
+                        'reason':'Existing unprocessed user input retained, not silently discarded'})
 
     def create(self,request,kb_id=None):
         request=GuidedTaskRequest.model_validate(request)
@@ -64,6 +71,11 @@ class TaskService:
             current.update(product_runtime=True,kb_id=kb_id,run_fence=0)
             self.store._save(db,current)
         return self.view(task['task_id'])
+
+    @staticmethod
+    def required_fields(task):
+        if task['guided_request']['kind']=='knowledge' or task['user_execution_ceiling']=='READ_ONLY':return []
+        return ['loan_start','loan_end','purpose']
 
     def list(self):
         actor=local_actor()
@@ -75,9 +87,15 @@ class TaskService:
     def view(self,task_id):
         actor=local_actor();task=self.store.get_task(actor,task_id)
         proposal=self.store.proposal(actor,task_id) if task.get('pending_proposal_id') else None
-        return {**task,'preview':proposal,'events':self.store.events(actor,task_id)[-40:],
-                'missing_fields':[k for k in ('loan_start','loan_end','purpose') if not task['facts'].get(k)],
+        pending=None
+        if task.get('pending_user_update'):
+            with self.store.transaction() as db:
+                row=db.execute('SELECT id,text,status FROM workbench_messages WHERE id=?',(task['pending_user_update'],)).fetchone()
+                pending=dict(row) if row else {'id':task['pending_user_update'],'text':'Unresolved user input','status':'UNRESOLVED'}
+        return {**task,'preview':proposal,'pending_update':pending,'events':self.store.events(actor,task_id)[-40:],
+                'missing_fields':[k for k in self.required_fields(task) if not task['facts'].get(k)],
                 'next_step':'待审批，不等于已批准、已分配或已预留。' if task.get('receipt') else
+                    '补充内容尚未成功解释，请检查原文并明确当前任务范围；在此之前不继续办理' if pending else
                     '请核对当前完整预览并精确确认' if proposal and task['user_execution_ceiling']=='SUBMIT_AFTER_CONFIRMATION' else
                     '仅预览，不可提交' if proposal else '补充信息或继续运行'}
 
@@ -119,14 +137,21 @@ class TaskService:
             if known['task_id']!=task_id or known['text']!=text:raise ServiceError('MESSAGE_ID_CONFLICT')
             if known['status']!='APPLIED':raise ServiceError('MESSAGE_NOT_APPLIED')
             return self.view(task_id)
-        if task.get('receipt') or task['status']=='CANCELLED':raise ServiceError('TASK_BUSY_OR_SUBMITTED')
+        if task.get('receipt') or task['status'] in {'CANCELLED','RECONCILING'}:raise ServiceError('TASK_BUSY_OR_SUBMITTED')
+        if task.get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
         if task['facts_revision']!=expected_facts_revision:raise ServiceError('TASK_CHANGED')
         with self.store.transaction() as db:
             existing=db.execute('SELECT * FROM workbench_messages WHERE id=?',(message_id,)).fetchone()
             if existing:
                 if existing['task_id']!=task_id or existing['text']!=text:raise ServiceError('MESSAGE_ID_CONFLICT')
                 if existing['status']!='APPLIED':raise ServiceError('MESSAGE_NOT_APPLIED')
-            else:db.execute('INSERT INTO workbench_messages VALUES(?,?,?,?,?)',(message_id,task_id,text,'PENDING',None))
+            else:
+                current=self.store._task(db,actor,task_id)
+                if db.execute('SELECT 1 FROM tickets WHERE task_id=?',(task_id,)).fetchone():raise ServiceError('TASK_BUSY_OR_SUBMITTED')
+                db.execute('INSERT INTO workbench_messages VALUES(?,?,?,?,?)',(message_id,task_id,text,'PENDING',None))
+                current.update(pending_user_update=message_id,status='WAITING_USER')
+                self.store._save(db,current)
+                self.store._event(db,task_id,'user_update_pending',{'message_id':message_id,'text':text})
         if existing:return self.view(task_id)
         prompt=('Interpret only explicit parameter changes in this user message. Missing keys mean no change; '
             'null means the user explicitly clears that field. Preserve all existing facts and prohibitions otherwise. '
@@ -140,6 +165,9 @@ class TaskService:
         response=await self.workspace.models.chat([{'role':'system','content':prompt},{'role':'user','content':text}],
             response_format=MessageInterpretation.model_json_schema(),max_tokens=500)
         interpreted=MessageInterpretation.model_validate_json(response['content'])
+        with self.store.transaction() as db:
+            current=self.store._task(db,actor,task_id)
+            if current.get('pending_user_update')!=message_id:raise ServiceError('USER_UPDATE_SUPERSEDED')
         changes={row.field:row.value for row in interpreted.updates}
         sources={row.field:row.quote for row in interpreted.updates}
         if len(changes)!=len(interpreted.updates) or any(not q or q not in text for q in sources.values()):
@@ -159,14 +187,47 @@ class TaskService:
         if changes:self.facts(task_id,changes,task['facts_revision'])
         with self.store.transaction() as db:
             current=self.store._task(db,actor,task_id)
+            if current.get('pending_user_update')!=message_id:raise ServiceError('USER_UPDATE_SUPERSEDED')
             if message_id not in {m['id'] for m in current['messages']}:
                 current['messages'].append({'id':message_id,'text':text,'origin':'USER_MESSAGE'})
             for field,quote in sources.items():
                 current.setdefault('fact_sources',{})[field]={'origin':'USER_MESSAGE','source_message_id':message_id,
                     'quote':quote,'start':text.index(quote),'end':text.index(quote)+len(quote)}
+            current.pop('pending_user_update',None)
             self.store._save(db,current)
             db.execute("UPDATE workbench_messages SET status='APPLIED',result=? WHERE id=?",(interpreted.model_dump_json(),message_id))
             self.store._event(db,task_id,'message_parameters',{'message_id':message_id,'text':text,'interpretation':interpreted.model_dump(mode='json')})
+        return self.view(task_id)
+
+    def message_failed(self,task_id,message_id,error):
+        actor=local_actor()
+        with self.store.transaction() as db:
+            task=self.store._task(db,actor,task_id)
+            if task.get('pending_user_update')!=message_id:return
+            db.execute("UPDATE workbench_messages SET status='FAILED',result=? WHERE id=? AND status='PENDING'",(error,message_id))
+            task.update(status='WAITING_USER',last_error='USER_UPDATE_PENDING')
+            self.store._save(db,task)
+            self.store._event(db,task_id,'user_update_failed',{'message_id':message_id,'error':error})
+
+    def resolve_update(self,task_id,ceiling,revision,reviewed):
+        """Explicit user scope correction, separate from a submission confirmation."""
+        if reviewed is not True:raise ServiceError('EXPLICIT_SCOPE_REVIEW_REQUIRED')
+        actor=local_actor();task=self.store.get_task(actor,task_id)
+        if not task.get('pending_user_update'):raise ServiceError('NO_PENDING_USER_UPDATE')
+        order=['READ_ONLY','PREVIEW_ONLY','SUBMIT_AFTER_CONFIRMATION']
+        if ceiling not in order:raise ServiceError('INVALID_ARGUMENTS')
+        revoked=[digest(c) for c in task['task_goal']['constraint_sources']] if order.index(ceiling)>order.index(task['user_execution_ceiling']) else []
+        message_id='scope-review-'+task['pending_user_update']
+        self.store.change_execution_scope(actor,task_id,ceiling,revoked,message_id,
+            '用户已查看未成功解释的补充原文，明确选择当前范围：'+ceiling,
+            scope_confirmed=True,expected_facts_revision=revision)
+        with self.store.transaction() as db:
+            current=self.store._task(db,actor,task_id)
+            pending=current.pop('pending_user_update')
+            db.execute("UPDATE workbench_messages SET status='USER_RESOLVED' WHERE id=?",(pending,))
+            self.store._save(db,current)
+            self.store._event(db,task_id,'user_resolved_update',{'message_id':pending,'execution_ceiling':ceiling,
+                'authority':'EXPLICIT_USER_SCOPE_REVIEW_NOT_SUBMISSION_CONSENT'})
         return self.view(task_id)
 
     def alternatives(self,task_id):
@@ -203,6 +264,7 @@ class TaskService:
         with self.store.transaction() as db:
             committed=db.execute('SELECT 1 FROM command_ledger WHERE command_id=?',('loan:'+payload['proposal_id'],)).fetchone()
         if not committed:
+            if task.get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
             if payload['expected_facts_revision']!=task['facts_revision']:raise ServiceError('TASK_CHANGED')
             self.store.confirm(actor,task_id,payload['proposal_id'],payload['content_digest'],payload['accepted'])
         self.store.submit(actor,task_id,payload['proposal_id'])
@@ -219,5 +281,6 @@ class TaskService:
         return evidence
 
     async def run(self,task_id,run_id):
+        if self.store.get_task(local_actor(),task_id).get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
         from app.agent_runtime.workbench_agent import build_service_agent
         return await build_service_agent(self).run(task_id,run_id)

@@ -77,3 +77,11 @@ def test_actual_api_rejects_stale_updates(tmp_path):
         stale=client.patch(url,headers=headers,json={'changes':{'purpose':'old'},'expected_facts_revision':1})
         assert stale.status_code==409 and stale.json()['error']['code']=='TASK_CHANGED'
         assert stale.json()['error']['data']['current_facts']['purpose']=='new'
+
+
+def test_missing_prefill_origin_is_rejected_before_creating_a_task(tmp_path):
+    with client_for(tmp_path) as client:
+        response=client.post('/api/tasks',headers={'X-ESA-Request':'1'},json={
+            'request':{'kind':'loan','execution_ceiling':'READ_ONLY','confirmed':True},'use_original_parameters':True})
+        assert response.status_code==422
+        assert client.get('/api/tasks').json()==[]
