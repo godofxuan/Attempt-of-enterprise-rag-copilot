@@ -136,6 +136,13 @@
   Final clean default installation and source packaging still pending at this checkpoint.
 - Appended product attempts before final release checks: primary33 chat/18 embed requests;
   independent demo-validation9 chat/6 embed; presentation fixture0 inference. Historical ledger untouched.
+- b81dff81 exported and installed from cache in a new directory:43 default packages, isolated-source
+  probe PASS. Dev extras needed4 public wheels absent from cache; pinned packages installed only into
+  that independent venv. Original project third-party environment unchanged.
+- Final wire inspection found RAG num_predict1800 vs packing reserve1024. Actual callback/HTTP RED
+  reproduced1800!=1024. Shared serving constants now govern both; only RAG default transport changed,
+  not native600/message500 or permissions. This tiny correction supersedes b81 as final source;
+  the b81 archive remains a checkpoint. Focused regression and final bounded live evidence follow.
 
 ## Next Action
 Commit current runnable R2, export committed source, install/launch it in its own environment,

@@ -8,6 +8,7 @@ import time
 import uuid
 
 import httpx
+from app.runtime.serving_chat import SERVING_CONTEXT_TOKENS,SERVING_OUTPUT_TOKENS
 
 
 class ModelService:
@@ -55,9 +56,9 @@ class ModelService:
                                (type(exc).__name__+': '+str(exc), round((time.monotonic()-started)*1000), call_id))
                 raise
 
-    async def chat(self, messages, *, tools=None, response_format=None, max_tokens=1800):
+    async def chat(self, messages, *, tools=None, response_format=None, max_tokens=SERVING_OUTPUT_TOKENS):
         payload = {'model':self.workspace.config.chat_model,'messages':messages,'stream':False,
-                   'think':False,'options':{'temperature':0,'num_ctx':8192,'num_predict':max_tokens}}
+                   'think':False,'options':{'temperature':0,'num_ctx':SERVING_CONTEXT_TOKENS,'num_predict':max_tokens}}
         if tools: payload['tools'] = tools
         if response_format: payload['format'] = response_format
         result=await self.send('chat', payload)

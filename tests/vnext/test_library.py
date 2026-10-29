@@ -119,6 +119,23 @@ def test_model_failure_is_recorded_before_return(tmp_path):
         assert row[0]=='ERROR' and 'offline test' in row[1] and 'test' in row[2]
 
 
+def test_actual_generation_transport_uses_the_output_reserve_used_by_packing(tmp_path):
+    import httpx
+    from app.agent.generation_v2 import MAX_OUTPUT_TOKENS,MODEL_CONTEXT_FLOOR
+    with client_for(tmp_path) as client:
+        models=client.app.state.workspace.models;observed=[]
+        async def reply(request):
+            observed.append(json.loads(request.content))
+            return httpx.Response(200,json={'message':{'role':'assistant','content':'{}'},'done_reason':'stop'})
+        async def run():
+            await models.client.aclose();models.client=httpx.AsyncClient(transport=httpx.MockTransport(reply))
+            callback=models.sync_chat(asyncio.get_running_loop())
+            await asyncio.to_thread(callback,'transport-test',[{'role':'user','content':'Offline wire check'}],response_format={'type':'object'})
+        asyncio.run(run())
+        assert observed[0]['options']['num_predict']==MAX_OUTPUT_TOKENS
+        assert observed[0]['options']['num_ctx']==MODEL_CONTEXT_FLOOR
+
+
 def test_expired_run_does_not_send_and_active_settings_cannot_change(tmp_path):
     from app.runtime.request_context import bind_request_context,reset_request_context,RequestDeadlineExceeded
     import pytest
