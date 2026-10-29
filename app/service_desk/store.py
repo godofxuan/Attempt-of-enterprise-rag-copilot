@@ -74,6 +74,17 @@ class ServiceDeskStore:
                 CREATE UNIQUE INDEX IF NOT EXISTS one_open_loan ON tickets(tenant,owner)
                     WHERE status IN ('PENDING_APPROVAL','IN_PROGRESS');
             ''')
+            from app.service_desk.catalog import initialize_tables
+            initialize_tables(db)
+
+    @staticmethod
+    def ticket_table(task):
+        # Fixed host registry, never an SQL identifier supplied by the model.
+        return 'it_repair_tickets' if task.get('guided_request',{}).get('kind')=='repair' else 'tickets'
+
+    @staticmethod
+    def command_id(task,proposal_id):
+        return ('repair:' if task.get('guided_request',{}).get('kind')=='repair' else 'loan:')+proposal_id
 
     @contextmanager
     def transaction(self):
@@ -226,14 +237,17 @@ class ServiceDeskStore:
         if guided_request is not None:
             from app.service_desk.contracts import GuidedTaskRequest
             guided=GuidedTaskRequest.model_validate(guided_request).model_dump(mode='json',exclude_none=True)
-            goal=guided.get('question') or '临时电脑借用：查询本人维修资格、可用库存和本人申请。'
+            from app.service_desk.catalog import SERVICES
+            goal=guided.get('question') or SERVICES[guided['kind']].goal
             facts=guided.get('facts',{});goal_kind='auto';ticket_ref=None
             execution_ceiling=guided['execution_ceiling']
         if not isinstance(goal,str) or not goal.strip() or len(goal) > 2000 or goal_kind not in {'submit_loan','track_approval','inspect','inspect_policy','inspect_ticket_status','auto'}:
             raise ServiceError('INVALID_ARGUMENTS')
         from app.service_desk.contracts import UserFacts, facts_from_goal
         form_facts = dict(facts or {})
-        facts = UserFacts.model_validate(form_facts if goal_kind=='auto' else facts_from_goal(goal,form_facts,self.today())).model_dump(mode='json',exclude_none=True)
+        from app.service_desk.contracts import RepairFacts
+        fact_type=RepairFacts if guided and guided['kind']=='repair' else UserFacts
+        facts = fact_type.model_validate(form_facts if goal_kind=='auto' else facts_from_goal(goal,form_facts,self.today())).model_dump(mode='json',exclude_none=True)
         from app.service_desk.goals import task_goal
         bound_goal=task_goal(goal,goal_kind,ticket_ref)
         from app.service_desk.goals import CEILING_ORDER
@@ -296,7 +310,7 @@ class ServiceDeskStore:
             if expected_facts_revision is not None and task['facts_revision']!=expected_facts_revision:
                 raise ServiceError('TASK_CHANGED')
             if (task.get('receipt') or task.get('active_run_id') or task['status']=='RECONCILING'
-                or db.execute('SELECT 1 FROM tickets WHERE task_id=?',(task_id,)).fetchone()):
+                or db.execute(f'SELECT 1 FROM {self.ticket_table(task)} WHERE task_id=?',(task_id,)).fetchone()):
                 raise ServiceError('TASK_BUSY_OR_COMMITTED')
             if task.get('interaction_mode')=='guided':
                 if scope_confirmed is not True:raise ServiceError('GUIDED_SCOPE_CONFIRMATION_REQUIRED')
@@ -383,17 +397,21 @@ class ServiceDeskStore:
                                 (actor.tenant_id,actor.subject)).fetchone()
             return {'assets':[dict(r) for r in rows], 'repair':dict(repair) if repair else None}
 
-    def list_tickets(self, actor):
+    def list_tickets(self, actor,kind='loan'):
+        from app.service_desk.catalog import SERVICES
+        if kind not in SERVICES:raise ServiceError('INVALID_ARGUMENTS')
         self.authorize(actor)
         with self.transaction() as db:
             return [json.loads(r['payload']) for r in db.execute(
-                'SELECT payload FROM tickets WHERE tenant=? AND owner=? ORDER BY ticket_id',
+                f'SELECT payload FROM {SERVICES[kind].ticket_table} WHERE tenant=? AND owner=? ORDER BY ticket_id',
                 (actor.tenant_id,actor.subject))]
 
-    def get_ticket(self, actor, ticket_id):
+    def get_ticket(self, actor, ticket_id,kind='loan'):
+        from app.service_desk.catalog import SERVICES
+        if kind not in SERVICES:raise ServiceError('INVALID_ARGUMENTS')
         self.authorize(actor)
         with self.transaction() as db:
-            row = db.execute('SELECT payload FROM tickets WHERE tenant=? AND owner=? AND ticket_id=?',
+            row = db.execute(f'SELECT payload FROM {SERVICES[kind].ticket_table} WHERE tenant=? AND owner=? AND ticket_id=?',
                              (actor.tenant_id,actor.subject,ticket_id)).fetchone()
             if row is None:
                 raise ServiceError('NOT_FOUND')
@@ -504,15 +522,17 @@ class ServiceDeskStore:
             if task.get('understanding_pending'):
                 raise ServiceError('NO_WRITE_GOAL')
             from app.service_desk.goals import execution_ceiling, execution_binding
+            from app.service_desk.catalog import service_for
+            service=service_for(task)
             ceiling=execution_ceiling(task)
             if ceiling=='READ_ONLY': raise ServiceError('EXECUTION_CEILING')
             if task.get('independent_goal_review') or task.get('semantic_review_contract')=='clauses-disposition-v2':
                 from app.service_desk.goals import goal_mapping_complete
                 if not goal_mapping_complete(task):
                     raise ServiceError('ORIGINAL_GOAL_NOT_VERIFIED')
-            if db.execute('SELECT 1 FROM tickets WHERE task_id=?',(task_id,)).fetchone():
+            if db.execute(f'SELECT 1 FROM {service.ticket_table} WHERE task_id=?',(task_id,)).fetchone():
                 raise ServiceError('ALREADY_SUBMITTED')
-            if task['task_goal']['goal_subject'] != 'submit_loan' and task['goal_kind'] != 'track_approval':
+            if task['task_goal']['goal_subject'] != 'submit_'+service.key and task['goal_kind'] != 'track_approval':
                 raise ServiceError('NO_WRITE_GOAL')
             from app.service_desk.contracts import proposal_requires_owned_query
             if proposal_requires_owned_query(task) and self._current_ticket_query(db,actor,task) is None:
@@ -527,7 +547,7 @@ class ServiceDeskStore:
                 if value['value']=='FALSE':
                     raise ServiceError('CONDITION_NOT_SATISFIED',data={'condition':value,
                         'next_actions':['tickets.get'],'message':'Read the matching owned record; do not create another application.'})
-            rule,asset,repair,evidence = self._validate_business(db,actor,task,asset_id,evidence_refs)
+            rule,asset,repair,evidence = service.validate(self,db,actor,task,asset_id,evidence_refs)
             if task.get('pending_proposal_id'):
                 try:
                     previous, previous_content = self._bound_proposal(db,actor,task,task['pending_proposal_id'])
@@ -540,12 +560,11 @@ class ServiceDeskStore:
             proposal_id = uuid4().hex
             expires_at = self.clock()+600
             content = {'task_id':task_id, 'task_revision':task['facts_revision'], 'tenant':actor.tenant_id,
-                       'owner':actor.subject, 'operation':'create_loan', 'target':asset_id,
-                       'parameters':task['facts'], 'asset_version':asset['version'],
-                       'repair_version':repair['version'], 'rule_version':rule['version'],
+                       'owner':actor.subject, 'operation':service.operation, 'target':asset_id,
+                       'parameters':task['facts'], **service.bindings(rule,asset,repair), 'rule_version':rule['version'],
                        'rule_digest':digest(rule), 'auth_digest':self.auth_digest(actor), 'expires_at':expires_at,
-                       'evidence_refs':[e['ref'] for e in evidence], 'ticket_status':'PENDING_APPROVAL',
-                       'notice':'User confirmation submits an application. It does not approve or allocate a device.'}
+                       'evidence_refs':[e['ref'] for e in evidence], 'ticket_status':service.ticket_status,
+                       'notice':service.next_step}
             content.update(execution_ceiling=ceiling, execution_binding=execution_binding(task))
             if ceiling=='PREVIEW_ONLY':
                 content['notice']='Preview only. This proposal cannot be confirmed or submitted.'
@@ -584,6 +603,8 @@ class ServiceDeskStore:
         content = json.loads(row['content'])
         if digest(content) != row['content_digest']:
             raise ServiceError('PROPOSAL_CHANGED')
+        from app.service_desk.catalog import service_for
+        if content['operation']!=service_for(task).operation:raise ServiceError('PROPOSAL_CHANGED')
         if enforce_current:
             from app.service_desk.goals import execution_binding
             if content.get('execution_binding') != execution_binding(task):
@@ -606,6 +627,10 @@ class ServiceDeskStore:
             raise
 
     def _check_preview_dependencies(self, db, actor, content):
+        from app.service_desk.catalog import by_operation
+        return by_operation(content['operation']).check_preview(self,db,actor,content)
+
+    def _check_loan_dependencies(self, db, actor, content):
         rule=db.execute('SELECT * FROM loan_rules WHERE tenant=?',(actor.tenant_id,)).fetchone()
         if rule is None or digest(dict(rule))!=content['rule_digest']:
             raise ServiceError('POLICY_CHANGED')
@@ -674,9 +699,10 @@ class ServiceDeskStore:
     def _submit_bound(self, actor, task_id, proposal_id, *, fault=None):
         if not self.writes_enabled:
             raise ServiceError('WRITES_DISABLED')
-        command_id = 'loan:'+proposal_id
         with self.transaction() as db:
             task = self._task(db,actor,task_id)
+            from app.service_desk.catalog import service_for
+            service=service_for(task);command_id=self.command_id(task,proposal_id)
             self._live(task)
             row,content = self._bound_proposal(db,actor,task,proposal_id,enforce_current=False)
             from app.service_desk.goals import execution_ceiling
@@ -689,7 +715,7 @@ class ServiceDeskStore:
                     raise ServiceError('COMMAND_CONFLICT')
                 return json.loads(committed['receipt'])
             if task.get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
-            if db.execute('SELECT 1 FROM tickets WHERE task_id=?',(task_id,)).fetchone():
+            if db.execute(f'SELECT 1 FROM {service.ticket_table} WHERE task_id=?',(task_id,)).fetchone():
                 raise ServiceError('ALREADY_SUBMITTED')
             self._bound_proposal(db,actor,task,proposal_id)
             confirmation = db.execute('SELECT * FROM confirmations WHERE proposal_id=?',(proposal_id,)).fetchone()
@@ -697,20 +723,18 @@ class ServiceDeskStore:
                     or confirmation['content_digest'] != row['content_digest']
                     or confirmation['auth_digest'] != self.auth_digest(actor)):
                 raise ServiceError('CONFIRMATION_REQUIRED')
-            current_rule = db.execute('SELECT * FROM loan_rules WHERE tenant=?',(actor.tenant_id,)).fetchone()
-            if current_rule is None or digest(dict(current_rule)) != content['rule_digest']:
-                raise ServiceError('POLICY_CHANGED')
-            _,asset,repair,_ = self._validate_business(db,actor,task,content['target'],content['evidence_refs'])
-            if asset['version'] != content['asset_version'] or repair['version'] != content['repair_version']:
+            self._check_preview_dependencies(db,actor,content)
+            rule,asset,repair,_ = service.validate(self,db,actor,task,content['target'],content['evidence_refs'])
+            if any(content.get(k)!=v for k,v in service.bindings(rule,asset,repair).items()):
                 raise ServiceError('RESOURCE_CHANGED')
             ticket = {'ticket_id':uuid4().hex,'tenant':actor.tenant_id,'owner':actor.subject,
-                'task_id':task_id,'command_id':command_id,'status':'PENDING_APPROVAL','version':1,
+                'task_id':task_id,'command_id':command_id,'status':service.ticket_status,'version':1,
                 'asset_id':content['target'],'parameters':content['parameters'],
                 'rule_version':content['rule_version'],
-                'next_step':'Await service desk approval; no device has been allocated.'}
+                'next_step':service.next_step}
             receipt = {'command_id':command_id,'proposal_id':proposal_id,'ticket_id':ticket['ticket_id'],
                        'content_digest':row['content_digest'],'ticket':ticket}
-            db.execute('INSERT INTO tickets VALUES(?,?,?,?,?,?,?,?)',
+            db.execute(f'INSERT INTO {service.ticket_table} VALUES(?,?,?,?,?,?,?,?)',
                        (ticket['ticket_id'],actor.tenant_id,actor.subject,task_id,command_id,
                         ticket['status'],1,encoded(ticket)))
             db.execute('INSERT INTO command_ledger VALUES(?,?,?)',(command_id,row['content_digest'],encoded(receipt)))
@@ -728,11 +752,11 @@ class ServiceDeskStore:
         with self.transaction() as db:
             task = self._task(db,actor,task_id)
             self._bound_proposal(db,actor,task,proposal_id,enforce_current=False)
-            row = db.execute('SELECT receipt FROM command_ledger WHERE command_id=?',('loan:'+proposal_id,)).fetchone()
+            row = db.execute('SELECT receipt FROM command_ledger WHERE command_id=?',(self.command_id(task,proposal_id),)).fetchone()
             if row is None:
                 raise ServiceError('COMMAND_NOT_COMMITTED')
             receipt = json.loads(row['receipt'])
-            ticket = db.execute('SELECT payload FROM tickets WHERE ticket_id=? AND tenant=? AND owner=?',
+            ticket = db.execute(f'SELECT payload FROM {self.ticket_table(task)} WHERE ticket_id=? AND tenant=? AND owner=?',
                                 (receipt['ticket_id'],actor.tenant_id,actor.subject)).fetchone()
             if ticket is None or json.loads(ticket['payload']) != receipt['ticket']:
                 raise ServiceError('READBACK_MISMATCH')
@@ -809,14 +833,16 @@ class ServiceDeskStore:
 
     def update_facts(self, actor, task_id, facts, *, expected_facts_revision=None):
         from app.service_desk.contracts import UserFacts,parameter_sources
-        raw_values = UserFacts.model_validate(facts).model_dump(mode='json',exclude_unset=True)
         with self.transaction() as db:
             task = self._task(db,actor,task_id)
+            from app.service_desk.contracts import RepairFacts
+            fact_type=RepairFacts if task.get('guided_request',{}).get('kind')=='repair' else UserFacts
+            raw_values = fact_type.model_validate(facts).model_dump(mode='json',exclude_unset=True)
             if expected_facts_revision is not None and expected_facts_revision!=task['facts_revision']:
                 raise ServiceError('TASK_CHANGED',data={'current_revision':task['facts_revision'],
                     'current_facts':task['facts'],'conflicting_fields':list(raw_values)})
             self._live(task)
-            if task['active_run_id'] or task['receipt'] or db.execute('SELECT 1 FROM tickets WHERE task_id=?',(task_id,)).fetchone():
+            if task['active_run_id'] or task['receipt'] or db.execute(f'SELECT 1 FROM {self.ticket_table(task)} WHERE task_id=?',(task_id,)).fetchone():
                 raise ServiceError('TASK_BUSY_OR_SUBMITTED')
             values,sources=parameter_sources(raw_values,
                 {key:{'origin':'USER_FORM','value':value} for key,value in raw_values.items()},
@@ -1027,7 +1053,7 @@ class ServiceDeskStore:
         if name=='tickets.list_mine':
             task['ticket_query_receipt']=None
             if result.get('status')=='ok':
-                rows=db.execute('SELECT payload FROM tickets WHERE tenant=? AND owner=? ORDER BY ticket_id',
+                rows=db.execute(f'SELECT payload FROM {self.ticket_table(task)} WHERE tenant=? AND owner=? ORDER BY ticket_id',
                     (actor.tenant_id,actor.subject)).fetchall()
                 current=[json.loads(r['payload']) for r in rows]
                 if result.get('data',{}).get('tickets')==current:
@@ -1037,13 +1063,15 @@ class ServiceDeskStore:
                         'consistency':'transactional local SQLite snapshot; rechecked at publication'}
         if name=='tickets.get' and result.get('status')=='ok':
             data=result.get('data') or {}
-            row=db.execute('SELECT payload FROM tickets WHERE ticket_id=? AND tenant=? AND owner=?',
+            row=db.execute(f'SELECT payload FROM {self.ticket_table(task)} WHERE ticket_id=? AND tenant=? AND owner=?',
                 (data.get('ticket_id'),actor.tenant_id,actor.subject)).fetchone()
             if row and data==json.loads(row['payload']):
                 task.setdefault('resolved_ticket_results',{})[data['ticket_id']]=data
         observation={'tool':name,'result':result}
         if task.get('product_runtime'):
-            observation['dependency_context']={'observed_at':self.clock(),'facts_revision':task['facts_revision']}
+            fields=('loan_start','loan_end') if task.get('guided_request',{}).get('kind')=='loan' and name=='assets.search' else ()
+            observation['dependency_context']={'observed_at':self.clock(),'facts_revision':task['facts_revision'],
+                'facts_projection':{field:task['facts'].get(field) for field in fields}}
         if name=='tickets.propose_create':
             observation['request_binding']={'facts_revision':task['facts_revision'],
                 'facts_sha256':digest(task['facts']),'auth_digest':self.auth_digest(actor),
@@ -1212,7 +1240,7 @@ class ServiceDeskStore:
             or type(query.get('expires_at')) not in (int,float)
             or not query['as_of']<=now<query['expires_at']):
             return None
-        rows=db.execute('SELECT payload FROM tickets WHERE tenant=? AND owner=? ORDER BY ticket_id',
+        rows=db.execute(f'SELECT payload FROM {self.ticket_table(task)} WHERE tenant=? AND owner=? ORDER BY ticket_id',
             (actor.tenant_id,actor.subject)).fetchall()
         current=[json.loads(r['payload']) for r in rows]
         if query['count']!=len(current) or query.get('data_sha256')!=digest(current):
@@ -1277,7 +1305,7 @@ class ServiceDeskStore:
     def _committed_ticket(self, db, actor, task):
         receipt=task.get('receipt') or {}
         if not receipt.get('ticket_id') or not receipt.get('command_id'):return None
-        row=db.execute('SELECT payload FROM tickets WHERE ticket_id=? AND tenant=? AND owner=?',
+        row=db.execute(f'SELECT payload FROM {self.ticket_table(task)} WHERE ticket_id=? AND tenant=? AND owner=?',
             (receipt['ticket_id'],actor.tenant_id,actor.subject)).fetchone()
         ticket=json.loads(row['payload']) if row else None
         if (not ticket or ticket!=receipt.get('ticket') or ticket.get('task_id')!=task['task_id']
@@ -1292,6 +1320,9 @@ class ServiceDeskStore:
     def finish_goal(self, actor, task_id, *, _probe=False):
         from app.service_desk.goals import TaskOutcome
         task = self.get_task(actor,task_id)
+        if task.get('guided_request',{}).get('kind')=='repair':
+            from app.service_desk.catalog import finish_repair
+            return finish_repair(self,actor,task_id)
         self._check_delivery_binding(actor,task)
         with self.transaction() as db:
             publication_binding=self._answer_binding(db,actor,task,(task.get('delivery') or {}).get('answers',[]))
@@ -2165,7 +2196,7 @@ class ServiceDeskStore:
     def cancel_task(self, actor, task_id):
         with self.transaction() as db:
             task = self._task(db, actor, task_id)
-            committed = db.execute('SELECT ticket_id FROM tickets WHERE task_id=?', (task_id,)).fetchone()
+            committed = db.execute(f'SELECT ticket_id FROM {self.ticket_table(task)} WHERE task_id=?', (task_id,)).fetchone()
             if committed:
                 raise ServiceError('ALREADY_SUBMITTED', data={'ticket_id':committed['ticket_id']})
             task.update(status='CANCELLED', active_run_id=None)

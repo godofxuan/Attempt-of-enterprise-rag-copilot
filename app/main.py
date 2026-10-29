@@ -55,8 +55,8 @@ def _create_application(
     async def lifespan(application: FastAPI):
         settings = service.settings
         if workspace is not None:
-            await workspace.start()
             try:
+                await workspace.start()
                 yield
             finally:
                 await workspace.close()

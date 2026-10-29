@@ -1,11 +1,11 @@
 # Enterprise Agentic RAG Copilot - Evidence-Governed Retrieval, Tool Security, and Reliability Evaluation
 
-## 当前 vNext 工作台（本地开发分支）
+## 当前 vNext 工作台（R1/R2 本地演示版）
 
 本分支收敛为一个应用：**知识问答**和**引导式服务任务**两个入口，均使用本机大模型。
 服务任务由用户明确操作上限，模型选择工具，程序负责实际事务。
 下方 main 的历史作品集标记不代表本轮 R1/R2 已全部验收。
-当前进度见 [STATUS](docs/esa-vnext/STATUS.md)，支持范围见 [START](docs/esa-vnext/START.md)。
+当前进度见 [STATUS](docs/esa-vnext/STATUS.md)，启动见 [START](docs/esa-vnext/START.md)，功能、演示及证据边界见 [RELEASE](docs/esa-vnext/RELEASE.md)。
 
 需要 Python 3.11/3.12、uv，以及已安装并运行的本地 Ollama 模型。
 本轮实际验证 Windows/Python 3.11、`qwen3.5:9b`、`bge-m3`。
@@ -27,9 +27,13 @@ uv run --no-sync esa serve --data-dir .private/esa-vnext --port 8740
 提交只产生本地 TEST 的 **PENDING_APPROVAL**，不会审批、分配或预留设备。
 已有申请时读取实际结果，不创建重复业务单。
 
-自然补充用于明确的日期/用途更新；解释失败时保留原文并阻断继续办理，由用户检查参数和范围后恢复。
+第二服务是本地合成 IT 报修：本人设备、故障描述和影响程度，经当前预览精确确认后产生 **OPEN 待受理** 工单。
+它与借用共享任务、表单、工具循环、确认和命令事务，不修改借用资格的维修记录。
+问答支持显式追问、原版本回看；资料更新后须更新索引。反馈保存为待审回归候选，不自动判分或启动模型。
+
+自然补充用于明确的日期/用途、故障描述/影响程度更新；解释失败时保留原文并阻断继续办理，由用户检查参数和范围后恢复。
 自由文本 auto 仍为历史实验能力。尚未证明追平 main。
-R1/R2 全部完成情况不能由测试数量或运行标签推导。
+有限旅程结果和已知限制逐项记录，不把测试数量或运行标签当作Agent准确率。
 
 [![CI](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml?query=branch%3Amain)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB)](https://www.python.org/)

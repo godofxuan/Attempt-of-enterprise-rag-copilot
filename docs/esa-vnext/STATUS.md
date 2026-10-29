@@ -4,7 +4,7 @@
 - Workspace: `D:/文档/agent/RAG_try`; branch `codex/esa-vnext`.
 - Original main HEAD: `51faa5ba2f35d79120b362fff08b091646168d77`; 27 tracked dirty files predate this work. Their changes are preserved; the RAG modules now also contain explicit integration edits.
 - Native Goal: ACTIVE, R1+R2 / M0-M8. No explicit token budget assigned.
-- Stage: M1-M5 vertical journeys implemented; R1 release checks remain, then M7 shared IT repair.
+- Stage: R1/R2 functional work implemented; final committed-source installation and bounded release checks next.
 - Existing effective assets: main dirty RAG; `_delivery_work/ESA_AGENTOPS_20261013/source_candidate`
   for Service/AgentOps; Enterprise working `rag_source_candidate` has a later
   `generation_v2.py` edit. No archived tree will replace any of these.
@@ -100,26 +100,62 @@
   configured local calls, not reclaimed or reset historical experiment balances.
 - No giant audit bundles, full-tree duplication or unrelated historical suite.
 
+## R2 Implementation Checkpoint — 2026-10-30 local
+- Shared fixed Service Catalog now defines loan and local synthetic IT repair fields, rules/read adapters,
+  operation/table/status. Both use the same task UI, native-tool loop, proposal, confirmation,
+  command transaction, cancel/fence and readback. No second graph or transaction implementation.
+- Real J11 UI task4540ac96eaca4f6c8e53276a69fc5aee:5 chat attempts, policy/assets/owned-ticket reads,
+  natural description/impact update, stale confirmation409, oneOPEN ticket8c0cb7c79fe64abd9f9ba50e6c393486,
+  idempotent retry and reload. All loan tickets/assets/eligibility/rules unchanged.
+  Raw:logs/J11_2026-10-29T20-23-14-792Z.json and current database.
+- Actual follow-up used prior user questions, never prior answers as evidence. Initial browser assertion
+  expected the newer example phrase, while the older indexed policy said“没有规定押金”. Its zero-assumption
+  explanation remains a content limitation, preserved in logs/FOLLOWUP_2026-10-29T20-06-20-469Z.json.
+- J12 real two-version room answers both answered:09:00-18:00 then10:00-19:00, both retained2-hour limit.
+  Initial build2 misses; changed build1 hit/1 miss. Missing source retained with notice; old source opened.
+  UI continuation after opening the closed source details sent0 chat; original harness failure retained.
+  Raw:J12_2026-10-29T20-33-21-435Z.json and J12_PRESENTATION_*.json.
+- The earlier follow-up issue became an actual UI feedback candidate. expected=null; no automated
+  truth label/model run. Current source/old version metadata and original PDF/Word parser locations retained.
+- Same current UI after restart read actual old loan and new repair receipts,0 chat.
+  Raw:PERSISTED_RECEIPTS_2026-10-29T20-42-24-023Z.json.
+- Actual readonly dependency experiment retained asset/ticket observations after an independent description
+  edit. Tool reads3->1, chat2->2; complete read elimination was false. Business rows unchanged.
+  Raw:READ_REUSE_20261029T203733.json. No blanket latency or chat-saving claim.
+- Repeated-start RED reproduced: second instance was not rejected and startup could interrupt active work.
+  OS-level data-directory lease and readonly doctor fixed that. Cross-process crash release tested.
+- Browser fixture found old confirmation/form remaining while another task loaded. Immediate clear/loading
+  plus selection version fencing fixed it. Delayed real response, scope refusal, dates, long text,
+  narrow screen and script payload checked; explicitly PROGRAM_FIXTURE,0 chat.
+  First fixed browser result file was overwritten; initial tool output separately captured with that limitation,
+  later output names use timestamps. The original historical evidence was not modified.
+- Current related program regression127 passed; final small projection check3 passed. Last code after
+  the127 batch only changes completed-view text and parsed-location presentation; no model input/transaction change.
+  Actual JUnit:logs/R2_RELATED_REGRESSION.xml. No full historical suite or main model comparison.
+- App package now0.2.0; uv lock resolved offline with the same109 total locked packages including optional groups.
+  Final clean default installation and source packaging still pending at this checkpoint.
+- Appended product attempts before final release checks: primary33 chat/18 embed requests;
+  independent demo-validation9 chat/6 embed; presentation fixture0 inference. Historical ledger untouched.
+
 ## Next Action
-Finish R1 follow-up/source-version and remaining browser/restart journey coverage; update release
-matrix and install from the next scoped commit. Then M7 IT repair through the same lifecycle/UI/loop,
-followed by M8 directory/feedback journey. Do not rerun J10 or the cache pair without a changed dependency.
+Commit current runnable R2, export committed source, install/launch it in its own environment,
+finish one bounded detailed knowledge demonstration and a targeted current loan parameter check.
+Then freeze and deliver R1/R2 with exact costs and sync state; no new feature/benchmark expansion.
 
 ## Milestones
 M0: IMPLEMENTED; first startup failure reproduced and common startup separation fixed.
-M1: IN_PROGRESS; CLI/UI/settings/lock/browser implemented and verified;
-     persistent task recovery and explicit legacy-data integration depend on M3.
-M2: IMPLEMENTED vertical path; real shared pair answered. Conversation follow-up and source presentation
-    still need final journey coverage; this is not a claim that all QA matches main.
+M1: IMPLEMENTED for local single-owner mode; same-dir recovery, readonly doctor and OS lease tested.
+     Historical JWT databases remain preserved, not reassigned to local-owner.
+M2: IMPLEMENTED; shared pair and versioned answers live-verified; contextual follow-up linked, with
+    the explicit content limitation above. Old source and parser location access verified.
 M3: IMPLEMENTED vertical loan lifecycle; conflict/clear/repeated edits/idempotency/restart tested.
-M4: IN_PROGRESS; native-tool loop, durable runs/SSE, loan UI, natural update and readonly branch live-verified;
-    latest unresolved-input recovery covered offline, current browser/final restart checks pending.
+M4: IMPLEMENTED; native-tool loop, durable runs/SSE, loan/repair natural update and readonly branches live-verified;
+    current browser and restart checks retained separately from fixture tests.
 M5: IMPLEMENTED vertical path; J10 actual UI/model/business journey verified; knowledge handoff had a
     separate negative result and later focused live pair, as recorded above.
-M6: IN_PROGRESS; clean source and clean dependency installation verified. Release journey matrix/docs still pending.
-M7: NOT_STARTED.
-M8: PARTIAL_EARLY; directory incrementality and cache reuse tested; real cache comparison verified,
-    final directory/feedback UI journey pending.
+M6: FINAL_FREEZE_PENDING; earlier clean install verified; final code export/install and release demonstration next.
+M7: IMPLEMENTED/LIVE_VERIFIED in shared framework with synthetic backend.
+M8: IMPLEMENTED/LIVE_VERIFIED; directory versions, feedback candidate and measured embedding reuse.
 
 ## External / Delivery State
 - Models: installed local 9B/BGE used; all attempts remain appended in product model_calls. Historical

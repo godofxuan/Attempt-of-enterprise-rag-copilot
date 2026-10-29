@@ -51,3 +51,37 @@ def test_local_settings_reject_cross_origin_and_missing_write_header(tmp_path):
         assert client.patch('/api/settings',json={'chat_model':'x'}).status_code==403
         assert client.patch('/api/settings',headers={'Origin':'https://unrelated.invalid','X-ESA-Request':'1'},json={'chat_model':'x'}).status_code==403
         assert client.get('/api/settings',headers={'Host':'evil.invalid'}).status_code==400
+
+
+def test_second_app_cannot_recover_the_first_apps_active_run(tmp_path):
+    import pytest
+    with client_for(tmp_path) as first:
+        workspace=first.app.state.workspace
+        with sqlite3.connect(tmp_path/'app.sqlite3') as db:
+            db.execute("INSERT INTO workbench_runs(id,kind,target,status,input_json) VALUES('active-original','knowledge','one','running','{}')")
+        with pytest.raises(RuntimeError,match='WORKSPACE_ALREADY_RUNNING'):
+            with client_for(tmp_path):pass
+        with sqlite3.connect(tmp_path/'app.sqlite3') as db:
+            assert db.execute("SELECT status FROM workbench_runs WHERE id='active-original'").fetchone()[0]=='running'
+
+
+def test_doctor_does_not_start_recovery_and_os_lock_is_released_after_crash(tmp_path):
+    import json,subprocess,sys
+    from app.runtime.workspace_lock import WorkspaceLease
+    with client_for(tmp_path) as client:
+        client.patch('/api/settings',headers={'X-ESA-Request':'1'},json={'model_endpoint':'http://127.0.0.1:1'})
+        with sqlite3.connect(tmp_path/'app.sqlite3') as db:
+            db.execute("INSERT INTO workbench_runs(id,kind,target,status,input_json) VALUES('keep-running','knowledge','one','running','{}')")
+        doctor=subprocess.run([sys.executable,'-B','-X','utf8','-m','app.cli','doctor','--data-dir',str(tmp_path)],capture_output=True,text=True,encoding='utf8',timeout=15)
+        assert doctor.returncode==0,doctor.stderr
+        assert json.loads(doctor.stdout)['inspection']=='READ_ONLY_NO_STARTUP_OR_RECOVERY'
+        with sqlite3.connect(tmp_path/'app.sqlite3') as db:
+            assert db.execute("SELECT status FROM workbench_runs WHERE id='keep-running'").fetchone()[0]=='running'
+    code="from pathlib import Path;from app.runtime.workspace_lock import WorkspaceLease;import sys;lease=WorkspaceLease(Path(sys.argv[1])).acquire();print('LOCKED',flush=True);sys.stdin.read()"
+    child=subprocess.Popen([sys.executable,'-B','-c',code,str(tmp_path)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True)
+    try:
+        assert child.stdout.readline().strip()=='LOCKED'
+        import pytest
+        with pytest.raises(RuntimeError,match='WORKSPACE_ALREADY_RUNNING'):WorkspaceLease(tmp_path).acquire()
+    finally:child.kill();child.wait(timeout=5)
+    with WorkspaceLease(tmp_path):pass

@@ -3,7 +3,7 @@ from typing import Literal
 import re
 from pydantic import BaseModel, ConfigDict, Field
 
-GoalKind = Literal['submit_loan','inspect_policy','inspect_ticket_status','inspect_asset_status','track_approval','unknown','unsupported_action']
+GoalKind = Literal['submit_loan','submit_repair','inspect_policy','inspect_ticket_status','inspect_asset_status','track_approval','unknown','unsupported_action']
 GoalOutput = Literal['policy_answer','ticket_status','asset_status','open_application','capability_boundary']
 ExecutionCeiling = Literal['READ_ONLY','PREVIEW_ONLY','SUBMIT_AFTER_CONFIRMATION']
 CEILING_ORDER = ('READ_ONLY','PREVIEW_ONLY','SUBMIT_AFTER_CONFIRMATION')
@@ -16,7 +16,9 @@ def structured_goal_fields(task):
     request=GuidedTaskRequest.model_validate(task['guided_request']).model_dump(mode='json',exclude_none=True)
     ceiling=request['execution_ceiling']
     outputs=['policy_answer'] if request['kind']=='knowledge' else ['asset_status','ticket_status']
-    if request['kind']=='loan' and ceiling!='READ_ONLY':outputs.append('open_application')
+    if request['kind']!='knowledge' and ceiling!='READ_ONLY':outputs.append('open_application')
+    from app.service_desk.catalog import SERVICES
+    service=SERVICES.get(request['kind'])
     bans=['prepare','submit'] if ceiling=='READ_ONLY' else ['submit'] if ceiling=='PREVIEW_ONLY' else []
     source={'origin':'USER_CONFIRMED_STRUCTURED','form_event_id':task['structured_event_id']}
     scope_source={**source,'form_event_id':task.get('structured_scope_event_id',task['structured_event_id'])}
@@ -28,13 +30,14 @@ def structured_goal_fields(task):
             'source':{**source,'field':'question','quote':q}}]
     constraints=[{'operation':o,'execution_ceiling':ceiling,
         'source':{**scope_source,'field':'execution_ceiling','value':ceiling}} for o in bans]
-    goal=TaskGoal(goal_subject='inspect_policy' if needs else 'submit_loan' if 'open_application' in outputs else 'inspect_asset_status',
+    goal=TaskGoal(goal_subject='inspect_policy' if needs else 'submit_'+service.key if 'open_application' in outputs else 'inspect_asset_status',
         required_outputs=outputs,source_message_id=task['structured_event_id'],
-        source_text=request.get('question') or '临时电脑借用：查询本人维修资格、可用库存和本人申请。',
+        source_text=request.get('question') or service.goal,
         needs=needs,forbidden_operations=bans,execution_ceiling=ceiling,
         constraint_sources=constraints,understanding_status='USER_CONFIRMED_STRUCTURED').model_dump()
     obligations=[{'id':'o'+digest({'task':task['task_id'],'output':output})[:24],
-        'output':output,'question':request['question'] if output=='policy_answer' else OUTPUT_MEANINGS[output],
+        'output':output,'question':request['question'] if output=='policy_answer' else
+            ((service.output_meanings or {}).get(output,OUTPUT_MEANINGS[output]) if service else OUTPUT_MEANINGS[output]),
         'need_id':needs[0]['id'] if output=='policy_answer' else None,
         'source':{**(scope_source if output=='open_application' else source),'field':'question' if output=='policy_answer' else 'requested_results',
             'value':request.get('question') if output=='policy_answer' else output}} for output in outputs]

@@ -61,6 +61,11 @@ def load_config(root, overrides=None):
 
 def initialize(root, *, sample=False):
     """Explicit idempotent initialization; serve never resets or seeds user state."""
+    from app.runtime.workspace_lock import WorkspaceLease
+    with WorkspaceLease(root):_initialize(root,sample=sample)
+
+
+def _initialize(root, *, sample=False):
     root.mkdir(parents=True, exist_ok=True)
     path = root/"workspace.json"
     if not path.exists():
@@ -86,6 +91,8 @@ class Workspace:
 
     async def start(self):
         # No model probe, index load, source scan, fixture import or business seed.
+        from app.runtime.workspace_lock import WorkspaceLease
+        self.lease=WorkspaceLease(self.root).acquire()
         self.root.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.db_path) as db:
             db.execute("CREATE TABLE IF NOT EXISTS workspace_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)")
@@ -102,10 +109,11 @@ class Workspace:
         self.started = True
 
     async def close(self):
-        await self.runs.close()
-        await self.library.close()
-        await self.models.close()
+        if getattr(self,'runs',None):await self.runs.close()
+        if getattr(self,'library',None):await self.library.close()
+        if getattr(self,'models',None):await self.models.close()
         if self.client: await self.client.aclose()
+        if getattr(self,'lease',None):self.lease.close()
         self.started = False
 
     async def status(self):
@@ -117,9 +125,12 @@ class Workspace:
         except (httpx.HTTPError, ValueError, KeyError) as exc:
             error = {"code": "MODEL_UNAVAILABLE", "message": str(exc)}
         found = {m["name"].removesuffix(":latest") for m in models}
-        with sqlite3.connect(self.db_path) as db:
-            initialized = db.execute("SELECT value FROM workspace_meta WHERE key='initialized_at'").fetchone()
-            calls = db.execute("SELECT COUNT(*) FROM model_calls WHERE kind='chat'").fetchone()[0]
+        initialized=None;calls=0
+        if self.db_path.is_file():
+            with sqlite3.connect(self.db_path.as_uri()+'?mode=ro',uri=True) as db:
+                tables={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                if 'workspace_meta' in tables:initialized = db.execute("SELECT value FROM workspace_meta WHERE key='initialized_at'").fetchone()
+                if 'model_calls' in tables:calls = db.execute("SELECT COUNT(*) FROM model_calls WHERE kind='chat'").fetchone()[0]
         return {"web":True,"storage":self.started,"data_dir":str(self.root),"database":str(self.db_path),
                 "initialized_at":initialized[0] if initialized else None,"models":models,
                 "chat":{"ready":self.config.chat_model.removesuffix(":latest") in found,"model":self.config.chat_model},
@@ -282,12 +293,19 @@ def workspace_router(workspace):
     @router.post('/api/feedback')
     def feedback(payload: Feedback):return service_call(lambda:workspace.library.feedback(**payload.model_dump()))
 
+    @router.get('/api/feedback')
+    def feedback_list():return workspace.library.feedbacks()
+
+    @router.get('/api/feedback/{feedback_id}/case')
+    def feedback_case(feedback_id: str):return service_call(lambda:workspace.library.feedback_case(feedback_id))
+
     @router.get('/api/documents/{doc_id}')
     def document(doc_id: str):
         with workspace.library.db() as db:
-            row = db.execute('SELECT name,version,parsed FROM library_documents WHERE id=?',(doc_id,)).fetchone()
+            row = db.execute('SELECT name,version,parsed,status,active FROM library_documents WHERE id=?',(doc_id,)).fetchone()
         if not row: raise HTTPException(404,'DOCUMENT_NOT_FOUND')
-        return {'name':row['name'],'version':row['version'],'parsed':json.loads(row['parsed']) if row['parsed'] else None}
+        return {'name':row['name'],'version':row['version'],'status':row['status'],'active':bool(row['active']),
+                'parsed':json.loads(row['parsed']) if row['parsed'] else None}
 
     @router.post('/api/knowledge/ask')
     async def ask(payload: AskKnowledge):
@@ -318,6 +336,11 @@ def workspace_router(workspace):
 
     @router.get('/api/tasks')
     def tasks():return workspace.service.list()
+
+    @router.get('/api/services')
+    def services():
+        from app.service_desk.catalog import SERVICES
+        return [service.public() for service in SERVICES.values()]
 
     @router.post('/api/tasks')
     async def create_task(payload: CreateTask):

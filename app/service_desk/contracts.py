@@ -15,10 +15,16 @@ class UserFacts(Strict):
     purpose: str | None = Field(default=None,min_length=1,max_length=1000)
 
 
+class RepairFacts(Strict):
+    asset_id: str | None = Field(default=None,min_length=1,max_length=128)
+    description: str | None = Field(default=None,min_length=1,max_length=1000)
+    impact: Literal['low','medium','high'] | None = None
+
+
 class GuidedTaskRequest(Strict):
-    kind: Literal['loan','knowledge']
+    kind: Literal['loan','repair','knowledge']
     execution_ceiling: Literal['READ_ONLY','PREVIEW_ONLY','SUBMIT_AFTER_CONFIRMATION']='READ_ONLY'
-    facts: UserFacts=Field(default_factory=UserFacts)
+    facts: UserFacts | RepairFacts=Field(default_factory=UserFacts)
     question: str | None=Field(default=None,min_length=1,max_length=600)
     confirmed: bool=Field(strict=True)
 
@@ -28,7 +34,9 @@ class GuidedTaskRequest(Strict):
         if self.kind=='knowledge':
             if not self.question or not self.question.strip() or self.execution_ceiling!='READ_ONLY' or self.facts.model_dump(exclude_none=True):
                 raise ValueError('KNOWLEDGE_REQUEST_REQUIRES_ONLY_EXPLICIT_QUESTION')
-        elif self.question is not None:raise ValueError('LOAN_TASK_DOES_NOT_ADD_KNOWLEDGE_NEEDS')
+        elif self.question is not None:raise ValueError('SERVICE_TASK_DOES_NOT_ADD_KNOWLEDGE_NEEDS')
+        schema=RepairFacts if self.kind=='repair' else UserFacts
+        self.facts=schema.model_validate(self.facts.model_dump(exclude_none=True))
         return self
 
 

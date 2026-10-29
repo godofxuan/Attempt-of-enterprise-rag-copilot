@@ -8,18 +8,19 @@ from app.service_desk.contracts import GuidedTaskRequest
 from app.service_desk.store import ServiceDeskStore, ServiceError, encoded, digest
 from pydantic import BaseModel, ConfigDict, Field
 from app.service_desk.contracts import UserFacts
+from app.service_desk.catalog import SERVICES,service_for,seed_repairs
 
 
 class ParameterChange(BaseModel):
     model_config=ConfigDict(extra='forbid')
-    field: Literal['loan_start','loan_end','purpose']
+    field: Literal['loan_start','loan_end','purpose','asset_id','description','impact']
     value: str | None
     quote: str
 
 
 class MessageInterpretation(BaseModel):
     model_config=ConfigDict(extra='forbid')
-    updates: list[ParameterChange] = Field(max_length=3)
+    updates: list[ParameterChange] = Field(max_length=6)
     execution_ceiling: Literal['READ_ONLY','PREVIEW_ONLY','SUBMIT_AFTER_CONFIRMATION'] | None = None
     scope_quote: str = ''
 
@@ -34,6 +35,7 @@ def local_actor():
 def seed_sample(root):
     """Only explicit init --sample provisions the synthetic backend."""
     store=ServiceDeskStore(root/'app.sqlite3',writes_enabled=True);store.seed_demo(local_actor())
+    seed_repairs(store,local_actor())
     with store.transaction() as db:
         db.execute('CREATE TABLE IF NOT EXISTS asset_details(tenant TEXT,asset_id TEXT,payload TEXT,PRIMARY KEY(tenant,asset_id))')
         for asset_id,memory,location in [('loan-laptop-1',8,'A区服务台'),('loan-laptop-2',16,'B区服务台'),('loan-laptop-3',32,'A区服务台')]:
@@ -56,7 +58,7 @@ class TaskService:
                                 run_fence=task.get('run_fence',0)+1)
                     self.store._save(db,task)
                 pending=db.execute("SELECT id FROM workbench_messages WHERE task_id=? AND status IN ('PENDING','FAILED') ORDER BY rowid DESC LIMIT 1",(task['task_id'],)).fetchone()
-                committed=db.execute('SELECT 1 FROM tickets WHERE task_id=?',(task['task_id'],)).fetchone()
+                committed=db.execute(f'SELECT 1 FROM {self.store.ticket_table(task)} WHERE task_id=?',(task['task_id'],)).fetchone()
                 if pending and not task.get('pending_user_update') and not task.get('receipt') and not committed and task['status']!='CANCELLED':
                     task.update(pending_user_update=pending['id'],status='WAITING_USER',last_error='USER_UPDATE_PENDING')
                     self.store._save(db,task)
@@ -75,7 +77,17 @@ class TaskService:
     @staticmethod
     def required_fields(task):
         if task['guided_request']['kind']=='knowledge' or task['user_execution_ceiling']=='READ_ONLY':return []
-        return ['loan_start','loan_end','purpose']
+        return [field for field,_,_ in service_for(task).fields]
+
+    def assets(self,task_id):return service_for(self.store.get_task(local_actor(),task_id)).assets(self.store,local_actor())
+
+    def tickets(self,task_id):
+        service=service_for(self.store.get_task(local_actor(),task_id))
+        return self.store.list_tickets(local_actor(),kind=service.key)
+
+    def ticket(self,task_id,ticket_id):
+        service=service_for(self.store.get_task(local_actor(),task_id))
+        return self.store.get_ticket(local_actor(),ticket_id,kind=service.key)
 
     def list(self):
         actor=local_actor()
@@ -94,10 +106,12 @@ class TaskService:
                 pending=dict(row) if row else {'id':task['pending_user_update'],'text':'Unresolved user input','status':'UNRESOLVED'}
         return {**task,'preview':proposal,'pending_update':pending,'events':self.store.events(actor,task_id)[-40:],
                 'missing_fields':[k for k in self.required_fields(task) if not task['facts'].get(k)],
-                'next_step':'待审批，不等于已批准、已分配或已预留。' if task.get('receipt') else
+                'next_step':task['receipt']['ticket']['next_step'] if task.get('receipt') else
                     '补充内容尚未成功解释，请检查原文并明确当前任务范围；在此之前不继续办理' if pending else
                     '请核对当前完整预览并精确确认' if proposal and task['user_execution_ceiling']=='SUBMIT_AFTER_CONFIRMATION' else
-                    '仅预览，不可提交' if proposal else '补充信息或继续运行'}
+                    '仅预览，不可提交' if proposal else
+                    '本次任务已交付，可查看结果或新建任务' if task['status']=='COMPLETED' else
+                    (task.get('outcome') or {}).get('next_step') or '补充信息或继续运行'}
 
     def facts(self,task_id,changes,revision):
         previous=self.store.get_task(local_actor(),task_id)
@@ -105,27 +119,34 @@ class TaskService:
         if previous['facts']!={**previous['facts'],**changes}:
             affected=set()
             for key in changes:affected.update({'loan_start':['assets.search','tickets.propose_create'],
-                'loan_end':['assets.search','tickets.propose_create'],'purpose':['tickets.propose_create']}.get(key,[]))
+                'loan_end':['assets.search','tickets.propose_create'],'purpose':['tickets.propose_create'],
+                'asset_id':['assets.search','tickets.propose_create'],'description':['tickets.propose_create'],
+                'impact':['tickets.propose_create']}.get(key,[]))
             self.store.record(local_actor(),task_id,'field_impact',{'changed_fields':list(changes),'invalidated':sorted(affected),
                 'retained_if_current':['loan_policy','tickets.list_mine'],'authority':'HOST_DEPENDENCY_TABLE'})
         return self.view(task_id)
 
     def valid_observations(self,task):
+        if task['guided_request']['kind']=='knowledge':return {}
+        service=service_for(task)
         actor=local_actor();valid={}
-        current_assets=self.store.assets(actor);current_tickets={'tickets':self.store.list_tickets(actor)}
+        current_assets=service.assets(self.store,actor);current_tickets={'tickets':self.store.list_tickets(actor,kind=service.key)}
         for row in task['observations']:
             if row['result'].get('status')!='ok':continue
             meta=row.get('dependency_context',{})
             if self.store.clock()-meta.get('observed_at',0)>60:continue
             name=row['tool'];data=row['result']['data']
-            if name=='assets.search' and meta.get('facts_revision')==task['facts_revision'] and data==current_assets:
+            fields=('loan_start','loan_end') if service.key=='loan' else ()
+            bound_facts=(meta['facts_projection']=={field:task['facts'].get(field) for field in fields}
+                if 'facts_projection' in meta else meta.get('facts_revision')==task['facts_revision'])
+            if name=='assets.search' and bound_facts and data==current_assets:
                 valid['assets_search']=data
             if name=='tickets.list_mine' and data==current_tickets:valid['tickets_list_mine']=data
         try:
-            rule=self.store.rule(actor)
+            rule=service.rule(self.store,actor)
             policy=next((e for e in task.get('knowledge',{}).values()
-                         if e.get('need_refs')==['loan_policy'] and e['version_id']==rule['version'] and e['text']==rule['content']),None)
-            if policy:valid['loan_policy']=policy
+                         if e.get('need_refs')==[service.rule_need] and e['version_id']==rule['version'] and e['text']==rule['content']),None)
+            if policy:valid[service.rule_need]=policy
         except ServiceError:pass
         return valid
 
@@ -147,23 +168,28 @@ class TaskService:
                 if existing['status']!='APPLIED':raise ServiceError('MESSAGE_NOT_APPLIED')
             else:
                 current=self.store._task(db,actor,task_id)
-                if db.execute('SELECT 1 FROM tickets WHERE task_id=?',(task_id,)).fetchone():raise ServiceError('TASK_BUSY_OR_SUBMITTED')
+                if db.execute(f'SELECT 1 FROM {self.store.ticket_table(current)} WHERE task_id=?',(task_id,)).fetchone():raise ServiceError('TASK_BUSY_OR_SUBMITTED')
                 db.execute('INSERT INTO workbench_messages VALUES(?,?,?,?,?)',(message_id,task_id,text,'PENDING',None))
                 current.update(pending_user_update=message_id,status='WAITING_USER')
                 self.store._save(db,current)
                 self.store._event(db,task_id,'user_update_pending',{'message_id':message_id,'text':text})
         if existing:return self.view(task_id)
+        service=service_for(task)
         prompt=('Interpret only explicit parameter changes in this user message. Missing keys mean no change; '
             'null means the user explicitly clears that field. Preserve all existing facts and prohibitions otherwise. '
             'For every changed field give its exact supporting substring in sources. Interpret relative dates using '
             'the supplied reference date. Scope may only tighten based on an exact user quote; never grant submission. '
-            'Use updates, an array of field/value/quote records. Allowed fields: loan_start (start date YYYY-MM-DD), '
-            'loan_end (end date YYYY-MM-DD), purpose (only the purpose verbatim, without dates or operations). '
+            'Use updates, an array of field/value/quote records. Allowed fields from this explicit service: '+
+            json.dumps(service.public()['fields'],ensure_ascii=False)+'. Dates use YYYY-MM-DD. '
+            'Purpose and description contain only their verbatim content, without unrelated dates or operations. '
+            'Impact uses low, medium, high corresponding to the explicitly stated impact. '
             'One record per explicitly changed field; quote is the exact supporting user substring. '
             'Return JSON updates/execution_ceiling/scope_quote. Current facts and scope: '+
             json.dumps({'facts':task['facts'],'scope':task['user_execution_ceiling'],'reference_date':str(self.store.today())},ensure_ascii=False))
+        schema=MessageInterpretation.model_json_schema()
+        schema['$defs']['ParameterChange']['properties']['field']={'enum':[f for f,_,_ in service.fields]}
         response=await self.workspace.models.chat([{'role':'system','content':prompt},{'role':'user','content':text}],
-            response_format=MessageInterpretation.model_json_schema(),max_tokens=500)
+            response_format=schema,max_tokens=500)
         interpreted=MessageInterpretation.model_validate_json(response['content'])
         with self.store.transaction() as db:
             current=self.store._task(db,actor,task_id)
@@ -172,9 +198,9 @@ class TaskService:
         sources={row.field:row.quote for row in interpreted.updates}
         if len(changes)!=len(interpreted.updates) or any(not q or q not in text for q in sources.values()):
             raise ServiceError('UNBOUND_PARAMETER_UPDATE')
-        if changes.get('purpose') and changes['purpose'] not in sources['purpose']:
-            raise ServiceError('UNBOUND_PARAMETER_UPDATE')
-        UserFacts.model_validate(changes)
+        for field in ('purpose','description','asset_id'):
+            if changes.get(field) and changes[field] not in sources[field]:raise ServiceError('UNBOUND_PARAMETER_UPDATE')
+        service.facts_type.model_validate(changes)
         if interpreted.execution_ceiling and interpreted.execution_ceiling!=task['user_execution_ceiling']:
             order=['READ_ONLY','PREVIEW_ONLY','SUBMIT_AFTER_CONFIRMATION']
             scope=interpreted.execution_ceiling
@@ -232,6 +258,11 @@ class TaskService:
 
     def alternatives(self,task_id):
         task=self.store.get_task(local_actor(),task_id)
+        if task['guided_request']['kind']=='repair':
+            return [{'asset_id':a['asset_id'],'category':a['category'],'version':a['version'],'available':bool(a['active']),
+                     'parameters':task['facts'],'details':{'owner':'当前用户','origin':'SYNTHETIC_OWNED_ASSET'},
+                     'notice':'选择本人设备，不改变故障描述和影响程度；不是借用或分配设备'}
+                    for a in service_for(task).assets(self.store,local_actor())['assets'] if a['active']][:3]
         data=self.store.assets(local_actor())
         with self.store.transaction() as db:
             has_details=db.execute("SELECT 1 FROM sqlite_master WHERE name='asset_details'").fetchone()
@@ -244,6 +275,11 @@ class TaskService:
 
     def choose_asset(self,task_id,asset_id,revision):
         actor=local_actor()
+        task=self.store.get_task(actor,task_id)
+        if task['guided_request']['kind']=='repair':
+            assets=service_for(task).assets(self.store,actor)['assets']
+            if not any(a['asset_id']==asset_id and a['active'] for a in assets):raise ServiceError('NOT_OWNED_ASSET')
+            return self.facts(task_id,{'asset_id':asset_id},revision)
         with self.store.transaction() as db:
             task=self.store._task(db,actor,task_id);self.store._live(task)
             if task.get('receipt') or task.get('active_run_id'):raise ServiceError('TASK_BUSY_OR_SUBMITTED')
@@ -262,7 +298,7 @@ class TaskService:
         actor=local_actor();task=self.store.get_task(actor,task_id)
         # A committed command is read back even after client response loss; no new consent fabricated.
         with self.store.transaction() as db:
-            committed=db.execute('SELECT 1 FROM command_ledger WHERE command_id=?',('loan:'+payload['proposal_id'],)).fetchone()
+            committed=db.execute('SELECT 1 FROM command_ledger WHERE command_id=?',(self.store.command_id(task,payload['proposal_id']),)).fetchone()
         if not committed:
             if task.get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
             if payload['expected_facts_revision']!=task['facts_revision']:raise ServiceError('TASK_CHANGED')
@@ -272,10 +308,10 @@ class TaskService:
         return self.view(task_id)
 
     def policy(self,task_id):
-        actor=local_actor();rule=self.store.rule(actor)
+        actor=local_actor();task=self.store.get_task(actor,task_id);service=service_for(task);rule=service.rule(self.store,actor)
         ref='local-policy-'+digest(rule)[:16]
-        evidence={'ref':ref,'document_id':'synthetic-loan-policy','version_id':rule['version'],
-                  'text':rule['content'],'need_refs':['loan_policy'],'source_path':'local SQLite loan_rules',
+        evidence={'ref':ref,'document_id':'synthetic-'+service.key+'-policy','version_id':rule['version'],
+                  'text':rule['content'],'need_refs':[service.rule_need],'source_path':'local SQLite '+('loan_rules' if service.key=='loan' else 'it_repair_rules'),
                   'authority':'SYNTHETIC_BUSINESS_RULE_NOT_AN_UPLOADED_POLICY'}
         self.store.remember_knowledge(actor,task_id,[evidence])
         return evidence

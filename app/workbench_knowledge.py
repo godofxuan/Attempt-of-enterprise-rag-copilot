@@ -54,6 +54,8 @@ class Library:
                 db.execute('ALTER TABLE library_jobs ADD COLUMN metrics TEXT')
             if 'source_key' not in {r[1] for r in db.execute('PRAGMA table_info(library_documents)')}:
                 db.execute('ALTER TABLE library_documents ADD COLUMN source_key TEXT')
+            if 'context_answer_ids' not in {r[1] for r in db.execute('PRAGMA table_info(knowledge_answers)')}:
+                db.execute("ALTER TABLE knowledge_answers ADD COLUMN context_answer_ids TEXT NOT NULL DEFAULT '[]'")
 
     def db(self):
         db = sqlite3.connect(self.workspace.db_path, timeout=10)
@@ -186,6 +188,24 @@ class Library:
                 (feedback_id,target_kind,target_id,category,message,json.dumps(dict(row),ensure_ascii=False)))
         return {'id':feedback_id,'status':'RECORDED','message':'已保存复现上下文；不会自动运行模型或声称问题已修复'}
 
+    def feedbacks(self):
+        with self.db() as db:return [dict(r) for r in db.execute('SELECT id,target_kind,target_id,category,message,created_at FROM product_feedback ORDER BY rowid DESC LIMIT 30')]
+
+    def feedback_case(self,feedback_id):
+        with self.db() as db:row=db.execute('SELECT * FROM product_feedback WHERE id=?',(feedback_id,)).fetchone()
+        if not row:raise ValueError('FEEDBACK_NOT_FOUND')
+        snapshot=json.loads(row['snapshot'])
+        if row['target_kind']=='answer':
+            input={'question':snapshot['question'],'kb_id':snapshot['kb_id'],'generation':snapshot['generation'],
+                   'conversation_id':snapshot['conversation_id']}
+            observed=json.loads(snapshot['result_json'])
+        else:
+            task=json.loads(snapshot['payload']);input={key:task.get(key) for key in ('guided_request','facts','messages','user_execution_ceiling')}
+            observed={key:task.get(key) for key in ('observations','outcome','receipt','last_error','status')}
+        return {'id':row['id'],'kind':'UNREVIEWED_REGRESSION_CANDIDATE_NOT_AN_EXPECTED_ANSWER',
+                'category':row['category'],'report':row['message'],'input':input,'observed':observed,
+                'expected':None,'required_review':'根据原始用户要求、当时来源或实际业务库人工制定expected；未审，不自动启动模型或提交。'}
+
     def enqueue(self, kb_id):
         self.require(kb_id)
         with self.db() as db:
@@ -266,32 +286,73 @@ class Library:
         cached = self.snapshots.get(kb_id)
         if not cached or cached.version.manifest.run_id!=pointer.run_id:
             cached = V2IndexSnapshot.load(root,pointer.run_id);self.snapshots[kb_id]=cached
+        if cached.version.manifest.embedding.model.removesuffix(':latest')!=self.workspace.config.embedding_model.removesuffix(':latest'):
+            raise ValueError('INDEX_EMBEDDING_MODEL_CHANGED: 查询模型与索引不匹配，请用当前嵌入模型更新索引')
+        with self.db() as db:
+            current={r[0] for r in db.execute('SELECT id FROM library_documents WHERE kb_id=? AND active=1 AND parsed IS NOT NULL',(kb_id,))}
+        if current!=set(cached.documents_by_id):raise ValueError('INDEX_OUTDATED: 资料已变化，请更新索引后再提问；历史答案和版本仍保留')
         return cached
 
+    def source_notices(self,result):
+        notices=[]
+        with self.db() as db:
+            for source in result.get('sources',[]):
+                row=db.execute('SELECT name,version,status,active FROM library_documents WHERE id=?',(source['doc_id'],)).fetchone()
+                if row and not row['active']:notices.append(f"{row['name']} v{row['version']}为回答当时的历史版本；当前资料已更新。")
+                elif row and row['status']=='SOURCE_MISSING':notices.append(f"{row['name']}源文件缺失，依据最后导入的v{row['version']}；未从缺失文件重新读取。")
+        return list(dict.fromkeys(notices))
+
+    def conversation_context(self,kb_id,conversation_id):
+        if not conversation_id:return []
+        with self.db() as db:
+            conversation=db.execute('SELECT kb_id FROM conversations WHERE id=?',(conversation_id,)).fetchone()
+            if not conversation:raise ValueError('CONVERSATION_NOT_FOUND')
+            if conversation['kb_id']!=kb_id:raise ValueError('CONVERSATION_KNOWLEDGE_BASE_MISMATCH')
+            rows=db.execute('SELECT id,question FROM knowledge_answers WHERE conversation_id=? ORDER BY rowid DESC LIMIT 2',(conversation_id,)).fetchall()
+        if any(len(row['question'])>500 for row in rows):
+            raise ValueError('FOLLOWUP_CONTEXT_TOO_LARGE: 请用完整问题开始新话题；不会截断旧问题中的条件')
+        return [dict(row) for row in reversed(rows)]
+
     async def answer(self, kb_id, question, *, conversation_id=None, detailed=False):
+        context=self.conversation_context(kb_id,conversation_id)
+        search='\n'.join([row['question'] for row in context]+[question])
+        if context and len(search)>1000:raise ValueError('FOLLOWUP_QUERY_TOO_LARGE: 请用完整问题开始新话题')
         loop = asyncio.get_running_loop()
         snapshot = await asyncio.to_thread(self.snapshot,kb_id)
         def generate():
             from app.agent.controller_v2 import V2AgentController
+            from app.agent.query_analysis import RuleFirstQueryAnalyzer
+            class ConversationAnalyzer:
+                def analyze(self,original,user):
+                    analysis=RuleFirstQueryAnalyzer().analyze(original,user)
+                    if not context or analysis.intent=='unsafe':return analysis
+                    # Search may carry prior user referents. Obligations remain
+                    # the current original question, never the old answer as fact.
+                    return analysis.model_copy(update={'search_queries':[search]})
             pipeline = HybridRetrievalPipeline(snapshot,embed_text=self.workspace.models.sync_embed(loop))
             runner = V2AgentRunner(registry=V2ToolRegistry(DocumentNavigator(snapshot,pipeline=pipeline)),
                 controller=V2AgentController(semantic_question=True),
+                analyzer=ConversationAnalyzer(),
                 response_builder=GenerationV2ResponseBuilder(model=self.workspace.config.chat_model,
                     chat_fn=self.workspace.models.sync_chat(loop),max_attempts=1),
                 budget=AgentBudget(deadline_ms=240000,max_search_calls=3 if detailed else 2,max_open_calls=4 if detailed else 2))
             user = UserContext(user_id='local-owner',tenant_id='local',region='local',groups=['local-owner'])
-            return runner.run(question,user,top_k=6)
+            return runner.run(question,user,top_k=6,clarification_replies=[
+                {'asked':'此前同一会话的用户问题，仅用于理解指代，不是知识证据','reply':row['question']} for row in context])
         result = await asyncio.to_thread(generate)
         answer_id = identifier('answer'); conversation_id = conversation_id or identifier('conversation')
         with self.db() as db:
             if db.execute('SELECT 1 FROM conversations WHERE id=? AND kb_id!=?',(conversation_id,kb_id)).fetchone():
                 raise ValueError('CONVERSATION_KNOWLEDGE_BASE_MISMATCH')
             db.execute('INSERT OR IGNORE INTO conversations VALUES(?,?)',(conversation_id,kb_id))
-            db.execute('INSERT INTO knowledge_answers(id,conversation_id,kb_id,question,result_json,generation) VALUES(?,?,?,?,?,?)',
-                       (answer_id,conversation_id,kb_id,question,result.model_dump_json(),snapshot.version.manifest.run_id))
-        return {'id':answer_id,'conversation_id':conversation_id,'result':result.model_dump(mode='json')}
+            db.execute('INSERT INTO knowledge_answers(id,conversation_id,kb_id,question,result_json,generation,context_answer_ids) VALUES(?,?,?,?,?,?,?)',
+                       (answer_id,conversation_id,kb_id,question,result.model_dump_json(),snapshot.version.manifest.run_id,json.dumps([r['id'] for r in context])))
+        value=result.model_dump(mode='json')
+        return {'id':answer_id,'conversation_id':conversation_id,'kb_id':kb_id,'question':question,
+                'source_notices':self.source_notices(value),'result':value}
 
     def answers(self):
         with self.db() as db:
-            return [{**{k:r[k] for k in r.keys() if k!='result_json'},'result':json.loads(r['result_json'])} for r in db.execute(
-                'SELECT * FROM knowledge_answers ORDER BY created_at DESC LIMIT 50')]
+            rows=[dict(r) for r in db.execute('SELECT * FROM knowledge_answers ORDER BY rowid DESC LIMIT 50')]
+        return [{**{k:r[k] for k in r if k!='result_json'},'result':json.loads(r['result_json']),
+                'source_notices':self.source_notices(json.loads(r['result_json']))} for r in rows]

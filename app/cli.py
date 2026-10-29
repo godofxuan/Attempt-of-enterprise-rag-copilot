@@ -29,10 +29,14 @@ def main():
     if args.command == "doctor":
         from app.workspace import Workspace
         async def inspect():
+            import httpx
             workspace = Workspace(settings)
-            await workspace.start()
-            try: print(json.dumps(await workspace.status(),ensure_ascii=False,indent=2))
-            finally: await workspace.close()
+            workspace.client=httpx.AsyncClient(trust_env=False,timeout=2,follow_redirects=False)
+            workspace.started=workspace.db_path.is_file()
+            try:
+                status=await workspace.status();status.update(web=None,inspection='READ_ONLY_NO_STARTUP_OR_RECOVERY')
+                print(json.dumps(status,ensure_ascii=False,indent=2))
+            finally: await workspace.client.aclose()
         asyncio.run(inspect());return
     import uvicorn
     from app.main import create_app
