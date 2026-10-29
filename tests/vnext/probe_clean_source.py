@@ -23,5 +23,6 @@ with TestClient(create_app(build_service_container(settings))) as client:
     assert client.get('/assets/workbench.js').status_code==200
     assert client.get('/api/tasks').status_code==200
     assert client.get('/api/library').status_code==200
-    print(json.dumps({'code':str(Path(app.__file__).resolve()),'dependency_mode':'EXISTING_THIRD_PARTY_PACKAGES_NO_EDITABLE_PTH',
+    print(json.dumps({'code':str(Path(app.__file__).resolve()),'dependency_mode':'EXPLICIT_DEPENDENCY_DIRECTORY_NO_EDITABLE_PTH',
+                      'python':sys.executable,'dependencies':str(dependencies.resolve()),
                       'data':str(data.resolve()),'result':'PASS','model_calls':0},ensure_ascii=False))

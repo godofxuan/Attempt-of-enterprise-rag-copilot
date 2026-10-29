@@ -128,6 +128,8 @@ class Workspace:
                 "generation_calls":calls}
 
     def save_settings(self, changes):
+        if getattr(self,'runs',None) and (self.runs.tasks or self.library.running):
+            raise WorkspaceError(409,'SETTINGS_IN_USE',{'reason':'请先完成或停止当前运行/索引任务，再修改模型连接'})
         updated = self.config.model_copy(update=changes)
         updated = WorkspaceConfig.model_validate(updated.model_dump())
         temp = self.root/"workspace.json.tmp"

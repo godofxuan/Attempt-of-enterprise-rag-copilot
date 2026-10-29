@@ -90,12 +90,14 @@ class V2AgentController:
         clock_ms: ClockMs | None = None,
         task_advisor: TaskAdvisor | None = None,
         recovery_advisor: TaskAdvisor | None = None,
+        semantic_question: bool = False,
     ) -> None:
         if task_advisor is not None and recovery_advisor is not None:
             raise ValueError("eager and gap-driven advice are mutually exclusive")
         self.clock_ms = clock_ms or (lambda: time.monotonic() * 1000)
         self.task_advisor = task_advisor
         self.recovery_advisor = recovery_advisor
+        self.semantic_question = semantic_question
 
     def initialize(
         self,
@@ -118,6 +120,12 @@ class V2AgentController:
                 deadline_at_ms=now + active_budget.deadline_ms,
             ),
         )
+        if self.semantic_question and not semantic_task and analysis.intent != 'unsafe':
+            # The generative knowledge path uses the existing source/need contract.
+            # Retrieval admits candidates; only the bound generated relation and
+            # unique publisher decide what was actually answered. Do not infer
+            # absence from dates or other user circumstances absent in policy prose.
+            state.task_plan=state.task_plan.model_copy(update={'mode':'task'})
         if not semantic_task and self.task_advisor and analysis.intent not in {"unsafe", "comparison"}:
             state.task_plan = self.task_advisor.plan(analysis.original_question, state.task_plan)
         return state

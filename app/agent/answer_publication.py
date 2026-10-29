@@ -361,7 +361,7 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
     if task_mode:
         # Public labels come from user-owned origins, never retrieved/model prose.
         trace["task_requirements"] = [{"need_id":n.need_id,
-            "request_quote":" / ".join(o.quote for o in n.origins)[:600],
+            "request_quote":(" / ".join(o.quote for o in n.origins) or n.text)[:600],
             "status":"supported_and_stated" if n.answer_claim_ids else
                      "needs_user" if n.clarification_needed else "unresolved",
             "claim_ids":list(n.answer_claim_ids)} for n in task.needs]
@@ -371,7 +371,7 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
     unresolved = set(terminal.get("unresolved_need_ids", []))
     if unresolved:
         partial = True
-        notes.extend(f"当前回答尚未核验这一问题：{(' / '.join(o.quote for o in n.origins) if task_mode else n.text)[:200]}。" for n in task.needs if n.need_id in unresolved)
+        notes.extend(f"当前回答尚未核验这一问题：{(' / '.join(o.quote for o in n.origins) or n.text)[:200]}。" for n in task.needs if n.need_id in unresolved)
     if terminal.get("type") == "abstain":
         partial = True
         notes.append("当前仅保留已核验事实，尚无更多可用证据完成该问题。")

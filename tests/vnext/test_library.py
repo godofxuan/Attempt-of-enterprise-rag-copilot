@@ -78,3 +78,23 @@ def test_model_failure_is_recorded_before_return(tmp_path):
         with models.db() as db:
             row=db.execute('SELECT status,error,input_json FROM model_calls').fetchone()
         assert row[0]=='ERROR' and 'offline test' in row[1] and 'test' in row[2]
+
+
+def test_expired_run_does_not_send_and_active_settings_cannot_change(tmp_path):
+    from app.runtime.request_context import bind_request_context,reset_request_context,RequestDeadlineExceeded
+    import pytest
+    with client_for(tmp_path) as client:
+        workspace=client.app.state.workspace
+        async def expired():
+            token=bind_request_context('expired-before-send',deadline_ms=1)
+            try:
+                await asyncio.sleep(.01)
+                with pytest.raises(RequestDeadlineExceeded):await workspace.models.chat([{'role':'user','content':'No send'}])
+            finally:reset_request_context(token)
+        asyncio.run(expired())
+        with workspace.models.db() as db:assert db.execute('SELECT COUNT(*) FROM model_calls').fetchone()[0]==0
+        workspace.runs.tasks['deliberately-active-test']=None
+        try:
+            response=client.patch('/api/settings',headers=HEADERS,json={'chat_model':'different-model'})
+            assert response.status_code==409 and response.json()['error']['code']=='SETTINGS_IN_USE'
+        finally:workspace.runs.tasks.pop('deliberately-active-test')

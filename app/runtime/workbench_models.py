@@ -29,16 +29,19 @@ class ModelService:
         await self.client.aclose()
 
     async def send(self, kind, payload, *, purpose=None):
+        from app.runtime.request_context import remaining_seconds, RequestDeadlineExceeded
         config = self.workspace.config
         call_id = uuid.uuid4().hex
         started = time.monotonic()
         async with self.semaphore:
+            remaining=remaining_seconds()
+            if remaining is not None and remaining<=0:raise RequestDeadlineExceeded('Run deadline exhausted before send')
             with self.db() as db:
                 db.execute("INSERT INTO model_calls(id,kind,model,status,input_json,purpose) VALUES(?,?,?,?,?,?)",
                            (call_id, kind, payload['model'], 'SENDING', json.dumps(payload, ensure_ascii=False),purpose or kind))
             try:
                 response = await self.client.post(config.model_endpoint+'/api/'+kind, json=payload,
-                                                 timeout=config.request_timeout_seconds)
+                    timeout=min(config.request_timeout_seconds,remaining) if remaining is not None else config.request_timeout_seconds)
                 response.raise_for_status()
                 result = response.json()
                 if result.get('error'): raise ValueError(result['error'])

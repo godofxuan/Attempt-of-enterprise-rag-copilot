@@ -354,10 +354,10 @@ class GenerationV2ResponseBuilder:
             ]
             supported_claims = retain_condition_dependencies(supported_claims,_generated.claims)
             supported_ids = {c.claim_id for c in supported_claims}
-            if _generated.request_coverage is not None:
+            if _generated.request_coverage is not None or state.task_plan.mode=='task':
                 response_trace['generation_need_relations'] = bind_need_evaluations(
                     state.task_plan,question,claims,
-                    [] if _generated._wire_claim_ids_rebound else [r.model_dump() for r in _generated.request_coverage])
+                    [] if _generated._wire_claim_ids_rebound else [r.model_dump() for r in (_generated.request_coverage or [])])
             supported_citations = [citation for citation in citations if citation.supported and citation.claim_id in supported_ids]
             unsupported_count = original_claim_count - len(supported_claims)
             response_trace["unsupported_claim_reasons"] = {
@@ -1268,8 +1268,14 @@ def _preserve_draft_units(generated, claims, source_by_id, question):
         ids = {c.claim_id for c in generated.claims}
         while 'host-answer-unit-' + str(serial) in ids:
             serial += 1
+        # This repairs representation only. Retain a pre-existing unambiguous
+        # need association from claims citing this origin; never infer several
+        # needs from a shared source or upgrade the model's coverage judgment.
+        associations={tuple(sorted(c.need_refs)) for c in generated.claims
+                      if sid in c.cited_source_ids and c.need_refs}
+        need_refs=list(next(iter(associations))) if len(associations)==1 and len(next(iter(associations)))==1 else []
         added = GeneratedClaim(claim_id='host-answer-unit-' + str(serial),
-            source_unit_id=sid + 'U' + str(index), cited_source_ids=[sid], critical=True)
+            source_unit_id=sid + 'U' + str(index), cited_source_ids=[sid], critical=True,need_refs=need_refs)
         # Keep a recovered condition beside later units of that same source.
         position = next((i for i, c in enumerate(generated.claims)
             if c.unit_span and c.unit_span.source_id == sid and c.unit_span.field == unit.field

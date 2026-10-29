@@ -4,7 +4,7 @@
 - Workspace: `D:/文档/agent/RAG_try`; branch `codex/esa-vnext`.
 - Original main HEAD: `51faa5ba2f35d79120b362fff08b091646168d77`; 27 tracked dirty files predate this work. Their changes are preserved; the RAG modules now also contain explicit integration edits.
 - Native Goal: ACTIVE, R1+R2 / M0-M8. No explicit token budget assigned.
-- Stage: M2-M4 vertical slices implemented; knowledge source-unit selection and product continuation next.
+- Stage: M1-M5 vertical journeys implemented; R1 release checks remain, then M7 shared IT repair.
 - Existing effective assets: main dirty RAG; `_delivery_work/ESA_AGENTOPS_20261013/source_candidate`
   for Service/AgentOps; Enterprise working `rag_source_candidate` has a later
   `generation_v2.py` edit. No archived tree will replace any of these.
@@ -27,11 +27,11 @@
 - Bootstrap plus existing identity API regressions: 37 passed. Actual Edge browser
   verified unavailable-model UI, settings persistence, narrow viewport and no JS errors.
 - Editable `esa` console installed; uv.lock generated (109 packages), offline lock check passed.
-  This is not yet a clean-environment install claim.
+  Later clean-source and clean-dependency installation are recorded below.
 - M2: actual upload/parser/library/version/job/atomic index publication/shared RAG and persisted answers added.
   Real BGE created a two-document synthetic index. First real 9B answer failed delivery because inherited
   HTTP deadline expired; durable bounded runs fixed that boundary. Second live answer delivered but partial.
-  Source-unit schema/presentation integration subsequently changed; that newer knowledge path still needs live verification.
+  Later source-unit schema/presentation and live pairs are recorded below.
 - Integrated 8 existing ServiceDesk modules into the one app, not another hidden source tree.
   Added transactional expected_facts_revision, explicit null clearing, valid-preview reuse and per-run budgets.
 - Real current UI loan task 875dc57da41a4ed98f5496453cd13db0 used native Ollama tool calls:
@@ -58,12 +58,39 @@
 - M6 clean-source check caught an omitted untracked KnowledgeService module. Fixed in78379f8a.
   Independent committed code then started without editable paths. Actual uv sync installed64 pinned
   public dependencies in its own venv, and the probe passed there too; no model calls in either probe.
-- Current uncommitted continuation: unresolved user-message safety/recovery and optional original-question
+- Implemented continuation: unresolved user-message safety/recovery and optional original-question
   parameter prefill. Host preview/confirmation/resume blocked until input is applied or explicitly resolved;
   no invented consumption of failed input. Latest targeted bootstrap/message/lifecycle batch11 passed.
 - Directory import/unchanged/replace/missing-source retention/recovery and existing embedding cache
   implemented. Program check: identical documents publish next generation with0 embedding misses.
 - Interview issue log: `IMPLEMENTATION_INTERVIEW_NOTES.md`, updated from real failures only.
+
+## Latest Checkpoint — 2026-10-30 local
+- c68a115a removed eager legacy graph/evaluation imports from the thin Agent package. A separate
+  uv-installed environment imports and starts committed code without author editable paths.
+- Added bounded send-time deadline checking and409 settings protection during active runs/index jobs.
+- Real J10 exposed early not_found: Guard admitted both policies, but the old extraction relevance
+  gate treated a personal booking year as a required year in policy prose. No generation was sent.
+  Product KnowledgeService now uses the existing semantic need/source contract on the whole question;
+  old extractive interfaces retain their contract. Candidate admission is not final answer support.
+- Real UI task8f868cae456244bba31cb0a995e6ef11 then completed knowledge-to-task, explicit user opt-in
+  extraction of dates/purpose, actual asset2 selection, preview/date edit/stale-confirmation409,
+  current exact confirmation, one PENDING_APPROVAL ticketfa214993a3e54b16874ccb643cbcf7d4 and idempotent reload.
+  This J10 knowledge result was still partial. Its trace is not rewritten as an all-quality pass.
+- Saved real response showed a recovered exact draft unit lost its existing unambiguous need association
+  and was dropped by publication. Repaired that handoff; multiple/unknown needs remain unresolved.
+  Missing semantic coverage cannot become complete merely from citations.
+- Subsequent same-question real RAG/Agent pair both answered all six requested policy facets:
+  `demo-validation/logs/KNOWLEDGE_HANDOFF_PAIR_20261029T195549.json`. The later missing-coverage guard
+  changes only the absent-relation negative branch; these actual replies contained relations.
+- Final related program batch:115 passed,3 FAISS binding deprecation warnings; no full historical suite.
+  Includes bootstrap/messages/lifecycle, original A1 replay, generation/controller/relevance and identity boundary.
+- Real unchanged-document cache comparison: first rebuild2 misses/2 embedding requests/3.282s;
+  second rebuild2 hits/0 requests/0.218s. Specific batch, not QA accuracy or a universal speed claim.
+- Actual appended product attempts at checkpoint: primary data21 chat/12 embed; independent TEST journey
+  data9 chat/6 embed. All completed OK, raw requests/responses remain in their app.sqlite3 model_calls.
+  Earlier product rows whose purpose was not recorded remain UNCLASSIFIED; historical experiment ledger untouched.
+- Interview record now includes9 real problems, with causes, changes, tests/live boundaries and oral answers.
 
 ## Decisions
 - Product changes will be in the current repository, not another full checkout or ZIP.
@@ -74,9 +101,9 @@
 - No giant audit bundles, full-tree duplication or unrelated historical suite.
 
 ## Next Action
-Finish current pending-update/prefill UI and tests, run J10 knowledge-to-task/choice in an isolated
-synthetic journey, browser-check current controls, record a real cache rebuild comparison, then
-freeze R1 and continue M7 IT repair through shared lifecycle plumbing (no copied Agent loop).
+Finish R1 follow-up/source-version and remaining browser/restart journey coverage; update release
+matrix and install from the next scoped commit. Then M7 IT repair through the same lifecycle/UI/loop,
+followed by M8 directory/feedback journey. Do not rerun J10 or the cache pair without a changed dependency.
 
 ## Milestones
 M0: IMPLEMENTED; first startup failure reproduced and common startup separation fixed.
@@ -87,16 +114,18 @@ M2: IMPLEMENTED vertical path; real shared pair answered. Conversation follow-up
 M3: IMPLEMENTED vertical loan lifecycle; conflict/clear/repeated edits/idempotency/restart tested.
 M4: IN_PROGRESS; native-tool loop, durable runs/SSE, loan UI, natural update and readonly branch live-verified;
     latest unresolved-input recovery covered offline, current browser/final restart checks pending.
-M5: IN_PROGRESS; answer link, optional original-question prefill, dependency reuse and actual asset options implemented;
-    complete J10 not yet verified.
+M5: IMPLEMENTED vertical path; J10 actual UI/model/business journey verified; knowledge handoff had a
+    separate negative result and later focused live pair, as recorded above.
 M6: IN_PROGRESS; clean source and clean dependency installation verified. Release journey matrix/docs still pending.
 M7: NOT_STARTED.
-M8: PARTIAL_EARLY; directory incrementality and cache reuse tested offline; real cache comparison/feedback UI pending.
+M8: PARTIAL_EARLY; directory incrementality and cache reuse tested; real cache comparison verified,
+    final directory/feedback UI journey pending.
 
 ## External / Delivery State
 - Models: installed local 9B/BGE used; all attempts remain appended in product model_calls. Historical
   grant ledger is untouched. Recompute current totals from DB rather than copying old checkpoint counts.
-- Commits:540cfa55 bootstrap;38a5b69d integration;d25b4048 knowledge;78379f8a packaging correction.
-  Later pending-input/prefill changes uncommitted; unrelated preexisting README/Streamlit work retained.
+- Commits:540cfa55 bootstrap;38a5b69d integration;d25b4048 knowledge;78379f8a packaging correction;
+  6cf66b65 pending-input recovery/prefill; c68a115a lazy legacy imports. Latest checkpoint commit follows.
+  Unrelated preexisting README/Streamlit work retained.
   No remote sync or PR performed.
 - Goal is active, not complete.

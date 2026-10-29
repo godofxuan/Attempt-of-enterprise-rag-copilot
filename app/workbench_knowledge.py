@@ -272,8 +272,10 @@ class Library:
         loop = asyncio.get_running_loop()
         snapshot = await asyncio.to_thread(self.snapshot,kb_id)
         def generate():
+            from app.agent.controller_v2 import V2AgentController
             pipeline = HybridRetrievalPipeline(snapshot,embed_text=self.workspace.models.sync_embed(loop))
             runner = V2AgentRunner(registry=V2ToolRegistry(DocumentNavigator(snapshot,pipeline=pipeline)),
+                controller=V2AgentController(semantic_question=True),
                 response_builder=GenerationV2ResponseBuilder(model=self.workspace.config.chat_model,
                     chat_fn=self.workspace.models.sync_chat(loop),max_attempts=1),
                 budget=AgentBudget(deadline_ms=240000,max_search_calls=3 if detailed else 2,max_open_calls=4 if detailed else 2))
