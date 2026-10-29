@@ -3,14 +3,14 @@
 ## Current Position
 - Workspace: `D:/文档/agent/RAG_try`; branch `codex/esa-vnext`.
 - Original main HEAD: `51faa5ba2f35d79120b362fff08b091646168d77`; 27 tracked dirty files predate this work. Their changes are preserved; the RAG modules now also contain explicit integration edits.
-- Native Goal: ACTIVE, R1+R2 / M0-M8. No explicit token budget assigned.
-- Stage: R1/R2 functional work implemented; final committed-source installation and bounded release checks next.
+- Scope: R1+R2 / M0-M8; DONE_R1_R2_LOCAL_DEMO. No explicit token budget assigned.
+- Stage: frozen application bytes670fdb66; final delivery changes are documentation and the CLI probe only.
 - Existing effective assets: main dirty RAG; `_delivery_work/ESA_AGENTOPS_20261013/source_candidate`
   for Service/AgentOps; Enterprise working `rag_source_candidate` has a later
   `generation_v2.py` edit. No archived tree will replace any of these.
 - Existing successes retained: C3 A2-A5 live TEST business evidence; A1 offline
   mapping repair; Service exact preview/confirmation/idempotent readback; AgentOps readonly export.
-- Existing limitation: last patched A1 live pair not established by those old results.
+- Historical boundary: old C3 results do not establish all vNext paths; current limited live pairs are listed below.
 
 ## Latest Actual Work
 - Read parent AGENTS, Git status, GOAL/architecture/roadmap/contracts.
@@ -145,21 +145,43 @@
   the b81 archive remains a checkpoint. Focused regression and final bounded live evidence follow.
 
 ## Next Action
-Final comparison reply from955bf690 reproduced a duplicated completion authority: whole-question
-need relations and delivered units were complete, but lexical entity repetition forcedpartial.
-Semantic mode now leaves those lexical counts diagnostic; publisher, unknown/missing relations,
-unsupported claims and upstreampartial remain authoritative. Saved reply RED then positive/negative
-GREEN,40 related generation/A1 checks passed. No new reviewer or model added.
+No queued development or model runs. Use START.md / RELEASE.md for the frozen local demonstration.
+R3, enterprise deployment and a new quality benchmark are outside this completed scope.
 
-The independent default environment exposed missingtzdata (16 failures) and one omitted HTTP helper
-in the source export. The direct locked dependency and explicit export helper list fix those inputs.
-The prior clean failures remain saved. A subsequent related batch had128pass/1fail: its1ms-deadline
-test slept10ms on Windows and accidentally touched the local model port. OneERROR attempt retained
-inOFFLINE_TEST_UNEXPECTED_SENDS.json, separate from product calls. The test now uses a controlled
-clock and fail-on-send transport; its original zero-call and settings assertions pass.
-
-Commit this focused correction, export/install in an independent environment, finish affected real
-knowledge pair and CLI startup. Then freeze/deliver exact costs and sync state; no extra feature/benchmark.
+## Final Freeze — 2026-10-30 local
+- Application/lock commit670fdb66be89e473070ada879bd01b3f47065b8a. Later delivery commit contains
+  documentation and a no-inference CLI probe; verify `git diff 670fdb66..HEAD -- app pyproject.toml uv.lock` is empty.
+- 955bf690 real comparison exposed two completion authorities: semantic need/body binding was complete,
+  but entity-name repetition forcedpartial. Same original reply RED then scoped GREEN. Semantic mode
+  now retains lexical counts as diagnostics; unknown/missing relation, unsupported claims, source and
+  upstreampartial protections remain. Legacy aspect mode unchanged.
+- New actual pair on670fdb66: logs/FINAL_LIVE_20261029T213822.json. Both answered, each with two sources.
+  Both bodies retain1-14days/start-not-past/active-repair/one-open-request and room2hours/09-18/cleanup.
+  The before/after is a content/status consistency correction, not a broad accuracy claim. No business rows changed.
+  Actual num_ctx8192/num_predict1024. This pair used3chat/4query-embedding requests, no retry.
+- Final source exported by scripts/export_vnext_source.py, separate environment installed44 default
+  pinned packages; explicit-directory/no-editable-source probe passed. Dev adds4 packages.
+  Independent Windows regression:129passed/0failed/0skipped,53.053s; build/CLEAN_FINAL_670fdb66.xml.
+  Four dependency deprecation warnings remain. No full historical suite or main QA comparison.
+- Real installed esa CLI invoked from another working directory: HTTP/static/API available, TEST task
+  preserved across two process starts, same initialized marker,0model calls/0business tickets.
+  Startup5.000s and4.360s on this machine; build/CLEAN_CLI_670fdb66.json. Not a cross-machine benchmark.
+  Initial init-output capture had a Windows decoding warning; the two actual HTTP/DB checks passed.
+  The reusable probe now explicitly enables UTF8 in its child process.
+- Earlier independent failure: missingtzdata caused16failures, omitted HTTP helper caused1. Direct
+  lockedtzdata and helper export fixed them. Offline-only install first missed its wheel; only that
+  pinned public dependency was fetched in the independent venv, no model/global environment changes.
+- Earlier related regression128pass/1fail exposed timing-dependent test setup: sleep10ms did not always
+  expire1ms on Windows. It touched the local model port once and timed out. OriginalERROR row retained
+  in logs/OFFLINE_TEST_UNEXPECTED_SENDS.json; deterministic clock plus fail-on-send transport now passes.
+- Final product counts: primary40chat/26embedding requests; demo-validation9chat/6embedding; presentation0.
+  Total49product chat/32embedding requests(32texts), plus the one failed test attempt =50known new chat attempts.
+  All49product HTTP replies wereOK, not proof their content was all correct. Historical experiment ledger
+  untouched; historical UNKNOWN staysUNKNOWN. Earlier unclassified product purposes remain unclassified.
+- One authoritative product DB per declared DATA_DIR, no second quota ledger. Summary with raw pointers:
+  logs/R1_R2_RELEASE_SUMMARY.json. Source archives exclude databases, raw ledgers, personal docs and indexes.
+- Git remains local codex/esa-vnext; no push/PR/merge. Remote feature branch was absent at the checked state.
+  Unrelated preexisting work remains dirty and excluded from the source export.
 
 ## Milestones
 M0: IMPLEMENTED; first startup failure reproduced and common startup separation fixed.
@@ -172,7 +194,7 @@ M4: IMPLEMENTED; native-tool loop, durable runs/SSE, loan/repair natural update 
     current browser and restart checks retained separately from fixture tests.
 M5: IMPLEMENTED vertical path; J10 actual UI/model/business journey verified; knowledge handoff had a
     separate negative result and later focused live pair, as recorded above.
-M6: FINAL_FREEZE_PENDING; earlier clean install verified; final code export/install and release demonstration next.
+M6: DONE_LOCAL_RELEASE; final independent source install, actual CLI/restart and129related regressions passed.
 M7: IMPLEMENTED/LIVE_VERIFIED in shared framework with synthetic backend.
 M8: IMPLEMENTED/LIVE_VERIFIED; directory versions, feedback candidate and measured embedding reuse.
 
@@ -183,4 +205,4 @@ M8: IMPLEMENTED/LIVE_VERIFIED; directory versions, feedback candidate and measur
   6cf66b65 pending-input recovery/prefill; c68a115a lazy legacy imports. Latest checkpoint commit follows.
   Unrelated preexisting README/Streamlit work retained.
   No remote sync or PR performed.
-- Goal is active, not complete.
+- Current R1/R2 scope is complete for the documented local synthetic demonstration. R3 is not activated.
