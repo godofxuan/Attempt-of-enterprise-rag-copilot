@@ -24,6 +24,7 @@ def _default_runtime_cache_dir() -> Path:
 
 class Settings(BaseSettings):
     app_name: str = "Enterprise RAG Copilot"
+    workbench_enabled: bool = False
 
     data_dir: Path = BASE_DIR / "data"
     raw_docs_dir: Path = data_dir / "raw_docs"

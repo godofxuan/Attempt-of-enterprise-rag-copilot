@@ -17,3 +17,36 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 ignore_missing_imports = true
 exclude = ["^data/", "^external_reproduction/"]
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "enterprise-service-agent"
+version = "0.2.0a1"
+description = "Local enterprise knowledge and guided service workbench"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "fastapi==0.136.0", "uvicorn==0.44.0", "httpx==0.28.1", "requests==2.33.1",
+  "pydantic==2.13.2", "pydantic-settings==2.14.0", "python-dotenv==1.2.2",
+  "PyJWT==2.13.0", "cryptography==49.0.0", "openai==2.32.0",
+  "faiss-cpu==1.13.2", "rank-bm25==0.2.2", "numpy==2.4.4", "jieba==0.42.1",
+  "pypdf==6.14.2", "python-docx==1.2.0", "markdown-it-py==4.2.0",
+  "langgraph==1.2.11", "python-multipart==0.0.32"
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.0.3"]
+legacy = ["streamlit==1.56.0", "mcp==2.0.0", "langgraph-checkpoint-sqlite==3.1.1",
+          "langgraph-checkpoint-postgres==3.1.2", "opentelemetry-sdk==1.44.0", "psycopg[binary,pool]==3.3.4"]
+
+[project.scripts]
+esa = "app.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["tests*", "scripts*", "streamlit_app*"]
+
+[tool.setuptools.package-data]
+app = ["web/*.html", "web/*.js", "web/*.css"]
+

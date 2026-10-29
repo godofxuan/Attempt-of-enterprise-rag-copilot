@@ -1,0 +1,22 @@
+const fs=require('fs'),path=require('path'),assert=require('assert');
+const {chromium}=require('playwright');
+const out=path.resolve('.private/esa-vnext/logs');fs.mkdirSync(out,{recursive:true});
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});let page;const errors=[];
+try{
+ page=await browser.newPage({viewport:{width:1366,height:900}});page.on('pageerror',e=>errors.push(String(e)));
+ await page.goto('http://127.0.0.1:8740/');await page.locator('nav button[data-view=settings]').click();
+ await page.waitForFunction(()=>document.getElementById('endpoint').value);
+ const endpoint=await page.locator('#endpoint').inputValue();
+ await page.locator('#endpoint').fill('http://127.0.0.1:1');await page.locator('#settingsForm button').click();
+ await page.waitForFunction(()=>document.getElementById('connection').textContent==='聊天模型未连接');
+ await page.screenshot({path:path.join(out,'M1_MODEL_OFFLINE.png'),fullPage:true});
+ await page.reload();await page.waitForFunction(()=>document.getElementById('endpoint').value==='http://127.0.0.1:1');
+ assert((await page.request.get('http://127.0.0.1:8740/health/live')).status()===200);
+ await page.locator('nav button[data-view=tasks]').click();assert(await page.locator('#taskList').isVisible());
+ await page.locator('nav button[data-view=settings]').click();await page.locator('#endpoint').fill(endpoint);await page.locator('#settingsForm button').click();
+ await page.waitForFunction(()=>document.getElementById('saved').textContent==='已保存');
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(out,'M1_MOBILE.png'),fullPage:true});
+ assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert(!errors.length,errors);
+ fs.writeFileSync(path.join(out,'M1_BROWSER.json'),JSON.stringify({kind:'ACTUAL_UI_NO_GENERATION',passed:true,checks:['settings_save','refresh','model_offline_UI','liveness','history','narrow_screen','no_js_errors'],generation_calls:0},null,2));
+ console.log('M1 actual browser checks passed, no generation.');
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});

@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ESA 工作台</title><link rel="stylesheet" href="/assets/workbench.css"></head>
+<body><header><strong>ESA 企业服务工作台</strong><span id="mode"></span><span id="connection">正在连接</span></header>
+<div class="layout"><nav aria-label="主导航"><button data-view="knowledge" aria-selected="true">知识问答</button><button data-view="tasks">服务任务</button><button data-view="library">资料库</button><button data-view="settings">设置</button></nav>
+<main><div id="error" role="alert" hidden></div>
+<section id="knowledge"><h1>知识问答</h1><div id="knowledgeState" class="empty">暂无可用资料库</div></section>
+<section id="tasks" hidden><h1>服务任务</h1><div id="taskList" class="empty">暂无任务</div></section>
+<section id="library" hidden><h1>资料库</h1><div id="documentList" class="empty">暂无资料</div></section>
+<section id="settings" hidden><h1>设置</h1><form id="settingsForm"><label>模型服务地址<input id="endpoint" type="url" required></label><label>聊天模型<input id="chatModel" required></label><label>嵌入模型<input id="embeddingModel" required></label><button type="submit">保存设置</button><output id="saved"></output></form><h2>能力状态</h2><dl id="capabilities"></dl><details><summary>存储位置</summary><pre id="paths"></pre></details></section>
+</main></div><script type="module" src="/assets/workbench.js"></script></body></html>

@@ -46,10 +46,21 @@ def _create_application(
     container: ServiceContainer | None,
 ) -> FastAPI:
     service = container or build_service_container(get_settings())
+    workspace = None
+    if service.settings.workbench_enabled:
+        from app.workspace import Workspace
+        workspace = Workspace(service.settings)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         settings = service.settings
+        if workspace is not None:
+            await workspace.start()
+            try:
+                yield
+            finally:
+                await workspace.close()
+            return
         for path in (
             settings.raw_docs_dir,
             settings.parsed_docs_dir,
@@ -81,6 +92,15 @@ def _create_application(
     application.add_middleware(RequestContextMiddleware, container=service)
     install_error_handlers(application)
     application.include_router(create_lifecycle_router(service))
+    if workspace is not None:
+        from app.workspace import workspace_router
+        from fastapi.staticfiles import StaticFiles
+        from pathlib import Path
+        from starlette.middleware.trustedhost import TrustedHostMiddleware
+        application.state.workspace = workspace
+        application.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"])
+        application.include_router(workspace_router(workspace))
+        application.mount("/assets", StaticFiles(directory=Path(__file__).with_name("web")), name="workspace-assets")
 
     @application.get("/health/live", response_model=LivenessResponse)
     def liveness(request: Request) -> LivenessResponse:
@@ -97,6 +117,9 @@ def _create_application(
 
     @application.get("/health/ready")
     def readiness(request: Request) -> JSONResponse:
+        if workspace is not None:
+            return JSONResponse({"status": "ready", "web": True, "storage": workspace.started,
+                                 "generation": "CHECK_API_STATUS"})
         snapshot = service.resources.refresh_if_stale()
         request.state.outcome = snapshot.status
         return JSONResponse(
