@@ -1,6 +1,24 @@
 # ESA vNext Current Status
 
-## Active Upgrade — 0.3 / 0.4 (2026-10-30)
+## 当前冻结交付：0.4.0（2026-10-30）
+
+- U01–U24 / S0–S4本地范围完成；旧DONE_R1_R2_LOCAL_DEMO及以下过程原文保留。
+- 应用冻结：b50d0f8a47d34e29d9706a2c4ef25db193ec0d26，分支codex/esa-030-040。之后仅交付文档变更，不回写7个无关修改或其他未提交工作。
+- 当前入口：http://127.0.0.1:8740/；`.venv\Scripts\python.exe -m app.cli serve --data-dir .private/esa-vnext --port 8740`。同一主DATA_DIR，未重建业务库绕过未结限制。
+- 用户可在会话内问答/补参/改期/选设备/预览/确认/查询；本地服务台借用预留→领用→归还后同库再次申请，报修处理→解决→关闭。真实9B工具选择与用户明确确认分开。
+- 最终相关回归FINAL_B50D0F8A_REGRESSION.xml：115passed，84.44秒；不是全历史套件或质量准确率。
+- 当前双入口FINAL_NATIVE_2026-10-30T06-32-24-607Z.json：实际RAG和Agent均从活动v2原文回答72小时，来源UI/窄屏通过，3chat。当前只读FINAL_READ_ONLY_20261030T063403.json：真实2chat，3张借用/2张报修前后不变，无preview/receipt。
+- S2_DEEP_20261030T061510.json：两制度时长/条件正文完整、运费证据不足均真实通过。b50只恢复legacy契约，当前workbench输入和新wire均未改；不重复消耗模型复验同一协议。
+- 业务真实UI闭环详见RELEASE八旅程表；借用9d254141、报修45751e73、当前PREVIEW_ONLY与状态读回c2ddd882，后续未改事务路径。续借/备选/重开等是程序检查，不冒充完整实时泛化。
+- 当前应用源码独立wheel异目录init/doctor/两次HTTP启动和重启保留会话通过：3.063/2.812秒，0推理/0工单，使用既有锁定依赖环境。WHEEL-040-B50D0F8A_PROBE.json。
+- 主账本起始40chat/26embed，最终149/97；本轮109chat+71embed POST（query66文本、index12文本）。失败计入，无SENDING、无活动run。其他历史计数不改；归属未知历史仍UNKNOWN。
+- 先前Deep与错误不足均有负结果保留，两种无效否定规则回退；后续生成改为一个来源单位选择表示驱动正文与覆盖，不新增judge。最终有限例通过，不证明任意问题正确。
+- 完整支持边界/证据适用性见RELEASE.md；实际问题口述记录见IMPLEMENTATION_INTERVIEW_NOTES.md。尚未证明追平 main。Linux/容器/多人企业部署未验证。
+- 同步：本地feature里程碑已提交，未push、未PR；未找到适用的新远端授权，不将本地状态写为GitHub已更新。
+- 下一动作：使用本轮结果包的源码/wheel和README复现演示；本Goal到此冻结，不再追加功能或新题集。交付提交与包摘要保存在结果包DELIVERY.json。
+
+
+## 0.3 / 0.4 实施过程记录（按时间追加，早期未完成项已由上方最终状态覆盖）
 - Goal ACTIVE: reviews/020-next/GOAL.md, U01-U24, S0-S4. Historical0.2.0 completion below is retained.
 - Branch codex/esa-030-040 from8881b000; eight preexisting tracked modifications and unrelated untracked work retained.
 - Actual port8740 was not listening. Started the existing CLI successfully with the same .private/esa-vnext data.
