@@ -27,7 +27,7 @@ class ServiceAgent:
     async def run(self,task_id,run_id,turn=None):
         actor=local_actor();started=self.store.begin_run(actor,task_id,followup=turn is not None)
         self.workspace.runs.lifecycle.own_task(run_id,started)
-        catalog=ToolCatalog(self.service,started,turn);seen=set();messages=[];observed=set()
+        catalog=ToolCatalog(self.service,started,turn);seen=set();messages=[];observed=set();finish_feedbacks=0
         try:
             for step in range(8):
                 current=self.store.get_task(actor,task_id)
@@ -59,7 +59,21 @@ class ServiceAgent:
                             self.workspace.runs.event(run_id,'needs_input',{'fields':context['missing_fields'],'question':args.get('question')})
                         elif turn:
                             with self.store.run_scope(started):self.service.finish_turn(task_id,response.get('content',''))
-                        else:self.store.finish_goal(actor,task_id)
+                        else:
+                            outcome=self.store.finish_goal(actor,task_id,_probe=True)
+                            if not outcome['goal_satisfied'] and finish_feedbacks<1:
+                                finish_feedbacks+=1
+                                feedback={'status':'error','code':'GOAL_NOT_COMPLETE','data':{
+                                    'requested_outputs':current['task_goal']['required_outputs'],
+                                    'completed_outputs':outcome.get('completed_outputs',[]),
+                                    'missing_user_facts':outcome.get('missing_user_facts',[]),
+                                    'observation':outcome.get('answer'),'execution_ceiling':current['user_execution_ceiling'],
+                                    'message':'Choose the next permitted action from current observations, or ask for genuinely missing input. A finish call did not complete this task.'}}
+                                self.store.record(actor,task_id,'finish_feedback',feedback)
+                                self.workspace.runs.event(run_id,'tool_result',{'tool':'finish','result':feedback})
+                                messages.append({'role':'tool','tool_name':'finish','content':json.dumps(feedback,ensure_ascii=False)})
+                                continue
+                            self.store.finish_goal(actor,task_id)
                         return self.service.view(task_id)
                     with self.store.run_scope(started):
                         self.store.reserve_tool(actor,task_id,name,args)

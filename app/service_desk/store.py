@@ -1132,6 +1132,9 @@ class ServiceDeskStore:
                 if o['tool']=='assets.search' and o['result'].get('status')=='ok'),{})
             assets=[dict(r) for r in db.execute(
                 'SELECT asset_id,category,available,version FROM assets WHERE tenant=? AND available=1',(actor.tenant_id,))]
+            if task.get('product_runtime'):
+                from app.service_desk.scheduling import inventory as scheduled_inventory
+                assets=scheduled_inventory(db,actor,task['facts'])
             repair=db.execute('SELECT active,version FROM repairs WHERE tenant=? AND owner=?',
                 (actor.tenant_id,actor.subject)).fetchone()
             actual={'assets':sorted(assets,key=encoded),'repair':dict(repair) if repair else None}
@@ -1343,7 +1346,7 @@ class ServiceDeskStore:
         task = self.get_task(actor,task_id)
         if task.get('guided_request',{}).get('kind')=='repair':
             from app.service_desk.catalog import finish_repair
-            return finish_repair(self,actor,task_id)
+            return finish_repair(self,actor,task_id,probe=_probe)
         self._check_delivery_binding(actor,task)
         with self.transaction() as db:
             publication_binding=self._answer_binding(db,actor,task,(task.get('delivery') or {}).get('answers',[]))

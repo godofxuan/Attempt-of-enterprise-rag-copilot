@@ -140,7 +140,7 @@ def seed_repairs(store,actor):
             '这不代表维修完成，也不修改借用资格的维修记录。'))
 
 
-def finish_repair(store,actor,task_id):
+def finish_repair(store,actor,task_id,*,probe=False):
     """Domain outcome from current SQLite observations, never model free prose."""
     from .store import ServiceError,digest
     with store.transaction() as db:
@@ -167,6 +167,7 @@ def finish_repair(store,actor,task_id):
         outcome={'outcome_kind':'repair_result','goal_satisfied':satisfied,'answer':answer,
                  'business_status':ticket['status'] if ticket else None,'next_step':REPAIR.next_step if ticket else '查看当前参数与工具结果',
                  'completed_outputs':task['task_goal']['required_outputs'] if satisfied else [],'missing_user_facts':[]}
+        if probe:return outcome
         task.update(status=status,active_run_id=None,outcome=outcome,last_error=None if satisfied else 'GOAL_NOT_COMPLETE')
         store._save(db,task);store._event(db,task_id,'host.finish',outcome)
         return outcome
