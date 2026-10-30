@@ -39,6 +39,18 @@ class DeepController(V2AgentController):
         super().__init__(semantic_question=True,**kwargs)
         self.plan=plan;self.cursor=0;self.phase='search';self.anchor=None;self.read_targets=set();self.state=None
 
+    def initialize(self,*args,**kwargs):
+        from app.agent.task_plan import RequestNeed
+        state=super().initialize(*args,**kwargs)
+        # Keep the full user obligation N1. Reading questions are additional
+        # deliverables of this investigation, not replacements or source facts.
+        needs=state.task_plan.needs
+        derived=tuple(RequestNeed(need_id='N'+str(len(needs)+i+1),text=q.question,kind='model')
+                      for i,q in enumerate(self.plan.subquestions))
+        state.task_plan=state.task_plan.model_copy(update={'needs':needs+derived,'mode':'task',
+            'planner_status':'accepted','planner_calls':1,'model_added_needs':len(derived)})
+        return state
+
     def next_decision(self,state):
         self.state=state
         if state.analysis.intent=='unsafe' or self._hard_budget_exhausted(state):return super().next_decision(state)
