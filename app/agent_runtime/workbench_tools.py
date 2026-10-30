@@ -193,9 +193,9 @@ class ToolCatalog:
             )
             # Missing stored values are not evidence that the current input
             # omitted them. Consume its typed patch (possibly {}) before asking.
-            if not applied:
+            if not applied and not current.get("receipt"):
                 allowed.discard("ask_user")
-            if missing and not addressed:
+            if missing and not applied:
                 allowed.discard("finish")
         if not self.turn and current["guided_request"]["kind"] in SERVICES:
             from app.workbench_service import local_actor

@@ -95,14 +95,14 @@ class ServiceAgent:
                         "tool_calls": response.get("tool_calls", []),
                     }
                 )
-                if not response.get("tool_calls") and "finish" not in catalog.allowed_names:
+                if not response.get("tool_calls"):
                     if protocol_feedbacks >= 1:
                         raise ServiceError("MODEL_ACTION_REQUIRED")
                     protocol_feedbacks += 1
                     feedback = {
                         "status": "error",
                         "code": "MODEL_ACTION_REQUIRED",
-                        "message": "Your prose has not executed an action. Choose one of the currently available native tools using current observations. No action has been committed.",
+                        "message": "Plain text is not a tool execution or finish. Apply the current user's supplied parameters with update_parameters, then choose available tools from actual observations. Use ask_user for a genuine ambiguity after applying known facts. Finish only through an explicit finish tool call. No action has been committed.",
                     }
                     self.store.record(actor, task_id, "protocol_feedback", feedback)
                     messages.append(

@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import timedelta
 
 from app.agent_runtime.workbench_tools import ToolCatalog
@@ -59,3 +60,38 @@ def test_editable_preview_remains_active_but_cancelled_task_does_not(tmp_path):
         changed = {**task, "status": "COMPLETED"}
         assert w.service.is_active(changed)
         assert not w.service.is_active({**changed, "status": "CANCELLED"})
+
+
+def test_model_prose_does_not_execute_or_finish_a_business_turn(tmp_path):
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        task = w.service.create(
+            {"kind": "loan", "execution_ceiling": "PREVIEW_ONLY", "confirmed": True}
+        )
+        messages = []
+
+        async def prose_only(request, **kwargs):
+            messages.append(request)
+            return {"role": "assistant", "content": "I will prepare it now."}
+
+        w.models.chat = prose_only
+
+        async def scenario():
+            run = w.runs.start(
+                "conversation",
+                {
+                    "conversation_id": task["conversation_id"],
+                    "text": "请准备预览",
+                    "message_id": "not-a-finish",
+                },
+            )
+            await w.runs.tasks[run["id"]]
+            assert w.runs.get(run["id"])["status"] == "failed"
+            assert "MODEL_ACTION_REQUIRED" in w.runs.get(run["id"])["error"]
+
+        asyncio.run(scenario())
+        assert len(messages) == 2
+        assert json.loads(messages[1][-1]["content"])["code"] == "MODEL_ACTION_REQUIRED"
+        current = w.service.view(task["task_id"])
+        assert not current.get("preview") and not current.get("receipt")
+        assert w.conversations.turns(task["conversation_id"])[0]["status"] == "FAILED"
