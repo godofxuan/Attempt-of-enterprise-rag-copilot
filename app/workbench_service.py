@@ -209,7 +209,7 @@ class TaskService:
                     if len(result)==3:return result
         return result
 
-    def choose_asset(self,task_id,asset_id,revision,date_shift_days=0):
+    def choose_asset(self,task_id,asset_id,revision,date_shift_days=0,*,origin='USER_UI'):
         actor=local_actor()
         task=self.store.get_task(actor,task_id)
         if task['guided_request']['kind']=='repair':
@@ -241,7 +241,7 @@ class TaskService:
                         pending_proposal_id=None,status='NEW')
             self.store._invalidate_derived(db,task,'user_asset_selection')
             self.store._save(db,task)
-            self.store._event(db,task_id,'user_asset_selection',{'asset_id':asset_id,'authority':'USER_UI'})
+            self.store._event(db,task_id,'user_asset_selection',{'asset_id':asset_id,'authority':origin})
         return self.view(task_id)
 
     def submit(self,task_id,payload):

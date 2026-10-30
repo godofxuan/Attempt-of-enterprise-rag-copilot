@@ -59,7 +59,7 @@ def test_docx_locations_survive_index_guard_and_publication_without_markdown_rep
             assert 'answer' not in kwargs['response_format']['properties']
             assert kwargs['response_format']['properties']['need_status']['required']==['N1']
             uses={uid:[] for uid in kwargs['response_format']['properties']['unit_uses']['required']};uses[unit[1]]=['N1']
-            return json.dumps({'unit_uses':uses,'need_status':{'N1':{'status':'supported','subject_matches':True,
+            return json.dumps({'unit_uses':uses,'need_status':{'N1':{'selection_scope':'linked_units','status':'supported','subject_matches':True,
                     'attribute_matches':True,'conditions_preserved':True}}})
         response=GenerationV2ResponseBuilder(chat_fn=saved_shape,model='EXPLICIT_TEST_SHAPE_NOT_LIVE',nonce_factory=lambda:TEST_NONCE,max_attempts=1,need_first_wire=True).build(
             question=question,state=state,mode='answered',stop_reason='completed',trace={})

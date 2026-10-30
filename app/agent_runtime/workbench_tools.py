@@ -106,13 +106,13 @@ class ToolCatalog:
                 store._save(db,updated)
             service.workspace.runs.event(run_id,'field_changes',{'changes':changes,'facts_revision':view['facts_revision']})
             return {'facts':view['facts'],'facts_revision':view['facts_revision'],'changed':changes}
-        if name=='select_asset':return service.choose_asset(task_id,args['asset_id'],current['facts_revision'])
+        if name=='select_asset':return service.choose_asset(task_id,args['asset_id'],current['facts_revision'],origin='MODEL_TOOL_SELECTION')
         if name=='prepare_preview':
             domain=service_for(current)
             if domain.selection_field:
                 given=(args.get('parameters') or {}).get(domain.selection_field)
                 if given and given!=args['asset_id']:raise ServiceError('USER_ASSET_SELECTION_MISMATCH')
-                service.choose_asset(task_id,args['asset_id'],current['facts_revision'])
+                service.choose_asset(task_id,args['asset_id'],current['facts_revision'],origin='MODEL_TOOL_TARGET')
                 current=store.get_task(actor,task_id)
                 with store.transaction() as db:
                     bound=store._task(db,actor,task_id)
