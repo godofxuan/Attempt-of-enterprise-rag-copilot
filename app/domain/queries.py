@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-MAX_USER_QUESTION_CHARS = 2000
-
 from datetime import date
 from typing import Annotated, Literal
 
@@ -14,7 +12,9 @@ from pydantic import (
     model_validator,
 )
 
-from app.domain.documents import DocumentStatus, SourceLocator,SourceSpan
+from app.domain.documents import DocumentStatus, SourceLocator, SourceSpan
+
+MAX_USER_QUESTION_CHARS = 2000
 
 QueryIntent = Literal[
     "fact",
@@ -149,7 +149,7 @@ class SearchHit(StrictModel):
     source_path: str = Field(min_length=1)
     section_path: list[str] = Field(min_length=1)
     locator: SourceLocator | None = None
-    source_spans:list[SourceSpan]=Field(default_factory=list)
+    source_spans: list[SourceSpan] = Field(default_factory=list)
     matched_text: str = Field(min_length=1)
     context_text: str = Field(min_length=1)
     context_from_parent: bool = False
@@ -273,7 +273,7 @@ class OpenResult(StrictModel):
     start_char: int = Field(default=0, ge=0, le=10_000_000)
     source_path: str = Field(min_length=1)
     section_path: list[str] = Field(default_factory=list)
-    source_spans:list[SourceSpan]=Field(default_factory=list)
+    source_spans: list[SourceSpan] = Field(default_factory=list)
 
     @field_validator("content")
     @classmethod

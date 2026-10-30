@@ -1571,6 +1571,49 @@
         }
       }
     },
+    "/api/product/runs/{run_id}/events": {
+      "get": {
+        "summary": "Run Events",
+        "operationId": "run_events_api_product_runs__run_id__events_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunEventView"
+                  },
+                  "title": "Response Run Events Api Product Runs  Run Id  Events Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/product/shutdown": {
       "post": {
         "summary": "Shutdown",
@@ -3074,6 +3117,56 @@
           "reviewed"
         ],
         "title": "ResolveUpdate"
+      },
+      "RunEventView": {
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "title": "Seq"
+          },
+          "actor": {
+            "type": "string",
+            "enum": [
+              "model",
+              "tool",
+              "program"
+            ],
+            "title": "Actor"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "observation": {
+            "type": "string",
+            "title": "Observation"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seq",
+          "actor",
+          "action",
+          "status",
+          "observation"
+        ],
+        "title": "RunEventView"
       },
       "SelectAsset": {
         "properties": {

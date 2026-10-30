@@ -28,6 +28,12 @@ from app.service_desk.views import task_view
 def product_router(workspace, service_call):
     router = APIRouter(prefix="/api/product")
 
+    from app.runtime.run_views import RunEventView, project_run_events
+
+    @router.get("/runs/{run_id}/events", response_model=list[RunEventView])
+    def run_events(run_id: str):
+        return service_call(lambda: project_run_events(workspace.runs.events(run_id)))
+
     @router.post("/shutdown")
     def shutdown():
         callback = getattr(workspace, "request_shutdown", None)

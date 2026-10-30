@@ -34,12 +34,23 @@ export function useRun(runId: string | null, onFinished: () => void) {
           const row = JSON.parse((event as MessageEvent).data);
           cursor = row.seq;
           sessionStorage.setItem("esa-cursor-" + runId, String(cursor));
+          if (
+            [
+              "model_decision",
+              "tool_result",
+              "preview_ready",
+              "field_changes",
+            ].includes(row.kind)
+          )
+            cache.invalidateQueries({ queryKey: ["run-events", runId] });
           setProgress(
-            row.kind === "queued"
-              ? "等待处理"
-              : row.kind === "running"
-                ? "正在检索资料或处理事项"
-                : "正在读取结果",
+            row.kind === "progress" && row.data?.tool
+              ? "执行工具：" + row.data.tool
+              : row.kind === "queued"
+                ? "等待处理"
+                : row.kind === "running"
+                  ? "正在检索资料或处理事项"
+                  : "正在读取结果",
           );
           if (
             ["finished", "failed", "cancelled", "interrupted"].includes(

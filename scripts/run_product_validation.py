@@ -40,6 +40,7 @@ def main():
             "build",
             "release-validation",
             "patch-validation",
+            "candidate-validation",
         ],
     )
     parser.add_argument("--expected-instance")
@@ -72,11 +73,11 @@ def main():
         )
     elif args.operation == "build":
         command(sys.executable, "-B", "-X", "utf8", "scripts/build_windows_portable.py")
-    elif args.operation in {"release-validation", "patch-validation"}:
+    elif args.operation in {"release-validation", "patch-validation", "candidate-validation"}:
         import httpx
 
         assert args.artifact and args.artifact.resolve().is_relative_to(DATA / "build/releases")
-        patch = args.operation == "patch-validation"
+        patch = args.operation in {"patch-validation", "candidate-validation"}
         identity = args.artifact.stem.rsplit("-", 1)[-1]
         if patch:
             command(
@@ -90,6 +91,8 @@ def main():
                 "tests/product/test_turn_recovery.py",
                 "tests/product/test_context_and_clarification.py",
                 "tests/product/test_launcher.py",
+                "tests/product/test_index_admission_clock.py",
+                "tests/product/test_run_event_view.py",
                 "tests/agent_v2/test_a1_draft_delivery.py",
                 "tests/agent_v2/test_cited_packet_completeness.py",
                 "-q",
@@ -152,6 +155,29 @@ def main():
                 ),
                 "utf8",
             )
+        if args.operation == "candidate-validation":
+            command(
+                sys.executable, "-B", "-X", "utf8", "-m", "tests.product.live_mixed_and_followup"
+            )
+            result = max(EVIDENCE.glob("MIXED_FOLLOWUP_*.json"), key=lambda p: p.stat().st_mtime)
+            direct = next(
+                r
+                for r in json.loads(result.read_text("utf8"))["cases"]
+                if r["name"] == "normal_direct_current_candidate"
+            )
+            resume = EVIDENCE / ("FINAL_UI_ANSWER_" + identity + ".json")
+            resume.write_text(
+                json.dumps(
+                    {"answer": direct["run"]["result"], "same_version_api_evidence": str(result)},
+                    ensure_ascii=False,
+                ),
+                "utf8",
+            )
+            os.environ["NODE_PATH"] = str(ROOT / "frontend/node_modules")
+            command(NODE, "tests/product/live_050_journey.cjs", resume)
+            journey = max(EVIDENCE.glob("LIVE_050_*.json"), key=lambda p: p.stat().st_mtime)
+            command(NODE, "tests/product/browser_final_readback.cjs", journey)
+            return
         command(
             sys.executable,
             "-B",

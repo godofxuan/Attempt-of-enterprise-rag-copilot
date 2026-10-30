@@ -14,6 +14,7 @@ import {
 import { AnswerView } from "../components/AnswerView";
 import { Drawer, ErrorNotice, Parameters } from "../components/common";
 import { useRun } from "../api/useRun";
+import { RunTrace } from "../components/RunTrace";
 export function Assistant({
   drafts,
   setDraft,
@@ -234,6 +235,7 @@ export function Assistant({
           </button>
         </div>
       )}
+      <RunTrace id={runId || runs.data?.[0]?.id} />
       <form
         className="composer"
         onSubmit={(e) => {

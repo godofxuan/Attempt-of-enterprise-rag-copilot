@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio, json, hashlib, os, re, uuid
 from collections import Counter
-from datetime import date
+from datetime import datetime, timezone
 from pathlib import Path
 from app.knowledge.common import identifier, named_source_scope
 
@@ -140,7 +140,8 @@ class JobsOperations:
                 "version_id": doc["id"],
                 "version": str(doc["version"]),
                 "status": "active",
-                "effective_from": details.get("effective_from") or date.today().isoformat(),
+                "effective_from": details.get("effective_from")
+                or datetime.now(timezone.utc).date().isoformat(),
                 "authority": 100,
                 "actual_department": "local",
                 "filed_department": "local",

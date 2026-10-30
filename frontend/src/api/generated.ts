@@ -656,6 +656,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/product/runs/{run_id}/events": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Run Events */
+    get: operations["run_events_api_product_runs__run_id__events_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/product/shutdown": {
     parameters: {
       query?: never;
@@ -1299,6 +1316,26 @@ export interface components {
       expected_facts_revision: number;
       /** Reviewed */
       reviewed: boolean;
+    };
+    /** RunEventView */
+    RunEventView: {
+      /** Seq */
+      seq: number;
+      /**
+       * Actor
+       * @enum {string}
+       */
+      actor: "model" | "tool" | "program";
+      /** Action */
+      action: string;
+      /** Status */
+      status: string;
+      /** Observation */
+      observation: string;
+      /** Details */
+      details?: {
+        [key: string]: unknown;
+      } | null;
     };
     /** SelectAsset */
     SelectAsset: {
@@ -2848,6 +2885,37 @@ export interface operations {
         };
         content: {
           "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  run_events_api_product_runs__run_id__events_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunEventView"][];
         };
       };
       /** @description Validation Error */
