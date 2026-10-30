@@ -18,6 +18,7 @@ class Service:
     rule_need: str
     goal: str
     output_meanings: dict | None = None
+    selection_field:str|None=None
 
     def bindings(self,rule,asset,extra):
         result={'asset_version':asset['version']}
@@ -97,7 +98,7 @@ REPAIR=Service('repair','本地合成 IT 报修',RepairFacts,(('asset_id','本�
  'it_repair_tickets','create_repair','OPEN','待服务台受理，尚未完成维修；仅保存于本地合成 TEST 系统。','repair_policy',
  'IT报修：查询本人设备、报修规则和本人报修工单。',{'asset_status':'读取当前身份本人的有效IT设备，不查询借用库存。',
  'ticket_status':'读取当前身份本人的IT报修工单，包括正确的空列表。',
- 'open_application':'按设备、描述和影响程度准备报修预览；用户精确确认后提交一次并读回OPEN待受理工单，不宣称维修完成。'})
+ 'open_application':'按设备、描述和影响程度准备报修预览；用户精确确认后提交一次并读回OPEN待受理工单，不宣称维修完成。'},selection_field='asset_id')
 SERVICES={service.key:service for service in (LOAN,REPAIR)}
 
 

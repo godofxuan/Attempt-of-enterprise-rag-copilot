@@ -109,11 +109,22 @@ class ToolCatalog:
             return {'facts':view['facts'],'facts_revision':view['facts_revision'],'changed':changes}
         if name=='select_asset':return service.choose_asset(task_id,args['asset_id'],current['facts_revision'])
         if name=='prepare_preview':
+            domain=service_for(current)
+            if domain.selection_field:
+                given=(args.get('parameters') or {}).get(domain.selection_field)
+                if given and given!=args['asset_id']:raise ServiceError('USER_ASSET_SELECTION_MISMATCH')
+                service.choose_asset(task_id,args['asset_id'],current['facts_revision'])
+                current=store.get_task(actor,task_id)
+                with store.transaction() as db:
+                    bound=store._task(db,actor,task_id)
+                    bound.setdefault('fact_sources',{})[domain.selection_field]={
+                        'origin':'MODEL_TOOL_TARGET_VALIDATED_OWNED_RESOURCE','value':args['asset_id'],
+                        'source_message_id':self.turn['id'] if self.turn else None}
+                    store._save(db,bound)
             if self.turn and 'parameters' in args:
                 await self.call('update_parameters',{'changes':args['parameters']},current,run_id)
                 current=store.get_task(actor,task_id)
             if current.get('preferred_asset_id') and args['asset_id']!=current['preferred_asset_id']:raise ServiceError('USER_ASSET_SELECTION_MISMATCH')
-            domain=service_for(current)
             refs=[e['ref'] for e in current.get('knowledge',{}).values() if e['need_refs']==[domain.rule_need]]
             return store.propose(actor,task_id,args['asset_id'],refs,_record_tool_result=True)
         if name=='knowledge_answer':

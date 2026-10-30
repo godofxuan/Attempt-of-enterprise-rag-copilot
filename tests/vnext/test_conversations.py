@@ -104,11 +104,12 @@ def test_prepare_in_user_turn_consumes_typed_fields_through_same_update_path(tmp
         task=w.service.create({'kind':'repair','execution_ceiling':'PREVIEW_ONLY','confirmed':True})
         fields={'asset_id':'employee-laptop-1','description':'程序测试故障描述','impact':'high'}
         w.models=SequenceModel([('repair_policy',{}),('assets_search',{}),('tickets_list_mine',{})],
-            [('prepare_preview',{'asset_id':'employee-laptop-1','parameters':fields})],[('finish',{})])
+            [('prepare_preview',{'asset_id':'employee-laptop-1','parameters':{k:v for k,v in fields.items() if k!='asset_id'}})],[('finish',{})])
         result=await w.service.message(task['task_id'],'本回合提供设备、描述和高影响，请准备预览','typed-preview-turn',task['facts_revision'])
         assert result['facts']==fields and result['preview']['content']['parameters']==fields
         assert result['preview']['content']['execution_ceiling']=='PREVIEW_ONLY' and not result['receipt']
         assert all(result['fact_sources'][key]['source_message_id']=='typed-preview-turn' for key in fields)
+        assert result['fact_sources']['asset_id']['origin']=='MODEL_TOOL_TARGET_VALIDATED_OWNED_RESOURCE'
         with pytest.raises(ServiceError,match='EXECUTION_CEILING'):
             w.service.store.confirm(local_actor(),task['task_id'],result['preview']['proposal_id'],result['preview']['content_digest'],True)
         await w.runs.close()

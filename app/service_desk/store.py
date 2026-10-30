@@ -873,10 +873,13 @@ class ServiceDeskStore:
                 else:task['facts'][key]=value
             field_event=None
             if task.get('interaction_mode')=='guided':
+                retained_sources={key:value for key,value in task.get('fact_sources',{}).items()
+                                  if key not in values and key in task['facts']}
                 field_event=uuid4().hex
                 task.setdefault('guided_field_events',{}).update({k:field_event for k in values})
                 task['guided_request']['facts']=dict(task['facts'])
                 self._refresh_guided(task)
+                task['fact_sources'].update(retained_sources)
             task.setdefault('fact_sources',{}).update(sources)
             task['facts_revision'] += 1
             self._invalidate_derived(db,task,'facts_changed')
