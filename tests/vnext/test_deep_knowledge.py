@@ -51,3 +51,14 @@ def test_deep_plan_is_bounded_and_cannot_accept_model_identity_or_filter_overrid
     with pytest.raises(ValidationError):DeepPlan.model_validate({'subquestions':[], 'user':'operator'})
     with pytest.raises(ValidationError):DeepPlan.model_validate({'subquestions':[
         {'question':'same','query':'same','read_hint':''},{'question':'same','query':'same','read_hint':''}]})
+
+def test_planning_wire_requires_real_catalog_identity_and_rejects_invented_ids():
+    import asyncio,json
+    from app.agent.deep_knowledge import plan_deep
+    class Model:
+        async def chat(self,messages,**kwargs):
+            row=kwargs['response_format']['$defs']['Subquestion']
+            assert 'policy_ids' in row['required'] and row['properties']['policy_ids']['items']['enum']==['real-published-family']
+            return {'content':json.dumps({'subquestions':[{'question':'A real question','query':'A real search','policy_ids':['invented-family']}]})}
+    with pytest.raises(ValueError,match='UNBOUND_PLANNED_POLICY'):
+        asyncio.run(plan_deep(Model(),'Original user question',[],[{'policy_id':'real-published-family','title':'Published source'}]))

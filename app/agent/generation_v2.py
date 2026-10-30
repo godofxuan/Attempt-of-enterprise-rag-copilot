@@ -1059,8 +1059,6 @@ def _generation_messages(
         {
             "intent": state.analysis.intent,
             "question": question,
-            **({'investigation_questions':state.analysis.required_aspects}
-               if state.analysis.source=='model' else {}),
             **({"clarification_replies_untrusted": state.clarification_replies}
                if state.clarification_replies else {}),
             **(
