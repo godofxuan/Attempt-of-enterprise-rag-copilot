@@ -123,13 +123,10 @@ class ToolCatalog:
                 if task["user_execution_ceiling"] != "READ_ONLY":
                     properties = {"asset_id": {"type": "string"}}
                     required = ("asset_id",)
-                    if turn:
-                        properties["parameters"] = domain.facts_type.model_json_schema()
-                        required += ("parameters",)
                     tools.append(
                         Tool(
                             "prepare_preview",
-                            "Prepare a real stored preview, never just describe one. In a user turn include the typed parameters supplied or changed by that user; host applies them before preparation. Complete other requested knowledge first. Does not submit.",
+                            "Prepare a real stored preview from the CURRENT stored facts and this eligible asset. Apply user-requested changes with update_parameters first; preparation cannot change dates, purpose or preferences. Complete requested knowledge first. Does not submit.",
                             properties,
                             required,
                         )
@@ -348,7 +345,7 @@ class ToolCatalog:
         if name == "prepare_preview":
             domain = service_for(current)
             if domain.selection_field:
-                given = (args.get("parameters") or {}).get(domain.selection_field)
+                given = current["facts"].get(domain.selection_field)
                 if given and given != args["asset_id"]:
                     raise ServiceError("USER_ASSET_SELECTION_MISMATCH")
                 service.choose_asset(
@@ -363,16 +360,16 @@ class ToolCatalog:
                         "source_message_id": self.turn["id"] if self.turn else None,
                     }
                     store._save(db, bound)
-            if self.turn and "parameters" in args:
-                await self.call(
-                    "update_parameters", {"changes": args["parameters"]}, current, run_id
-                )
-                current = store.get_task(actor, task_id)
             if (
                 current.get("preferred_asset_id")
                 and args["asset_id"] != current["preferred_asset_id"]
             ):
                 raise ServiceError("USER_ASSET_SELECTION_MISMATCH")
+            if not current.get("preferred_asset_id") and not domain.selection_field:
+                service.choose_asset(
+                    task_id, args["asset_id"], current["facts_revision"], origin="MODEL_TOOL_TARGET"
+                )
+                current = store.get_task(actor, task_id)
             refs = [
                 e["ref"]
                 for e in current.get("knowledge", {}).values()

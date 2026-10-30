@@ -103,8 +103,8 @@ def test_prepare_in_user_turn_consumes_typed_fields_through_same_update_path(tmp
         w=workspace(tmp_path);w.conversations=ConversationService(w)
         task=w.service.create({'kind':'repair','execution_ceiling':'PREVIEW_ONLY','confirmed':True})
         fields={'asset_id':'employee-laptop-1','description':'程序测试故障描述','impact':'high'}
-        w.models=SequenceModel([('repair_policy',{}),('assets_search',{}),('tickets_list_mine',{})],
-            [('prepare_preview',{'asset_id':'employee-laptop-1','parameters':{k:v for k,v in fields.items() if k!='asset_id'}})],[('finish',{})])
+        w.models=SequenceModel([('update_parameters',{'changes':fields}),('repair_policy',{}),('assets_search',{}),('tickets_list_mine',{})],
+            [('prepare_preview',{'asset_id':'employee-laptop-1'})],[('finish',{})])
         result=await w.service.message(task['task_id'],'本回合提供设备、描述和高影响，请准备预览','typed-preview-turn',task['facts_revision'])
         assert result['facts']==fields and result['preview']['content']['parameters']==fields
         assert result['preview']['content']['execution_ceiling']=='PREVIEW_ONLY' and not result['receipt']

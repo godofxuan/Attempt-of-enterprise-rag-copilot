@@ -114,7 +114,7 @@ def test_real_preview_is_terminal_for_a_conversational_turn(tmp_path):
         model = SequenceModel(
             [("update_parameters", {"changes": facts}), ("loan_policy", {})],
             [("assets_search", {}), ("tickets_list_mine", {})],
-            [("prepare_preview", {"asset_id": "loan-laptop-1", "parameters": facts})],
+            [("prepare_preview", {"asset_id": "loan-laptop-1"})],
         )
         w.models.chat = model.chat
         result = asyncio.run(
@@ -154,7 +154,7 @@ def test_progress_delivery_preserves_actions_and_continues_to_a_real_preview(tmp
             elif len(packets) == 2:
                 return {"role": "assistant", "content": "The preview is complete and approved."}
             else:
-                actions = [("prepare_preview", {"asset_id": "loan-laptop-1", "parameters": facts})]
+                actions = [("prepare_preview", {"asset_id": "loan-laptop-1"})]
             return {
                 "role": "assistant",
                 "content": "",
@@ -345,3 +345,21 @@ def test_resource_selection_returns_business_data_not_the_task_audit_graph(tmp_p
         )
         assert "events" not in result and "observations" not in result
         assert result["selected_asset_id"] == "loan-laptop-2" and result["facts"] == task["facts"]
+
+
+def test_preparation_cannot_inject_unrequested_fact_changes(tmp_path):
+    import pytest
+    from app.service_desk.store import ServiceError
+
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        day = w.service.store.today() + timedelta(days=3)
+        facts = {'loan_start':str(day),'loan_end':str(day+timedelta(days=1)),'purpose':'保留原参数'}
+        task = w.service.create({'kind':'loan','execution_ceiling':'PREVIEW_ONLY','confirmed':True,'facts':facts})
+        tool = ToolCatalog(w.service, task, {'id':'preview','text':'其余不变'})
+        schema = next(s for s in tool.schemas(task) if s['function']['name']=='prepare_preview')
+        assert set(schema['function']['parameters']['properties']) == {'asset_id'}
+        with pytest.raises(ServiceError, match='INVALID_TOOL_ARGUMENTS'):
+            asyncio.run(tool.call('prepare_preview', {'asset_id':'loan-laptop-2','parameters':{'pickup_location':'unrequested'}}, task, 'program-only'))
+        actual = w.service.view(task['task_id'])
+        assert actual['facts'] == facts and actual['preview'] is None and actual['receipt'] is None

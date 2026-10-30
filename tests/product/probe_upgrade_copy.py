@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 import shutil
 import sqlite3
+from datetime import datetime, timezone
+import sys
 
 import httpx
 from fastapi.testclient import TestClient
@@ -123,8 +125,9 @@ def main():
             "original_documents_resolved_in_copy": checked,
             "old_absolute_paths_not_required": True,
             "passed": True,
+            "application_module": str(Path(sys.modules['app'].__file__).resolve()),
         }
-        (root.parent / "FULL_WORKSPACE_UPGRADE.json").write_text(
+        (root.parent / ("FULL_WORKSPACE_UPGRADE_" + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '.json')).write_text(
             json.dumps(record, ensure_ascii=False, indent=2), "utf8"
         )
         print(json.dumps(record, ensure_ascii=False))
