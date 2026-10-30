@@ -26,6 +26,7 @@ const output=path.join(folder,'S3_UI_'+new Date().toISOString().replace(/[:.]/g,
  async function submit(task){await page.locator('#exactConfirmation').check();const done=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().includes('/tasks/'+task.task_id+'/submit'));await page.locator('#submitCurrent').click();const r=await done;assert(r.ok(),await r.text());return r.json();}
  try{
   record.before=record.before||database();record.resume_calls_before=(await get('/api/status')).generation_calls;if(record.calls_before===undefined)record.calls_before=record.resume_calls_before;delete record.failure;save();await page.goto('http://127.0.0.1:8740/');await page.waitForFunction(()=>document.querySelector('#taskKind').options.length===3);
+  if(process.env.ESA_RESUME_STAGE!=='repair'){
   let task;
   if(!resume){
   // Finish old existing synthetic records through the actual UI, never editing SQL.
@@ -61,7 +62,8 @@ const output=path.join(folder,'S3_UI_'+new Date().toISOString().replace(/[:.]/g,
   let second=await newTask('loan');record.second_loan_task_id=second.task_id;save();
   for(const [key,value] of Object.entries({loan_start:'2026-11-09',loan_end:'2026-11-10',purpose:'归还后同一数据目录再次申请'}))await page.locator('[name='+key+']').fill(value);
   await clickRun(page.getByRole('button',{name:'保存参数',exact:true}),'/runs');second=await refreshTask(second);assert(second.preview);second=await submit(second);record.second_submission=second;save();await deskAction('loan',second.receipt.ticket_id,'withdraw');
-  let repair=await newTask('repair');record.repair_task_id=repair.task_id;save();await clickRun(page.getByRole('button',{name:'继续处理',exact:true}),'/runs');repair=await refreshTask(repair);assert(repair.question.includes('故障')&&repair.question.includes('设备'));
+  }
+  let repair;if(process.env.ESA_RESUME_STAGE==='repair'){repair=await get('/api/tasks/'+record.repair_task_id);await page.evaluate(id=>{localStorage.setItem('esa-task',id);localStorage.setItem('esa-view','tasks');},repair.task_id);repair=await refreshTask(repair);}else{repair=await newTask('repair');record.repair_task_id=repair.task_id;save();await clickRun(page.getByRole('button',{name:'继续处理',exact:true}),'/runs');repair=await refreshTask(repair);assert(repair.question.includes('故障')&&repair.question.includes('设备'));}
   const repairForm=page.locator('#taskDetail form').filter({has:page.getByRole('heading',{name:'当前会话消息',exact:true})});record.repair_input='我的设备编号是employee-laptop-1，屏幕间歇闪烁，影响程度高。请按当前任务准备报修预览。';
   await repairForm.locator('textarea').fill(record.repair_input);await clickRun(repairForm.getByRole('button',{name:'发送消息',exact:true}),'/messages');repair=await refreshTask(repair);record.repair_normalized=repair;save();
   if(!repair.preview){await clickRun(page.getByRole('button',{name:'继续处理',exact:true}),'/runs');repair=await refreshTask(repair);}

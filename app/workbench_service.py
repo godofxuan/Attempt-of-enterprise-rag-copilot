@@ -278,7 +278,15 @@ class TaskService:
             self.store._live(task)
             missing=[k for k in self.required_fields(task) if not task['facts'].get(k)]
             task['question']=service_for(task).questions(missing) if missing else None
-            task['assistant_text']=text
+            # Raw prose remains in model_response events. Business delivery is
+            # assembled from actual changed facts, published knowledge and preview.
+            parts=[]
+            if task.get('knowledge_result'):parts.append(task['knowledge_result']['result']['answer'])
+            if task.get('receipt'):parts.append('当前工单状态请见实际业务状态；原提交回执保持不变。')
+            elif task.get('pending_proposal_id'):parts.append('当前完整预览已生成。请核对当前参数；仅当前精确确认才可提交。' if task['user_execution_ceiling']=='SUBMIT_AFTER_CONFIRMATION' else '已生成仅预览内容，不会提交。')
+            elif missing:parts.append(service_for(task).questions(missing))
+            else:parts.append('当前参数：'+encoded(task['facts'])+'。本回合没有生成新的业务回执。')
+            task['assistant_text']='\n'.join(parts) if task['guided_request']['kind']!='knowledge' else text
             task['status']=('COMPLETED' if task.get('receipt') else 'WAITING_CONFIRMATION' if task.get('pending_proposal_id')
                 and task['user_execution_ceiling']=='SUBMIT_AFTER_CONFIRMATION' else 'WAITING_USER' if missing else 'NEW')
             if task['guided_request']['kind']=='knowledge':

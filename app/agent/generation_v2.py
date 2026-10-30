@@ -297,6 +297,16 @@ class GenerationV2ResponseBuilder:
             sources = _build_prompt_sources(
                 state, max_bytes=max(0, available), audit=response_trace
             )
+            # The wire schema enumerates selected source units and need IDs.
+            # Reconcile its actual size before any send; a static schema estimate
+            # must not consume the last bytes reserved for evidence.
+            for _ in range(3):
+                actual_schema_bytes=len(_safe_compact_json(generation_response_format(sources,state.task_plan)).encode('utf8'))
+                reconciled=MODEL_CONTEXT_FLOOR-MAX_OUTPUT_TOKENS-CHAT_SCHEMA_MARGIN-actual_schema_bytes-overhead-retry_reserve
+                if available<=reconciled:break
+                available=reconciled
+                sources=_build_prompt_sources(state,max_bytes=max(0,available),audit=response_trace)
+            response_trace['prompt_budget'].update(schema_bytes=actual_schema_bytes,evidence_budget_bytes=max(0,available))
             _record_packet_audit(state, sources, response_trace)
             if not sources:
                 raise ValueError("generation requires ledger-selected evidence")

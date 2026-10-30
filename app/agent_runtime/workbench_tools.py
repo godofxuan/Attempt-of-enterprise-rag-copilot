@@ -50,6 +50,11 @@ class ToolCatalog:
     def schemas(self,current=None):
         current=current or self.task
         allowed=set(self.tools)
+        if self.turn and current['guided_request']['kind'] in SERVICES:
+            missing=[f for f in self.service.required_fields(current) if not current['facts'].get(f)]
+            actual=current.get('observations',[])[len(self.task.get('observations',[])):]
+            addressed=any(o['tool'] in {'update_parameters','knowledge_answer'} and o['result'].get('status')=='ok' for o in actual)
+            if missing and not addressed:allowed.discard('finish')
         if not self.turn and current['guided_request']['kind'] in SERVICES:
             from app.workbench_service import local_actor
             if not self.service.store.completion_ready(local_actor(),current['task_id']):allowed.discard('finish')
