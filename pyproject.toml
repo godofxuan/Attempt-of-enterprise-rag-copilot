@@ -23,7 +23,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "enterprise-service-agent"
-version = "0.4.0"
+version = "0.5.0"
 description = "Local enterprise knowledge and guided service workbench"
 requires-python = ">=3.11,<3.13"
 dependencies = [
@@ -48,5 +48,5 @@ include = ["app*"]
 exclude = ["tests*", "scripts*", "streamlit_app*"]
 
 [tool.setuptools.package-data]
-app = ["web/*.html", "web/*.js", "web/*.css", "web/ui/*.js", "resources/*.md"]
+app = ["web/*.html", "web/*.js", "web/*.css", "web/ui/*.js", "web_dist/*.html", "web_dist/assets/*", "resources/*.md"]
 

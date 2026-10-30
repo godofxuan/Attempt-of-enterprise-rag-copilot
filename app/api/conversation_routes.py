@@ -1,6 +1,8 @@
 """Conversation projection; the existing runtime executes all turns."""
 from fastapi import APIRouter
 from pydantic import BaseModel,Field,ConfigDict
+from app.domain.evidence import AnswerResponse
+from app.api.product_routes import PublishedAnswerView, ProposalView, ReceiptView
 
 
 class CreateConversation(BaseModel):
@@ -16,10 +18,45 @@ class ConversationMessage(BaseModel):
     detailed:bool=False
 
 
+class ConversationSummary(BaseModel):
+    id: str
+    title: str | None = None
+    kb_id: str | None = None
+    task_id: str | None = None
+    updated_at: str | None = None
+
+
+class TurnPayload(BaseModel):
+    model_config = ConfigDict(extra='allow')
+    knowledge: PublishedAnswerView | None = None
+    result: AnswerResponse | None = None
+    id: str | None = None
+    preview: ProposalView | None = None
+    receipt: ReceiptView | None = None
+    task_id: str | None = None
+    facts: dict | None = None
+
+
+class TurnView(BaseModel):
+    id: str
+    role: str
+    kind: str
+    text: str
+    status: str
+    payload: TurnPayload | None = None
+    run_id: str | None = None
+
+
+class ConversationView(ConversationSummary):
+    active_task_id: str | None = None
+    task_history: list[str]
+    turns: list[TurnView]
+
+
 def conversation_router(workspace,service_call):
     router=APIRouter(prefix='/api/conversations')
 
-    @router.get('')
+    @router.get('', response_model=list[ConversationSummary])
     def conversations():return workspace.conversations.list()
 
     @router.post('')
@@ -27,7 +64,7 @@ def conversation_router(workspace,service_call):
         if payload.kb_id:workspace.library.require(payload.kb_id)
         return workspace.conversations.create(payload.kb_id,payload.title)
 
-    @router.get('/{cid}')
+    @router.get('/{cid}', response_model=ConversationView)
     def get(cid:str):return service_call(lambda:workspace.conversations.get(cid))
 
     @router.post('/{cid}/turns',status_code=202)

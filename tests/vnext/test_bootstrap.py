@@ -4,17 +4,14 @@ import sqlite3
 import httpx
 from fastapi.testclient import TestClient
 from app.config import Settings
-from app.main import create_app
-from app.runtime.resources import build_service_container
+from app.workbench_app import create_workbench_app
 from app.workspace import initialize
 
 
 def client_for(root):
     initialize(root)
     settings=Settings(workbench_enabled=True,data_dir=root,sqlite_path=root/'app.sqlite3')
-    service=build_service_container(settings)
-    service.resources.start=Mock(side_effect=AssertionError('No expensive legacy startup'))
-    return TestClient(create_app(service))
+    return TestClient(create_workbench_app(settings))
 
 
 def test_missing_identity_and_model_do_not_block_product_pages(tmp_path):
@@ -29,7 +26,7 @@ def test_missing_identity_and_model_do_not_block_product_pages(tmp_path):
         assert status['web'] and status['storage'] and not status['chat']['ready']
         assert status['model_error']['code']=='MODEL_UNAVAILABLE'
         assert client.get('/api/history').status_code==200
-        assert client.post('/agent/v2/chat',json={'question':'policy?'}).status_code in (401,503)
+        assert client.post('/agent/v2/chat',json={'question':'policy?'}).status_code == 404  # Explicit legacy API is not mounted in the product factory.
 
 
 def test_init_and_restart_preserve_same_database_and_settings(tmp_path):

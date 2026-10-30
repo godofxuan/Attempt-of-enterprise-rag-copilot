@@ -1,0 +1,57 @@
+{
+  "note": "Descriptive only: an if statement is not by itself a defect. Compressed source lines are not a measure of simplicity.",
+  "files": [
+    {
+      "path": "app/workspace.py",
+      "lines": 511,
+      "characters": 23594,
+      "max_line_characters": 152,
+      "if_statements": 28,
+      "functions": 60
+    },
+    {
+      "path": "app/conversations.py",
+      "lines": 162,
+      "characters": 10953,
+      "max_line_characters": 174,
+      "if_statements": 19,
+      "functions": 12
+    },
+    {
+      "path": "app/service_desk/store.py",
+      "lines": 2273,
+      "characters": 158102,
+      "max_line_characters": 220,
+      "if_statements": 387,
+      "functions": 84
+    },
+    {
+      "path": "app/agent/generation_v2.py",
+      "lines": 1441,
+      "characters": 68698,
+      "max_line_characters": 198,
+      "if_statements": 112,
+      "functions": 38
+    },
+    {
+      "path": "app/agent_runtime/workbench_agent.py",
+      "lines": 122,
+      "characters": 10104,
+      "max_line_characters": 238,
+      "if_statements": 20,
+      "functions": 3
+    },
+    {
+      "path": "app/web/ui/tasks.js",
+      "lines": 25,
+      "characters": 10081,
+      "max_line_characters": 1168
+    },
+    {
+      "path": "app/web/index.html",
+      "lines": 16,
+      "characters": 5583,
+      "max_line_characters": 935
+    }
+  ]
+}

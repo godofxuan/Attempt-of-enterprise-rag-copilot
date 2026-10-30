@@ -1,0 +1,89 @@
+"""Current product factory with real persistence and only the external answer replaced."""
+import asyncio
+from types import SimpleNamespace
+
+from fastapi.testclient import TestClient
+
+from app.config import Settings
+from app.workspace import initialize
+from app.workbench_app import create_workbench_app
+from app.workbench_service import local_actor
+
+
+def product(root):
+    initialize(root, sample=True)
+    return TestClient(create_workbench_app(Settings(workbench_enabled=True, data_dir=root, sqlite_path=root / 'app.sqlite3')))
+
+
+def test_knowledge_failure_retry_reuses_user_turn(tmp_path):
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        cid = w.conversations.create('test-kb')['id']
+        calls = []
+        async def answer(*args, **kwargs):
+            calls.append(kwargs)
+            if len(calls) == 1:
+                raise ConnectionError('deliberately unavailable external model')
+            return {'id': 'answer-test', 'result': {'answer': 'external adapter test answer'}}
+        w.library.answer = answer
+        async def scenario():
+            payload = {'conversation_id': cid, 'message_id': 'same-user-turn', 'text': '期限有哪些条件？'}
+            first = w.runs.start('conversation', payload)
+            await w.runs.tasks[first['id']]
+            assert w.runs.get(first['id'])['status'] == 'failed'
+            assert w.conversations.turns(cid)[0]['status'] == 'FAILED'
+            second = w.runs.start('conversation', payload)
+            await w.runs.tasks[second['id']]
+            assert w.runs.get(second['id'])['status'] == 'succeeded'
+            turns = w.conversations.turns(cid)
+            assert len([t for t in turns if t['role'] == 'user']) == 1
+            assert turns[0]['status'] == 'DONE'
+            assert len(w.conversations.coordinator.attempts('same-user-turn')) == 2
+        asyncio.run(scenario())
+
+
+def test_cancelled_knowledge_turn_is_terminal_and_retryable(tmp_path):
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        cid = w.conversations.create('test-kb')['id']
+        async def scenario():
+            entered = asyncio.Event()
+            async def answer(*args, **kwargs):
+                entered.set()
+                await asyncio.Event().wait()
+            w.library.answer = answer
+            run = w.runs.start('conversation', {'conversation_id': cid, 'message_id': 'cancel-one', 'text': '规则？'})
+            handle = w.runs.tasks[run['id']]
+            await asyncio.wait_for(entered.wait(), 2)
+            w.runs.cancel(run['id'])
+            await handle
+            assert w.runs.get(run['id'])['status'] == 'cancelled'
+            assert w.conversations.turns(cid)[0]['status'] == 'CANCELLED'
+        asyncio.run(scenario())
+
+
+def test_cancelled_task_does_not_capture_later_knowledge_or_reopen(tmp_path):
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        cid = w.conversations.create('test-kb')['id']
+        task = w.service.create({'kind': 'loan', 'execution_ceiling': 'PREVIEW_ONLY', 'confirmed': True}, kb_id='test-kb', conversation_id=cid)
+        w.service.store.cancel_task(local_actor(), task['task_id'])
+        calls = []
+        async def answer(*args, **kwargs):
+            calls.append(args)
+            return {'id': 'after-cancel', 'result': {'answer': 'knowledge after cancellation'}}
+        w.library.answer = answer
+        result = asyncio.run(w.conversations.turn(cid, '现在只解释制度', 'after-cancel'))
+        assert result['id'] == 'after-cancel' and len(calls) == 1
+        assert w.service.view(task['task_id'])['status'] == 'CANCELLED'
+        assert w.conversations.get(cid)['active_task_id'] is None
+        assert task['task_id'] in w.conversations.get(cid)['task_history']
+
+
+def test_restart_marks_orphan_turn_interrupted_without_duplication(tmp_path):
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        cid = w.conversations.create('test-kb')['id']
+        w.conversations.append(cid, 'user', 'message', '保留的原始问题', turn_id='orphan', status='PENDING')
+    with product(tmp_path) as client:
+        assert client.app.state.workspace.conversations.turns(cid)[0]['status'] == 'INTERRUPTED'

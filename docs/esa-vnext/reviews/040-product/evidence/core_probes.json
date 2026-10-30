@@ -1,0 +1,67 @@
+{
+  "source": "/mnt/data/esa040_review/input/source",
+  "python": "3.13.5",
+  "supported_source_python": "3.11/3.12; current independent runner is 3.13.5, not a pinned install",
+  "scope": "Real domain and persistence code, isolated synthetic data. No real LLM, embeddings, FastAPI launch or full browser E2E is claimed.",
+  "results": [
+    {
+      "id": "loan_full_lifecycle",
+      "result": "PASS",
+      "mode": "real domain and SQLite, no LLM",
+      "states": [
+        "PENDING_APPROVAL",
+        "RESERVED",
+        "CHECKED_OUT",
+        "CHECKED_OUT",
+        "RETURNED"
+      ],
+      "counts": {
+        "tickets": 2,
+        "active_reservations": 0
+      },
+      "reopen_workspace_preserves_returned": true
+    },
+    {
+      "id": "repair_full_lifecycle",
+      "result": "PASS",
+      "mode": "real domain and SQLite, no LLM",
+      "states": [
+        "OPEN",
+        "IN_PROGRESS",
+        "RESOLVED",
+        "CLOSED",
+        "OPEN",
+        "IN_PROGRESS",
+        "RESOLVED",
+        "CLOSED"
+      ],
+      "counts": {
+        "repair_tickets": 1,
+        "loan_tickets": 0
+      }
+    },
+    {
+      "id": "knowledge_failure_status",
+      "result": "DEFECT_REPRODUCED",
+      "mode": "real Runs/ConversationService, injected library ConnectionError",
+      "run_status": "failed",
+      "user_turn_status": "PENDING",
+      "same_message_retry": "ServiceError: MESSAGE_NOT_APPLIED"
+    },
+    {
+      "id": "knowledge_cancel_status",
+      "result": "DEFECT_REPRODUCED",
+      "mode": "real cancellation, injected pending library task",
+      "run_status": "cancelled",
+      "user_turn_status": "PENDING"
+    },
+    {
+      "id": "chat_after_task_cancel",
+      "result": "DEFECT_REPRODUCED",
+      "mode": "real conversation/task routing, synthetic knowledge answer never used",
+      "error": "ServiceError: CANCELLED",
+      "knowledge_calls": 0,
+      "bound_task_status": "WAITING_USER"
+    }
+  ]
+}

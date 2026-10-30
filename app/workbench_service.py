@@ -150,7 +150,8 @@ class TaskService:
             task=self.store._task(db,actor,task_id)
             if task.get('pending_user_update')!=message_id:return
             db.execute("UPDATE workbench_messages SET status='FAILED',result=? WHERE id=? AND status='PENDING'",(error,message_id))
-            task.update(status='WAITING_USER',last_error='USER_UPDATE_PENDING')
+            if task['status'] not in {'CANCELLED','COMPLETED'}:
+                task.update(status='WAITING_USER',last_error='USER_UPDATE_PENDING')
             self.store._save(db,task)
             self.store._event(db,task_id,'user_update_failed',{'message_id':message_id,'error':error})
 
@@ -161,7 +162,7 @@ class TaskService:
             if task.get('pending_user_update')!=message_id:return
             task.pop('pending_user_update',None)
             db.execute("UPDATE workbench_messages SET status='CANCELLED' WHERE id=? AND status='PENDING'",(message_id,))
-            if task['status']!='CANCELLED':task.update(status='WAITING_USER',last_error='MESSAGE_CANCELLED')
+            if task['status'] not in {'CANCELLED','COMPLETED'}:task.update(status='WAITING_USER',last_error='MESSAGE_CANCELLED')
             self.store._save(db,task)
             self.store._event(db,task_id,'user_update_cancelled',{'message_id':message_id,'applied':False})
 

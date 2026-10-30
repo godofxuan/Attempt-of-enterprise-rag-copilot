@@ -1,0 +1,19 @@
+{
+  "source_archive": "ESA_040_AUDIT_20261030_5ff9aac2.zip",
+  "source_commit_as_declared": "5ff9aac2087d8fcfdfd547035cef356d820a52ce",
+  "audit_date": "2026-10-30",
+  "python_available": "3.13.5",
+  "python_required_by_project": ">=3.11,<3.13",
+  "isolated_python_312_download": "BLOCKED_DNS",
+  "pinned_full_env": "NOT_CREATED",
+  "narrow_original_pytest": {
+    "passed": 8,
+    "blocked_dependency_failures": 2,
+    "reason": "test helper imports app.main legacy factory, then absent jieba",
+    "do_not_count_as_confirmed_product_defects": true
+  },
+  "browser": "system Chromium 144.0.7559.96; navigation restricted; original DOM/CSS/JS rendered offline via Blob modules; fetch and localStorage adapters are explicit fixtures",
+  "live_llm_or_embedding_calls": 0,
+  "user_project_modified": false,
+  "user_databases_modified": false
+}

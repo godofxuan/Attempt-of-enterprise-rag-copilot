@@ -5,8 +5,8 @@ Do not restore retired historical directories, reset dirty work or overwrite lat
 
 ## Current Goal
 
-Continue from completed0.2.0 into `docs/esa-vnext/reviews/020-next/GOAL.md`,
-U01-U24: deliver0.3 unified conversation/knowledge, then0.4 local service lifecycle.
+Continue current0.4 and later effective edits into `docs/esa-vnext/reviews/040-product/GOAL.md`,
+W01-W32: deliver0.5 one-click React product, then0.6 maintainable verified release.
 Preserve earlier R1/R2 results. The sole implementation
 progress record is `docs/esa-vnext/STATUS.md`; preserve earlier actual progress.
 

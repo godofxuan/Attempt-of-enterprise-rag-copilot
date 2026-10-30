@@ -1,0 +1,39 @@
+{
+  "scope": "Offline synthetic UI prototype only; not ESA implementation or live backend E2E",
+  "browser": "system Chromium",
+  "checks": [
+    {
+      "case": "desktop_has_one_composer",
+      "pass": true
+    },
+    {
+      "case": "task_drawer",
+      "pass": true
+    },
+    {
+      "case": "route_returns_one_composer",
+      "pass": true
+    },
+    {
+      "case": "simulated_confirmation_label",
+      "pass": true
+    },
+    {
+      "case": "setup_closes_to_assistant",
+      "pass": true
+    },
+    {
+      "case": "sample_restored_after_new_chat",
+      "pass": true
+    },
+    {
+      "case": "no_horizontal_overflow_1366",
+      "pass": true
+    },
+    {
+      "case": "no_horizontal_overflow_390",
+      "pass": true
+    }
+  ],
+  "javascript_errors": []
+}

@@ -85,7 +85,11 @@ class Workspace:
         self.settings = settings
         self.root = settings.data_dir.resolve()
         self.db_path = settings.sqlite_path.resolve()
-        self.config = load_config(self.root)
+        self.configuration_error=None
+        try:self.config = load_config(self.root)
+        except (ValueError,OSError) as exc:
+            self.configuration_error={'message':'工作区配置需要修复，原文件保持未改。请到设置核对并保存。','detail':str(exc)}
+            self.config=WorkspaceConfig()
         self.started = False
         self.client = None
 
@@ -138,17 +142,21 @@ class Workspace:
                 "chat":{"ready":self.config.chat_model.removesuffix(":latest") in found,"model":self.config.chat_model},
                 "embedding":{"ready":self.config.embedding_model.removesuffix(":latest") in found,"model":self.config.embedding_model},
                 "model_error":error,"mode":"SYNTHETIC_LOCAL" if self.config.sample_data else "LOCAL_OWNER",
-                "generation_calls":calls}
+                "generation_calls":calls,'configuration_error':self.configuration_error}
 
     def save_settings(self, changes):
         if getattr(self,'runs',None) and (self.runs.tasks or self.library.running):
             raise WorkspaceError(409,'SETTINGS_IN_USE',{'reason':'请先完成或停止当前运行/索引任务，再修改模型连接'})
         updated = self.config.model_copy(update=changes)
         updated = WorkspaceConfig.model_validate(updated.model_dump())
+        if self.configuration_error:
+            import shutil
+            shutil.copy2(self.root/'workspace.json',self.root/('workspace.invalid.'+datetime.now().strftime('%Y%m%d%H%M%S%f')+'.json'))
         temp = self.root/"workspace.json.tmp"
         temp.write_text(updated.model_dump_json(indent=2)+"\n", encoding="utf8")
         temp.replace(self.root/"workspace.json")
         self.config = updated
+        self.configuration_error=None
         return updated.model_dump()
 
 
@@ -278,7 +286,9 @@ def workspace_router(workspace):
 
     @router.get("/", include_in_schema=False)
     def home():
-        return FileResponse(Path(__file__).with_name("web")/"index.html", headers={"Cache-Control":"no-store"})
+        frontend=Path(__file__).with_name('web_dist')/'index.html'
+        if not frontend.is_file():raise WorkspaceError(503,'FRONTEND_NOT_BUILT')
+        return FileResponse(frontend, headers={"Cache-Control":"no-store"})
 
     @router.get("/api/status")
     async def status(): return await workspace.status()
@@ -508,4 +518,6 @@ def workspace_router(workspace):
 
     from app.api.conversation_routes import conversation_router
     router.include_router(conversation_router(workspace,service_call))
+    from app.api.product_routes import product_router
+    router.include_router(product_router(workspace,service_call))
     return router

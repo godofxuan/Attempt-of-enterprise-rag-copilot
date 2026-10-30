@@ -1,5 +1,18 @@
 # ESA vNext Current Status
 
+## 当前实施：0.5 / 0.6 产品化（W01–W32）
+
+- 唯一源码父本5ff9aac2，当前分支codex/esa-050-060；原7个无关tracked修改和所有untracked工作保留。
+- 当前真实8740入口已实际检查：页面/health返回200，9B/BGE已安装可连接，主库149chat/97embed。不是启动失败；本轮首先复现状态与会话问题。
+- 计划只读归档reviews/040-product；旧0.4成果及以下历史记录保留。活动DATA_DIR仍.private/esa-vnext，数据库预升级副本upgrade-050-060/before-050.sqlite3。
+- W01已实跑8740；W02/W03：4项RED真实复现后，共同TurnCoordinator、原消息多attempt重试、已结束事项解绑和当前工厂相邻19项通过（P0_FINAL.xml）。原脚本清理仅加gc的复现记录也保存；不将DEFECT_REPRODUCED当新版通过。
+- W04/W11–W16候选：OpenAPI生成TS类型、React三入口/一个composer、事项/来源drawer、资料库和服务台真实API接入已构建。W05私有CPython3.12.10+锁定43依赖独立导入SQLite/FAISS/FastAPI通过，无Rust工具链，选择同契约portable runtime与Windows轻量launcher，未复制作者venv。
+- Launcher源码真实子进程检查已通过：中文路径、端口被占自动避让、第二次open复用同一实例、模型离线页面/设置/历史可用，0推理。无Rust/cargo，已用系统.NET编译轻量ESA.exe；尚待portable最终产物检查。
+- React真实API/历史副本已实跑：三入口、事项drawer开关、导航返回草稿仍在、单个可见composer、390px无溢出，0推理；22事项及60会话全部可由新版API读取。截图REACT_DESKTOP/MOBILE，非静态原型。
+- 下一步：构建含私有3.12运行时和React的便携候选，实际EXE启动/升级，再补确定性完整业务与真实模型关键旅程；当前不是0.5完成。
+
+
+
 ## 当前冻结交付：0.4.0（2026-10-30）
 
 > 页面后续修正（用户截图反馈）：当前工作区在36dae403交付后新增仅表现层的会话历史整理。原60条记录保留；最近6条、时间排序、两行标题、搜索/更多、选中标记和窄屏折叠已在真实页面验证，列表从6406px降为最高480px。模型调用仍149，没有业务写入。原结果ZIP不覆盖，此UI提交尚未进入原ZIP；恢复最新页面应使用当前feature工作区。原模型/业务冻结链未改，浏览器记录在`.private/esa-vnext/ui-history-fix/`。

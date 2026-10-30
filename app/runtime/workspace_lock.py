@@ -3,7 +3,7 @@ import os
 
 
 class WorkspaceLease:
-    def __init__(self,root):self.path=root/'workspace.lock';self.file=None
+    def __init__(self,root,name='workspace.lock'):self.path=root/name;self.file=None
 
     def acquire(self):
         self.path.parent.mkdir(parents=True,exist_ok=True)

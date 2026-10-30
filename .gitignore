@@ -72,3 +72,7 @@ Thumbs.db
 
 # Streamlit local secrets
 .streamlit/secrets.toml
+
+# Frontend development/build tools (bundled app/web_dist is tracked)
+frontend/node_modules/
+frontend/*.tsbuildinfo
