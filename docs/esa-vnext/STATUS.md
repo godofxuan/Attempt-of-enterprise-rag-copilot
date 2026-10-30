@@ -11,7 +11,9 @@
 - 门槛未全过：原生首次目录选择/自动开页两次被物理Esc停止，手动中文输入法未验；冗长首问全漏选、假设条件追问过度保守仍失败。两次原始请求单变量诊断无收益，改动已回退，不再刷同输入。见VALIDATION_060逐W项状态，不能写全面PASS或正式成熟发布。尚未证明追平main。
 - 主账本149chat/97embed起点，现266/130；新增117chat尝试/33embedding POST，索引embedding0。1条中断SENDING响应未知仍保留计数；旧原始行需交付脚本逐ID核对。复制的测试数据库历史不再次算消耗。没有运行中run或PENDING turn。
 - 原7个无关tracked及其他未提交工作保留。仅本地codex/esa-050-060里程碑，无push/PR/merge。自己的旧测试服务已停；冷构建目录清理被自动审批以blocked by policy拒绝，未绕过或执行。
-- 下一具体动作：完成源码独立目录回归和结果包复核；之后仅待不被打断的Windows首次选目录/自动浏览器、手动IME检查，保留当前语义限制。不要再重跑同一模型题集或增加功能。
+- 独立源码目录实际加载包内app，104项相关回归通过（CLEAN_SOURCE_FINAL_954626a2.xml），无外层原件/个人路径依赖。旧149chat/97embed的原始调用行未改变，新调用116响应OK/1中断响应未知，query33文本/index0。
+- 交付：.private/esa-vnext/deliveries/ESA_060_REVIEW_20261030T175911Z.zip（约9MB，小审核包，完整源码/diff/原件/TEST域状态）；Windows实际包build/releases/ESA-0.6.0-windows-x64-1f9d2662.zip（约79MB）。清单和最终摘要以LATEST_REVIEW/BUILD_1f9d2662.json为准。
+- 下一具体动作：仅待不被打断的Windows首次选目录/自动浏览器、手动IME检查，保留当前语义限制。已一次询问桌面是否方便，不再主动弹窗。不重跑同一模型题集或增加功能。
 
 ## 当前实施：0.5 / 0.6 产品化（W01–W32）
 

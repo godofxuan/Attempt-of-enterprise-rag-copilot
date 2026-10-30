@@ -130,7 +130,7 @@
     {
       "id": "W25",
       "status": "PASS",
-      "evidence": "104 relevant factory/component regressions; clean source recheck pending in final packaging"
+      "evidence": "CLEAN_SOURCE_FINAL_954626a2.xml:104passed, actual package source imported; FINAL_REGRESSION_7d4bfa28.xml:104passed (overlapping sets, not added)"
     },
     {
       "id": "W26",
@@ -187,5 +187,14 @@
     "evidence": "BASELINE_NEED_COUNT.xml",
     "case": "complete_multineed_answer_is_preserved_without_extra_budget",
     "observation": "same failure independently reproduced on5ff9aac2 module; old expected2 split needs vs original whole-question1. Assertion not deleted, full historical suite not claimed."
+  },
+  "final_accounting": {
+    "new_chat_attempts": 117,
+    "new_chat_ok": 116,
+    "new_chat_unknown_response": 1,
+    "new_query_embedding_texts": 33,
+    "new_index_embedding_texts": 0,
+    "primary_total_chat": 266,
+    "primary_total_embedding_posts": 130
   }
 }
