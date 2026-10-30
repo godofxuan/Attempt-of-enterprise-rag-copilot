@@ -42,6 +42,61 @@ with httpx.Client(
     assert record["before"]["mode"] == "SYNTHETIC_LOCAL"
     record["instance"] = get("/api/instance")
     save()
+    normal_question = "临时电脑借用的资格、期限和开始日期限制是什么？"
+    direct = {"name": "normal_direct_current_candidate", "question": normal_question}
+    record["cases"].append(direct)
+    save()
+    try:
+        conversation = post(
+            "/api/conversations", {"kb_id": "kb_18fb91057a234ace", "title": normal_question}
+        )
+        run = wait(
+            post(
+                "/api/conversations/" + conversation["id"] + "/turns",
+                {"text": normal_question, "message_id": uuid.uuid4().hex},
+            )
+        )
+        direct["run"] = run
+        assert run["status"] == "succeeded", run.get("error")
+        answer = run["result"]["result"]
+        assert (
+            answer["mode"] == "answered"
+            and answer["sources"]
+            and all(s in answer["answer"] for s in ("维修", "14", "早于"))
+        )
+        direct["status"] = "PASS"
+    except Exception as exc:
+        direct.update(status="FAIL", failure=str(exc))
+    save()
+    normal = {"name": "normal_agent_after_single_question_input", "question": normal_question}
+    record["cases"].append(normal)
+    save()
+    try:
+        knowledge_task = post(
+            "/api/tasks",
+            {
+                "request": {
+                    "kind": "knowledge",
+                    "question": normal_question,
+                    "execution_ceiling": "READ_ONLY",
+                    "confirmed": True,
+                },
+                "kb_id": "kb_18fb91057a234ace",
+            },
+        )
+        run = wait(post("/api/tasks/" + knowledge_task["task_id"] + "/runs", {}))
+        normal["run"] = run
+        assert run["status"] == "succeeded", run.get("error")
+        answer = run["result"]["knowledge_result"]["result"]
+        assert (
+            answer["mode"] == "answered"
+            and answer["sources"]
+            and all(s in answer["answer"] for s in ("维修", "14", "早于"))
+        )
+        normal["status"] = "PASS"
+    except Exception as exc:
+        normal.update(status="FAIL", failure=str(exc))
+    save()
     prior = json.loads((folder / "QUALITY_060_20261030T144939Z.json").read_text("utf8"))
     cid = prior["cases"][0]["run"]["result"]["conversation_id"]
     row = {

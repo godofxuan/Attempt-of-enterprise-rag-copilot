@@ -1,7 +1,7 @@
 /* Current artifact, real persisted sources/receipts; separate presentation XSS fixture. */
 const {chromium}=require('playwright'),assert=require('assert'),fs=require('fs');
 (async()=>{const folder='.private/esa-vnext/upgrade-050-060',record={kind:'CURRENT_PACKAGE_REAL_READBACK_AND_SEPARATE_PRESENTATION_FIXTURE',chat_delta:0};
- const original=JSON.parse(fs.readFileSync(folder+'/LIVE_050_2026-10-30T12-32-24-468Z.json','utf8'));
+ const original=JSON.parse(fs.readFileSync(process.argv[2]||folder+'/LIVE_050_2026-10-30T12-32-24-468Z.json','utf8'));
  const b=await chromium.launch({channel:'msedge',headless:true}),p=await b.newPage({viewport:{width:1440,height:1000}}),errors=[];p.on('pageerror',e=>errors.push(e.message));
  const get=async(path)=>{const r=await p.request.get('http://127.0.0.1:8740'+path);assert(r.ok(),await r.text());return r.json();};
  try{
