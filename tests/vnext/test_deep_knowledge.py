@@ -13,7 +13,9 @@ def test_deep_actually_searches_each_subquestion_and_reads_bound_results():
         {'question':'Policy B limit and conditions','query':'Policy B support shifts','read_hint':'shift'}]})
     hits=[search_hit(),search_hit(doc_id='doc-b',chunk_id='chunk-b',source_path='documents/doc-b.md',policy_id='policy-b',
         version_id='policy-b@2026',matched_text='Policy B allows two support shifts per week.',context_text='Policy B allows two support shifts per week.')]
-    navigator=RecordingNavigator(search_results=[search_result([h]) for h in hits],
+    extra=search_hit(doc_id='supplement',chunk_id='supplement',source_path='documents/supplement.md',policy_id='supplement',
+        version_id='supplement@2026',matched_text='Unselected operational background.',context_text='Unselected operational background.')
+    navigator=RecordingNavigator(search_results=[search_result([h,extra]) for h in hits],
         find_results=[find_result(doc_id=h.doc_id) for h in hits],
         open_results=[OpenResult(request_id='test',target_type='chunk',target_id=h.chunk_id,doc_id=h.doc_id,
             content=h.matched_text,truncated=False,source_path=h.source_path,section_path=h.section_path) for h in hits])
@@ -38,6 +40,10 @@ def test_deep_actually_searches_each_subquestion_and_reads_bound_results():
     report=controller.report()
     assert len(report['evidence_table'])==2 and all(not r['retrieval_gap'] for r in report['evidence_table'])
     assert len(report['opened_targets'])==2
+    from app.agent.generation_v2 import _build_prompt_sources
+    selected=_build_prompt_sources(state,primary_only=True)
+    assert {source.evidence.hit.doc_id for source in selected}=={h.doc_id for h in hits}
+    assert any(h.hit.doc_id=='supplement' for rows in state.evidence_by_aspect.values() for h in rows)
 
 
 def test_deep_plan_is_bounded_and_cannot_accept_model_identity_or_filter_override():

@@ -218,6 +218,7 @@ class GenerationV2ResponseBuilder:
         model: str | None = None,
         max_attempts: int | None = None,
         nonce_factory: NonceFactory | None = None,
+        primary_read_anchors_only:bool=False,
     ) -> None:
         settings = get_settings() if model is None or max_attempts is None else None
         self.chat_fn = chat_fn or _bounded_default_chat
@@ -230,6 +231,7 @@ class GenerationV2ResponseBuilder:
         if self.max_attempts < 1 or self.max_attempts > 2:
             raise ValueError("max_attempts must be between 1 and 2")
         self.nonce_factory = nonce_factory or _default_prompt_nonce
+        self.primary_read_anchors_only=primary_read_anchors_only
         self.source_free_builder = ExtractiveResponseBuilder()
 
     def build(
@@ -295,7 +297,7 @@ class GenerationV2ResponseBuilder:
                 "evidence_budget_bytes": max(0, available),
             }
             sources = _build_prompt_sources(
-                state, max_bytes=max(0, available), audit=response_trace
+                state, max_bytes=max(0, available), audit=response_trace,primary_only=self.primary_read_anchors_only
             )
             # The wire schema enumerates selected source units and need IDs.
             # Reconcile its actual size before any send; a static schema estimate
@@ -305,7 +307,8 @@ class GenerationV2ResponseBuilder:
                 reconciled=MODEL_CONTEXT_FLOOR-MAX_OUTPUT_TOKENS-CHAT_SCHEMA_MARGIN-actual_schema_bytes-overhead-retry_reserve
                 if available<=reconciled:break
                 available=reconciled
-                sources=_build_prompt_sources(state,max_bytes=max(0,available),audit=response_trace)
+                sources=_build_prompt_sources(state,max_bytes=max(0,available),audit=response_trace,primary_only=self.primary_read_anchors_only)
+            response_trace['evidence_selection_policy']='planned_primary_read_anchors' if self.primary_read_anchors_only else 'ranked_diverse'
             response_trace['prompt_budget'].update(schema_bytes=actual_schema_bytes,evidence_budget_bytes=max(0,available))
             _record_packet_audit(state, sources, response_trace)
             if not sources:
@@ -609,7 +612,7 @@ def _record_packet_audit(state: ControllerState, sources: list[_PromptSource], t
 
 
 def _build_prompt_sources(
-    state: ControllerState, *, max_bytes: int | None = None, audit: dict | None = None
+    state: ControllerState, *, max_bytes: int | None = None, audit: dict | None = None,primary_only:bool=False
 ) -> list[_PromptSource]:
     audit = audit if audit is not None else {}
     audit.update(
@@ -675,6 +678,9 @@ def _build_prompt_sources(
     reserved_chars = min(remaining // 2, MAX_OPEN_CONTEXT_CHARS * reserved_slots)
     reserved_bytes = 0 if max_bytes is None else min(max_bytes // 2, 6000 * reserved_slots)
     depth = max((len(state.evidence_by_aspect.get(aspect, [])) for aspect in aspects), default=0)
+    if primary_only:
+        audit['supplemental_candidates_not_selected']=sum(max(0,len(state.evidence_by_aspect.get(a,[]))-1) for a in aspects)
+        depth=min(depth,1)
     for index in range(depth):
         for aspect in aspects:
             hits = state.evidence_by_aspect.get(aspect, [])
