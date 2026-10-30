@@ -48,14 +48,14 @@ class TaskService:
                     self.store._event(db,task['task_id'],'pending_update_recovered',{'message_id':pending['id'],
                         'reason':'Existing unprocessed user input retained, not silently discarded'})
 
-    def create(self,request,kb_id=None):
+    def create(self,request,kb_id=None,conversation_id=None):
         request=GuidedTaskRequest.model_validate(request)
         task=self.store.create_task(local_actor(),'',guided_request=request.model_dump(mode='json'))
         with self.store.transaction() as db:
             current=self.store._task(db,local_actor(),task['task_id'])
             current.update(product_runtime=True,kb_id=kb_id,run_fence=0)
             self.store._save(db,current)
-        if hasattr(self.workspace,'conversations'):self.workspace.conversations.bind(task['task_id'])
+        if hasattr(self.workspace,'conversations'):self.workspace.conversations.bind(task['task_id'],conversation_id)
         return self.view(task['task_id'])
 
     @staticmethod
@@ -134,11 +134,11 @@ class TaskService:
         except ServiceError:pass
         return valid
 
-    async def message(self,task_id,text,message_id,expected_facts_revision):
+    async def message(self,task_id,text,message_id,expected_facts_revision,detailed=False):
         from app.conversations import ConversationService
         if not hasattr(self.workspace,'conversations'):
             self.workspace.conversations=ConversationService(self.workspace)
-        return await self.workspace.conversations.task_turn(task_id,text,message_id,expected_facts_revision)
+        return await self.workspace.conversations.task_turn(task_id,text,message_id,expected_facts_revision,detailed=detailed)
 
     def message_failed(self,task_id,message_id,error):
         actor=local_actor()

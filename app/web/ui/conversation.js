@@ -48,7 +48,7 @@ $('conversationForm').onsubmit=async event=>{
   let cid=uiState.conversationId;
   if(!cid){const c=await api('/api/conversations',{title:$('conversationText').value.slice(0,60),kb_id:$('conversationBase').value||null},'POST');cid=c.id;uiState.conversationId=cid;}
   const text=$('conversationText').value;
-  const run=await api('/api/conversations/'+cid+'/turns',{message_id:crypto.randomUUID(),text},'POST');
+  const run=await api('/api/conversations/'+cid+'/turns',{message_id:crypto.randomUUID(),text,detailed:$('conversationDeep').checked},'POST');
   $('conversationText').value='';
   await openConversation(cid);
   await watchRun(run,async result=>{if(result.error)showError(Error(result.error));if(uiState.conversationId===cid)await openConversation(cid);});
@@ -58,8 +58,7 @@ $('conversationTaskForm').onsubmit=async event=>{
  event.preventDefault();try{
   if(!uiState.conversationId){const c=await api('/api/conversations',{title:$('conversationName').value||'服务事项',kb_id:$('conversationBase').value||null},'POST');uiState.conversationId=c.id;}
   const task=await api('/api/tasks',{request:{kind:$('conversationService').value,execution_ceiling:$('conversationScope').value,
-      confirmed:$('conversationScopeConfirmed').checked},kb_id:$('conversationBase').value||null},'POST');
-  await api('/api/conversations/'+uiState.conversationId+'/tasks/'+task.task_id,{},'POST');
+      confirmed:$('conversationScopeConfirmed').checked},kb_id:$('conversationBase').value||null,conversation_id:uiState.conversationId},'POST');
   $('conversationScopeConfirmed').checked=false;await openConversation(uiState.conversationId);
  }catch(e){showError(e);}
 };

@@ -13,6 +13,7 @@ class ConversationMessage(BaseModel):
     model_config=ConfigDict(extra='forbid')
     message_id:str=Field(min_length=1,max_length=100)
     text:str=Field(min_length=1,max_length=2000)
+    detailed:bool=False
 
 
 def conversation_router(workspace,service_call):

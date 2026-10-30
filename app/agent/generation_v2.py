@@ -1317,6 +1317,7 @@ def _answer_source(evidence: DeliveredEvidence) -> AnswerSource:
         target_id=evidence.opened.result.target_id if evidence.opened is not None else hit.chunk_id,
         index_run_id=hit.index_run_id,
         version_id=hit.version_id,
+        source_spans=list(evidence.opened.result.source_spans if evidence.opened is not None else hit.source_spans),
     )
 
 

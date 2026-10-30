@@ -181,6 +181,7 @@ class DocumentNavigator:
             start_char=request.start_char,
             source_path=source_path,
             section_path=section_path,
+            source_spans=resource.source_spans if isinstance(resource,ChunkRecord) else [],
         )
 
     def bound_resource_allowed(self, request, resource) -> bool:

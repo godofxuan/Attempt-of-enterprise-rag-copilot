@@ -1,7 +1,7 @@
 """Local workbench lifecycle and HTTP projection in the existing FastAPI app."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone,date
 import asyncio
 import json
 from pathlib import Path
@@ -177,6 +177,7 @@ class CreateTask(BaseModel):
     kb_id: str | None = None
     answer_id: str | None = None
     use_original_parameters: bool = False
+    conversation_id: str | None = None
 
 
 class UpdateFacts(BaseModel):
@@ -198,6 +199,7 @@ class TaskMessage(BaseModel):
     text: str = Field(min_length=1,max_length=2000)
     message_id: str = Field(min_length=1,max_length=100)
     expected_facts_revision: int = Field(ge=1)
+    detailed:bool=False
 
 
 class SelectAsset(BaseModel):
@@ -217,6 +219,15 @@ class AddDirectory(BaseModel):
     model_config=ConfigDict(extra='forbid')
     kb_id: str
     path: str = Field(min_length=1,max_length=1000)
+
+
+class DocumentPatch(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    name:str|None=Field(default=None,min_length=1,max_length=250)
+    active:bool|None=None
+    source_type:Literal['policy','wiki','email','ticket','meeting','table','filing']|None=None
+    effective_from:date|None=None
+    service_tags:list[Literal['loan','repair']]|None=None
 
 
 class Feedback(BaseModel):
@@ -279,10 +290,26 @@ def workspace_router(workspace):
         try: return await workspace.library.upload(kb_id,file.filename,await file.read(20*1024*1024+1))
         except ValueError as exc: raise HTTPException(422,str(exc)) from exc
 
+    @router.post('/api/library/{kb_id}/documents/batch')
+    async def batch_upload(kb_id:str,files:list[UploadFile]=File(...)):
+        if len(files)>20:raise WorkspaceError(422,'BATCH_FILE_LIMIT')
+        total=0;results=[]
+        for file in files:
+            content=await file.read(20*1024*1024+1);total+=len(content)
+            if total>64*1024*1024:raise WorkspaceError(422,'BATCH_SIZE_LIMIT',{'completed':results})
+            try:results.append(await workspace.library.upload(kb_id,file.filename,content))
+            except ValueError as exc:results.append({'name':file.filename,'status':'FAILED','error':str(exc)})
+        return {'documents':results,'successful':sum(r['status']=='PARSED' for r in results),'index_update_required':True}
+
     @router.post('/api/library/{kb_id}/build')
     async def build(kb_id: str):
         try: return workspace.library.enqueue(kb_id)
         except ValueError as exc: raise HTTPException(422,str(exc)) from exc
+
+    @router.post('/api/library/{kb_id}/samples')
+    async def import_samples(kb_id:str):
+        try:return await workspace.library.import_samples(kb_id)
+        except ValueError as exc:raise WorkspaceError(422,'SAMPLE_IMPORT_FAILED',{'reason':str(exc)}) from exc
 
     @router.post('/api/library/directories')
     def add_directory(payload: AddDirectory):
@@ -305,10 +332,23 @@ def workspace_router(workspace):
     @router.get('/api/documents/{doc_id}')
     def document(doc_id: str):
         with workspace.library.db() as db:
-            row = db.execute('SELECT name,version,parsed,status,active FROM library_documents WHERE id=?',(doc_id,)).fetchone()
+            row = db.execute('SELECT name,version,parsed,status,active,metadata FROM library_documents WHERE id=?',(doc_id,)).fetchone()
         if not row: raise HTTPException(404,'DOCUMENT_NOT_FOUND')
         return {'name':row['name'],'version':row['version'],'status':row['status'],'active':bool(row['active']),
-                'parsed':json.loads(row['parsed']) if row['parsed'] else None}
+                'parsed':json.loads(row['parsed']) if row['parsed'] else None,'metadata':json.loads(row['metadata'])}
+
+    @router.patch('/api/documents/{doc_id}')
+    def update_document(doc_id:str,payload:DocumentPatch):
+        return service_call(lambda:workspace.library.update_document(doc_id,payload.model_dump(mode='json',exclude_unset=True)))
+
+    @router.post('/api/documents/{doc_id}/retry')
+    async def retry_document(doc_id:str):
+        try:return await workspace.library.retry_document(doc_id)
+        except (ValueError,OSError) as exc:raise WorkspaceError(422,'DOCUMENT_RETRY_FAILED',{'reason':str(exc)}) from exc
+
+    @router.get('/api/documents/{doc_id}/excerpt')
+    def excerpt(doc_id:str,index_run_id:str,target_type:Literal['chunk','parent','document'],target_id:str):
+        return service_call(lambda:workspace.library.excerpt(doc_id,index_run_id,target_type,target_id))
 
     @router.post('/api/knowledge/ask')
     async def ask(payload: AskKnowledge):
@@ -357,7 +397,8 @@ def workspace_router(workspace):
             if payload.answer_id:
                 with workspace.library.db() as db:answer=db.execute('SELECT * FROM knowledge_answers WHERE id=?',(payload.answer_id,)).fetchone()
                 if not answer or (payload.kb_id and answer['kb_id']!=payload.kb_id):raise ValueError('ANSWER_NOT_BOUND')
-            task=workspace.service.create(payload.request,payload.kb_id or (answer['kb_id'] if answer else None))
+            task=workspace.service.create(payload.request,payload.kb_id or (answer['kb_id'] if answer else None),
+                conversation_id=payload.conversation_id or (answer['conversation_id'] if answer else None))
             if answer:
                 from app.workbench_service import local_actor
                 with workspace.service.store.transaction() as db:

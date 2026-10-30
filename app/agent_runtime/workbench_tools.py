@@ -28,7 +28,7 @@ class ToolCatalog:
         tools=[Tool('finish','Finish the current turn after all requested parts are addressed.',{}),
                Tool('ask_user','Ask once for missing or ambiguous input.',{'question':{'type':'string'}})]
         if kind=='knowledge' or task.get('kb_id'):
-            properties={} if kind=='knowledge' and not turn else {'question':{'type':'string'},'detailed':{'type':'boolean'}}
+            properties={} if kind=='knowledge' and not turn else {'question':{'type':'string'}}
             tools.append(Tool('knowledge_answer','Use the shared knowledge service; preserve its body, sources and limitations.',properties,
                               ('question',) if properties else ()))
         if domain:
@@ -57,7 +57,8 @@ class ToolCatalog:
             # Full published receipt/trace is retained in the tool observation.
             # The model needs one body and its limitations, not duplicate trace/span JSON.
             return {**result,'data':{'id':data['id'],'question':data.get('question'),'mode':answer['mode'],
-                'answer':answer['answer'],'sources':answer.get('sources',[]),'warnings':answer.get('warnings',[]),
+                'answer':answer['answer'],'sources':[{k:s.get(k) for k in ('doc_id','chunk_id','source_path','title','version_id','index_run_id')}
+                    for s in answer.get('sources',[])],'warnings':answer.get('warnings',[]),
                 'source_notices':data.get('source_notices',[])}}
         return result
 
@@ -97,14 +98,15 @@ class ToolCatalog:
         if name=='knowledge_answer':
             if not current.get('kb_id'):raise ServiceError('KNOWLEDGE_BASE_REQUIRED')
             question=args.get('question') or (self.turn['text'] if self.turn else current['guided_request']['question'])
-            key=(current['kb_id'],question.strip(),bool(args.get('detailed',False)))
+            detailed=bool(self.turn and self.turn.get('detailed'))
+            key=(current['kb_id'],question.strip(),detailed)
             if key in self.knowledge_cache:return self.knowledge_cache[key]
             linked=current.get('linked_answer_id');library=service.workspace.library
             cached=library.valid_answer(linked,current['kb_id']) if linked and hasattr(library,'valid_answer') else None
-            if cached and question.strip()==cached['question'].strip():
+            if cached and not detailed and question.strip()==cached['question'].strip():
                 self.knowledge_cache[key]={**cached,'reused':True};return self.knowledge_cache[key]
             previous=current.get('knowledge_result') or {}
             answer=await library.answer(current['kb_id'],question,
-                conversation_id=current.get('conversation_id') or previous.get('conversation_id'),detailed=args.get('detailed',False))
+                conversation_id=current.get('conversation_id') or previous.get('conversation_id'),detailed=detailed)
             self.knowledge_cache[key]=answer;return answer
         raise ServiceError('INVALID_TOOL_ARGUMENTS')

@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.domain.agent import AgentAction, BudgetState, ToolError
-from app.domain.documents import DocumentStatus, LocatorKind, SourceLocator
+from app.domain.documents import DocumentStatus, LocatorKind, SourceLocator,SourceSpan
 from app.domain.queries import (
     FindMatch,
     OpenResult,
@@ -195,6 +195,7 @@ class AdmittedSearchHitSnapshot(_GuardedModel):
     source_path: str = Field(min_length=1)
     section_path: tuple[str, ...] = Field(min_length=1)
     locator: AdmittedSourceLocatorSnapshot | None = None
+    source_spans:tuple[SourceSpan,...]=Field(default_factory=tuple)
     matched_text: str = Field(min_length=1)
     context_text: str = Field(min_length=1)
     context_from_parent: bool = False
@@ -213,7 +214,7 @@ class AdmittedSearchHitSnapshot(_GuardedModel):
     dense_rank: int | None = Field(default=None, ge=1)
     bm25_rank: int | None = Field(default=None, ge=1)
 
-    @field_validator("section_path", "acl_groups", "fact_ids", mode="before")
+    @field_validator("section_path", "acl_groups", "fact_ids", "source_spans", mode="before")
     @classmethod
     def normalize_tuple_fields(cls, values):
         return tuple(values) if isinstance(values, list) else values
@@ -231,6 +232,7 @@ class AdmittedSearchHitSnapshot(_GuardedModel):
         values["section_path"] = tuple(hit.section_path)
         values["acl_groups"] = tuple(hit.acl_groups)
         values["fact_ids"] = tuple(hit.fact_ids)
+        values["source_spans"] = tuple(hit.source_spans)
         values["locator"] = (
             AdmittedSourceLocatorSnapshot.from_raw(hit.locator) if hit.locator is not None else None
         )
@@ -270,6 +272,7 @@ class AdmittedOpenResultSnapshot(_GuardedModel):
     start_char: int = Field(default=0, ge=0, le=10_000_000)
     source_path: str = Field(min_length=1)
     section_path: tuple[str, ...] = Field(default_factory=tuple)
+    source_spans:tuple[SourceSpan,...]=Field(default_factory=tuple)
 
     @field_validator("section_path", mode="before")
     @classmethod
@@ -288,6 +291,7 @@ class AdmittedOpenResultSnapshot(_GuardedModel):
             start_char=result.start_char,
             source_path=result.source_path,
             section_path=tuple(result.section_path),
+            source_spans=tuple(result.source_spans),
         )
 
 

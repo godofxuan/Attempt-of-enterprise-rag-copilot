@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-DocumentFormat = Literal["md", "txt", "html", "csv", "jsonl", "pdf"]
+DocumentFormat = Literal["md", "txt", "html", "csv", "jsonl", "pdf", "docx"]
 SourceType = Literal[
     "policy",
     "wiki",

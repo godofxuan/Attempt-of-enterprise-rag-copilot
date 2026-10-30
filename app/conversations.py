@@ -82,7 +82,7 @@ class ConversationService:
             if inserted.rowcount:db.execute('UPDATE conversations SET updated_at=? WHERE id=?',(datetime.now(timezone.utc).isoformat(),cid))
         return turn_id
 
-    async def task_turn(self,task_id,text,message_id,expected_facts_revision):
+    async def task_turn(self,task_id,text,message_id,expected_facts_revision,detailed=False):
         from app.runtime.request_context import current_request_id
         from app.workbench_service import local_actor
         service=self.workspace.service;task=service.store.get_task(local_actor(),task_id)
@@ -102,7 +102,7 @@ class ConversationService:
             service.store._save(db,current)
             db.execute('INSERT INTO workbench_messages VALUES(?,?,?,?,?)',(message_id,task_id,text,'PENDING',None))
         # Pending input protects concurrent confirmation, but this run is its consumer.
-        turn={'id':message_id,'text':text,'conversation_id':cid}
+        turn={'id':message_id,'text':text,'conversation_id':cid,'detailed':detailed}
         from app.agent_runtime.workbench_agent import build_service_agent
         terminal='failed'
         try:
@@ -136,7 +136,7 @@ class ConversationService:
         with self.db() as db:row=db.execute('SELECT status FROM conversation_turns WHERE id=?',(message_id,)).fetchone()
         return bool(row and row['status']=='DONE')
 
-    async def turn(self,conversation_id,text,message_id):
+    async def turn(self,conversation_id,text,message_id,detailed=False):
         conversation=self.get(conversation_id)
         with self.db() as db:known=db.execute('SELECT * FROM conversation_turns WHERE id=?',(message_id,)).fetchone()
         if known:
@@ -145,10 +145,10 @@ class ConversationService:
             raise ServiceError('MESSAGE_NOT_APPLIED')
         if conversation['task_id']:
             task=self.workspace.service.view(conversation['task_id'])
-            return await self.task_turn(task['task_id'],text,message_id,task['facts_revision'])
+            return await self.task_turn(task['task_id'],text,message_id,task['facts_revision'],detailed=detailed)
         if not conversation['kb_id']:raise ServiceError('KNOWLEDGE_BASE_REQUIRED')
         self.append(conversation_id,'user','message',text,turn_id=message_id,status='PENDING')
-        answer=await self.workspace.library.answer(conversation['kb_id'],text,conversation_id=conversation_id)
+        answer=await self.workspace.library.answer(conversation['kb_id'],text,conversation_id=conversation_id,detailed=detailed)
         self.append(conversation_id,'assistant','knowledge',answer['result']['answer'],answer)
         with self.db() as db:db.execute("UPDATE conversation_turns SET status='DONE',payload=? WHERE id=?",(encoded(answer),message_id))
         return answer

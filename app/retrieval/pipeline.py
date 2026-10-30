@@ -481,6 +481,7 @@ class HybridRetrievalPipeline:
             source_path=chunk.source_path,
             section_path=chunk.section_path,
             locator=chunk.locator,
+            source_spans=chunk.source_spans,
             matched_text=chunk.text,
             context_text=context_text,
             context_from_parent=context_from_parent,

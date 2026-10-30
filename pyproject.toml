@@ -48,5 +48,5 @@ include = ["app*"]
 exclude = ["tests*", "scripts*", "streamlit_app*"]
 
 [tool.setuptools.package-data]
-app = ["web/*.html", "web/*.js", "web/*.css", "web/ui/*.js"]
+app = ["web/*.html", "web/*.js", "web/*.css", "web/ui/*.js", "resources/*.md"]
 

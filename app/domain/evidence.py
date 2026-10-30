@@ -5,7 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.domain.agent import AgentStopReason, AnswerMode
-from app.domain.documents import DocumentStatus
+from app.domain.documents import DocumentStatus,SourceSpan
 
 EvidenceRelation = Literal["supports", "conflicts"]
 LedgerAction = Literal[
@@ -155,6 +155,10 @@ class AnswerSource(StrictModel):
     target_id: str | None = None
     index_run_id: str | None = None
     version_id: str | None = None
+    source_spans:list[SourceSpan]=Field(default_factory=list)
+    title:str|None=None
+    source_type:str|None=None
+    format:str|None=None
 
 
 class Clarification(StrictModel):

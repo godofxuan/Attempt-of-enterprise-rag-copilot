@@ -20,11 +20,26 @@
   Original logs:upgrade-030-040/S1_CANARY_20261030T004818.json. No business rows changed; primary44chat/27embed afterward.
   Corrected the shared input boundary: current user message appears once as role=user, not duplicated in context; next live is targeted to that change.
 - First browser structure check reached the new conversation but did not open its collapsed service form; harness corrected, not a product success claim.
-- Next: restart current candidate, rerun one bounded mixed canary and current browser, then U09-U13 actual Deep/source/lifecycle work and0.3 release.
+-598d11c5 real follow-up canary passed: bare repair asks all3fields; one actual user message applies asset/description/high impact and answers loan duration via shared knowledge.
+ 4chat/1query embedding, business tables unchanged. Record:S1_CANARY_20261030T005431.json; primary48chat/28embed afterward.
+ Corrected browser structure passed current modules/API, new conversation+repair binding, reload and390px;0model/0business submissions.
+- Next: U09-U13 actual Deep/source/lifecycle work and0.3 release; then continue U14-U24.
   S0/S1 are checkpoints, not completion of0.3/0.4. S3/S4 service lifecycle/scheduling remain unimplemented.
+- S2 U09-U12 in progress: DeepPlan selects1-4 actual subquestions; DeepController performs distinct searches and anchored find/open,
+  then the existing runner/Guard/publisher. Strategy2checks passed; real Deep request not yet run.
+- SourceSpan now propagates original parser locations/offsets through chunk/index/hit/admission/open/publication.
+  Library index publisher consumes saved original parses and original-format bytes, not artificial Markdown; formats/types no longer allpolicy/md/2000.
+  Default unknown source effective date uses build date only as technical index admission; no claim the policy became effective then.
+  Old0.2 index generations stay unchanged; original-page precision applies to new generations, legacy view stays marked as such.
+- Document batch upload, retry, rename, disable/restore, original-version comparison and service tags added. Active metadata checked against the published job's recorded metadata.
+  Samples derive loan/repair documents from current SQLite rules; room is packaged knowledge-only. Business tools remain reference-only for uploaded policies.
+- Related30program checks passed; Word full source path and actual two-page PDF locator checks passed. Added metadata-only stale-generation assertion next.
+  Runtime server91057 still has598d11c5 S1 code in memory; restart after S2 regression before using new endpoints/live Deep.
+  Next concrete action: finish S2 regression, commit candidate, restart owned server, import samples into same DATA_DIR KB,
+  run one real Deep comparison and source UI check, finalize0.3 and proceed S3.
 - Progress remains in this file; original design/evidence archived read-only under reviews/020-next.
 
-## Current Position
+## Historical 0.2.0 Position (retained)
 - Workspace: `D:/文档/agent/RAG_try`; branch `codex/esa-vnext`.
 - Original main HEAD: `51faa5ba2f35d79120b362fff08b091646168d77`; 27 tracked dirty files predate this work. Their changes are preserved; the RAG modules now also contain explicit integration edits.
 - Scope: R1+R2 / M0-M8; DONE_R1_R2_LOCAL_DEMO. No explicit token budget assigned.
