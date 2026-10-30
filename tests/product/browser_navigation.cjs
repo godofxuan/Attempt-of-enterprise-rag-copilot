@@ -3,7 +3,7 @@ const {chromium}=require('playwright'),assert=require('assert'),fs=require('fs')
 (async()=>{
  const b=await chromium.launch({channel:'msedge',headless:true}),p=await b.newPage({viewport:{width:1400,height:950}});
  const errors=[];p.on('pageerror',e=>errors.push(e.message));
- const folder='.private/esa-vnext/upgrade-050-060',record={kind:'REAL_UI_API_NO_MODEL_SEND'};
+ const folder='.private/esa-vnext/upgrade-050-060',stamp=new Date().toISOString().replace(/[:.]/g,'-'),record={kind:'REAL_UI_API_NO_MODEL_SEND'};
  try{
   const before=await(await p.request.get('http://127.0.0.1:8740/api/status')).json();
   await p.goto('http://127.0.0.1:8740/');await p.getByRole('button',{name:'IT 报修',exact:true}).click();
@@ -32,5 +32,5 @@ const {chromium}=require('playwright'),assert=require('assert'),fs=require('fs')
   record.task=task.task_id;record.conversation=task.conversation_id;record.chat_delta=after.generation_calls-before.generation_calls;
   record.composition='SYNTHETIC_COMPOSITION_EVENT_ONLY_NOT_MANUAL_IME';record.errors=errors;assert.deepEqual(errors,[]);record.passed=true;
  }catch(e){record.failure=e.stack;process.exitCode=1;}
- finally{fs.writeFileSync(folder+'/CURRENT_UI_NAVIGATION.json',JSON.stringify(record,null,2));console.log(JSON.stringify(record));await b.close();}
+ finally{fs.writeFileSync(folder+'/UI_NAVIGATION_'+stamp+'.json',JSON.stringify(record,null,2));console.log(JSON.stringify(record));await b.close();}
 })();

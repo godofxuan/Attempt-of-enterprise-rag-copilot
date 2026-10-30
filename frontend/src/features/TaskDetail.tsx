@@ -62,11 +62,13 @@ export function TaskDetail({
             <p className="status-pill">{t.status_label}</p>
             <p>{t.next_step}</p>
             <p className="muted">
-              {t.ceiling === "READ_ONLY"
-                ? "当前只读，不准备申请"
-                : t.ceiling === "PREVIEW_ONLY"
-                  ? "当前只生成预览，绝不提交"
-                  : "提交前由你确认当前完整预览"}
+              {t.receipt
+                ? "已提交。当前业务状态与提交当时的回执分别展示。"
+                : t.ceiling === "READ_ONLY"
+                  ? "当前只读，不准备申请"
+                  : t.ceiling === "PREVIEW_ONLY"
+                    ? "当前只生成预览，绝不提交"
+                    : "提交前由你确认当前完整预览"}
             </p>
             {action.error && <ErrorNotice error={action.error} />}
             {t.pending_update && (
@@ -137,13 +139,13 @@ export function TaskDetail({
                 }
                 pending={action.isPending}
               />
-            ) : (
+            ) : !t.receipt ? (
               <Parameters
                 value={Object.fromEntries(
                   t.fields.map((f) => [f.name, f.value]),
                 )}
               />
-            )}
+            ) : null}
             {t.can_edit && (
               <details>
                 <summary>可选设备与日期</summary>
@@ -188,7 +190,7 @@ export function TaskDetail({
             {dirty && (
               <p role="status">请先保存并继续修改，再运行或确认预览。</p>
             )}
-            {t.preview && (
+            {t.preview && !t.receipt && (
               <section className="card preview">
                 <h3>当前完整预览</h3>
                 <Parameters
@@ -272,6 +274,12 @@ export function TaskDetail({
                     asset_id: t.receipt.ticket?.asset_id,
                   }}
                 />
+                {t.preview && (
+                  <details>
+                    <summary>查看提交时的完整预览</summary>
+                    <pre>{JSON.stringify(t.preview.content, null, 2)}</pre>
+                  </details>
+                )}
                 <button
                   onClick={() =>
                     cache.invalidateQueries({ queryKey: ["task", id] })

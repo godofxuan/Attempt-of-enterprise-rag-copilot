@@ -42,6 +42,7 @@ def main():
             "patch-validation",
             "candidate-validation",
             "final-journeys",
+            "presentation-validation",
         ],
     )
     parser.add_argument("--expected-instance")
@@ -79,6 +80,7 @@ def main():
         "patch-validation",
         "candidate-validation",
         "final-journeys",
+        "presentation-validation",
     }:
         import httpx
 
@@ -162,6 +164,19 @@ def main():
                 ),
                 "utf8",
             )
+        if args.operation == "presentation-validation":
+            os.environ["NODE_PATH"] = str(ROOT / "frontend/node_modules")
+            command(NODE, "tests/product/browser_navigation.cjs")
+            journey = max(
+                (
+                    p
+                    for p in EVIDENCE.glob("LIVE_050_*.json")
+                    if json.loads(p.read_text("utf8")).get("passed")
+                ),
+                key=lambda p: p.stat().st_mtime,
+            )
+            command(NODE, "tests/product/browser_final_readback.cjs", journey)
+            return
         if args.operation == "final-journeys":
             command(
                 sys.executable,

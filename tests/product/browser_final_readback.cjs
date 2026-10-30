@@ -10,6 +10,7 @@ const {chromium}=require('playwright'),assert=require('assert'),fs=require('fs')
   await p.goto('http://127.0.0.1:8740/#/assistant?c='+task.conversation_id+'&task='+task.task_id);
   const dialog=p.getByRole('dialog');await dialog.waitFor();await dialog.getByText(task.current_ticket.parameters.loan_end,{exact:true}).first().waitFor();assert((await dialog.innerText()).includes(task.current_ticket.parameters.loan_end));
   assert.equal(await p.getByRole('button',{name:'确认并提交当前预览',exact:true}).count(),0);
+  assert.equal(await p.getByRole('heading',{name:'当前完整预览',exact:true}).count(),0);
   await dialog.getByText('查看提交当时的回执',{exact:true}).click();assert((await dialog.innerText()).includes(task.receipt.ticket.parameters.loan_end));
   await p.screenshot({path:folder+'/FINAL_RETURNED_RECEIPT_'+stamp+'.png',fullPage:true});await p.getByRole('button',{name:'关闭详情',exact:true}).click();
   await p.getByText('查看本次执行记录',{exact:true}).click();await p.locator('.run-trace li strong').filter({hasText:/^工具/}).first().waitFor();
