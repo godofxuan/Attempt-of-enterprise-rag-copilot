@@ -56,8 +56,9 @@ class ServiceAgent:
                     if current.get('active_run_id')!=started['active_run_id']:raise ServiceError('STALE_RUN')
                     function=call['function'];name=function['name'];args=function.get('arguments',{})
                     if isinstance(args,str):args=json.loads(args)
-                    catalog.validate(name,args)
+                    if name not in catalog.tools:raise ServiceError('INVALID_TOOL_ARGUMENTS')
                     if name in {'finish','ask_user'}:
+                        catalog.validate(name,args)
                         if name=='ask_user':
                             self.store.stop_run(actor,task_id,'WAITING_USER',missing=context['missing_fields'])
                             if args.get('question'):

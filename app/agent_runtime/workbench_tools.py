@@ -43,8 +43,11 @@ class ToolCatalog:
                         {'changes':schema},('changes',)),Tool('select_asset','Select an actual user-requested resource; not reservation or submission.',
                         {'asset_id':{'type':'string'}},('asset_id',))])
                 if task['user_execution_ceiling']!='READ_ONLY':
-                    tools.append(Tool('prepare_preview','Prepare the current full preview. Complete other requested knowledge/explanation first. Does not submit.',
-                        {'asset_id':{'type':'string'}},('asset_id',)))
+                    properties={'asset_id':{'type':'string'}};required=('asset_id',)
+                    if turn:
+                        properties['parameters']=domain.facts_type.model_json_schema();required+=('parameters',)
+                    tools.append(Tool('prepare_preview','Prepare a real stored preview, never just describe one. In a user turn include the typed parameters supplied or changed by that user; host applies them before preparation. Complete other requested knowledge first. Does not submit.',
+                        properties,required))
         self.tools={tool.name:tool for tool in tools}
 
     def schemas(self,current=None):
@@ -106,6 +109,9 @@ class ToolCatalog:
             return {'facts':view['facts'],'facts_revision':view['facts_revision'],'changed':changes}
         if name=='select_asset':return service.choose_asset(task_id,args['asset_id'],current['facts_revision'])
         if name=='prepare_preview':
+            if self.turn and 'parameters' in args:
+                await self.call('update_parameters',{'changes':args['parameters']},current,run_id)
+                current=store.get_task(actor,task_id)
             if current.get('preferred_asset_id') and args['asset_id']!=current['preferred_asset_id']:raise ServiceError('USER_ASSET_SELECTION_MISMATCH')
             domain=service_for(current)
             refs=[e['ref'] for e in current.get('knowledge',{}).values() if e['need_refs']==[domain.rule_need]]

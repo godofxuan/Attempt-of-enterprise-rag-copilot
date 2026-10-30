@@ -97,3 +97,19 @@ def test_unexecuted_prose_gets_one_protocol_observation_and_same_runner_continue
         with w.service.store.transaction() as db:assert db.execute('SELECT COUNT(*) FROM tickets').fetchone()[0]==0
         await w.runs.close()
     asyncio.run(check())
+
+def test_prepare_in_user_turn_consumes_typed_fields_through_same_update_path(tmp_path):
+    async def check():
+        w=workspace(tmp_path);w.conversations=ConversationService(w)
+        task=w.service.create({'kind':'repair','execution_ceiling':'PREVIEW_ONLY','confirmed':True})
+        fields={'asset_id':'employee-laptop-1','description':'程序测试故障描述','impact':'high'}
+        w.models=SequenceModel([('repair_policy',{}),('assets_search',{}),('tickets_list_mine',{})],
+            [('prepare_preview',{'asset_id':'employee-laptop-1','parameters':fields})],[('finish',{})])
+        result=await w.service.message(task['task_id'],'本回合提供设备、描述和高影响，请准备预览','typed-preview-turn',task['facts_revision'])
+        assert result['facts']==fields and result['preview']['content']['parameters']==fields
+        assert result['preview']['content']['execution_ceiling']=='PREVIEW_ONLY' and not result['receipt']
+        assert all(result['fact_sources'][key]['source_message_id']=='typed-preview-turn' for key in fields)
+        with pytest.raises(ServiceError,match='EXECUTION_CEILING'):
+            w.service.store.confirm(local_actor(),task['task_id'],result['preview']['proposal_id'],result['preview']['content_digest'],True)
+        await w.runs.close()
+    asyncio.run(check())
