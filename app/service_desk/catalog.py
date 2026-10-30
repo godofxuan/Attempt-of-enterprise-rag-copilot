@@ -32,8 +32,8 @@ class Service:
         if not row:raise ServiceError('POLICY_NOT_CONFIGURED')
         return dict(row)
 
-    def assets(self,store,actor):
-        if self.key=='loan':return store.assets(actor)
+    def assets(self,store,actor,facts=None):
+        if self.key=='loan':return store.assets(actor,facts)
         store.authorize(actor)
         with store.transaction() as db:
             return self.assets_in(db,actor)
@@ -54,7 +54,7 @@ class Service:
                          (actor.tenant_id,actor.subject,asset_id)).fetchone()
         if asset is None:raise ServiceError('NOT_OWNED_ASSET')
         if not asset['active']:raise ServiceError('RESOURCE_CHANGED')
-        rows=db.execute("SELECT payload FROM it_repair_tickets WHERE tenant=? AND owner=? AND status IN ('OPEN','IN_PROGRESS')",
+        rows=db.execute("SELECT payload FROM it_repair_tickets WHERE tenant=? AND owner=? AND status IN ('OPEN','IN_PROGRESS','RESOLVED')",
                          (actor.tenant_id,actor.subject)).fetchall()
         existing=next((json.loads(r['payload']) for r in rows if json.loads(r['payload'])['asset_id']==asset_id),None)
         if existing:raise ServiceError('EXISTING_TICKET',data={'ticket_id':existing['ticket_id'],'ticket':existing,
@@ -75,8 +75,12 @@ class Service:
 
     def field_specs(self):
         """One definition for form labels, required facts and clarification."""
-        return [{'name':name,'label':label,'type':kind,'required':True,
+        fields=[{'name':name,'label':label,'type':kind,'required':True,
                  'question':f'请补充{label}。'} for name,label,kind in self.fields]
+        if self.key=='loan':fields.extend([{'name':name,'label':label,'type':kind,'required':False,'question':''}
+            for name,label,kind in [('min_memory_gb','最低内存 GB（可选）','integer'),('pickup_location','领用地点（可选）','text'),
+                ('date_flex_days','可推迟天数 0—7（不填不改日期）','integer')]])
+        return fields
 
     def questions(self,missing):
         specs={field['name']:field for field in self.field_specs()}
@@ -121,6 +125,9 @@ def initialize_tables(db):
         CREATE UNIQUE INDEX IF NOT EXISTS one_open_it_repair ON it_repair_tickets(tenant,owner,json_extract(payload,'$.asset_id'))
             WHERE status IN ('OPEN','IN_PROGRESS');
     ''')
+    definition=db.execute("SELECT sql FROM sqlite_master WHERE name='one_open_it_repair'").fetchone()
+    if definition and 'RESOLVED' not in definition[0]:db.execute('DROP INDEX one_open_it_repair')
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS one_open_it_repair ON it_repair_tickets(tenant,owner,json_extract(payload,'$.asset_id')) WHERE status IN ('OPEN','IN_PROGRESS','RESOLVED')")
 
 
 def seed_repairs(store,actor):

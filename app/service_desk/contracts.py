@@ -13,6 +13,9 @@ class UserFacts(Strict):
     loan_start: date | None = None
     loan_end: date | None = None
     purpose: str | None = Field(default=None,min_length=1,max_length=1000)
+    min_memory_gb: int | None = Field(default=None,ge=1,le=256,strict=True)
+    pickup_location: str | None = Field(default=None,min_length=1,max_length=100)
+    date_flex_days: int | None = Field(default=None,ge=0,le=7,strict=True)
 
 
 class RepairFacts(Strict):

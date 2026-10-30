@@ -39,6 +39,14 @@
   run one real Deep comparison and source UI check, finalize0.3 and proceed S3.
 - Progress remains in this file; original design/evidence archived read-only under reviews/020-next.
 
+- 0.3 stage commit31e0285a + entry8b4f687b retained. Real Deep first failed: both subjects read but canonical packet divided allowance across overlapping subquestions and repeated reads; loan limit was absent from sent packet.
+  First correction delivered both numbers but model omitted requested applicability; result stayedpartial. Both negatives retained:S2_DEEP_20261030T015047/020012.json.
+  Packet now replaces same-anchor search with actual read, budgets the actually rendered wire rather than the larger host offset table, and sends the investigation checklist to generation.43relatedprogram checks passed; next live is for this concrete change.
+- U14-U18 implemented in current candidate: local TEST ActionSpec transitions, exact lifecycle previews/confirmations in the same action_proposals/confirmations/command_ledger, atomic approval+reservations, return/cancel releases, repair close/reopen, current ticket separated from immutable submission receipt.
+  First service lifecycle16passed; preferences/date-candidate adjacent17passed. Actual primary database business lifecycle and browser NOT_RUN yet.
+- U19-U21 candidate: default CLI factory avoids importing legacy app/container; explicit app.main legacy retained; installed model choices and onboarding, packaged sample resources, embedding misses batched16 with existing persistent cache. Program batch currently in progress; no speed claim.
+- Next concrete action: finish batch/factory regression, commit S3 candidate, restart own8740server on current bytes, verify Deep, then same-primary-database UI loan/repair lifecycle and a small batch indexing/cache measurement. Do not stop at this checkpoint.
+
 ## Historical 0.2.0 Position (retained)
 - Workspace: `D:/文档/agent/RAG_try`; branch `codex/esa-vnext`.
 - Original main HEAD: `51faa5ba2f35d79120b362fff08b091646168d77`; 27 tracked dirty files predate this work. Their changes are preserved; the RAG modules now also contain explicit integration edits.

@@ -63,7 +63,10 @@ class TaskService:
         if task['guided_request']['kind']=='knowledge' or task['user_execution_ceiling']=='READ_ONLY':return []
         return [field['name'] for field in service_for(task).field_specs() if field['required']]
 
-    def assets(self,task_id):return service_for(self.store.get_task(local_actor(),task_id)).assets(self.store,local_actor())
+    def assets(self,task_id):
+        task=self.store.get_task(local_actor(),task_id)
+        result=service_for(task).assets(self.store,local_actor(),task['facts'])
+        return {**result,'alternatives':self.alternatives(task_id)} if task['guided_request']['kind']=='loan' else result
 
     def tickets(self,task_id):
         service=service_for(self.store.get_task(local_actor(),task_id))
@@ -88,9 +91,10 @@ class TaskService:
             with self.store.transaction() as db:
                 row=db.execute('SELECT id,text,status FROM workbench_messages WHERE id=?',(task['pending_user_update'],)).fetchone()
                 pending=dict(row) if row else {'id':task['pending_user_update'],'text':'Unresolved user input','status':'UNRESOLVED'}
-        return {**task,'preview':proposal,'pending_update':pending,'events':self.store.events(actor,task_id)[-40:],
+        current_ticket=self.ticket(task_id,task['receipt']['ticket_id']) if task.get('receipt') else None
+        return {**task,'current_ticket':current_ticket,'preview':proposal,'pending_update':pending,'events':self.store.events(actor,task_id)[-40:],
                 'missing_fields':[k for k in self.required_fields(task) if not task['facts'].get(k)],
-                'next_step':task['receipt']['ticket']['next_step'] if task.get('receipt') else
+                'next_step':current_ticket['next_step'] if current_ticket else
                     '补充内容尚未成功解释，请检查原文并明确当前任务范围；在此之前不继续办理' if pending else
                     '请核对当前完整预览并精确确认' if proposal and task['user_execution_ceiling']=='SUBMIT_AFTER_CONFIRMATION' else
                     '仅预览，不可提交' if proposal else
@@ -114,13 +118,13 @@ class TaskService:
         if task['guided_request']['kind']=='knowledge':return {}
         service=service_for(task)
         actor=local_actor();valid={}
-        current_assets=service.assets(self.store,actor);current_tickets={'tickets':self.store.list_tickets(actor,kind=service.key)}
+        current_assets=self.assets(task['task_id']);current_tickets={'tickets':self.store.list_tickets(actor,kind=service.key)}
         for row in task['observations']:
             if row['result'].get('status')!='ok':continue
             meta=row.get('dependency_context',{})
             if self.store.clock()-meta.get('observed_at',0)>60:continue
             name=row['tool'];data=row['result']['data']
-            fields=('loan_start','loan_end') if service.key=='loan' else ()
+            fields=('loan_start','loan_end','min_memory_gb','pickup_location','date_flex_days') if service.key=='loan' else ()
             bound_facts=(meta['facts_projection']=={field:task['facts'].get(field) for field in fields}
                 if 'facts_projection' in meta else meta.get('facts_revision')==task['facts_revision'])
             if name=='assets.search' and bound_facts and data==current_assets:
@@ -189,17 +193,23 @@ class TaskService:
                      'parameters':task['facts'],'details':{'owner':'当前用户','origin':'SYNTHETIC_OWNED_ASSET'},
                      'notice':'选择本人设备，不改变故障描述和影响程度；不是借用或分配设备'}
                     for a in service_for(task).assets(self.store,local_actor())['assets'] if a['active']][:3]
-        data=self.store.assets(local_actor())
+        from app.service_desk.scheduling import inventory
+        from datetime import date
+        result=[];facts=task['facts'];dated=bool(facts.get('loan_start') and facts.get('loan_end'))
         with self.store.transaction() as db:
-            has_details=db.execute("SELECT 1 FROM sqlite_master WHERE name='asset_details'").fetchone()
-            details={r['asset_id']:json.loads(r['payload']) for r in db.execute('SELECT * FROM asset_details WHERE tenant=?',(local_actor().tenant_id,))} if has_details else {}
-        return [{'asset_id':a['asset_id'],'category':a['category'],'version':a['version'],
-                 'available':bool(a['available']),'parameters':task['facts'],
-                 'details':details.get(a['asset_id'],{}),
-                 'difference':'不同的实际设备；日期和用途保持不变','notice':'不预留；后端没有未来排期数据，不承诺未来日期有货'}
-                for a in data['assets'] if a['category']=='laptop'][:3]
+            for shift in range((facts.get('date_flex_days') or 0)+1 if dated else 1):
+                parameters=dict(facts)
+                if shift:
+                    for key in ('loan_start','loan_end'):parameters[key]=str(date.fromisoformat(facts[key])+timedelta(days=shift))
+                for asset in inventory(db,local_actor(),parameters):
+                    if asset['category']!='laptop':continue
+                    result.append({**asset,'available':True,'parameters':parameters,'date_shift_days':shift,
+                        'difference':f'日期推迟{shift}天；其余参数和偏好保持' if shift else '请求日期和用途不变；匹配真实规格及排期',
+                        'notice':'这是当前可选方案，不是预留；批准时再次检查日期冲突。' if dated else '未提供完整日期，当前只显示规格，不保证日期可用。'})
+                    if len(result)==3:return result
+        return result
 
-    def choose_asset(self,task_id,asset_id,revision):
+    def choose_asset(self,task_id,asset_id,revision,date_shift_days=0):
         actor=local_actor()
         task=self.store.get_task(actor,task_id)
         if task['guided_request']['kind']=='repair':
@@ -210,9 +220,23 @@ class TaskService:
             task=self.store._task(db,actor,task_id);self.store._live(task)
             if task.get('receipt') or (task.get('active_run_id') and not self.store.owns_run(task)):raise ServiceError('TASK_BUSY_OR_SUBMITTED')
             if task['facts_revision']!=revision:raise ServiceError('TASK_CHANGED')
+            if type(date_shift_days) is not int or not 0<=date_shift_days<=(task['facts'].get('date_flex_days') or 0):
+                raise ServiceError('DATE_CHANGE_NOT_AUTHORIZED')
+            if date_shift_days:
+                from datetime import date
+                from app.service_desk.goals import structured_goal_fields
+                for key in ('loan_start','loan_end'):
+                    if not task['facts'].get(key):raise ServiceError('INVALID_DATES')
+                    task['facts'][key]=str(date.fromisoformat(task['facts'][key])+timedelta(days=date_shift_days))
+                task['guided_request']['facts']=dict(task['facts'])
+                self.store._refresh_guided(task)
+                self.store._event(db,task_id,'user_candidate_dates',{'shift_days':date_shift_days,'authority':'EXPLICIT_USER_CANDIDATE_SELECTION','facts':task['facts']})
+            from app.service_desk.scheduling import check_resource
+            if task['facts'].get('loan_start') and task['facts'].get('loan_end'):
+                check_resource(db,actor,asset_id,task['facts'])
             if not db.execute('SELECT 1 FROM assets WHERE tenant=? AND asset_id=? AND available=1 AND category=?',(actor.tenant_id,asset_id,'laptop')).fetchone():
                 raise ServiceError('RESOURCE_CHANGED')
-            if task.get('preferred_asset_id')==asset_id:return {'selected_asset_id':asset_id,'unchanged':True}
+            if task.get('preferred_asset_id')==asset_id and not date_shift_days:return {'selected_asset_id':asset_id,'unchanged':True}
             task.update(preferred_asset_id=asset_id,facts_revision=task['facts_revision']+1,
                         pending_proposal_id=None,status='NEW')
             self.store._invalidate_derived(db,task,'user_asset_selection')

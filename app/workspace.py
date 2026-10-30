@@ -206,6 +206,7 @@ class SelectAsset(BaseModel):
     model_config=ConfigDict(extra='forbid')
     asset_id: str
     expected_facts_revision: int = Field(ge=1)
+    date_shift_days:int=Field(default=0,ge=0,le=7,strict=True)
 
 
 class ResolveUpdate(BaseModel):
@@ -213,6 +214,23 @@ class ResolveUpdate(BaseModel):
     execution_ceiling: Literal['READ_ONLY','PREVIEW_ONLY','SUBMIT_AFTER_CONFIRMATION']
     expected_facts_revision: int = Field(ge=1)
     reviewed: bool = Field(strict=True)
+
+
+class DeskAction(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    kind:Literal['loan','repair']
+    ticket_id:str
+    action:str
+    expected_version:int=Field(ge=1)
+    note:str=Field(min_length=1,max_length=1000)
+    loan_end:date|None=None
+
+
+class DeskCommit(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    proposal_id:str
+    content_digest:str
+    accepted:bool=Field(strict=True)
 
 
 class AddDirectory(BaseModel):
@@ -385,6 +403,25 @@ def workspace_router(workspace):
         from app.service_desk.catalog import SERVICES
         return [service.public() for service in SERVICES.values()]
 
+    def desk():
+        from app.service_desk.lifecycle import Lifecycle
+        return Lifecycle(workspace.service.store)
+
+    @router.get('/api/service-desk')
+    def service_desk():
+        from app.workbench_service import local_actor
+        return service_call(lambda:desk().list(local_actor()))
+
+    @router.post('/api/service-desk/proposals')
+    def desk_preview(payload:DeskAction):
+        from app.workbench_service import local_actor
+        return service_call(lambda:desk().propose(local_actor(),**payload.model_dump(mode='json')))
+
+    @router.post('/api/service-desk/commit')
+    def desk_commit(payload:DeskCommit):
+        from app.workbench_service import local_actor
+        return service_call(lambda:desk().commit(local_actor(),**payload.model_dump()))
+
     @router.post('/api/tasks')
     async def create_task(payload: CreateTask):
         if payload.use_original_parameters and not payload.answer_id:
@@ -423,7 +460,7 @@ def workspace_router(workspace):
 
     @router.post('/api/tasks/{task_id}/asset')
     def select_asset(task_id: str,payload: SelectAsset):
-        return service_call(lambda:workspace.service.choose_asset(task_id,payload.asset_id,payload.expected_facts_revision))
+        return service_call(lambda:workspace.service.choose_asset(task_id,payload.asset_id,payload.expected_facts_revision,payload.date_shift_days))
 
     @router.patch('/api/tasks/{task_id}/facts')
     def facts(task_id: str,payload: UpdateFacts):

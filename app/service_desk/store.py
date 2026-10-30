@@ -76,6 +76,8 @@ class ServiceDeskStore:
             ''')
             from app.service_desk.catalog import initialize_tables
             initialize_tables(db)
+            from app.service_desk.scheduling import initialize
+            initialize(db)
 
     @staticmethod
     def ticket_table(task):
@@ -388,14 +390,14 @@ class ServiceDeskStore:
             row=db.execute('SELECT * FROM rule_sources WHERE tenant=?',(actor.tenant_id,)).fetchone()
             return dict(row) if row else None
 
-    def assets(self, actor):
+    def assets(self, actor, facts=None):
         self.authorize(actor)
         with self.transaction() as db:
-            rows = db.execute('SELECT asset_id,category,available,version FROM assets WHERE tenant=? AND available=1',
-                              (actor.tenant_id,)).fetchall()
+            from app.service_desk.scheduling import inventory
+            rows=inventory(db,actor,facts)
             repair = db.execute('SELECT active,version FROM repairs WHERE tenant=? AND owner=?',
                                 (actor.tenant_id,actor.subject)).fetchone()
-            return {'assets':[dict(r) for r in rows], 'repair':dict(repair) if repair else None}
+            return {'assets':rows, 'repair':dict(repair) if repair else None}
 
     def list_tickets(self, actor,kind='loan'):
         from app.service_desk.catalog import SERVICES
@@ -494,11 +496,13 @@ class ServiceDeskStore:
                            (actor.tenant_id,asset_id)).fetchone()
         if asset is None or asset['category'] != 'laptop':
             raise ServiceError('RESOURCE_CHANGED')
+        from app.service_desk.scheduling import check_resource
+        check_resource(db,actor,asset_id,facts)
         repair = db.execute('SELECT * FROM repairs WHERE tenant=? AND owner=?',
                             (actor.tenant_id,actor.subject)).fetchone()
         if repair is None or not repair['active']:
             raise ServiceError('NOT_ELIGIBLE')
-        existing = db.execute("SELECT ticket_id,payload FROM tickets WHERE tenant=? AND owner=? AND status IN ('PENDING_APPROVAL','IN_PROGRESS')",
+        existing = db.execute("SELECT ticket_id,payload FROM tickets WHERE tenant=? AND owner=? AND status IN ('PENDING_APPROVAL','IN_PROGRESS','RESERVED','CHECKED_OUT')",
                               (actor.tenant_id,actor.subject)).fetchone()
         if existing:
             ticket=json.loads(existing['payload'])
@@ -636,6 +640,8 @@ class ServiceDeskStore:
         return by_operation(content['operation']).check_preview(self,db,actor,content)
 
     def _check_loan_dependencies(self, db, actor, content):
+        from app.service_desk.scheduling import check_resource
+        check_resource(db,actor,content['target'],content['parameters'])
         rule=db.execute('SELECT * FROM loan_rules WHERE tenant=?',(actor.tenant_id,)).fetchone()
         if rule is None or digest(dict(rule))!=content['rule_digest']:
             raise ServiceError('POLICY_CHANGED')
@@ -763,8 +769,14 @@ class ServiceDeskStore:
             receipt = json.loads(row['receipt'])
             ticket = db.execute(f'SELECT payload FROM {self.ticket_table(task)} WHERE ticket_id=? AND tenant=? AND owner=?',
                                 (receipt['ticket_id'],actor.tenant_id,actor.subject)).fetchone()
-            if ticket is None or json.loads(ticket['payload']) != receipt['ticket']:
+            current=json.loads(ticket['payload']) if ticket else {}
+            snapshot=receipt['ticket']
+            if (not current or any(current.get(k)!=snapshot.get(k) for k in
+                    ('ticket_id','tenant','owner','task_id','command_id','asset_id')) or current.get('version',0)<snapshot['version']):
                 raise ServiceError('READBACK_MISMATCH')
+            if task.get('receipt'):
+                self._event(db,task_id,'receipt_reloaded',{'submission_receipt':receipt,'current_ticket':current})
+                return receipt
             # Readback proves the command, not every original user obligation.
             task.update(receipt=receipt,status='BLOCKED',active_run_id=None,last_error='GOAL_NOT_COMPLETE',
                         outcome=None,outcome_binding=None)
@@ -1075,7 +1087,7 @@ class ServiceDeskStore:
                 task.setdefault('resolved_ticket_results',{})[data['ticket_id']]=data
         observation={'tool':name,'result':result}
         if task.get('product_runtime'):
-            fields=('loan_start','loan_end') if task.get('guided_request',{}).get('kind')=='loan' and name=='assets.search' else ()
+            fields=('loan_start','loan_end','min_memory_gb','pickup_location','date_flex_days') if task.get('guided_request',{}).get('kind')=='loan' and name=='assets.search' else ()
             observation['dependency_context']={'observed_at':self.clock(),'facts_revision':task['facts_revision'],
                 'facts_projection':{field:task['facts'].get(field) for field in fields}}
         if name=='tickets.propose_create':

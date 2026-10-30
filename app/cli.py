@@ -22,7 +22,6 @@ def main():
         initialize(root,sample=args.sample)
         print("Initialized:",root);return
     from app.config import Settings
-    from app.runtime.resources import build_service_container
     config = load_config(root)
     settings = Settings(workbench_enabled=True,data_dir=root,sqlite_path=root/"app.sqlite3",
                         chat_model=config.chat_model,embedding_model=config.embedding_model)
@@ -39,10 +38,10 @@ def main():
             finally: await workspace.client.aclose()
         asyncio.run(inspect());return
     import uvicorn
-    from app.main import create_app
+    from app.workbench_app import create_workbench_app
     print("Workspace:",root,flush=True)
     print("URL: http://"+args.host+":"+str(args.port),flush=True)
-    uvicorn.run(create_app(build_service_container(settings)),host=args.host,port=args.port,access_log=False)
+    uvicorn.run(create_workbench_app(settings),host=args.host,port=args.port,access_log=False)
 
 
 if __name__ == "__main__": main()

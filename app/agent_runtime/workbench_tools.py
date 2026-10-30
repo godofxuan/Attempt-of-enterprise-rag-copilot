@@ -33,7 +33,7 @@ class ToolCatalog:
                               ('question',) if properties else ()))
         if domain:
             tools.extend([Tool(domain.rule_need,'Read the current executable synthetic business rule; documents do not replace it.',{}),
-                Tool('assets_search','Read current owned IT assets.' if kind=='repair' else 'Read actual loan availability and repair eligibility.',{}),
+                Tool('assets_search','Read current owned IT assets.' if kind=='repair' else 'Read actual date availability, specifications, preferences and repair eligibility.',{}),
                 Tool('tickets_list_mine','Read current authenticated owned tickets, including an empty list.',{}),
                 Tool('tickets_get','Read a current owned ticket returned by the list.',{'ticket_id':{'type':'string'}},('ticket_id',))])
             if not task.get('receipt'):

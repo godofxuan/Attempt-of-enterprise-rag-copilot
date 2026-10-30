@@ -754,7 +754,7 @@ def _build_prompt_sources(
             remaining -= len(json_record)
             if remaining_bytes is not None:
                 remaining_bytes -= (
-                    len(json.dumps(json_record, ensure_ascii=False).encode("utf-8")) - 2 + 1
+                    _record_wire_bytes(json_record) + 1
                 )
     opened_ids: set[tuple] = set()
     for admitted in state.open_results:
@@ -834,7 +834,7 @@ def _build_prompt_sources(
         remaining -= len(json_record)
         if remaining_bytes is not None:
             remaining_bytes -= (
-                len(json.dumps(json_record, ensure_ascii=False).encode("utf-8")) - 2 + 1
+                _record_wire_bytes(json_record) + 1
             )
     from app.agent.answer_applicability import business_scope_matches
     return [source for source in result
@@ -899,7 +899,7 @@ def _bounded_json_record(
         # at both levels, including quotes, backslashes and control characters.
         return len(serialized) <= max_chars and (
             max_bytes is None
-            or len(json.dumps(serialized, ensure_ascii=False).encode("utf-8")) - 2 <= max_bytes
+            or _record_wire_bytes(serialized) <= max_bytes
         )
 
     working = dict(record)
@@ -943,6 +943,11 @@ def _bounded_json_record(
     ):
         return serialized
     return None
+
+
+def _record_wire_bytes(serialized):
+    # Count the representation actually sent, not the larger host offset table.
+    return len(json.dumps(_safe_compact_json(_model_source_record(serialized)),ensure_ascii=False).encode('utf8'))-2
 
 
 def _delivered_extractive_fallback(
@@ -1021,6 +1026,8 @@ def _generation_messages(
         {
             "intent": state.analysis.intent,
             "question": question,
+            **({'investigation_questions':state.analysis.required_aspects}
+               if state.analysis.source=='model' else {}),
             **({"clarification_replies_untrusted": state.clarification_replies}
                if state.clarification_replies else {}),
             **(
@@ -1056,6 +1063,10 @@ def _generation_messages(
                'employee is eligible, a request was approved, or a business action happened. Do not require '
                'unasked facts or live business checks for a policy question. Judge all requested facets and '
                'necessary conditions of the whole original question, then choose the status consistently.')
+    if state.analysis.source=='model':
+        system += (' The investigation_questions are the planned reading checklist for this original request, '
+                   'not evidence. Address each supported subquestion, including the conditions of each compared '
+                   'subject, before declaring the original need supported. A comparison of numbers alone does not answer requested applicability.')
     begin = f"[BEGIN_UNTRUSTED_EVIDENCE nonce={nonce}]"
     end = f"[END_UNTRUSTED_EVIDENCE nonce={nonce}]"
     reminder = f"[TRUSTED_REMINDER nonce={nonce}]"

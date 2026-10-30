@@ -88,4 +88,8 @@ class ModelService:
         def embed(text):
             future = asyncio.run_coroutine_threadsafe(self.embed([text],purpose=purpose), loop)
             return future.result(timeout=self.workspace.config.request_timeout_seconds+5)[0]
+        def batch(texts):
+            future=asyncio.run_coroutine_threadsafe(self.embed(texts,purpose=purpose),loop)
+            return future.result(timeout=self.workspace.config.request_timeout_seconds+5)
+        embed.batch=batch
         return embed
