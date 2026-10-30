@@ -3,15 +3,40 @@ import {textElement,businessCard} from './dom.js';
 import {renderAnswer} from './renderers.js';
 import {watchRun} from './events.js';
 
-let version=0;
+let version=0,conversations=[],historyExpanded=false;
+const historyViewport=window.matchMedia('(max-width:680px)');
+$('conversationHistory').open=!historyViewport.matches;
+historyViewport.addEventListener('change',event=>{$('conversationHistory').open=!event.matches;});
+function renderConversationList(){
+ const query=$('conversationSearch').value.trim().toLocaleLowerCase();
+ let matches=conversations.filter(c=>(c.title||'知识会话').toLocaleLowerCase().includes(query));
+ const active=matches.find(c=>c.id===uiState.conversationId);
+ if(!query&&!historyExpanded&&active&&!matches.slice(0,6).includes(active))matches=[active,...matches.filter(c=>c!==active)];
+ const visible=historyExpanded?matches:matches.slice(0,6);
+ $('conversationList').replaceChildren(...visible.map(c=>{
+  const title=c.title||'知识会话',button=textElement('button','');button.type='button';button.className='conversation-entry';
+  button.title=title;
+  if(c.id===uiState.conversationId)button.setAttribute('aria-current','page');
+  const date=new Date(c.updated_at),time=c.updated_at&&!Number.isNaN(date.getTime())
+   ?date.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'较早记录';
+  const heading=textElement('span',title);heading.className='conversation-entry-title';
+  button.append(heading,textElement('small',(c.task_id?'服务事项':'知识会话')+' · '+time));
+  button.onclick=()=>openConversation(c.id).catch(showError);return button;
+ }));
+ if(!visible.length)$('conversationList').append(textElement('p',query?'没有匹配的会话':'还没有会话，从右侧开始提问。'));
+ $('conversationCount').textContent=query?'找到 '+matches.length+' 个会话':'共 '+conversations.length+' 个会话';
+ $('conversationMore').hidden=matches.length<=6;
+ $('conversationMore').textContent=historyExpanded?'收起历史':'查看其余 '+(matches.length-visible.length)+' 个会话';
+}
+$('conversationSearch').oninput=()=>{historyExpanded=false;renderConversationList();};
+$('conversationMore').onclick=()=>{historyExpanded=!historyExpanded;renderConversationList();};
 export function restoreTaskLayout(){
  $('taskPane').append($('taskDetail'));$('taskProgressSlot').append($('taskProgress'));
 }
 export async function refreshConversations(){
  const list=await api('/api/conversations');
- $('conversationList').replaceChildren(...list.map(c=>{
-  const button=textElement('button',c.title||'知识会话');button.onclick=()=>openConversation(c.id).catch(showError);return button;
- }));
+ conversations=[...list].sort((a,b)=>(Date.parse(b.updated_at)||0)-(Date.parse(a.updated_at)||0));
+ renderConversationList();
  return list;
 }
 function renderTimeline(turns){
