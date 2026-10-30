@@ -6,6 +6,7 @@ class ContextBuilder:
     def __init__(self,service):self.service=service
 
     def build(self,task,turn=None,observed=()):
+        from app.service_desk.goals import OUTPUT_MEANINGS
         service=SERVICES.get(task['guided_request']['kind'])
         current_ticket=None
         if task.get('receipt') and service:
@@ -27,6 +28,11 @@ class ContextBuilder:
             linked={'id':linked['id'],'question':linked['question'],'mode':answer['mode'],'answer':answer['answer'],
                     'sources':answer['sources'],'warnings':answer.get('warnings',[])}
         return {'task_kind':task['guided_request']['kind'],'execution_ceiling':task['user_execution_ceiling'],
+            'requested_results':{name:(service.output_meanings or {}).get(name,OUTPUT_MEANINGS[name]) if service else OUTPUT_MEANINGS[name]
+                for name in task['task_goal']['required_outputs']},
+            'user_selected_workflow':{'READ_ONLY':'完成当前只读查询，不准备申请',
+                'PREVIEW_ONLY':'现在准备完整预览并交付；绝不提交',
+                'SUBMIT_AFTER_CONFIRMATION':'现在准备完整申请预览；随后等待用户对当前预览精确确认，再提交一次并读回'}[task['user_execution_ceiling']],
             'forbidden_operations':task['task_goal']['forbidden_operations'],'facts':task['facts'],
             'reference_date':str(self.service.store.today()),'preferred_asset_id':task.get('preferred_asset_id'),
             'question':task['guided_request'].get('question') if not turn else None,

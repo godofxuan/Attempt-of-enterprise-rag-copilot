@@ -37,7 +37,7 @@ class ServiceAgent:
                 self.store.reserve_model(actor,task_id,started['active_run_id'],{'purpose':'tool_selection','context':context})
                 user_messages=[{'role':'user','content':turn['text'] if turn else
                     current['guided_request']['question'] if current['guided_request']['kind']=='knowledge' else
-                    '继续我已明确范围的当前服务事项，使用当前参数和真实工具观察，执行到现有操作上限；不要重新回答已交付的旧问题。'}]
+                    '继续当前服务事项：'+context['user_selected_workflow']+'。使用我已提供的当前参数和真实工具观察，不要重新回答已交付的旧问题。'}]
                 response=await self.workspace.models.chat([{'role':'system','content':system},*user_messages,*messages],
                     tools=catalog.schemas(),max_tokens=800)
                 self.store.record(actor,task_id,'model_response',{'raw':response,'run_id':run_id})

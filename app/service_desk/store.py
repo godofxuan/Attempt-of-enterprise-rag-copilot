@@ -1481,7 +1481,7 @@ class ServiceDeskStore:
             completed=[output for output in completed if output!='ticket_status']
             answers.append('本次新工单回执已核验，但提交前的原查询结果未能重新核验；不能据新回执宣称原查询已完成。')
         if 'asset_status' in needed:
-            current_assets=self.assets(actor)
+            current_assets=self.assets(actor,task['facts'] if task.get('product_runtime') else None)
             observed_assets=[o['result'].get('data',{}) for o in task['observations']
                 if o['tool']=='assets.search' and o['result'].get('status')=='ok']
             if any({k:data.get(k) for k in ('assets','repair')}==current_assets for data in observed_assets):

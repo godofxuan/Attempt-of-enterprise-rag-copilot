@@ -27,11 +27,18 @@ class ConversationService:
             tasks=[json.loads(r[0]) for r in db.execute("SELECT payload FROM agent_tasks WHERE tenant='local' AND owner='local-owner'")]
         for answer in answers:
             cid=answer['conversation_id']
+            tool_origin=any((task.get('knowledge_result') or {}).get('id')==answer['id'] or any(
+                isinstance(o.get('result',{}).get('data'),dict) and o['result']['data'].get('id')==answer['id']
+                for o in task.get('observations',[]) if o.get('tool')=='knowledge_answer') for task in tasks)
             with self.db() as db:
+                if tool_origin:
+                    # Correct only the derived timeline attribution. Raw answer,
+                    # model requests and original user message remain unchanged.
+                    db.execute("UPDATE conversation_turns SET role='tool',kind='knowledge_query' WHERE id=? AND kind='historical_question'",(answer['id']+'-question',))
                 represented=db.execute("SELECT 1 FROM conversation_turns WHERE json_extract(payload,'$.id')=? OR json_extract(payload,'$.knowledge.id')=?",
                     (answer['id'],answer['id'])).fetchone()
             if represented:continue
-            self.append(cid,'user','historical_question',answer['question'],turn_id=answer['id']+'-question')
+            self.append(cid,'tool' if tool_origin else 'user','knowledge_query' if tool_origin else 'historical_question',answer['question'],turn_id=answer['id']+'-question')
             self.append(cid,'assistant','historical_answer',json.loads(answer['result_json'])['answer'],
                 {'id':answer['id'],'result':json.loads(answer['result_json'])},turn_id=answer['id']+'-answer')
             with self.db() as db:db.execute('UPDATE conversations SET title=COALESCE(title,?) WHERE id=?',('知识：'+answer['question'][:50],cid))

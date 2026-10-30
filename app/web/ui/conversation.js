@@ -18,7 +18,7 @@ function renderTimeline(turns){
  const box=$('conversationTimeline');box.replaceChildren();
  for(const turn of turns){
   const card=document.createElement('article');card.className='turn '+turn.role;
-  card.append(textElement('small',(turn.role==='user'?'你':'助手')+' · '+turn.status),textElement('pre',turn.text));
+  card.append(textElement('small',(turn.role==='user'?'你':turn.role==='tool'?'工具查询':'助手')+' · '+turn.status),textElement('pre',turn.text));
   const payload=turn.payload;
   if(payload?.knowledge)card.append(renderAnswer(payload.knowledge));
   else if(payload?.result?.sources)card.append(renderAnswer(payload));
