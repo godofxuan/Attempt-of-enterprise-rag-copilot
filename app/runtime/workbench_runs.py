@@ -12,6 +12,8 @@ class Runs:
     def __init__(self, workspace):
         self.workspace = workspace
         self.closing = False
+        from app.runtime.run_lifecycle import RunLifecycle
+        self.lifecycle=RunLifecycle(workspace)
         self.tasks = {};self.contexts = {}
         with self.db() as db:
             db.executescript('''
@@ -39,11 +41,25 @@ class Runs:
                        (run_id,kind,target,json.dumps(payload,ensure_ascii=False)))
         self.event(run_id,'queued',{'kind':kind})
         self.tasks[run_id]=asyncio.create_task(self.execute(run_id,kind,payload),context=Context())
+        self.tasks[run_id].add_done_callback(lambda handle:self._before_start_cancel(run_id,kind,payload,handle))
         return self.get(run_id)
+
+    def _before_start_cancel(self,run_id,kind,payload,handle):
+        if handle.cancelled() and self.get(run_id)['status']=='queued':
+            self._finish(run_id,kind,payload,'interrupted' if self.closing else 'cancelled',None,None)
+
+    def _finish(self,run_id,kind,payload,status,result,error):
+        self.lifecycle.finish(run_id,kind,payload,status,error)
+        with self.db() as db:
+            db.execute('UPDATE workbench_runs SET status=?,result_json=?,error=? WHERE id=?',
+                (status,json.dumps(result,ensure_ascii=False) if result is not None else None,error,run_id))
+        self.event(run_id,'finished' if status=='succeeded' else status,result if status=='succeeded' else {'error':error})
+        self.contexts.pop(run_id,None);self.tasks.pop(run_id,None)
 
     async def execute(self,run_id,kind,payload):
         token=bind_request_context(run_id,deadline_ms=240000)
         self.contexts[run_id]=current_request_context()
+        status='failed';result=None;error=None
         try:
             with self.db() as db:db.execute("UPDATE workbench_runs SET status='running' WHERE id=?",(run_id,))
             self.event(run_id,'running',{})
@@ -52,20 +68,15 @@ class Runs:
             elif kind=='message':result=await self.workspace.service.message(**payload)
             else:raise ValueError('Unknown run kind')
             if self.contexts[run_id].cancelled.is_set():raise asyncio.CancelledError()
-            with self.db() as db:db.execute("UPDATE workbench_runs SET status='succeeded',result_json=? WHERE id=?",(json.dumps(result,ensure_ascii=False),run_id))
-            self.event(run_id,'finished',result)
+            status='succeeded'
         except asyncio.CancelledError:
             status='interrupted' if self.closing else 'cancelled'
-            with self.db() as db:db.execute("UPDATE workbench_runs SET status=?,error=? WHERE id=?",(status,'Process stopping' if self.closing else None,run_id))
-            self.event(run_id,status,{})
+            error='Process stopping' if self.closing else None
         except Exception as exc:
-            if kind=='message':
-                try:self.workspace.service.message_failed(payload['task_id'],payload['message_id'],str(exc))
-                except Exception:pass  # Preserve the original failed run; never resume a write path.
-            with self.db() as db:db.execute("UPDATE workbench_runs SET status='failed',error=? WHERE id=?",(type(exc).__name__+': '+str(exc),run_id))
-            self.event(run_id,'failed',{'error':type(exc).__name__+': '+str(exc)})
+            error=type(exc).__name__+': '+str(exc)
         finally:
-            self.contexts.pop(run_id,None);self.tasks.pop(run_id,None);reset_request_context(token)
+            try:self._finish(run_id,kind,payload,status,result,error)
+            finally:reset_request_context(token)
 
     def get(self,run_id):
         with self.db() as db:row=db.execute('SELECT * FROM workbench_runs WHERE id=?',(run_id,)).fetchone()

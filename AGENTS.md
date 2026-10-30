@@ -5,8 +5,9 @@ Do not restore retired historical directories, reset dirty work or overwrite lat
 
 ## Current Goal
 
-Implement `docs/esa-vnext/GOAL.md`, R1 and R2 (M0-M8). Architecture and contracts:
-`PRODUCT_ARCHITECTURE.md`, `ENGINEERING_CONTRACTS.md`. The sole implementation
+Continue from completed0.2.0 into `docs/esa-vnext/reviews/020-next/GOAL.md`,
+U01-U24: deliver0.3 unified conversation/knowledge, then0.4 local service lifecycle.
+Preserve earlier R1/R2 results. The sole implementation
 progress record is `docs/esa-vnext/STATUS.md`; preserve earlier actual progress.
 
 ## Execution

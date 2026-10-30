@@ -73,7 +73,16 @@ class Service:
                          (actor.tenant_id,actor.subject,content['target'])).fetchone()
         if asset is None or not asset['active'] or asset['version']!=content['asset_version']:raise ServiceError('RESOURCE_CHANGED')
 
-    def public(self):return {'key':self.key,'title':self.title,'fields':[{'name':n,'label':label,'type':kind} for n,label,kind in self.fields],
+    def field_specs(self):
+        """One definition for form labels, required facts and clarification."""
+        return [{'name':name,'label':label,'type':kind,'required':True,
+                 'question':f'请补充{label}。'} for name,label,kind in self.fields]
+
+    def questions(self,missing):
+        specs={field['name']:field for field in self.field_specs()}
+        return ' '.join(specs[name]['question'] for name in missing if name in specs)
+
+    def public(self):return {'key':self.key,'title':self.title,'fields':self.field_specs(),
                             'ticket_status':self.ticket_status,'notice':self.next_step}
 
 

@@ -1,5 +1,21 @@
 # ESA vNext Current Status
 
+## Active Upgrade — 0.3 / 0.4 (2026-10-30)
+- Goal ACTIVE: reviews/020-next/GOAL.md, U01-U24, S0-S4. Historical0.2.0 completion below is retained.
+- Branch codex/esa-030-040 from8881b000; eight preexisting tracked modifications and unrelated untracked work retained.
+- Actual port8740 was not listening. Started the existing CLI successfully with the same .private/esa-vnext data.
+- Pre-upgrade SQLite backup: .private/esa-vnext/backups/pre-030-040_8881b000.sqlite3. Existing1loan/1repair ticket retained.
+- Product starting counts primary40chat/26embed; historical and other declared data directories unchanged.
+- S0 U01-U03: three actual REDs reproduced (asset_id KeyError, NO_WRITE_GOAL, stale active_run_id).
+  Service field specs now supply required facts/form/questions. Knowledge messages go to the shared library without pending business facts.
+  RunLifecycle releases only its matching task nonce/fence; all terminal events follow cleanup, cancelled messages retain raw text but release pending gate.
+  UI now distinguishes stop-current-run from end-task. Related program checks21passed/0failed, S0_FINAL.xml.
+- Initial unprivileged Windows asyncio probe hung creating its loopback IPC; same checks in the permitted local environment completed.
+  Original audit script partial run remains isolated and is not counted as acceptance. No real model calls for S0.
+- Next S1: persistent conversation/turn entry and existing loop context/tools; mixed knowledge+facts, post-submit query, UI timeline/reconnect.
+  S0 is a checkpoint, not completion of0.3/0.4. Browser/live new paths remain to be exercised during the product journey.
+- Progress remains in this file; original design/evidence archived read-only under reviews/020-next.
+
 ## Current Position
 - Workspace: `D:/文档/agent/RAG_try`; branch `codex/esa-vnext`.
 - Original main HEAD: `51faa5ba2f35d79120b362fff08b091646168d77`; 27 tracked dirty files predate this work. Their changes are preserved; the RAG modules now also contain explicit integration edits.

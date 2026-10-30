@@ -1,0 +1,287 @@
+[
+  {
+    "file": "README.md",
+    "label": "public review packet",
+    "target": "docs/review/FINAL_REVIEW_PACKET.md"
+  },
+  {
+    "file": "README.md",
+    "label": "branch compatibility policy",
+    "target": "docs/BRANCH_COMPATIBILITY.md"
+  },
+  {
+    "file": "README.md",
+    "label": "release closure report",
+    "target": "docs/releases/2026-09-15-mainline-closure/REPORT.md"
+  },
+  {
+    "file": "README.md",
+    "label": "candidate runbook",
+    "target": "docs/local_closeout_20260910/README.md"
+  },
+  {
+    "file": "README.md",
+    "label": "runtime delivery report",
+    "target": "docs/review/runtime_delivery_20260905/RESULTS.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Results and remaining failures",
+    "target": "docs/review/runtime_delivery_20260905/RESULTS.md"
+  },
+  {
+    "file": "README.md",
+    "label": "verifiable case checks",
+    "target": "docs/review/runtime_delivery_20260905/service_cases.json"
+  },
+  {
+    "file": "README.md",
+    "label": "metrics",
+    "target": "docs/review/runtime_delivery_20260905/metrics.csv"
+  },
+  {
+    "file": "README.md",
+    "label": "Evidence",
+    "target": "docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json"
+  },
+  {
+    "file": "README.md",
+    "label": "Evidence",
+    "target": "docs/wixqa_reranker/article_multi_chunk_evidence.json"
+  },
+  {
+    "file": "README.md",
+    "label": "Evidence",
+    "target": "docs/wixqa_reranker/raw_chunk_bge_evidence.json"
+  },
+  {
+    "file": "README.md",
+    "label": "Protocol, result, and evidence",
+    "target": "docs/wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Protocol and evidence",
+    "target": "docs/retrieval_strategy_bakeoff_v1/RESULTS.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Evidence",
+    "target": "docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json"
+  },
+  {
+    "file": "README.md",
+    "label": "Evidence",
+    "target": "docs/reproduction/evidence/wixqa_clean_reproduction_public_v1.json"
+  },
+  {
+    "file": "README.md",
+    "label": "Evidence",
+    "target": "docs/r4/evidence/uda_finance_r4_canary_review_v1.json"
+  },
+  {
+    "file": "README.md",
+    "label": "Evidence",
+    "target": "docs/r5/evidence/uda_finance_r5_public_v1.json"
+  },
+  {
+    "file": "README.md",
+    "label": "Protocols and results",
+    "target": "docs/wixqa_reranker/RESULTS.md"
+  },
+  {
+    "file": "README.md",
+    "label": "final decision",
+    "target": "docs/FINAL_PROJECT_DECISION.md"
+  },
+  {
+    "file": "README.md",
+    "label": "evaluation summary",
+    "target": "docs/FINAL_EVALUATION_SUMMARY.md"
+  },
+  {
+    "file": "README.md",
+    "label": "claim boundary",
+    "target": "docs/RESUME_CLAIM_BOUNDARY.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Final paired evidence",
+    "target": "docs/wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md"
+  },
+  {
+    "file": "README.md",
+    "label": "multi-document record",
+    "target": "docs/multidoc_candidate/02_RESULTS_AND_DECISION.md"
+  },
+  {
+    "file": "README.md",
+    "label": "R4 journal",
+    "target": "docs/r4/ENGINEERING_JOURNAL.md"
+  },
+  {
+    "file": "README.md",
+    "label": "R5 journal",
+    "target": "docs/r5/ENGINEERING_JOURNAL.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Enterprise Agentic RAG request flow",
+    "target": "docs/diagrams/agentic_rag_flow_cn.png"
+  },
+  {
+    "file": "README.md",
+    "label": "Protocol and limits",
+    "target": "docs/agent_runtime/08_AB_EVALUATION.md"
+  },
+  {
+    "file": "README.md",
+    "label": "CLI",
+    "target": "scripts/run_agent_harness.py"
+  },
+  {
+    "file": "README.md",
+    "label": "Ask page with verified sources",
+    "target": "docs/assets/ask.png"
+  },
+  {
+    "file": "README.md",
+    "label": "Agent actions, evidence coverage, and budget",
+    "target": "docs/assets/trace.png"
+  },
+  {
+    "file": "README.md",
+    "label": "Retrieval, runtime, and security evidence",
+    "target": "docs/assets/evaluation.png"
+  },
+  {
+    "file": "README.md",
+    "label": "demo runbook",
+    "target": "docs/demo_runbook.md"
+  },
+  {
+    "file": "README.md",
+    "label": "project evidence map",
+    "target": "docs/handoffs/PROJECT_EVIDENCE_MAP.md"
+  },
+  {
+    "file": "README.md",
+    "label": "teaching handoff",
+    "target": "docs/handoffs/TEACHING_CODEX_HANDOFF.md"
+  },
+  {
+    "file": "README.md",
+    "label": "interview story bank",
+    "target": "docs/handoffs/INTERVIEW_STORY_BANK.md"
+  },
+  {
+    "file": "README.md",
+    "label": "FINAL_RESUME_ENTRY_CN.md",
+    "target": "docs/handoffs/resume_package/FINAL_RESUME_ENTRY_CN.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Recruiter summary",
+    "target": "docs/handoffs/RECRUITER_SUMMARY.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Claim-to-evidence map",
+    "target": "docs/handoffs/PROJECT_EVIDENCE_MAP.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Resume metric ledger",
+    "target": "docs/handoffs/RESUME_METRIC_LEDGER.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Evaluation methodology",
+    "target": "docs/evaluation.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Final project decision",
+    "target": "docs/FINAL_PROJECT_DECISION.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Final evaluation summary",
+    "target": "docs/FINAL_EVALUATION_SUMMARY.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Resume claim boundary",
+    "target": "docs/RESUME_CLAIM_BOUNDARY.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Final interview guide",
+    "target": "docs/INTERVIEW_GUIDE.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Architecture and trust boundaries",
+    "target": "docs/architecture.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Known limitations",
+    "target": "docs/known_limitations.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Full project evolution",
+    "target": "docs/history/00_PROJECT_EVOLUTION.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Portfolio archive report",
+    "target": "docs/handoffs/PORTFOLIO_ARCHIVE_REPORT.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Agent Runtime final architecture",
+    "target": "docs/agent_runtime/10_FINAL_ARCHITECTURE.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Agent Runtime security review",
+    "target": "docs/agent_runtime/09_SECURITY_REVIEW.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Agent Runtime learning tutorial",
+    "target": "docs/learning/AGENT_RUNTIME_TUTORIAL.md"
+  },
+  {
+    "file": "README.md",
+    "label": "UDA R4 retrieval and gate tutorial",
+    "target": "docs/learning/41_UDA_R4_分层检索_性能优化与失败门禁.md"
+  },
+  {
+    "file": "README.md",
+    "label": "UDA R5 fresh confirmation journal",
+    "target": "docs/r5/ENGINEERING_JOURNAL.md"
+  },
+  {
+    "file": "README.md",
+    "label": "vNext resume-safe evidence",
+    "target": "docs/resume/RESUME_SAFE_VNEXT_METRICS.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Production runtime candidate architecture",
+    "target": "docs/production_runtime/ARCHITECTURE.md"
+  },
+  {
+    "file": "README.md",
+    "label": "Production runtime results and limitations",
+    "target": "docs/production_runtime/RESULTS.md"
+  },
+  {
+    "file": "README.md",
+    "label": "limitations",
+    "target": "docs/production_runtime/KNOWN_LIMITATIONS.md"
+  }
+]

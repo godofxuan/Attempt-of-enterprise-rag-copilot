@@ -77,7 +77,7 @@ class TaskService:
     @staticmethod
     def required_fields(task):
         if task['guided_request']['kind']=='knowledge' or task['user_execution_ceiling']=='READ_ONLY':return []
-        return [field for field,_,_ in service_for(task).fields]
+        return [field['name'] for field in service_for(task).field_specs() if field['required']]
 
     def assets(self,task_id):return service_for(self.store.get_task(local_actor(),task_id)).assets(self.store,local_actor())
 
@@ -158,6 +158,23 @@ class TaskService:
             if known['task_id']!=task_id or known['text']!=text:raise ServiceError('MESSAGE_ID_CONFLICT')
             if known['status']!='APPLIED':raise ServiceError('MESSAGE_NOT_APPLIED')
             return self.view(task_id)
+        if task['guided_request']['kind']=='knowledge':
+            if task['facts_revision']!=expected_facts_revision:raise ServiceError('TASK_CHANGED')
+            if task['status']=='CANCELLED':raise ServiceError('TASK_BUSY_OR_SUBMITTED')
+            if not task.get('kb_id'):raise ServiceError('KNOWLEDGE_BASE_REQUIRED')
+            previous=task.get('knowledge_result') or {}
+            question=text if previous else '原问题：'+task['guided_request']['question']+'\n追问：'+text
+            result=await self.workspace.library.answer(task['kb_id'],question,
+                conversation_id=previous.get('conversation_id'))
+            with self.store.transaction() as db:
+                current=self.store._task(db,actor,task_id)
+                if current['status']=='CANCELLED':raise ServiceError('TASK_BUSY_OR_SUBMITTED')
+                current.update(knowledge_result=result,status='COMPLETED' if result['result']['mode']=='answered' else 'BLOCKED')
+                current['messages'].append({'id':message_id,'text':text,'origin':'USER_MESSAGE'})
+                self.store._save(db,current)
+                db.execute('INSERT INTO workbench_messages VALUES(?,?,?,?,?)',(message_id,task_id,text,'APPLIED',encoded(result)))
+                self.store._event(db,task_id,'knowledge_followup',{'message_id':message_id,'answer_id':result['id']})
+            return self.view(task_id)
         if task.get('receipt') or task['status'] in {'CANCELLED','RECONCILING'}:raise ServiceError('TASK_BUSY_OR_SUBMITTED')
         if task.get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
         if task['facts_revision']!=expected_facts_revision:raise ServiceError('TASK_CHANGED')
@@ -234,6 +251,17 @@ class TaskService:
             task.update(status='WAITING_USER',last_error='USER_UPDATE_PENDING')
             self.store._save(db,task)
             self.store._event(db,task_id,'user_update_failed',{'message_id':message_id,'error':error})
+
+    def message_cancelled(self,task_id,message_id):
+        actor=local_actor()
+        with self.store.transaction() as db:
+            task=self.store._task(db,actor,task_id)
+            if task.get('pending_user_update')!=message_id:return
+            task.pop('pending_user_update',None)
+            db.execute("UPDATE workbench_messages SET status='CANCELLED' WHERE id=? AND status='PENDING'",(message_id,))
+            if task['status']!='CANCELLED':task.update(status='WAITING_USER',last_error='MESSAGE_CANCELLED')
+            self.store._save(db,task)
+            self.store._event(db,task_id,'user_update_cancelled',{'message_id':message_id,'applied':False})
 
     def resolve_update(self,task_id,ceiling,revision,reviewed):
         """Explicit user scope correction, separate from a submission confirmation."""

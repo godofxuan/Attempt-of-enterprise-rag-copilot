@@ -1178,7 +1178,10 @@ class ServiceDeskStore:
                 if missing is not None:
                     task['missing_fields'] = missing
                     from app.service_desk.goals import QUESTIONS
-                    task['question']=' '.join(QUESTIONS[k] for k in missing)
+                    from app.service_desk.catalog import SERVICES
+                    service=SERVICES.get(task.get('guided_request',{}).get('kind'))
+                    task['question']=(service.questions(missing) if service else
+                                      ' '.join(QUESTIONS[k] for k in missing))
                     if missing==['goal_subject'] and task['task_goal'].get('clarification'):
                         task['question']=task['task_goal']['clarification']
                     if status=='WAITING_USER' and task.get('outcome'):

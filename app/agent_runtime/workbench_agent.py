@@ -23,6 +23,7 @@ class ServiceAgent:
 
     async def run(self,task_id,run_id):
         actor=local_actor();started=self.store.begin_run(actor,task_id)
+        self.workspace.runs.lifecycle.own_task(run_id,started)
         kind=started['guided_request']['kind'];service=SERVICES.get(kind)
         allowed={'knowledge_answer','finish','ask_user'} if kind=='knowledge' else set(DEFINITIONS)-{'knowledge_answer','loan_policy','repair_policy'}|{service.rule_need}
         if started['user_execution_ceiling']=='READ_ONLY':allowed.discard('prepare_preview')

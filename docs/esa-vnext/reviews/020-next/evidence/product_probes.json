@@ -1,0 +1,73 @@
+{
+  "source_archive_commit": "8881b000fe4e216ff035d4f2853c2d7e58087c10",
+  "python": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "full_app_startup": "NOT_TESTED_BY_THIS_SCRIPT",
+  "live_llm_runs": 0,
+  "records": [
+    {
+      "id": "loan_lifecycle",
+      "verification_kind": "ORIGINAL_SERVICE_REAL_SQLITE",
+      "result": "PASS",
+      "null_clear": true,
+      "stale_revision": "TASK_CHANGED",
+      "successive_preview_revisions": 6,
+      "business_status": "PENDING_APPROVAL",
+      "ticket_count": 1,
+      "separate_process_readback": true
+    },
+    {
+      "id": "repair_lifecycle",
+      "verification_kind": "ORIGINAL_SERVICE_REAL_SQLITE",
+      "result": "PASS",
+      "business_status": "OPEN",
+      "counts": {
+        "tickets": 0,
+        "it_repair_tickets": 1
+      }
+    },
+    {
+      "id": "all_unavailable_alternatives",
+      "verification_kind": "ORIGINAL_SERVICE_REAL_SQLITE",
+      "result": "PASS",
+      "returned_candidates": 0
+    },
+    {
+      "id": "repair_missing_fields",
+      "verification_kind": "ORIGINAL_ORCHESTRATOR_SCRIPTED_TOOL_DECISION",
+      "result": "REPRODUCED_BUG",
+      "run_status": "failed",
+      "error": "KeyError: 'asset_id'",
+      "task_status": "BLOCKED",
+      "missing_fields": [
+        "asset_id",
+        "description",
+        "impact"
+      ],
+      "live_model_calls": 0
+    },
+    {
+      "id": "knowledge_task_followup",
+      "verification_kind": "ORIGINAL_MESSAGE_AND_RUN_CODE_NO_MODEL_CALL",
+      "result": "REPRODUCED_BUG",
+      "run_status": "failed",
+      "error": "ServiceError: NO_WRITE_GOAL",
+      "pending_update": {
+        "id": "followup-1",
+        "text": "为什么有这个限制？",
+        "status": "FAILED"
+      },
+      "model_calls": 0
+    },
+    {
+      "id": "cancel_and_continue",
+      "verification_kind": "ORIGINAL_RUN_SERVICE_WITH_SUSPENDED_MODEL_STUB",
+      "result": "REPRODUCED_BUG",
+      "run_status": "cancelled",
+      "task_status": "RUNNING",
+      "active_run_remaining": true,
+      "retry_status": "failed",
+      "retry_error": "ServiceError: TASK_BUSY_OR_FINISHED",
+      "live_model_calls": 0
+    }
+  ]
+}
