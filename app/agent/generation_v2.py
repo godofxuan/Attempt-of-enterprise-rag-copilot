@@ -194,10 +194,8 @@ def generation_response_format(sources,plan,*,need_first=False):
     ids=[source.source_id+'U'+str(i) for source in sources
          for i,unit in enumerate(complete_units(source.delivered),1) if len(unit.quote)<=2000]
     if ids:
-        # Live output has a single content representation. A second free-prose
-        # answer could contain correct conditions absent from published claims.
-        schema['properties'].pop('answer',None)
-        schema['required']=[key for key in schema['required'] if key!='answer']
+        # Keep the legacy answer/claims contract for explicit legacy callers.
+        # The workbench's need_first branch below has one content representation.
         row=schema['properties']['claims']['items']
         row['properties']['source_unit_id']={'enum':ids}
         row['required']=['claim_id','source_unit_id','critical','cited_source_ids']
@@ -1059,13 +1057,6 @@ def _generation_messages(
         "Supported means the selected claims fully answer that question, including necessary conditions, not merely share a topic. "
         "A source-backed negative or unspecified policy item can answer a question; never infer user eligibility or a completed business action. "
         "Keep unknown facets unresolved. Do not demand unasked facts or business checks for a policy question."
-        " The final answer consists solely of selected claims. Include every requested fact and necessary condition there; "
-        "there is no separate prose answer that can carry omitted content."
-        " When the schema requests unit_answers, work through each need separately: select ALL source_unit_ids "
-        "that deliver that need, including its required conditions. The host creates the claims and final body from those exact selections."
-        " When the schema requests unit_uses, inspect EVERY source unit and assign the N IDs it answers or conditions; "
-        "use an empty array for irrelevant units. Include the original whole-question N ID when a unit contributes to it. "
-        "Do not overlook a condition because another unit already supplies the main number. need_status evaluates those same selections."
     )
     request_metadata = _safe_compact_json(
         {
