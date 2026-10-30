@@ -23,7 +23,8 @@ export function TaskDetail({
   const choices = useQuery({
     queryKey: ["alternatives", id, task.data?.revision],
     enabled: !!id && !!task.data?.can_edit,
-    queryFn: () => api<JSONRecord[]>("/api/tasks/" + id + "/alternatives"),
+    queryFn: () =>
+      api<JSONRecord[]>("/api/product/tasks/" + id + "/alternatives"),
   });
   useEffect(() => setDirty(false), [id, task.data?.revision]);
   const action = useMutation({

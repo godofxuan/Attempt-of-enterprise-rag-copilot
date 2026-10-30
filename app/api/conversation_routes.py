@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel, Field, ConfigDict, field_serializer, model_validator
 from app.domain.evidence import AnswerResponse
+from app.domain.queries import MAX_USER_QUESTION_CHARS
 from app.domain.product_views import PublishedAnswerView, ProposalView, ReceiptView
 
 
@@ -15,7 +16,7 @@ class CreateConversation(BaseModel):
 class ConversationMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
     message_id: str = Field(min_length=1, max_length=100)
-    text: str = Field(min_length=1, max_length=2000)
+    text: str = Field(min_length=1, max_length=MAX_USER_QUESTION_CHARS)
     detailed: bool = False
 
 

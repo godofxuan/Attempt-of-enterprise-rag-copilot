@@ -18,6 +18,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--artifact", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument('--starts',type=int,choices=range(1,6),default=5)
     args = parser.parse_args()
     root = args.output.resolve()
     assert not root.exists()
@@ -81,7 +82,7 @@ def main():
     cid = None
     try:
         with httpx.Client(trust_env=False, timeout=5, headers={"X-ESA-Request": "1"}) as client:
-            for start in range(5):
+            for start in range(args.starts):
                 elapsed, _ = execute(
                     exe,
                     "--data-dir",
@@ -157,7 +158,7 @@ def main():
         raise
     finally:
         occupied.close()
-        (root.parent / "FINAL_WINDOWS_PORTABLE.json").write_text(
+        (root.parent / ('WINDOWS_PORTABLE_'+record['release']['commit'][:8]+'.json')).write_text(
             json.dumps(record, ensure_ascii=False, indent=2), "utf8"
         )
         print(json.dumps(record, ensure_ascii=False))

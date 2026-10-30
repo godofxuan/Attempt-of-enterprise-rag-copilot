@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+MAX_USER_QUESTION_CHARS = 2000
+
 from datetime import date
 from typing import Annotated, Literal
 

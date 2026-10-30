@@ -3,6 +3,7 @@ import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from app.domain.queries import MAX_USER_QUESTION_CHARS
 
 
 class Strict(BaseModel):
@@ -28,7 +29,7 @@ class GuidedTaskRequest(Strict):
     kind: Literal['loan','repair','knowledge']
     execution_ceiling: Literal['READ_ONLY','PREVIEW_ONLY','SUBMIT_AFTER_CONFIRMATION']='READ_ONLY'
     facts: UserFacts | RepairFacts=Field(default_factory=UserFacts)
-    question: str | None=Field(default=None,min_length=1,max_length=600)
+    question: str | None=Field(default=None,min_length=1,max_length=MAX_USER_QUESTION_CHARS)
     confirmed: bool=Field(strict=True)
 
     @model_validator(mode='after')

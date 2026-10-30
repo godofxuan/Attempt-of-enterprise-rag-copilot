@@ -1,6 +1,7 @@
 from datetime import date
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
+from app.domain.queries import MAX_USER_QUESTION_CHARS
 
 
 class SettingsPatch(BaseModel):
@@ -17,7 +18,7 @@ class CreateKnowledgeBase(BaseModel):
 
 class AskKnowledge(BaseModel):
     kb_id: str
-    question: str = Field(min_length=1, max_length=2000)
+    question: str = Field(min_length=1, max_length=MAX_USER_QUESTION_CHARS)
     conversation_id: str | None = None
     detailed: bool = False
 

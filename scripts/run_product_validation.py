@@ -5,6 +5,7 @@ No arbitrary command execution interface, dependency installation or cloud calls
 """
 
 import argparse
+from datetime import datetime, timezone
 import json
 import os
 import shutil
@@ -38,6 +39,7 @@ def main():
             "journey-only",
             "build",
             "release-validation",
+            "patch-validation",
         ],
     )
     parser.add_argument("--expected-instance")
@@ -58,14 +60,41 @@ def main():
             "tests/product/test_launcher.py",
             "tests/agent_v2/test_a1_draft_delivery.py",
             "-q",
-            "--junitxml=" + str(EVIDENCE / "PRODUCT_RELATED_CURRENT.xml"),
+            "--junitxml="
+            + str(
+                EVIDENCE
+                / (
+                    "PRODUCT_RELATED_"
+                    + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+                    + ".xml"
+                )
+            ),
         )
     elif args.operation == "build":
         command(sys.executable, "-B", "-X", "utf8", "scripts/build_windows_portable.py")
-    elif args.operation == "release-validation":
+    elif args.operation in {"release-validation", "patch-validation"}:
         import httpx
 
         assert args.artifact and args.artifact.resolve().is_relative_to(DATA / "build/releases")
+        patch = args.operation == "patch-validation"
+        identity = args.artifact.stem.rsplit("-", 1)[-1]
+        if patch:
+            command(
+                sys.executable,
+                "-B",
+                "-X",
+                "utf8",
+                "-m",
+                "pytest",
+                "tests/vnext",
+                "tests/product/test_turn_recovery.py",
+                "tests/product/test_context_and_clarification.py",
+                "tests/product/test_launcher.py",
+                "tests/agent_v2/test_a1_draft_delivery.py",
+                "tests/agent_v2/test_cited_packet_completeness.py",
+                "-q",
+                "--junitxml=" + str(EVIDENCE / ("FINAL_REGRESSION_" + identity + ".xml")),
+            )
         command(
             sys.executable,
             "-B",
@@ -76,7 +105,9 @@ def main():
             "--artifact",
             args.artifact,
             "--output",
-            EVIDENCE / "Windows 0.6 独立安装验证",
+            EVIDENCE / ("Windows 最终包验证 " + identity),
+            "--starts",
+            "1" if patch else "5",
         )
         package = Path(str(args.artifact.resolve())[:-4])
         with httpx.Client(trust_env=False, timeout=4) as client:
@@ -109,7 +140,7 @@ def main():
                 before["generation_calls"] == after["generation_calls"]
                 and before["initialized_at"] == after["initialized_at"]
             )
-            (EVIDENCE / "FINAL_INSTANCE.json").write_text(
+            (EVIDENCE / ("INSTANCE_" + identity + ".json")).write_text(
                 json.dumps(
                     {
                         "before": old,
@@ -121,7 +152,19 @@ def main():
                 ),
                 "utf8",
             )
-        command(sys.executable, "-B", "-X", "utf8", "-m", "tests.product.live_quality_060")
+        command(
+            sys.executable,
+            "-B",
+            "-X",
+            "utf8",
+            "-m",
+            "tests.product.live_quality_060",
+            *(["--targeted-long"] if patch else []),
+        )
+        if patch:
+            os.environ["NODE_PATH"] = str(ROOT / "frontend/node_modules")
+            command(NODE, "tests/product/browser_final_readback.cjs")
+            return
         quality = max(EVIDENCE.glob("QUALITY_060_*.json"), key=lambda p: p.stat().st_mtime)
         results = json.loads(quality.read_text("utf8"))
         direct = next(r for r in results["cases"] if r["name"] == "loan_direct")

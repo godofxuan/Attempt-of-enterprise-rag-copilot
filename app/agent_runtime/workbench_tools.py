@@ -285,6 +285,7 @@ class ToolCatalog:
         if name in {"loan_policy", "repair_policy"}:
             return service.policy(task_id)
         if name == "assets_search":
+            service.presented_options(task_id)
             return service.assets(task_id)
         if name == "tickets_list_mine":
             return {"tickets": service.tickets(task_id)}
@@ -331,15 +332,25 @@ class ToolCatalog:
             if bool(args.get("option_id")) == bool(args.get("asset_id")):
                 raise ServiceError("SELECT_ONE_RESOURCE_REFERENCE")
             if args.get("option_id"):
-                return service.select_option(
+                service.select_option(
                     task_id,
                     args["option_id"],
                     current["facts_revision"],
                     origin="MODEL_TOOL_SELECTION",
                 )
-            return service.choose_asset(
-                task_id, args["asset_id"], current["facts_revision"], origin="MODEL_TOOL_SELECTION"
-            )
+            else:
+                service.choose_asset(
+                    task_id,
+                    args["asset_id"],
+                    current["facts_revision"],
+                    origin="MODEL_TOOL_SELECTION",
+                )
+            selected = store.get_task(actor, task_id)
+            return {
+                "selected_asset_id": selected["preferred_asset_id"],
+                "facts_revision": selected["facts_revision"],
+                "facts": selected["facts"],
+            }
         if name == "prepare_preview":
             domain = service_for(current)
             if domain.selection_field:

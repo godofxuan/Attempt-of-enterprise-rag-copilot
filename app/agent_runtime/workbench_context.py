@@ -69,7 +69,6 @@ class ContextBuilder:
             "facts": task["facts"],
             "reference_date": str(self.service.store.today()),
             "preferred_asset_id": task.get("preferred_asset_id"),
-            "question": task["guided_request"].get("question") if not turn else None,
             "required_outputs": task["task_goal"]["required_outputs"],
             "current_ticket": current_ticket,
             "valid_observations": {k: v for k, v in valid.items() if k not in observed},

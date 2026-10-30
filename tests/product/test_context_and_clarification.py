@@ -156,3 +156,134 @@ def test_readonly_conversational_delivery_uses_current_domain_observations(tmp_p
         )
         assert "reserve or allocate" in result["assistant_text"]
         assert not result["preview"] and not result["receipt"]
+
+
+def test_guided_knowledge_accepts_the_same_question_size_without_duplicating_input(tmp_path):
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        question = "保持完整的用户背景与条件。" * 52 + "临时电脑的借用期限是多少？"
+        assert 600 < len(question) < 2000
+        task = w.service.create(
+            {
+                "kind": "knowledge",
+                "execution_ceiling": "READ_ONLY",
+                "question": question,
+                "confirmed": True,
+            },
+            kb_id="test-kb",
+        )
+        packets = []
+
+        async def inspect(messages, **kwargs):
+            packets.append(messages)
+            assert messages[1]["role"] == "user" and messages[1]["content"] == question
+            assert question not in messages[0]["content"]
+            raise ConnectionError("Program-only stop after inspecting the complete native input")
+
+        w.models.chat = inspect
+
+        async def run():
+            result = w.runs.start("service", {"task_id": task["task_id"]})
+            await w.runs.tasks[result["id"]]
+            assert w.runs.get(result["id"])["status"] == "failed"
+            assert "Program-only stop" in w.runs.get(result["id"])["error"]
+
+        asyncio.run(run())
+        assert (
+            len(packets) == 1
+            and w.service.view(task["task_id"])["user_execution_ceiling"] == "READ_ONLY"
+        )
+        assert question not in packets[0][0]["content"] and packets[0][1]["content"] == question
+
+
+def test_displayed_options_and_model_observation_share_the_current_binding(tmp_path):
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        day = w.service.store.today() + timedelta(days=3)
+        task = w.service.create(
+            {
+                "kind": "loan",
+                "execution_ceiling": "PREVIEW_ONLY",
+                "confirmed": True,
+                "facts": {
+                    "loan_start": str(day),
+                    "loan_end": str(day + timedelta(days=1)),
+                    "purpose": "候选绑定",
+                },
+            }
+        )
+        shown = client.get("/api/product/tasks/" + task["task_id"] + "/alternatives").json()
+        assert len(shown) >= 2 and shown[1]["position"] == 2
+        tool = ToolCatalog(w.service, task, {"id": "pick-second", "text": "选择刚显示的第二台"})
+        observation = asyncio.run(tool.call("assets_search", {}, task, "program-options"))
+        assert [o["asset_id"] for o in observation["alternatives"]] == [
+            o["asset_id"] for o in shown
+        ]
+        from app.agent_runtime.workbench_context import ContextBuilder
+
+        context = ContextBuilder(w.service).build(w.service.view(task["task_id"]))
+        assert [(o["asset_id"], o["position"]) for o in context["last_presented_options"]] == [
+            (o["asset_id"], o["position"]) for o in shown
+        ]
+        selected = asyncio.run(
+            tool.call("select_asset", {"option_id": shown[1]["option_id"]}, task, "program-options")
+        )
+        assert w.service.view(task["task_id"])["preferred_asset_id"] == shown[1]["asset_id"]
+        assert not w.service.view(task["task_id"])["receipt"]
+
+
+def test_parameter_tool_observations_do_not_embed_the_whole_task_history(tmp_path):
+    from tests.vnext.test_conversations import SequenceModel
+
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        task = w.service.create(
+            {"kind": "loan", "execution_ceiling": "PREVIEW_ONLY", "confirmed": True}
+        )
+        for i in range(3):
+            model = SequenceModel(
+                [("update_parameters", {"changes": {"purpose": "用途" + str(i)}})],
+                [("ask_user", {"fields": ["loan_start", "loan_end"]})],
+            )
+            w.models.chat = model.chat
+            task = asyncio.run(
+                w.service.message(
+                    task["task_id"],
+                    "本回合只修改用途",
+                    "bounded-history-" + str(i),
+                    task["facts_revision"],
+                )
+            )
+        updates = [
+            o["result"]["data"] for o in task["observations"] if o["tool"] == "update_parameters"
+        ]
+        assert len(updates) == 3
+        assert all("observations" not in data and "events" not in data for data in updates)
+        assert (
+            updates[-1]["facts"]["purpose"] == "用途2"
+            and task["user_execution_ceiling"] == "PREVIEW_ONLY"
+        )
+
+
+def test_resource_selection_returns_business_data_not_the_task_audit_graph(tmp_path):
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        day = w.service.store.today() + timedelta(days=2)
+        task = w.service.create(
+            {
+                "kind": "loan",
+                "execution_ceiling": "PREVIEW_ONLY",
+                "confirmed": True,
+                "facts": {
+                    "loan_start": str(day),
+                    "loan_end": str(day + timedelta(days=1)),
+                    "purpose": "选择设备",
+                },
+            }
+        )
+        tool = ToolCatalog(w.service, task, {"id": "resource-input", "text": "选择当前真实设备"})
+        result = asyncio.run(
+            tool.call("select_asset", {"asset_id": "loan-laptop-2"}, task, "program-selection")
+        )
+        assert "events" not in result and "observations" not in result
+        assert result["selected_asset_id"] == "loan-laptop-2" and result["facts"] == task["facts"]
