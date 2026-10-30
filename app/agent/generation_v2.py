@@ -208,8 +208,10 @@ def generation_response_format(sources,plan,*,need_first=False):
         item=deepcopy(schema['properties']['request_coverage']['items'])
         item['properties'].pop('claim_ids')
         item['properties']['source_unit_ids']={'type':'array','items':{'enum':ids}}
-        item['required']=[key for key in item['required'] if key!='claim_ids']+['source_unit_ids']
-        return {'type':'object','properties':{'unit_answers':{'type':'array','items':item}},'required':['unit_answers']}
+        item['properties'].pop('need_id')
+        item['required']=[key for key in item['required'] if key not in ('claim_ids','need_id')]+['source_unit_ids']
+        answers={'type':'object','properties':{nid:{'$ref':'#/$defs/need_answer'} for nid in need_ids},'required':need_ids}
+        return {'type':'object','$defs':{'need_answer':item},'properties':{'unit_answers':answers},'required':['unit_answers']}
     return schema
 
 
@@ -1165,6 +1167,9 @@ def _parse_generated_answer(
     if not isinstance(payload, dict):
         raise ValueError("generation response must be a JSON object")
     if 'unit_answers' in payload:
+        if isinstance(payload['unit_answers'],dict):
+            payload={**payload,'unit_answers':[dict(value,need_id=key) if isinstance(value,dict) and 'need_id' not in value else None
+                for key,value in payload['unit_answers'].items()]}
         if set(payload)!={'unit_answers'} or not isinstance(payload['unit_answers'],list) or not 1<=len(payload['unit_answers'])<=8:
             raise ValueError('invalid unit-answer envelope')
         unit_ids=[];evaluations=[];associations={}

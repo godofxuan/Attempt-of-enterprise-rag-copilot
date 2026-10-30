@@ -57,8 +57,9 @@ def test_docx_locations_survive_index_guard_and_publication_without_markdown_rep
             source=next(r for r in records if 'current repair record' in r['matched_text'])
             unit=next(m for m in re.finditer(r'\[(S\d+U\d+)\](.*?)\[/\1\]',source['matched_text'],re.S) if 'current repair record' in m[2])
             assert 'answer' not in kwargs['response_format']['properties']
-            return json.dumps({'unit_answers':[{'need_id':'N1','source_unit_ids':[unit[1]],'status':'supported','subject_matches':True,
-                    'attribute_matches':True,'conditions_preserved':True}]})
+            assert kwargs['response_format']['properties']['unit_answers']['required']==['N1']
+            return json.dumps({'unit_answers':{'N1':{'source_unit_ids':[unit[1]],'status':'supported','subject_matches':True,
+                    'attribute_matches':True,'conditions_preserved':True}}})
         response=GenerationV2ResponseBuilder(chat_fn=saved_shape,model='EXPLICIT_TEST_SHAPE_NOT_LIVE',nonce_factory=lambda:TEST_NONCE,max_attempts=1,need_first_wire=True).build(
             question=question,state=state,mode='answered',stop_reason='completed',trace={})
         assert response.mode=='answered' and 'current repair record' in response.answer,response.trace

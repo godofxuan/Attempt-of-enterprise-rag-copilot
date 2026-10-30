@@ -425,7 +425,10 @@ class Library:
             from app.agent.deep_knowledge import plan_deep
             from app.agent.query_analysis import RuleFirstQueryAnalyzer
             check=RuleFirstQueryAnalyzer().analyze(question,UserContext(user_id='local-owner',tenant_id='local',region='local',groups=['local-owner']))
-            if check.intent!='unsafe':deep_plan=await plan_deep(self.workspace.models,question,context)
+            if check.intent!='unsafe':
+                catalog=[{'policy_id':doc.policy_id,'title':next((chunk.section_path[0] for chunk in snapshot.all_chunks_by_id.values()
+                    if chunk.doc_id==doc.doc_id and chunk.section_path),doc.title)} for doc in snapshot.documents_by_id.values()]
+                deep_plan=await plan_deep(self.workspace.models,question,context,catalog if len(catalog)<=20 else ())
         def generate():
             from app.agent.controller_v2 import V2AgentController
             from app.agent.query_analysis import RuleFirstQueryAnalyzer
