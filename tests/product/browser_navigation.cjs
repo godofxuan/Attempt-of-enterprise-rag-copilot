@@ -25,8 +25,8 @@ const {chromium}=require('playwright'),assert=require('assert'),fs=require('fs')
   await p.getByRole('button',{name:'结束这个事项',exact:true}).click();await cancelled;
   const ended=await(await p.request.get('http://127.0.0.1:8740/api/conversations/'+task.conversation_id)).json();assert.equal(ended.active_task_id,null);
   await p.getByRole('button',{name:'关闭详情',exact:true}).click();
-  await p.screenshot({path:folder+'/CURRENT_UI_DESKTOP.png',fullPage:true});
-  await p.setViewportSize({width:390,height:844});await p.screenshot({path:folder+'/CURRENT_UI_MOBILE.png',fullPage:true});
+  await p.screenshot({path:folder+'/UI_DESKTOP_'+stamp+'.png',fullPage:true});
+  await p.setViewportSize({width:390,height:844});await p.screenshot({path:folder+'/UI_MOBILE_'+stamp+'.png',fullPage:true});
   assert(await p.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
   const after=await(await p.request.get('http://127.0.0.1:8740/api/status')).json();assert.equal(before.generation_calls,after.generation_calls);
   record.task=task.task_id;record.conversation=task.conversation_id;record.chat_delta=after.generation_calls-before.generation_calls;

@@ -30,10 +30,27 @@ def save(path, value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ref", required=True)
+    parser.add_argument("--application-ref", required=True)
     args = parser.parse_args()
     commit = subprocess.check_output(
         ["git", "rev-parse", args.ref + "^{commit}"], text=True
     ).strip()
+    application_commit = subprocess.check_output(
+        ["git", "rev-parse", args.application_ref + "^{commit}"], text=True
+    ).strip()
+    assert not subprocess.check_output(
+        [
+            "git",
+            "diff",
+            application_commit,
+            commit,
+            "--",
+            "app",
+            "frontend",
+            "pyproject.toml",
+            "uv.lock",
+        ]
+    ), "Source documentation revision must keep application bytes unchanged"
     output = (
         DATA
         / "deliveries"
@@ -69,7 +86,8 @@ def main():
     save(
         output / "IDENTITY.json",
         {
-            "application_commit": commit,
+            "application_commit": application_commit,
+            "source_documentation_commit": commit,
             "parent_commit": PARENT,
             "branch": subprocess.check_output(
                 ["git", "branch", "--show-current"], text=True
@@ -222,7 +240,8 @@ def main():
             "path": str(target),
             "sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
             "bytes": target.stat().st_size,
-            "application_commit": commit,
+            "application_commit": application_commit,
+            "source_documentation_commit": commit,
         },
     )
     print(str(target))

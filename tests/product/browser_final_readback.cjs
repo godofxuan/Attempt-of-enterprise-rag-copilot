@@ -16,7 +16,7 @@ const {chromium}=require('playwright'),assert=require('assert'),fs=require('fs')
   await p.getByText('查看本次执行记录',{exact:true}).click();await p.locator('.run-trace li strong').filter({hasText:/^工具/}).first().waitFor();
   record.actual_run_trace=await p.locator('main').innerText();
   const cid=original.answer.conversation_id;await p.goto('http://127.0.0.1:8740/#/assistant?c='+cid);
-  await p.getByRole('button',{name:/^1\./}).first().click();await dialog.waitFor();assert((await dialog.innerText()).includes('维修'));
+  await p.getByRole('button',{name:/^1\./}).first().click();await dialog.waitFor();await dialog.getByText(/维修/).first().waitFor();assert((await dialog.innerText()).includes('维修'));
   await p.screenshot({path:folder+'/FINAL_SOURCE_READER_'+stamp+'.png',fullPage:true});await p.getByRole('button',{name:'关闭详情',exact:true}).click();
   await p.route('**/api/conversations/'+cid,async route=>{const response=await route.fetch(),value=await response.json();value.turns.push({id:'presentation-only-xss',role:'assistant',kind:'presentation_fixture',status:'DONE',text:'安全渲染与换行。\n'.repeat(240)+'<script>window.__ESA_XSS=1</script><img src=x onerror="window.__ESA_XSS=1">',payload:null});await route.fulfill({response,json:value});});
   await p.reload();await p.getByText('安全渲染与换行。',{exact:false}).last().waitFor();assert.equal(await p.evaluate(()=>window.__ESA_XSS),undefined);
