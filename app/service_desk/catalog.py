@@ -100,6 +100,8 @@ REPAIR=Service('repair','本地合成 IT 报修',RepairFacts,(('asset_id','本�
  'ticket_status':'读取当前身份本人的IT报修工单，包括正确的空列表。',
  'open_application':'按设备、描述和影响程度准备报修预览；用户精确确认后提交一次并读回OPEN待受理工单，不宣称维修完成。'},selection_field='asset_id')
 SERVICES={service.key:service for service in (LOAN,REPAIR)}
+CLOSED_TICKET_STATES={'loan':frozenset({'RETURNED','CANCELLED','REJECTED'}),
+                      'repair':frozenset({'CLOSED','CANCELLED','REJECTED'})}
 
 
 def service_for(task):

@@ -31,6 +31,8 @@ export type Library = {
   }[];
 };
 export type Status = {
+  onboarding_complete: boolean;
+  configuration_error?: { message: string; detail: string } | null;
   mode: string;
   data_dir: string;
   models: { name: string }[];

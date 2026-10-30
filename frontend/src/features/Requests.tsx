@@ -25,7 +25,7 @@ export function Requests({ openTask }: { openTask: (id: string) => void }) {
               {q.data
                 ?.filter(
                   (t) =>
-                    (ended.has(t.status)
+                    (t.closed
                       ? "已结束"
                       : t.current_ticket
                         ? "处理中"

@@ -53,9 +53,13 @@ export function App() {
       p.delete("task");
       return p;
     });
-  const onRun = (run: Run) => {
+  const onRun = (run: Run, conversationId?: string | null) => {
     sessionStorage.setItem("esa-active-product-run", run.id);
     window.dispatchEvent(new CustomEvent("esa-product-run", { detail: run }));
+    if (conversationId)
+      navigate(
+        "/assistant?c=" + conversationId + (taskId ? "&task=" + taskId : ""),
+      );
   };
   return (
     <div className="app-shell">
@@ -119,6 +123,19 @@ export function App() {
               : "个人工作区"}
           </Link>
         </header>
+        {status.data && !status.data.onboarding_complete && (
+          <div className="connection-banner">
+            首次使用：① 当前工作区 → ② 连接已有本地模型 → ③ 导入资料或启用 TEST
+            演示。
+            <Link to="/settings">完成首次配置</Link>
+          </div>
+        )}
+        {status.data?.configuration_error && (
+          <div role="alert" className="connection-banner">
+            {status.data.configuration_error.message}
+            <Link to="/settings">修复配置</Link>
+          </div>
+        )}
         {status.data && !status.data.chat.ready && (
           <div className="connection-banner">
             模型尚未就绪，历史与设置仍可使用。

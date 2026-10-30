@@ -50,10 +50,11 @@ export function Assistant({
     queryFn: () => api<Run[]>("/api/product/conversations/" + cid + "/runs"),
   });
   const active = conversation.data?.active_task_id;
+  const shownTask = active || conversation.data?.task_id;
   const task = useQuery({
-    queryKey: ["task", active],
-    enabled: !!active,
-    queryFn: () => api<Task>("/api/product/tasks/" + active),
+    queryKey: ["task", shownTask],
+    enabled: !!shownTask,
+    queryFn: () => api<Task>("/api/product/tasks/" + shownTask),
   });
   const finish = useCallback(() => {
     setRunId(null);
@@ -165,8 +166,8 @@ export function Assistant({
           </div>
         </div>
       )}
-      {active && task.data && (
-        <button className="task-summary" onClick={() => openTask(active)}>
+      {shownTask && task.data && (
+        <button className="task-summary" onClick={() => openTask(shownTask)}>
           <strong>{task.data.title}</strong>
           <span>{task.data.status_label}</span>
           <span>查看参数与下一步 →</span>
@@ -243,7 +244,7 @@ export function Assistant({
           aria-label="给助理发消息"
           placeholder="问资料、补充信息，或告诉我需要怎样修改…"
           value={text}
-          maxLength={12000}
+          maxLength={2000}
           disabled={send.isPending}
           onChange={(e) => setDraft(cid || "new", e.target.value)}
           onCompositionStart={() => (composing.current = true)}

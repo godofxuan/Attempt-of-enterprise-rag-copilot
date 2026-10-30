@@ -81,6 +81,7 @@ class QueryFilters(StrictModel):
 
 class QueryAnalysis(StrictModel):
     original_question: str = Field(min_length=1, max_length=2000)
+    prior_user_questions: list[str] = Field(default_factory=list, max_length=4)
     intent: QueryIntent
     entities: list[str] = Field(default_factory=list, max_length=8)
     search_queries: list[str] = Field(default_factory=list, max_length=4)

@@ -74,9 +74,7 @@ class ConversationService:
         active=row['task_id']
         if active:
             task=self.workspace.service.view(active)
-            ticket=task.get('current_ticket')
-            if task['status']=='CANCELLED' or (ticket and ticket['status'] in {'CLOSED','RETURNED','CANCELLED','REJECTED'}) or (task['status']=='COMPLETED' and not ticket):
-                active=None
+            if not self.workspace.service.is_active(task):active=None
         return {**dict(row),'active_task_id':active,'task_history':history,'turns':self.turns(cid)}
 
     def _task_ids(self,cid):

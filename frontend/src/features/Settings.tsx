@@ -25,6 +25,12 @@ export function SettingsPage() {
     <div className="settings-page">
       <p className="eyebrow">次级工具</p>
       <h1>设置</h1>
+      {!s.data?.onboarding_complete && (
+        <p>
+          首次配置：确认下方工作区，连接已有模型，再到资料库导入文件；需要业务演示时明确启用
+          TEST 数据。
+        </p>
+      )}
       <h2>本地模型</h2>
       <p>
         {s.data?.chat.ready
@@ -113,6 +119,16 @@ export function SettingsPage() {
         停止本地服务
       </button>
       <button onClick={() => cache.invalidateQueries()}>重新检查连接</button>
+      {!s.data?.onboarding_complete && (
+        <button
+          onClick={async () => {
+            await api("/api/product/setup-complete", "POST", {});
+            await cache.invalidateQueries();
+          }}
+        >
+          已了解，进入助理
+        </button>
+      )}
       <details>
         <summary>诊断详情</summary>
         <pre>{JSON.stringify(s.data, null, 2)}</pre>

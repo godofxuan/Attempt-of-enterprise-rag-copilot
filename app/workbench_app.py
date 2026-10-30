@@ -4,10 +4,13 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
-from app.workspace import Workspace,workspace_router,install_workspace_errors
+from app.bootstrap import Workspace
+from app.api.workbench_routes import workspace_router
+from app.api.workbench_errors import install_workspace_errors
 
-def create_workbench_app(settings):
+def create_workbench_app(settings, *, model_transport=None):
     workspace=Workspace(settings)
+    workspace.model_transport=model_transport
     @asynccontextmanager
     async def lifespan(app):
         try:

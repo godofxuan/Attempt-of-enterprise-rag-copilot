@@ -2,6 +2,18 @@
 
 ## 当前实施：0.5 / 0.6 产品化（W01–W32）
 
+- 新候选定向产品回归68passed；A1/发布器/真实launcher相邻27passed/1failed，唯一失败是旧测试要求分句need数2、实际保留完整原问need数1。独立进程只加载5ff9aac2原生成模块也复现相同失败（BASELINE_NEED_COUNT.xml）；断言未改，未隐瞒。
+- 当前producer只接受unit_uses/need_status；兼容协议仍显式legacy。知识/配置重模块按操作惰性加载；模型工具观察有单一ToolResult，历史按完整call/result组保留，当前原输入、权限、事实不从中截断。新UI构建和OpenAPI类型生成通过。
+- 原件读取优先当前DATA_DIR/documents中的不可变版本，不回退读取旧个人绝对路径；目录/样例/解析重试自动进入原持久job队列。启动恢复只查询当前产品可能中断的任务。首次配置提示可明确完成，旧会话工作区不重复显示新安装流程。
+
+- 当前0.5一键候选e6792303已实际构建：内置官方CPython3.12.10、43锁定依赖、React静态构建与ESA.exe，ZIP约78.8MB。独立中文解压、PATH只有System32、端口冲突、重复启动复用、模型离线均通过（PORTABLE_WINDOWS.json，首次6.672s/复用1.688s）。尚未称完整发布门槛通过。
+- 当前8740已由该冻结便携候选运行，原DATA_DIR不变，旧0.4自己启动的进程已正常结束；实例PID7108。隔离8750源码服务PID35928待后续清理，均为本轮自有进程。
+- 真实0.5质量负结果：LIVE_050_09-05原始问答收齐来源却所有unit选择为空；09-09同会话新借用task d3174ec4ad9f4d76b1d8e7f966ebee8d收到完整用户日期/用途/内存仍追问可选字段，facts为空。不得把run succeeded写成正确，原失败保留，业务尚未提交。
+- 两类机制分别定位：unit贡献被当成整问完整；stored missing_fields被当成当前输入缺项。生成提示明确“先收集单元贡献、再合并判断整问”，一次固定原检索包真实诊断已保留维修资格和日期/14天，非E2E。仅限制澄清字段的第一次原生诊断仍追问已给必填，记无收益；现在进一步让当前输入先通过typed patch/prepare消费，再允许澄清，空patch不改事实/确认。
+- 源码继续0.5稳定化/0.6边界收敛：workspace.py改为兼容转发，bootstrap/API DTO与routes/persistence配置分开；发现app.api包初始化意外导入legacy资源，已改惰性兼容导出。原Store的15个旧语义review操作原样移入legacy_store，按需加载；当前事务与规则未重写。产品投影移到service_desk/views与domain/product_views。
+- 最新仅诊断的实际chat也通过既有ModelService追加主库，无清账。最终新调用需按START.json及原始ID差集统计；不能把隔离副本复制的历史149/97再计一次。
+- 下一具体动作：定向复验新工具消费契约与边界；冻结新候选并重建便携包，复测这两条最早失败并沿同一loan task继续UI办理/归还及报修；再完成质量清单、代码清理和最终同版本发行。不要停在此次checkpoint。
+
 - 唯一源码父本5ff9aac2，当前分支codex/esa-050-060；原7个无关tracked修改和所有untracked工作保留。
 - 当前真实8740入口已实际检查：页面/health返回200，9B/BGE已安装可连接，主库149chat/97embed。不是启动失败；本轮首先复现状态与会话问题。
 - 计划只读归档reviews/040-product；旧0.4成果及以下历史记录保留。活动DATA_DIR仍.private/esa-vnext，数据库预升级副本upgrade-050-060/before-050.sqlite3。

@@ -11,7 +11,7 @@ export function TaskDetail({
 }: {
   id: string | null;
   onClose: () => void;
-  onRun: (run: Run) => void;
+  onRun: (run: Run, conversationId?: string | null) => void;
 }) {
   const cache = useQueryClient();
   const [dirty, setDirty] = useState(false);
@@ -31,15 +31,19 @@ export function TaskDetail({
       path,
       body,
       method = "POST",
+      continueTask = false,
     }: {
       path: string;
       body?: unknown;
       method?: string;
+      continueTask?: boolean;
     }) => {
-      const value = await api<JSONRecord>(path, method, body);
+      let value = await api<JSONRecord>(path, method, body);
+      if (continueTask)
+        value = await api<JSONRecord>("/api/tasks/" + id + "/runs", "POST", {});
       await cache.invalidateQueries();
       if (value.id && ["queued", "running"].includes(value.status))
-        onRun(value as Run);
+        onRun(value as Run, task.data?.conversation_id);
       return value;
     },
   });
@@ -86,6 +90,7 @@ export function TaskDetail({
                   action.mutate({
                     path: "/api/tasks/" + t.id + "/facts",
                     method: "PATCH",
+                    continueTask: true,
                     body: { changes, expected_facts_revision: t.revision },
                   })
                 }
@@ -123,6 +128,7 @@ export function TaskDetail({
                         onClick={() =>
                           action.mutate({
                             path: "/api/tasks/" + t.id + "/asset",
+                            continueTask: true,
                             body: {
                               asset_id: c.asset_id,
                               date_shift_days: c.date_shift_days || 0,
@@ -131,14 +137,16 @@ export function TaskDetail({
                           })
                         }
                       >
-                        选择这个方案
+                        选择并继续
                       </button>
                     </div>
                   ))
                 )}
               </details>
             )}
-            {dirty && <p role="status">请先保存参数修改，再运行或确认预览。</p>}
+            {dirty && (
+              <p role="status">请先保存并继续修改，再运行或确认预览。</p>
+            )}
             {t.preview && (
               <section className="card preview">
                 <h3>当前完整预览</h3>
@@ -306,7 +314,7 @@ function FieldEditor({
         </label>
       ))}
       <button disabled={pending} type="submit">
-        保存参数
+        保存并继续
       </button>
     </form>
   );
