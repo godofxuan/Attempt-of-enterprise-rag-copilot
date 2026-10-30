@@ -1,6 +1,6 @@
 """Explicit dependencies and lifetime for the sole product factory."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 import sqlite3
 import httpx
 from app.persistence.workspaces import load_config, WorkspaceConfig

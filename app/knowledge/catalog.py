@@ -1,9 +1,7 @@
 from __future__ import annotations
-import asyncio, json, hashlib, os, re, uuid
-from collections import Counter
-from datetime import date
+import asyncio, json, hashlib, os
 from pathlib import Path
-from app.knowledge.common import identifier, named_source_scope
+from app.knowledge.common import identifier
 
 
 class CatalogOperations:

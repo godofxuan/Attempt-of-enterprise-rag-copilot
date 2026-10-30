@@ -41,6 +41,7 @@ def main():
             "release-validation",
             "patch-validation",
             "candidate-validation",
+            "final-journeys",
         ],
     )
     parser.add_argument("--expected-instance")
@@ -73,11 +74,16 @@ def main():
         )
     elif args.operation == "build":
         command(sys.executable, "-B", "-X", "utf8", "scripts/build_windows_portable.py")
-    elif args.operation in {"release-validation", "patch-validation", "candidate-validation"}:
+    elif args.operation in {
+        "release-validation",
+        "patch-validation",
+        "candidate-validation",
+        "final-journeys",
+    }:
         import httpx
 
         assert args.artifact and args.artifact.resolve().is_relative_to(DATA / "build/releases")
-        patch = args.operation in {"patch-validation", "candidate-validation"}
+        patch = args.operation in {"patch-validation", "candidate-validation", "final-journeys"}
         identity = args.artifact.stem.rsplit("-", 1)[-1]
         if patch:
             command(
@@ -156,6 +162,44 @@ def main():
                 ),
                 "utf8",
             )
+        if args.operation == "final-journeys":
+            command(
+                sys.executable,
+                "-B",
+                "-X",
+                "utf8",
+                "-m",
+                "tests.product.live_progress_and_selection",
+            )
+            progress = max(EVIDENCE.glob("LIVE_PROGRESS_*.json"), key=lambda p: p.stat().st_mtime)
+            result = json.loads(progress.read_text("utf8"))
+            if not result["passed"]:
+                raise SystemExit("Actual progress/selection check failed: " + str(progress))
+            command(
+                sys.executable,
+                "-B",
+                "-X",
+                "utf8",
+                "-m",
+                "tests.product.live_quality_060",
+                "--release-core",
+            )
+            quality = max(EVIDENCE.glob("QUALITY_060_*.json"), key=lambda p: p.stat().st_mtime)
+            results = json.loads(quality.read_text("utf8"))
+            direct = next(r for r in results["cases"] if r["name"] == "loan_direct")
+            resume = EVIDENCE / ("FINAL_UI_ANSWER_" + identity + ".json")
+            resume.write_text(
+                json.dumps(
+                    {"answer": direct["run"]["result"], "same_version_api_evidence": str(quality)},
+                    ensure_ascii=False,
+                ),
+                "utf8",
+            )
+            os.environ["NODE_PATH"] = str(ROOT / "frontend/node_modules")
+            command(NODE, "tests/product/live_050_journey.cjs", resume)
+            journey = max(EVIDENCE.glob("LIVE_050_*.json"), key=lambda p: p.stat().st_mtime)
+            command(NODE, "tests/product/browser_final_readback.cjs", journey)
+            return
         if args.operation == "candidate-validation":
             command(
                 sys.executable, "-B", "-X", "utf8", "-m", "tests.product.live_mixed_and_followup"

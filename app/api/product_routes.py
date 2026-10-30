@@ -1,26 +1,13 @@
 """Small typed views for the product; domain operations retain their existing APIs."""
 
-import json
-from typing import Any
-
 from fastapi import APIRouter
-from pydantic import BaseModel, ConfigDict
 
-from app.service_desk.catalog import SERVICES
-from app.service_desk.lifecycle import NOTICES
 from app.service_desk.store import ServiceError
-from app.domain.evidence import AnswerResponse
 
 
 from app.domain.product_views import (
     PublishedAnswerView,
-    FieldView,
     TaskView,
-    TicketView,
-    ProposalContent,
-    ProposalView,
-    ReceiptView,
-    OutcomeView,
 )
 from app.service_desk.views import task_view
 

@@ -96,6 +96,25 @@ class ServiceAgent:
                     }
                 )
                 if not response.get("tool_calls"):
+                    if turn and observed:
+                        # Native tool loops may end with prose after useful
+                        # work. Deliver only persisted results, never that prose
+                        # as a preview, consent or completed business action.
+                        with self.store.run_scope(started):
+                            self.service.finish_turn(task_id, "", observed)
+                        result = self.service.view(task_id)
+                        self.workspace.runs.event(
+                            run_id,
+                            "progress_delivered",
+                            {
+                                "completed_tools": sorted(observed),
+                                "preview_exists": bool(result.get("preview")),
+                                "receipt_exists": bool(result.get("receipt")),
+                                "task_status": result["status"],
+                                "reason": "MODEL_STOPPED_AFTER_ACTUAL_TOOL_PROGRESS",
+                            },
+                        )
+                        return result
                     if protocol_feedbacks >= 1:
                         raise ServiceError("MODEL_ACTION_REQUIRED")
                     protocol_feedbacks += 1
@@ -114,8 +133,7 @@ class ServiceAgent:
                     self.store.record(actor, task_id, "protocol_feedback", feedback)
                     messages.append(
                         {
-                            "role": "tool",
-                            "tool_name": "runtime",
+                            "role": "system",
                             "content": json.dumps(feedback, ensure_ascii=False),
                         }
                     )
@@ -221,7 +239,8 @@ class ServiceAgent:
                     self.workspace.runs.event(
                         run_id, "tool_result", {"tool": name, "result": result}
                     )
-                    observed.add(name)
+                    if result["status"] == "ok":
+                        observed.add(name)
                     messages.append(
                         {
                             "role": "tool",

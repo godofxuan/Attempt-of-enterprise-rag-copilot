@@ -20,6 +20,11 @@ def main():
     parser.add_argument("--url", default="http://127.0.0.1:8740")
     parser.add_argument("--kb", default="kb_18fb91057a234ace")
     parser.add_argument("--targeted-long", action="store_true")
+    parser.add_argument(
+        "--release-core",
+        action="store_true",
+        help="Freeze check of core paths; retain known long-selection negatives without uninformative resampling",
+    )
     args = parser.parse_args()
     folder = Path(".private/esa-vnext/upgrade-050-060")
     target = folder / (
@@ -181,15 +186,33 @@ def main():
             "这些资料是否规定了跨国运送临时电脑的运费金额和支付责任？",
             insufficient=True,
         )
-        long_question = ("我正在整理本地服务说明，需要了解规则依据，暂不进行任何提交。" * 20) + loan
-        cid = knowledge("long_first_question", long_question, required=("维修", "14", "早于"))
-        if cid:
-            knowledge(
-                "long_context_followup",
-                "如果维修还没登记，是否已符合申请资格？",
-                cid=cid,
-                required=("维修",),
-            )
+        if args.release_core:
+            record["retained_negative_cases"] = [
+                {
+                    "case": "long_first_question",
+                    "status": "FAIL",
+                    "evidence": "QUALITY_060_20261030T144939Z.json",
+                    "reason": "Same producer bytes; no new cause for repeating the known all-empty selection",
+                },
+                {
+                    "case": "hypothetical_eligibility_followup",
+                    "status": "FAIL",
+                    "evidence": "MIXED_FOLLOWUP_20261030T171625Z.json",
+                    "reason": "Correct condition retained but completeness conservative; controlled prompt change brought no gain and was reverted",
+                },
+            ]
+        else:
+            long_question = (
+                "我正在整理本地服务说明，需要了解规则依据，暂不进行任何提交。" * 20
+            ) + loan
+            cid = knowledge("long_first_question", long_question, required=("维修", "14", "早于"))
+            if cid:
+                knowledge(
+                    "long_context_followup",
+                    "如果维修还没登记，是否已符合申请资格？",
+                    cid=cid,
+                    required=("维修",),
+                )
         row = {
             "name": "readonly_actual_observation_delivery",
             "entry": "AGENT",

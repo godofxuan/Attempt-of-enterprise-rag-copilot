@@ -51,20 +51,23 @@ class ContextBuilder:
                 "warnings": answer.get("warnings", []),
             }
         valid = self.service.valid_observations(task)
+        workflow = {
+            "READ_ONLY": "完成当前只读查询，不准备申请",
+            "PREVIEW_ONLY": "现在准备完整预览并交付；绝不提交",
+            "SUBMIT_AFTER_CONFIRMATION": "现在准备完整申请预览；随后等待用户对当前预览精确确认，再提交一次并读回",
+        }[task["user_execution_ceiling"]]
         return {
             "task_kind": task["guided_request"]["kind"],
             "execution_ceiling": task["user_execution_ceiling"],
             "requested_results": {
-                name: (service.output_meanings or {}).get(name, OUTPUT_MEANINGS[name])
+                name: workflow
+                if name == "open_application"
+                else (service.output_meanings or {}).get(name, OUTPUT_MEANINGS[name])
                 if service
                 else OUTPUT_MEANINGS[name]
                 for name in task["task_goal"]["required_outputs"]
             },
-            "user_selected_workflow": {
-                "READ_ONLY": "完成当前只读查询，不准备申请",
-                "PREVIEW_ONLY": "现在准备完整预览并交付；绝不提交",
-                "SUBMIT_AFTER_CONFIRMATION": "现在准备完整申请预览；随后等待用户对当前预览精确确认，再提交一次并读回",
-            }[task["user_execution_ceiling"]],
+            "user_selected_workflow": workflow,
             "forbidden_operations": task["task_goal"]["forbidden_operations"],
             "facts": task["facts"],
             "reference_date": str(self.service.store.today()),

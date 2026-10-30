@@ -668,7 +668,9 @@ class TaskService:
                 parts.append(service_for(task).questions(missing))
             else:
                 parts.append(
-                    "当前参数：" + encoded(task["facts"]) + "。本回合没有生成新的业务回执。"
+                    "当前参数："
+                    + encoded(task["facts"])
+                    + "。当前尚未生成完整预览，尚未提交。可选择当前候选设备后继续准备。"
                 )
             task["assistant_text"] = (
                 "\n".join(parts) if task["guided_request"]["kind"] != "knowledge" else text

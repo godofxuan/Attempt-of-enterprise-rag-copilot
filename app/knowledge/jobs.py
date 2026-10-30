@@ -1,9 +1,8 @@
 from __future__ import annotations
-import asyncio, json, hashlib, os, re, uuid
+import asyncio, json, hashlib
 from collections import Counter
 from datetime import datetime, timezone
-from pathlib import Path
-from app.knowledge.common import identifier, named_source_scope
+from app.knowledge.common import identifier
 
 
 class JobsOperations:

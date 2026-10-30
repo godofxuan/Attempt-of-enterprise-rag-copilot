@@ -1,6 +1,5 @@
 """Actual tool capabilities, constructed for one current task and user turn."""
 
-import json
 from dataclasses import dataclass
 
 from pydantic import ValidationError
@@ -181,11 +180,6 @@ class ToolCatalog:
                 f for f in self.service.required_fields(current) if not current["facts"].get(f)
             ]
             actual = current.get("observations", [])[len(self.task.get("observations", [])) :]
-            addressed = any(
-                o["tool"] in {"update_parameters", "knowledge_answer"}
-                and o["result"].get("status") == "ok"
-                for o in actual
-            )
             applied = any(
                 o["tool"] in {"update_parameters", "tickets.propose_create"}
                 and o["result"].get("status") == "ok"

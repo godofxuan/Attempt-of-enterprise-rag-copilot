@@ -128,7 +128,7 @@ def test_real_preview_is_terminal_for_a_conversational_turn(tmp_path):
         assert not result["pending_update"]
 
 
-def test_protocol_feedback_preserves_already_completed_actions(tmp_path):
+def test_progress_delivery_preserves_actions_and_continues_to_a_real_preview(tmp_path):
     with product(tmp_path) as client:
         w = client.app.state.workspace
         task = w.service.create(
@@ -152,17 +152,8 @@ def test_protocol_feedback_preserves_already_completed_actions(tmp_path):
                     ("tickets_list_mine", {}),
                 ]
             elif len(packets) == 2:
-                return {"role": "assistant", "content": "I will prepare the preview."}
+                return {"role": "assistant", "content": "The preview is complete and approved."}
             else:
-                feedback = json.loads(messages[-1]["content"])
-                assert set(feedback["data"]["completed_tools"]) == {
-                    "update_parameters",
-                    "loan_policy",
-                    "assets_search",
-                    "tickets_list_mine",
-                }
-                assert feedback["data"]["input_application"] == "applied_or_no_new_input"
-                assert feedback["data"]["missing_domain_observations"] == []
                 actions = [("prepare_preview", {"asset_id": "loan-laptop-1", "parameters": facts})]
             return {
                 "role": "assistant",
@@ -176,6 +167,20 @@ def test_protocol_feedback_preserves_already_completed_actions(tmp_path):
         result = asyncio.run(
             w.service.message(
                 task["task_id"], "请按所给参数准备预览", "feedback-progress", task["facts_revision"]
+            )
+        )
+        assert not result["preview"] and not result["receipt"] and result["status"] != "COMPLETED"
+        assert result["facts"] == facts and len(packets) == 2
+        assert (
+            "尚未生成完整预览" in result["assistant_text"]
+            and "approved" not in result["assistant_text"]
+        )
+        result = asyncio.run(
+            w.service.message(
+                task["task_id"],
+                "选择刚才的第一台并继续准备预览",
+                "choose-after-progress",
+                result["facts_revision"],
             )
         )
         assert result["preview"] and not result["receipt"] and len(packets) == 3

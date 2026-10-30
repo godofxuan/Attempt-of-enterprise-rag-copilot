@@ -1,6 +1,6 @@
 """One library instance with explicit responsibilities and lazy retrieval imports."""
 
-import asyncio, sqlite3, json
+import asyncio, sqlite3
 from contextlib import contextmanager
 from .catalog import CatalogOperations
 from .jobs import JobsOperations

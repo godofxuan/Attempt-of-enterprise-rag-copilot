@@ -93,7 +93,7 @@ def test_unexecuted_prose_gets_one_protocol_observation_and_same_runner_continue
         assert result['preview'] and not result['receipt'] and len(w.models.calls)==3
         assert any(e['kind']=='protocol_feedback' for e in result['events'])
         request=w.models.calls[-1][0][0]
-        assert any(m.get('tool_name')=='runtime' and 'MODEL_ACTION_REQUIRED' in m['content'] for m in request)
+        assert any(m.get('role')=='system' and 'MODEL_ACTION_REQUIRED' in m['content'] for m in request)
         with w.service.store.transaction() as db:assert db.execute('SELECT COUNT(*) FROM tickets').fetchone()[0]==0
         await w.runs.close()
     asyncio.run(check())
