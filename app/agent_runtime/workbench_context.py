@@ -18,9 +18,10 @@ class ContextBuilder:
                 if row['role']=='user' and (not turn or row['id']!=turn['id']) and sum(len(r['text']) for r in history)+len(row['text'])<=1500:
                     history.insert(0,{'role':'user','text':row['text']})
         linked=None
-        if task.get('linked_answer_id'):
+        answer_id=(task.get('knowledge_result') or {}).get('id') or task.get('linked_answer_id')
+        if answer_id:
             library=getattr(self.service.workspace,'library',None)
-            if library and hasattr(library,'valid_answer'):linked=library.valid_answer(task['linked_answer_id'],task.get('kb_id'))
+            if library and hasattr(library,'valid_answer'):linked=library.valid_answer(answer_id,task.get('kb_id'))
         if linked:
             answer=linked['result']
             linked={'id':linked['id'],'question':linked['question'],'mode':answer['mode'],'answer':answer['answer'],
