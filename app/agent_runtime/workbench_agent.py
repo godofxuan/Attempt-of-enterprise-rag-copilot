@@ -27,7 +27,7 @@ class ServiceAgent:
     async def run(self,task_id,run_id,turn=None):
         actor=local_actor();started=self.store.begin_run(actor,task_id,followup=turn is not None)
         self.workspace.runs.lifecycle.own_task(run_id,started)
-        catalog=ToolCatalog(self.service,started,turn);seen=set();messages=[];observed=set();finish_feedbacks=0
+        catalog=ToolCatalog(self.service,started,turn);seen=set();messages=[];observed=set();finish_feedbacks=0;protocol_feedbacks=0
         try:
             for step in range(8):
                 current=self.store.get_task(actor,task_id)
@@ -39,11 +39,18 @@ class ServiceAgent:
                     current['guided_request']['question'] if current['guided_request']['kind']=='knowledge' else
                     '继续当前服务事项：'+context['user_selected_workflow']+'。使用我已提供的当前参数和真实工具观察，不要重新回答已交付的旧问题。'}]
                 response=await self.workspace.models.chat([{'role':'system','content':system},*user_messages,*messages],
-                    tools=catalog.schemas(),max_tokens=800)
+                    tools=catalog.schemas(current),max_tokens=800)
                 self.store.record(actor,task_id,'model_response',{'raw':response,'run_id':run_id})
                 self.workspace.runs.event(run_id,'model_decision',response)
                 calls=response.get('tool_calls',[]) or [{'function':{'name':'finish','arguments':{}}}]
                 messages.append({'role':'assistant','content':response.get('content',''),'tool_calls':response.get('tool_calls',[])})
+                if not response.get('tool_calls') and 'finish' not in catalog.allowed_names:
+                    if protocol_feedbacks>=1:raise ServiceError('MODEL_ACTION_REQUIRED')
+                    protocol_feedbacks+=1
+                    feedback={'status':'error','code':'MODEL_ACTION_REQUIRED','message':'Your prose has not executed an action. Choose one of the currently available native tools using current observations. No action has been committed.'}
+                    self.store.record(actor,task_id,'protocol_feedback',feedback)
+                    messages.append({'role':'tool','tool_name':'runtime','content':json.dumps(feedback,ensure_ascii=False)})
+                    continue
                 for call in calls:
                     current=self.store.get_task(actor,task_id)
                     if current.get('active_run_id')!=started['active_run_id']:raise ServiceError('STALE_RUN')

@@ -82,18 +82,18 @@ def test_submission_does_not_end_conversation_or_rewrite_original_receipt(tmp_pa
         await w.runs.close()
     asyncio.run(check())
 
-def test_premature_finish_receives_existing_host_outcome_and_same_runner_continues(tmp_path):
+def test_unexecuted_prose_gets_one_protocol_observation_and_same_runner_continues(tmp_path):
     from tests.vnext.test_service_lifecycle import create
     async def check():
         w=workspace(tmp_path);w.conversations=ConversationService(w);task=create(w.service)
         w.models=SequenceModel([('loan_policy',{}),('assets_search',{}),('tickets_list_mine',{})],
-            [('finish',{})],[('prepare_preview',{'asset_id':'loan-laptop-1'})])
+            [],[('prepare_preview',{'asset_id':'loan-laptop-1'})])
         run=w.runs.start('service',{'task_id':task['task_id']});await w.runs.tasks[run['id']]
         result=w.service.view(task['task_id'])
         assert result['preview'] and not result['receipt'] and len(w.models.calls)==3
-        assert any(e['kind']=='finish_feedback' for e in result['events'])
+        assert any(e['kind']=='protocol_feedback' for e in result['events'])
         request=w.models.calls[-1][0][0]
-        assert any(m.get('tool_name')=='finish' and 'GOAL_NOT_COMPLETE' in m['content'] for m in request)
+        assert any(m.get('tool_name')=='runtime' and 'MODEL_ACTION_REQUIRED' in m['content'] for m in request)
         with w.service.store.transaction() as db:assert db.execute('SELECT COUNT(*) FROM tickets').fetchone()[0]==0
         await w.runs.close()
     asyncio.run(check())

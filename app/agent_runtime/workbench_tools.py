@@ -47,7 +47,17 @@ class ToolCatalog:
                         {'asset_id':{'type':'string'}},('asset_id',)))
         self.tools={tool.name:tool for tool in tools}
 
-    def schemas(self):return [tool.schema() for tool in self.tools.values()]
+    def schemas(self,current=None):
+        current=current or self.task
+        allowed=set(self.tools)
+        if not self.turn and current['guided_request']['kind'] in SERVICES:
+            from app.workbench_service import local_actor
+            if not self.service.store.completion_ready(local_actor(),current['task_id']):allowed.discard('finish')
+            missing=self.service.required_fields(current)
+            last_error=bool(current.get('observations') and current['observations'][-1]['result'].get('status')=='error')
+            if not any(not current['facts'].get(f) for f in missing) and not last_error:allowed.discard('ask_user')
+        self.allowed_names=allowed
+        return [tool.schema() for name,tool in self.tools.items() if name in allowed]
 
     @staticmethod
     def model_view(result):
@@ -63,7 +73,7 @@ class ToolCatalog:
         return result
 
     def validate(self,name,arguments):
-        if name not in self.tools or not isinstance(arguments,dict):raise ServiceError('INVALID_TOOL_ARGUMENTS')
+        if name not in getattr(self,'allowed_names',self.tools) or not isinstance(arguments,dict):raise ServiceError('INVALID_TOOL_ARGUMENTS')
         tool=self.tools[name]
         if set(arguments)-set(tool.properties) or set(tool.required)-set(arguments):raise ServiceError('INVALID_TOOL_ARGUMENTS')
 
