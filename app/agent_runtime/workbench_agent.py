@@ -102,7 +102,14 @@ class ServiceAgent:
                     feedback = {
                         "status": "error",
                         "code": "MODEL_ACTION_REQUIRED",
-                        "message": "Plain text is not a tool execution or finish. Apply the current user's supplied parameters with update_parameters, then choose available tools from actual observations. Use ask_user for a genuine ambiguity after applying known facts. Finish only through an explicit finish tool call. No action has been committed.",
+                        "data": {
+                            "completed_tools": sorted(observed),
+                            "input_application": context["current_input_application"],
+                            "missing_fields": context["missing_fields"],
+                            "missing_domain_observations": context["missing_domain_observations"],
+                            "preview_available": context["preview_available"],
+                        },
+                        "message": "Plain text is not a tool execution or finish. Use the actual progress below and current tool observations. Do not reapply unchanged parameters or repeat completed reads. Consume supplied facts only if still pending. Choose the next permitted tool for unresolved work; use ask_user only for genuine missing or ambiguous facts. An optional resource preference does not block a requested preview: an eligible observed resource may be selected when the user has not restricted the choice. No submission has occurred.",
                     }
                     self.store.record(actor, task_id, "protocol_feedback", feedback)
                     messages.append(

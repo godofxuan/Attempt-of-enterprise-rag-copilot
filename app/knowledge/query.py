@@ -136,7 +136,7 @@ class QueryOperations:
         from app.agent.generation_v2 import GenerationV2ResponseBuilder
 
         context = self.conversation_context(kb_id, conversation_id, question)
-        search = "\n".join([row["question"] for row in context] + [question])
+        search = "\n".join([question] + [row["question"] for row in context])
 
         loop = asyncio.get_running_loop()
         snapshot = await asyncio.to_thread(self.snapshot, kb_id)
@@ -225,10 +225,15 @@ class QueryOperations:
             )
             from app.agent.deep_knowledge import DeepController
 
+            # A local model may load during embedding. Keep the existing run
+            # deadline, but honor the configured transport timeout inside search.
+            search_timeout_ms = min(
+                120000, int(self.workspace.config.request_timeout_seconds * 1000)
+            )
             controller = (
-                DeepController(deep_plan)
+                DeepController(deep_plan, search_timeout_ms=search_timeout_ms)
                 if deep_plan
-                else V2AgentController(semantic_question=True)
+                else V2AgentController(semantic_question=True, search_timeout_ms=search_timeout_ms)
             )
             runner = V2AgentRunner(
                 registry=V2ToolRegistry(DocumentNavigator(snapshot, pipeline=pipeline)),
@@ -252,18 +257,9 @@ class QueryOperations:
             user = UserContext(
                 user_id="local-owner", tenant_id="local", region="local", groups=["local-owner"]
             )
-            result = runner.run(
-                question,
-                user,
-                top_k=6,
-                clarification_replies=[
-                    {
-                        "asked": "此前同一会话的用户问题，仅用于理解指代，不是知识证据",
-                        "reply": row["question"],
-                    }
-                    for row in context
-                ],
-            )
+            # Whole historical questions already travel in QueryAnalysis. They
+            # are not replies to a clarification and must not enter that wire.
+            result = runner.run(question, user, top_k=6)
             return result.model_copy(
                 update={
                     "trace": {
@@ -320,6 +316,10 @@ class QueryOperations:
                 ),
             )
         value = result.model_dump(mode="json")
+        if result.mode in {"system", "budget"}:
+            # Retain the original failed answer/trace above. Product runs must
+            # surface execution failure and a retry, not a successful empty turn.
+            raise RuntimeError(f"KNOWLEDGE_{result.mode.upper()}:{answer_id}")
         return {
             "id": answer_id,
             "conversation_id": conversation_id,

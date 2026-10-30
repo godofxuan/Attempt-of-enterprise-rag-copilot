@@ -128,6 +128,59 @@ def test_real_preview_is_terminal_for_a_conversational_turn(tmp_path):
         assert not result["pending_update"]
 
 
+def test_protocol_feedback_preserves_already_completed_actions(tmp_path):
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        task = w.service.create(
+            {"kind": "loan", "execution_ceiling": "PREVIEW_ONLY", "confirmed": True}
+        )
+        day = w.service.store.today() + timedelta(days=3)
+        facts = {
+            "loan_start": str(day),
+            "loan_end": str(day + timedelta(days=1)),
+            "purpose": "观察反馈",
+        }
+        packets = []
+
+        async def model(messages, **kwargs):
+            packets.append(messages)
+            if len(packets) == 1:
+                actions = [
+                    ("update_parameters", {"changes": facts}),
+                    ("loan_policy", {}),
+                    ("assets_search", {}),
+                    ("tickets_list_mine", {}),
+                ]
+            elif len(packets) == 2:
+                return {"role": "assistant", "content": "I will prepare the preview."}
+            else:
+                feedback = json.loads(messages[-1]["content"])
+                assert set(feedback["data"]["completed_tools"]) == {
+                    "update_parameters",
+                    "loan_policy",
+                    "assets_search",
+                    "tickets_list_mine",
+                }
+                assert feedback["data"]["input_application"] == "applied_or_no_new_input"
+                assert feedback["data"]["missing_domain_observations"] == []
+                actions = [("prepare_preview", {"asset_id": "loan-laptop-1", "parameters": facts})]
+            return {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {"function": {"name": name, "arguments": args}} for name, args in actions
+                ],
+            }
+
+        w.models.chat = model
+        result = asyncio.run(
+            w.service.message(
+                task["task_id"], "请按所给参数准备预览", "feedback-progress", task["facts_revision"]
+            )
+        )
+        assert result["preview"] and not result["receipt"] and len(packets) == 3
+
+
 def test_readonly_conversational_delivery_uses_current_domain_observations(tmp_path):
     from tests.vnext.test_conversations import SequenceModel
 

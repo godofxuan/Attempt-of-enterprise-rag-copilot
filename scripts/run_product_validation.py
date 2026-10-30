@@ -93,6 +93,7 @@ def main():
                 "tests/product/test_launcher.py",
                 "tests/product/test_index_admission_clock.py",
                 "tests/product/test_run_event_view.py",
+                "tests/product/test_followup_delivery.py",
                 "tests/agent_v2/test_a1_draft_delivery.py",
                 "tests/agent_v2/test_cited_packet_completeness.py",
                 "-q",
@@ -160,10 +161,14 @@ def main():
                 sys.executable, "-B", "-X", "utf8", "-m", "tests.product.live_mixed_and_followup"
             )
             result = max(EVIDENCE.glob("MIXED_FOLLOWUP_*.json"), key=lambda p: p.stat().st_mtime)
+            mixed = json.loads(result.read_text("utf8"))
+            if not mixed["passed"]:
+                raise SystemExit(
+                    "Current interaction check failed; preserve records and diagnose before the UI journey: "
+                    + str(result)
+                )
             direct = next(
-                r
-                for r in json.loads(result.read_text("utf8"))["cases"]
-                if r["name"] == "normal_direct_current_candidate"
+                r for r in mixed["cases"] if r["name"] == "normal_direct_current_candidate"
             )
             resume = EVIDENCE / ("FINAL_UI_ANSWER_" + identity + ".json")
             resume.write_text(

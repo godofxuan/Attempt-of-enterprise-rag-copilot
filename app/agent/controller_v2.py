@@ -91,6 +91,7 @@ class V2AgentController:
         task_advisor: TaskAdvisor | None = None,
         recovery_advisor: TaskAdvisor | None = None,
         semantic_question: bool = False,
+        search_timeout_ms: int = 5000,
     ) -> None:
         if task_advisor is not None and recovery_advisor is not None:
             raise ValueError("eager and gap-driven advice are mutually exclusive")
@@ -98,6 +99,9 @@ class V2AgentController:
         self.task_advisor = task_advisor
         self.recovery_advisor = recovery_advisor
         self.semantic_question = semantic_question
+        if not 1 <= search_timeout_ms <= 120000:
+            raise ValueError("search timeout must be within the tool contract")
+        self.search_timeout_ms = search_timeout_ms
 
     def initialize(
         self,
@@ -308,6 +312,7 @@ class V2AgentController:
                         candidate_k=min(200, max(state.top_k, state.top_k * 4)),
                         mode="hybrid",
                         include_parent=True,
+                        timeout_ms=self.search_timeout_ms,
                     ),
                 )
             )
@@ -329,6 +334,7 @@ class V2AgentController:
                         candidate_k=min(200, max(state.top_k, state.top_k * 4)),
                         mode="hybrid",
                         include_parent=True,
+                        timeout_ms=self.search_timeout_ms,
                     ),
                 )
             )

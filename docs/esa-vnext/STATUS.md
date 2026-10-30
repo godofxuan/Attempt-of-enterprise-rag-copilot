@@ -330,3 +330,11 @@ M8: IMPLEMENTED/LIVE_VERIFIED; directory versions, feedback candidate and measur
   Unrelated preexisting README/Streamlit work retained.
   No remote sync or PR performed.
 - Current R1/R2 scope is complete for the documented local synthetic demonstration. R3 is not activated.
+
+### 2026-10-31 01:08 当前恢复点
+
+- 最终应用commit ea7c6cffe09b13ce4da0e3c7ec3a257541d582fc；Windows ZIP 78,806,047字节，SHA256 e735d35fb7aba27af96b4a4a9b3851795bbe57afbdd53f53caa51fb1835474eb。相关程序测试FINAL_REGRESSION_ea7c6cff.xml为100通过，Windows独立包启动6.0s/复用1.141s。
+- 主8740已由该包启动，instance 90025fdde13241028aa14d5fb22223ce，PID46932，原DATA_DIR未变。
+- MIXED_FOLLOWUP_20261030T170219Z实际新增6chat：正常Agent PASS；独立RAG、长历史追问、改期混合知识FAIL；第二台指代未到达/NOT_RUN，完整最终UI旅程与回执浏览器检查未运行。主generation_calls=208。不可将程序通过或旧e808旅程写成该候选全部验收通过。
+- 用户物理Esc停止了本次Windows Computer Use；已停止后续桌面输入。批量验证进程已退出，未继续启动后续模型批次。原生首次对话框实际显示并能读取按钮，但目录选择与自动浏览器仍未验证通过。
+- 下一具体动作：先离线读取上述4例实际答案/工具观察，定位独立RAG、追问和混合失败的最早分歧；不盲重复采样。最终版本仍是实验候选，完整交付未结束。

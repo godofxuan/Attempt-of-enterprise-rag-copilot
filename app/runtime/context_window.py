@@ -14,6 +14,10 @@ def recent_questions(rows, current_question, *, reserved_evidence_bytes=3600, sc
     )
     selected = []
     for row in rows:  # newest first, never truncate a question or its conditions
+        if row["question"] == current_question or any(
+            r["question"] == row["question"] for r in selected
+        ):
+            continue
         size = len(row["question"].encode("utf8"))
         if size > remaining:
             continue
