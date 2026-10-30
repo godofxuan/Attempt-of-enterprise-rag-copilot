@@ -47,6 +47,44 @@ def test_legacy_task_knowledge_is_not_misread_as_a_published_answer(tmp_path):
         assert w.conversations.turns(conversation["id"])[0]["payload"] == payload
 
 
+def test_actual_http_retry_route_runs_in_the_product_event_loop(tmp_path):
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        cid = w.conversations.create("test-kb")["id"]
+        attempts = []
+
+        async def answer(*args, **kwargs):
+            attempts.append(1)
+            if len(attempts) == 1:
+                raise ConnectionError("test external failure")
+            return {"id": "test-answer", "result": {"answer": "test-only external reply"}}
+
+        w.library.answer = answer
+
+        async def wait(run_id):
+            task = w.runs.tasks.get(run_id)
+            if task:
+                await task
+
+        headers = {"X-ESA-Request": "1"}
+        first = client.post(
+            "/api/conversations/" + cid + "/turns",
+            json={"text": "真实HTTP路径", "message_id": "http-retry"},
+            headers=headers,
+        )
+        assert first.status_code == 202
+        client.portal.call(wait, first.json()["id"])
+        retry = client.post(
+            "/api/product/conversations/" + cid + "/turns/http-retry/retry",
+            json={},
+            headers=headers,
+        )
+        assert retry.status_code == 202, retry.text
+        client.portal.call(wait, retry.json()["id"])
+        assert w.runs.get(retry.json()["id"])["status"] == "succeeded"
+        assert len([t for t in w.conversations.turns(cid) if t["role"] == "user"]) == 1
+
+
 def test_knowledge_failure_retry_reuses_user_turn(tmp_path):
     with product(tmp_path) as client:
         w = client.app.state.workspace

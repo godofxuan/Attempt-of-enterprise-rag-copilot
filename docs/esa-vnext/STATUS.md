@@ -2,6 +2,12 @@
 
 ## 当前实施：0.5 / 0.6 产品化（W01–W32）
 
+- 0.5实际业务闭环已成立，跨小候选恢复不冒充一次全绿：原loan d3174ec4恢复→改期→旧确认409→当前确认→幂等读回→RESERVED/CHECKED_OUT/续借/RETURNED；原repair 565401ec真实9B提取/prepare→OPEN→IN_PROGRESS/RESOLVED/CLOSED→重开→再CLOSED。最终恢复记录LIVE_050_2026-10-30T12-09-11-778Z（该最后一步0新增chat）；完整链保留对12-02/12-06原件的指针。
+- 主库当前174chat，不能将run成功等同内容正确。cf4d3043独立知识资格/期限/日期实际通过，原Agent负结果未改。真实错误的共同修复：无tool_calls的prose不能隐式finish；真实prepare成功是同一产品两入口的交付终点；异步新建只做一次包含conversation/task的完整导航；历史Task.knowledge规则表不能按PublishedAnswer解码；HTTP retry必须在async路由中启动run。
+- 浏览器CURRENT_UI_NAVIGATION.json：真实React/API新建→URL与active_task一致→页面往返草稿保留→一个composer→结束事项解绑→390px无溢出，0chat；composition为合成事件，不冒充手动IME。新服务台显示实际工单编号，避免同描述无法分辨。
+- 完整旧库及documents/indexes/cache副本升级已验证，60会话/104turn/3loan/2repair/17资料保持；二次启动数目一致，复制索引实际chunk来源定位与原件相同。首次探针误把DocumentRecord当chunk读取定位的失败保留，不作为产品bug或PASS。
+- 当前开发服务8740为本轮自有PID20272、instance73c1f1097643404286710e33cf4bd4ee，DATA_DIR未变；最新未提交HTTP retry及新UI静态产物已经接入。原生GUI窗口检查的应用授权等待超时，首次选择/自动开浏览器GUI未记PASS；portable EXE/路径/端口/重复启动已实测。阶段结束不终止Goal，继续W20/W27及最终统一版本/产物。
+
 - 新候选定向产品回归68passed；A1/发布器/真实launcher相邻27passed/1failed，唯一失败是旧测试要求分句need数2、实际保留完整原问need数1。独立进程只加载5ff9aac2原生成模块也复现相同失败（BASELINE_NEED_COUNT.xml）；断言未改，未隐瞒。
 - 当前producer只接受unit_uses/need_status；兼容协议仍显式legacy。知识/配置重模块按操作惰性加载；模型工具观察有单一ToolResult，历史按完整call/result组保留，当前原输入、权限、事实不从中截断。新UI构建和OpenAPI类型生成通过。
 - 原件读取优先当前DATA_DIR/documents中的不可变版本，不回退读取旧个人绝对路径；目录/样例/解析重试自动进入原持久job队列。启动恢复只查询当前产品可能中断的任务。首次配置提示可明确完成，旧会话工作区不重复显示新安装流程。

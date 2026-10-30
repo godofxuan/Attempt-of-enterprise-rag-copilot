@@ -83,7 +83,6 @@ export function Assistant({
       title: (drafts.new || "新会话").slice(0, 60),
       kb_id: base || library.data?.bases[0]?.id || null,
     });
-    setParams({ c: c.id });
     return c.id;
   };
   const send = useMutation({
@@ -97,6 +96,7 @@ export function Assistant({
         { text, message_id: crypto.randomUUID(), detailed: deep },
       );
       setDraft(cid || "new", "");
+      setParams({ c: target });
       track(r);
     },
   });
@@ -114,7 +114,9 @@ export function Assistant({
       });
       setKind(null);
       await cache.invalidateQueries();
-      openTask(task.task_id);
+      // One navigation after the async creation. React Router's search-param
+      // callbacks are not queued React state and can retain a pre-create URL.
+      setParams({ c: target, task: task.task_id });
     },
   });
   const retry = useMutation({

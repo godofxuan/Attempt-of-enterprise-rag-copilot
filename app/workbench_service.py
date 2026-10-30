@@ -609,6 +609,27 @@ class TaskService:
 
         return await build_service_agent(self).run(task_id, run_id)
 
+    def complete_readonly_turn(self, task_id, previous_answer_id=None):
+        """Use the existing domain finish after this user input has been applied."""
+        actor = local_actor()
+        task = self.store.get_task(actor, task_id)
+        if (
+            task["guided_request"]["kind"] == "knowledge"
+            or task["user_execution_ceiling"] != "READ_ONLY"
+        ):
+            return
+        self.store.finish_goal(actor, task_id)
+        outcome = self.store.get_task(actor, task_id)["outcome"]
+        parts = []
+        knowledge = task.get("knowledge_result")
+        if knowledge and knowledge.get("id") != previous_answer_id:
+            parts.append(knowledge["result"]["answer"])
+        parts.append(outcome["answer"])
+        with self.store.transaction() as db:
+            current = self.store._task(db, actor, task_id)
+            current["assistant_text"] = "\n".join(parts)
+            self.store._save(db, current)
+
     def finish_turn(self, task_id, text, observed=()):
         actor = local_actor()
         with self.store.transaction() as db:

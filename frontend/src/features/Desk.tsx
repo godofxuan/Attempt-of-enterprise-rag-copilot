@@ -47,8 +47,13 @@ export function Desk() {
       {q.error && <ErrorNotice error={q.error} />}
       <div className="request-grid">
         {q.data?.tickets.map((row) => (
-          <article className="card" key={row.ticket.ticket_id}>
+          <article
+            className="card"
+            aria-label={"工单 " + row.ticket.ticket_id}
+            key={row.ticket.ticket_id}
+          >
             <h3>{row.kind === "loan" ? "电脑借用" : "IT 报修"}</h3>
+            <p className="muted path">编号：{row.ticket.ticket_id}</p>
             <p>{label[row.ticket.status] || row.notice}</p>
             <Parameters
               value={{

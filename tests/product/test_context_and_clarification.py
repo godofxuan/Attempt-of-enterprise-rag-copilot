@@ -126,3 +126,33 @@ def test_real_preview_is_terminal_for_a_conversational_turn(tmp_path):
         assert result["status"] == "WAITING_CONFIRMATION" and not result["active_run_id"]
         assert len(model.calls) == 3 and not model.batches
         assert not result["pending_update"]
+
+
+def test_readonly_conversational_delivery_uses_current_domain_observations(tmp_path):
+    from tests.vnext.test_conversations import SequenceModel
+
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        task = w.service.create(
+            {"kind": "loan", "execution_ceiling": "READ_ONLY", "confirmed": True}
+        )
+        model = SequenceModel(
+            [("loan_policy", {}), ("assets_search", {}), ("tickets_list_mine", {})],
+            [("finish", {})],
+        )
+        w.models.chat = model.chat
+        result = asyncio.run(
+            w.service.message(
+                task["task_id"],
+                "请查我当前的资格、库存和申请",
+                "readonly-delivery",
+                task["facts_revision"],
+            )
+        )
+        assert result.get("outcome", {}).get("goal_satisfied") is True
+        assert (
+            "eligible" in result["assistant_text"]
+            and "available laptops: 3" in result["assistant_text"]
+        )
+        assert "reserve or allocate" in result["assistant_text"]
+        assert not result["preview"] and not result["receipt"]

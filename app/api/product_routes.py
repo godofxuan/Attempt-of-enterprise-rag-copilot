@@ -78,7 +78,7 @@ def product_router(workspace, service_call):
         return service_call(lambda: workspace.service.presented_options(task_id))
 
     @router.post("/conversations/{cid}/turns/{turn_id}/retry", status_code=202)
-    def retry(cid: str, turn_id: str):
+    async def retry(cid: str, turn_id: str):
         def start():
             workspace.conversations.get(cid)
             with workspace.conversations.db() as db:

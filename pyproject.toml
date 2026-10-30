@@ -23,7 +23,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "enterprise-service-agent"
-version = "0.5.0"
+version = "0.6.0"
 description = "Local enterprise knowledge and guided service workbench"
 requires-python = ">=3.11,<3.13"
 dependencies = [
@@ -36,7 +36,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.0.3"]
+dev = ["pytest==9.0.3", "ruff==0.16.4"]
 legacy = ["langgraph==1.2.11", "streamlit==1.56.0", "mcp==2.0.0", "langgraph-checkpoint-sqlite==3.1.1",
           "langgraph-checkpoint-postgres==3.1.2", "opentelemetry-sdk==1.44.0", "psycopg[binary,pool]==3.3.4"]
 

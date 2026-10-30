@@ -1,11 +1,19 @@
 # 当前工作台入口
 
+## Windows 发行包
+
+完整解压后双击 `ESA.exe`，首次明确选已有工作区或新建，随后自动打开实际地址。用户不安装Python/uv/Node；模型离线也可以进入设置及历史。重复打开复用相同实例，端口冲突自动避让。设置中可停止本地服务。
+
+升级只替换程序目录，继续关联原完整 DATA_DIR。需要重新选择目录时使用 `ESA.exe --choose-workspace`。程序包不含模型、个人资料或业务数据。构建与具体检查边界见 `packaging/windows/README.md`。
+
+## 源码入口
+
 在源码根目录，使用Python3.11/3.12、uv与已运行的本地Ollama：
 
 ```powershell
 uv sync --locked --no-dev
 uv run --no-sync esa init --sample --data-dir .private/esa-vnext
-uv run --no-sync esa serve --data-dir .private/esa-vnext --port 8740
+uv run --no-sync esa open --data-dir .private/esa-vnext --port 8740
 uv run --no-sync esa doctor --data-dir .private/esa-vnext
 ```
 
@@ -20,7 +28,7 @@ uv run --no-sync esa doctor --data-dir .private/esa-vnext
 
 ## 首次使用与恢复
 
-资料库中点击“导入本地合成示例（由当前业务规则生成）”，或批量上传自己的MD/TXT/PDF/DOCX；点击建立索引后提问并打开来源。
+资料库中导入由当前业务规则生成的合成示例，或批量上传自己的MD/TXT/PDF/DOCX；自动进入真实索引任务，发布后可提问并打开来源。失败项可以针对性重试。
 “继续追问”才带入同会话的用户问题，旧答案不当证据。服务任务先明确服务与操作上限，
 保存参数再运行；范围确认不等于提交确认。精确确认只针对当前预览。
 同一目录已有未结申请时先读取原单。通过本地服务台批准、领用、归还（或撤回待审批申请）后可再次办理；报修可处理、解决、关闭。无需重建数据库绕过未结限制。
