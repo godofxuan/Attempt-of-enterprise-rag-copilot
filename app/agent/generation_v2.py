@@ -641,9 +641,15 @@ def _build_prompt_sources(
     search_hits = [
         item.hit for aspect in aspects for item in state.evidence_by_aspect.get(aspect, [])
     ]
+    # A read of the same anchored target replaces its search excerpt rather than
+    # competing with that excerpt for a second allocation of the prompt budget.
+    primary_reads = {hit.chunk_id:item for hit in search_hits for item in state.open_results
+        if item.result.doc_id==hit.doc_id and item.result.target_id in {hit.chunk_id,hit.parent_chunk_id}
+        and hit.matched_text.strip() in item.result.content}
     useful_opens = {
         (item.result.target_type, item.result.target_id, item.result.start_char, item.result.content)
         for item in state.open_results
+        if item not in primary_reads.values()
         if any(
             (hit.doc_id, hit.source_path) == (item.result.doc_id, item.result.source_path)
             for hit in search_hits
@@ -696,9 +702,15 @@ def _build_prompt_sources(
                 "status": hit.status,
                 "version": hit.version,
             }
+            read=primary_reads.get(hit.chunk_id)
+            if read:
+                record.update(matched_text=complete_evidence_prefix(read.result.content,MAX_OPEN_CONTEXT_CHARS),
+                              context_text='',evidence_kind='open')
+            pending_anchors={state.evidence_by_aspect[a][0].hit.chunk_id for a in set(aspects)-covered_aspects
+                             if state.evidence_by_aspect.get(a)}
             # Reserve room for aspects not yet represented before filling extras.
             allocation = max(0, remaining - reserved_chars) // max(
-                1, len(set(aspects) - covered_aspects)
+                1, len(pending_anchors)
             )
             byte_allocation = (
                 None
@@ -706,7 +718,7 @@ def _build_prompt_sources(
                 else max(
                     0,
                     (remaining_bytes - reserved_bytes)
-                    // max(1, len(set(aspects) - covered_aspects))
+                    // max(1, len(pending_anchors))
                     - 1,
                 )
             )
@@ -731,6 +743,7 @@ def _build_prompt_sources(
                     json_record=json_record,
                     delivered=DeliveredEvidence(
                         anchor=evidence,
+                        opened=read,
                         matched_text=json.loads(json_record)["matched_text"],
                         context_text=json.loads(json_record)["context_text"],
                     ),
@@ -748,6 +761,9 @@ def _build_prompt_sources(
         candidate()
         identity = (admitted.result.target_type, admitted.result.target_id,
                     admitted.result.start_char, admitted.result.content)
+        if any(source.delivered.opened==admitted for source in result):
+            count("packet_duplicate_reasons", "search_open_text")
+            continue
         if identity in opened_ids:
             count("packet_duplicate_reasons", "open_target")
             continue
