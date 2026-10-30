@@ -186,7 +186,7 @@ class _PromptSource:
 NonceFactory = Callable[[], str]
 
 
-def generation_response_format(sources,plan):
+def generation_response_format(sources,plan,*,need_first=False):
     from copy import deepcopy
     from app.agent.source_unit_completion import complete_units
     schema=deepcopy(GENERATION_RESPONSE_FORMAT)
@@ -202,6 +202,14 @@ def generation_response_format(sources,plan):
         row['required']=['claim_id','source_unit_id','critical','cited_source_ids']
     need_ids=[need.need_id for need in plan.needs]
     if need_ids:schema['properties']['request_coverage']['items']['properties']['need_id']={'enum':need_ids}
+    if ids and need_ids and need_first:
+        # One per-need selection drives both content and coverage. Do not ask
+        # the model to repeat the same content in prose, claims and a third map.
+        item=deepcopy(schema['properties']['request_coverage']['items'])
+        item['properties'].pop('claim_ids')
+        item['properties']['source_unit_ids']={'type':'array','items':{'enum':ids}}
+        item['required']=[key for key in item['required'] if key!='claim_ids']+['source_unit_ids']
+        return {'type':'object','properties':{'unit_answers':{'type':'array','items':item}},'required':['unit_answers']}
     return schema
 
 
@@ -224,6 +232,7 @@ class GenerationV2ResponseBuilder:
         max_attempts: int | None = None,
         nonce_factory: NonceFactory | None = None,
         primary_read_anchors_only:bool=False,
+        need_first_wire:bool=False,
     ) -> None:
         settings = get_settings() if model is None or max_attempts is None else None
         self.chat_fn = chat_fn or _bounded_default_chat
@@ -237,6 +246,7 @@ class GenerationV2ResponseBuilder:
             raise ValueError("max_attempts must be between 1 and 2")
         self.nonce_factory = nonce_factory or _default_prompt_nonce
         self.primary_read_anchors_only=primary_read_anchors_only
+        self.need_first_wire=need_first_wire
         self.source_free_builder = ExtractiveResponseBuilder()
 
     def build(
@@ -308,7 +318,7 @@ class GenerationV2ResponseBuilder:
             # Reconcile its actual size before any send; a static schema estimate
             # must not consume the last bytes reserved for evidence.
             for _ in range(3):
-                actual_schema_bytes=len(_safe_compact_json(generation_response_format(sources,state.task_plan)).encode('utf8'))
+                actual_schema_bytes=len(_safe_compact_json(generation_response_format(sources,state.task_plan,need_first=self.need_first_wire)).encode('utf8'))
                 reconciled=MODEL_CONTEXT_FLOOR-MAX_OUTPUT_TOKENS-CHAT_SCHEMA_MARGIN-actual_schema_bytes-overhead-retry_reserve
                 if available<=reconciled:break
                 available=reconciled
@@ -334,7 +344,7 @@ class GenerationV2ResponseBuilder:
                 source_by_id,
                 retry_messages_factory=build_messages,
                 trace=response_trace,
-                response_format=generation_response_format(sources,state.task_plan),
+                response_format=generation_response_format(sources,state.task_plan,need_first=self.need_first_wire),
             )
             claims, draft_units = _preserve_draft_units(_generated, claims, source_by_id, question)
             response_trace['generation_wire_protocol']='selected_source_units_only' if _generated._claims_only_wire else 'legacy_answer_and_claims'
@@ -1040,6 +1050,8 @@ def _generation_messages(
         "Keep unknown facets unresolved. Do not demand unasked facts or business checks for a policy question."
         " The final answer consists solely of selected claims. Include every requested fact and necessary condition there; "
         "there is no separate prose answer that can carry omitted content."
+        " When the schema requests unit_answers, work through each need separately: select ALL source_unit_ids "
+        "that deliver that need, including its required conditions. The host creates the claims and final body from those exact selections."
     )
     request_metadata = _safe_compact_json(
         {
@@ -1152,6 +1164,24 @@ def _parse_generated_answer(
     payload = json.loads(text)
     if not isinstance(payload, dict):
         raise ValueError("generation response must be a JSON object")
+    if 'unit_answers' in payload:
+        if set(payload)!={'unit_answers'} or not isinstance(payload['unit_answers'],list) or not 1<=len(payload['unit_answers'])<=8:
+            raise ValueError('invalid unit-answer envelope')
+        unit_ids=[];evaluations=[];associations={}
+        for entry in payload['unit_answers']:
+            if not isinstance(entry,dict):raise ValueError('invalid unit answer')
+            row=dict(entry);selected=row.pop('source_unit_ids',None)
+            if not isinstance(selected,list) or len(selected)>20 or len(set(selected))!=len(selected):raise ValueError('invalid selected units')
+            for unit_id in selected:
+                if not isinstance(unit_id,str) or not re.fullmatch(r'S[1-9]\d*U[1-9]\d*',unit_id):raise ValueError('invalid selected unit identity')
+                if unit_id not in unit_ids:unit_ids.append(unit_id)
+                associations.setdefault(unit_id,[]).append(row.get('need_id'))
+            row['claim_ids']=['C'+str(unit_ids.index(unit_id)+1) for unit_id in selected]
+            evaluations.append(NeedEvaluation.model_validate(row).model_dump())
+        if len(unit_ids)>20:raise ValueError('too many selected units')
+        payload={'claims':[{'claim_id':'C'+str(i),'source_unit_id':unit_id,'critical':True,
+            'cited_source_ids':[unit_id.split('U')[0]],'need_refs':list(dict.fromkeys(associations[unit_id]))}
+            for i,unit_id in enumerate(unit_ids,1)],'request_coverage':evaluations}
     claims_only='answer' not in payload
     if claims_only:
         if not isinstance(payload.get('request_coverage'),list) or not isinstance(payload.get('claims'),list):

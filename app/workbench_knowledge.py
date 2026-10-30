@@ -453,7 +453,7 @@ class Library:
                 controller=controller,
                 analyzer=ConversationAnalyzer(),
                 response_builder=GenerationV2ResponseBuilder(model=self.workspace.config.chat_model,
-                    chat_fn=self.workspace.models.sync_chat(loop),max_attempts=1,primary_read_anchors_only=bool(deep_plan)),
+                    chat_fn=self.workspace.models.sync_chat(loop),max_attempts=1,primary_read_anchors_only=bool(deep_plan),need_first_wire=True),
                 budget=AgentBudget(deadline_ms=240000,max_search_calls=6 if deep_plan else 2,
                     max_find_calls=4 if deep_plan else 2,max_open_calls=4 if deep_plan else 2,max_steps=18 if deep_plan else 12))
             user = UserContext(user_id='local-owner',tenant_id='local',region='local',groups=['local-owner'])
