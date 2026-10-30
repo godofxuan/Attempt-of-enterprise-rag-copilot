@@ -66,7 +66,7 @@ class ServiceAgent:
                                     latest=self.store._task(db,actor,task_id);latest['question']=args['question'];self.store._save(db,latest)
                             self.workspace.runs.event(run_id,'needs_input',{'fields':context['missing_fields'],'question':args.get('question')})
                         elif turn:
-                            with self.store.run_scope(started):self.service.finish_turn(task_id,response.get('content',''))
+                            with self.store.run_scope(started):self.service.finish_turn(task_id,response.get('content',''),observed)
                         else:
                             outcome=self.store.finish_goal(actor,task_id,_probe=True)
                             if not outcome['goal_satisfied'] and finish_feedbacks<1:

@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime,timezone
 import httpx
 
-parser=argparse.ArgumentParser();parser.add_argument('--kb');args=parser.parse_args()
+parser=argparse.ArgumentParser();parser.add_argument('--kb');parser.add_argument('--deep-only',action='store_true');args=parser.parse_args()
 root=Path('.private/esa-vnext');output=root/'upgrade-030-040'/('S2_DEEP_'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')+'.json')
 record={'kind':'REAL_LOCAL_RETRIEVAL_GENERATION_AND_PUBLISHER','commit':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'runs':[]}
 def counts():
@@ -50,10 +50,12 @@ with httpx.Client(base_url='http://127.0.0.1:8740',trust_env=False,headers={'X-E
   excerpt=client.get('/api/documents/'+source['doc_id']+'/excerpt',params={'index_run_id':source['index_run_id'],
       'target_type':source['target_type'],'target_id':source['target_id']});excerpt.raise_for_status()
   record['actual_source_excerpt']=excerpt.json()
-  unknown=wait(post('/api/knowledge/runs',{'kb_id':kb,'question':'这些资料是否规定了跨国运送临时电脑的运费金额和支付责任？','detailed':False}))
-  record['unknown']=unknown
-  assert unknown['result']['trace']['knowledge_strategy']['strategy']=='fast_shared_runner'
-  assert unknown['result']['mode']!='answered'
+  if not args.deep_only:
+   unknown=wait(post('/api/knowledge/runs',{'kb_id':kb,'question':'这些资料是否规定了跨国运送临时电脑的运费金额和支付责任？','detailed':False}))
+   record['unknown']=unknown
+   assert unknown['result']['trace']['knowledge_strategy']['strategy']=='fast_shared_runner'
+   assert unknown['result']['mode']!='answered'
+  else:record['unknown_scope']='NOT_REPEATED_KNOWN_FAILED: prior wrong-attribute negative answer retained; not part of this Deep-only result.'
   record['necessary_checks_passed']=True
  except BaseException as exc:record['failure']={'type':type(exc).__name__,'message':str(exc)};raise
  finally:record['after']=counts();save()

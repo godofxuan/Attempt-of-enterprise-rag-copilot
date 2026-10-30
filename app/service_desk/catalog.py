@@ -161,7 +161,7 @@ def finish_repair(store,actor,task_id,*,probe=False):
             if task['user_execution_ceiling']=='READ_ONLY':
                 status='COMPLETED';satisfied=True;answer=json.dumps({'owned_assets':current_assets,'owned_repairs':query['tickets'],'notice':'仅查询，未创建申请'},ensure_ascii=False)
             else:
-                existing=[t for t in query['tickets'] if t['asset_id']==task['facts'].get('asset_id') and t['status'] in ('OPEN','IN_PROGRESS')]
+                existing=[t for t in query['tickets'] if t['asset_id']==task['facts'].get('asset_id') and t['status'] in ('OPEN','IN_PROGRESS','RESOLVED')]
                 read=task.get('resolved_ticket_results',{})
                 if existing and all(read.get(t['ticket_id'])==t for t in existing):
                     status='COMPLETED';satisfied=True;answer='已读取该设备已有报修，没有重复提交。'+json.dumps(existing,ensure_ascii=False)

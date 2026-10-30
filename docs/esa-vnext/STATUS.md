@@ -47,6 +47,16 @@
 - U19-U21 candidate: default CLI factory avoids importing legacy app/container; explicit app.main legacy retained; installed model choices and onboarding, packaged sample resources, embedding misses batched16 with existing persistent cache. Program batch currently in progress; no speed claim.
 - Next concrete action: finish batch/factory regression, commit S3 candidate, restart own8740server on current bytes, verify Deep, then same-primary-database UI loan/repair lifecycle and a small batch indexing/cache measurement. Do not stop at this checkpoint.
 
+- 0.4真实UI核心链已完成（跨候选局部恢复，不冒充一次全绿）：借用b9d7ee9c71084a19b6f8e742fa60f7db改期/旧确认拒绝/当前确认/RESERVED/CHECKED_OUT/RETURNED；同库e245613868e34e2b8d24db60f8ca43ea再次申请后撤回。
+  报修5842f125ffc443b8bca7322c3e67e11a从空字段自然补充、真实preview/OPEN到IN_PROGRESS/RESOLVED/CLOSED，45751e73记录S3_UI_2026-10-30T05-13-50-156Z.json最终通过。旧失败和原模型响应都保留，主库此时115chat。
+- 真模型定位/实改：继续入口缺当前用户动作；未传既有目标释义；空finish未消费宿主观察；准备schema未承载用户描述；target与facts.asset_id重复表示；缺业务规则被误当缺用户信息。修复共同职责，没有题号/错字词典。
+- 实测8个合成chunk一次批量embedding，冷构建3.031s、缓存重建1.016s且0新增embed，含轮询开销非纯计算时间。原资料版本替换/停用/恢复/历史定位均实操。
+  该组问题却因跨文档同名属性被标冲突，内容为partial，不能算问答通过；正在收口用户明确《原文标题》时对已有policy ID的资源绑定，ACL/版本继续收紧。
+- 知识已知负结果：跨国运费问题被用“没有规定押金”错误回答。一次提示追加使正常Deep退步，已回退；明确否定对象字面拦截也误伤4个原A1回归，已回退。NEGATIVE_ATTRIBUTION.xml保留，不将这些变体放入最终代码，不继续关键词修补。
+  Deep真实读取与分题已存在，df0c118c有两数值/维修资格/会议室时段回答；后续实际schema预算多8字节导致0发送失败已修。当前最终Deep需要在冻结字节再记一次；错误不足反例仍为KNOWN_FAILED。
+- 相关全批113passed/1failed：旧取消续跑替身对字段齐全任务仍ask_user，与当前合法动作schema不符。已保留原清理断言并改为实际合法读取→准备，额外检查preview生成和0写入；最终批待完成。
+- 下一步：固定0.4候选，运行当前受影响路径、Deep-only与明确标题的两入口；发行副本/本地wheel启动和重启；汇总8类旅程、实际账目与已知知识缺口，然后交付。无有效GitHub推送授权，尚未同步，不创建虚假PR链接。
+
 ## Historical 0.2.0 Position (retained)
 - Workspace: `D:/文档/agent/RAG_try`; branch `codex/esa-vnext`.
 - Original main HEAD: `51faa5ba2f35d79120b362fff08b091646168d77`; 27 tracked dirty files predate this work. Their changes are preserved; the RAG modules now also contain explicit integration edits.

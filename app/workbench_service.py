@@ -271,7 +271,7 @@ class TaskService:
         from app.agent_runtime.workbench_agent import build_service_agent
         return await build_service_agent(self).run(task_id,run_id)
 
-    def finish_turn(self,task_id,text):
+    def finish_turn(self,task_id,text,observed=()):
         actor=local_actor()
         with self.store.transaction() as db:
             task=self.store._task(db,actor,task_id)
@@ -281,8 +281,12 @@ class TaskService:
             # Raw prose remains in model_response events. Business delivery is
             # assembled from actual changed facts, published knowledge and preview.
             parts=[]
-            if task.get('knowledge_result'):parts.append(task['knowledge_result']['result']['answer'])
-            if task.get('receipt'):parts.append('当前工单状态请见实际业务状态；原提交回执保持不变。')
+            if task.get('knowledge_result') and 'knowledge_answer' in observed:parts.append(task['knowledge_result']['result']['answer'])
+            if task.get('receipt'):
+                row=db.execute(f'SELECT payload FROM {self.store.ticket_table(task)} WHERE ticket_id=? AND tenant=? AND owner=?',
+                    (task['receipt']['ticket_id'],actor.tenant_id,actor.subject)).fetchone()
+                current=json.loads(row['payload']) if row else None
+                parts.append('当前工单'+current['ticket_id']+'状态为'+current['status']+'。'+current['next_step'] if current else '当前工单暂不可读取；原提交回执保持不变。')
             elif task.get('pending_proposal_id'):parts.append('当前完整预览已生成。请核对当前参数；仅当前精确确认才可提交。' if task['user_execution_ceiling']=='SUBMIT_AFTER_CONFIRMATION' else '已生成仅预览内容，不会提交。')
             elif missing:parts.append(service_for(task).questions(missing))
             else:parts.append('当前参数：'+encoded(task['facts'])+'。本回合没有生成新的业务回执。')

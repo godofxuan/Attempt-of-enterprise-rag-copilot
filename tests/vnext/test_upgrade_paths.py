@@ -111,7 +111,12 @@ def test_cancel_run_releases_only_its_task_and_can_continue_without_restart(tmp_
         assert w.runs.get(run['id'])['status']=='cancelled'
         assert not view['active_run_id'] and view['status']!='RUNNING'
         assert view['facts']==task['facts'] and not view['receipt']
-        w.models=AskModel();retry=w.runs.start('service',{'task_id':task['task_id']});await w.runs.tasks[retry['id']]
+        from tests.vnext.test_conversations import SequenceModel
+        w.models=SequenceModel([('loan_policy',{}),('assets_search',{}),('tickets_list_mine',{})],
+                              [('prepare_preview',{'asset_id':'loan-laptop-1'})])
+        retry=w.runs.start('service',{'task_id':task['task_id']});await w.runs.tasks[retry['id']]
         assert w.runs.get(retry['id'])['status']=='succeeded'
+        resumed=w.service.view(task['task_id'])
+        assert resumed['preview'] and not resumed['active_run_id'] and not resumed['receipt']
         await w.runs.close()
     asyncio.run(check())

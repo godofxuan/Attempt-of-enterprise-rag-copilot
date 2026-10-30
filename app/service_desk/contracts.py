@@ -264,7 +264,7 @@ def evaluate_owned_condition(task, condition, current_receipt):
     if not isinstance(tickets,list):
         return {'value':'UNKNOWN','predicate':predicate,'matching_ticket_ids':[]}
     matches=[t['ticket_id'] for t in tickets
-        if t.get('status') in {'PENDING_APPROVAL','IN_PROGRESS'}
+        if t.get('status') in {'PENDING_APPROVAL','IN_PROGRESS','RESERVED','CHECKED_OUT'}
         and not parameter_differences(t.get('parameters',{}),facts,
             task.get('parameter_normalizer','literal-v1'))]
     truth=bool(matches) if predicate=='owned_matching_present' else not matches

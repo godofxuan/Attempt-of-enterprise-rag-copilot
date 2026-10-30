@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import subprocess
 import zipfile
+import tomllib
 
 
 PATHS = (
@@ -19,7 +20,7 @@ PATHS = (
     'tests/agent_v2/test_generation_v2.py',
     'tests/api_v2/helpers.py', 'tests/api_v2/test_identity_boundary_api.py',
     'tests/fixtures/a1_mapping', 'tests/fixtures/vnext',
-    'examples/esa', 'docs/esa-vnext', 'README.md', 'AGENTS.md',
+    'examples/esa', 'docs/esa-vnext', 'docs/history', 'README.md', 'AGENTS.md',
     'pyproject.toml', 'uv.lock', '.gitignore', 'LICENSE',
     'scripts/export_vnext_source.py',
 )
@@ -37,7 +38,8 @@ def main():
     paths = [p for p in PATHS if git('ls-tree', commit, '--', p)]
     destination = (root / args.output_dir).resolve()
     destination.mkdir(parents=True, exist_ok=True)
-    archive = destination / ('ESA_0.2.0_source_' + commit[:8] + '.zip')
+    version=tomllib.loads(git('show',commit+':pyproject.toml'))['project']['version']
+    archive = destination / ('ESA_'+version+'_source_' + commit[:8] + '.zip')
     if archive.exists():
         raise FileExistsError(archive)
     subprocess.run(['git', 'archive', '--format=zip', '--output', str(archive), commit, *paths], cwd=root, check=True)

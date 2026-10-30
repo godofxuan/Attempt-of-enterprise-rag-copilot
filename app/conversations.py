@@ -122,7 +122,8 @@ class ConversationService:
             service.workspace.runs.lifecycle.finish(run_id,'turn',{},'succeeded',None)
             result=service.view(task_id)
             self.append(cid,'assistant','result',result.get('assistant_text') or result.get('question') or result['next_step'],
-                        {'task_id':task_id,'knowledge':result.get('knowledge_result'),'preview':result.get('preview'),
+                        {'task_id':task_id,'knowledge':result.get('knowledge_result') if
+                            (result.get('knowledge_result') or {}).get('id')!=(task.get('knowledge_result') or {}).get('id') else None,'preview':result.get('preview'),
                          'receipt':result.get('receipt'),'facts':result['facts']},run_id=run_id)
             with self.db() as db:db.execute("UPDATE conversation_turns SET status='DONE' WHERE id=?",(message_id,))
             terminal='succeeded'

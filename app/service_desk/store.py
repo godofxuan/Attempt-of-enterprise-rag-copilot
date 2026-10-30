@@ -1156,7 +1156,7 @@ class ServiceDeskStore:
                 result=item['result'];data=result.get('data') or {};binding=item.get('request_binding') or {}
                 ticket=data.get('ticket')
                 if (isinstance(ticket,dict) and known.get(ticket.get('ticket_id'))==ticket
-                    and ticket.get('status') in {'PENDING_APPROVAL','IN_PROGRESS'}
+                    and ticket.get('status') in {'PENDING_APPROVAL','IN_PROGRESS','RESERVED','CHECKED_OUT'}
                     and ticket.get('parameters',{}).get('loan_end','')>=self.today().isoformat()
                     and (result.get('error_code')=='EXISTING_TICKET' or data.get('outcome_kind')=='existing_application')
                     and binding.get('facts_revision')==task['facts_revision']
@@ -1427,12 +1427,12 @@ class ServiceDeskStore:
             from app.service_desk.contracts import parameter_differences
             # An exact committed command proves submission after its loan window too;
             # another task's application must still be active before it is reused.
-            matching=((current==committed_ticket or (current['status'] in {'PENDING_APPROVAL','IN_PROGRESS'}
+            matching=((current==committed_ticket or (current['status'] in {'PENDING_APPROVAL','IN_PROGRESS','RESERVED','CHECKED_OUT'}
                 and current['parameters'].get('loan_end','')>=self.today().isoformat()))
                 and all(task['facts'].get(k) for k in ('loan_start','loan_end','purpose'))
                 and not parameter_differences(current['parameters'],task['facts'],task.get('parameter_normalizer','literal-v1')))
             if 'open_application' in needed and not matching:
-                if current['status'] in {'PENDING_APPROVAL','IN_PROGRESS'}:
+                if current['status'] in {'PENDING_APPROVAL','IN_PROGRESS','RESERVED','CHECKED_OUT'}:
                     conflicting_ticket=current
                 continue
             ticket=current
@@ -1455,7 +1455,7 @@ class ServiceDeskStore:
                         '. No automatic ticket change or replacement application was made.')
                 if ('ticket_status' in needed and 'open_application' not in needed
                     and not read_only_result
-                    and current['status'] in {'PENDING_APPROVAL','IN_PROGRESS'}
+                    and current['status'] in {'PENDING_APPROVAL','IN_PROGRESS','RESERVED','CHECKED_OUT'}
                     and current['parameters'].get('loan_end','')>=self.today().isoformat()):
                     conflicting_ticket=current; comparison_fields=differences
             break
