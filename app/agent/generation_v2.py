@@ -23,7 +23,7 @@ from app.agent.citation_verifier import verify_claims
 from app.agent.controller_v2 import ControllerState
 from app.agent.query_needs import requested_needs
 from app.agent.runner_v2 import ExtractiveResponseBuilder, build_conflict_response
-from app.agent.source_unit_completion import complete_claim_quotes
+from app.agent.source_unit_completion import complete_claim_quotes,complete_units
 from app.agent.task_plan import prompt_needs, NeedEvaluation, bind_need_evaluations
 from app.config import get_settings
 from app.domain.agent import AgentStopReason, AnswerMode
@@ -162,6 +162,7 @@ class GeneratedAnswer(BaseModel):
     _wire_claim_ids_rebound: int = PrivateAttr(default=0)
     _invalid_claim_rows: int = PrivateAttr(default=0)
     _claims_only_wire: bool = PrivateAttr(default=False)
+    _unit_decision_ids: tuple[str,...] | None = PrivateAttr(default=None)
 
     @model_validator(mode="after")
     def validate_claim_ids(self) -> GeneratedAnswer:
@@ -207,11 +208,12 @@ def generation_response_format(sources,plan,*,need_first=False):
         # the model to repeat the same content in prose, claims and a third map.
         item=deepcopy(schema['properties']['request_coverage']['items'])
         item['properties'].pop('claim_ids')
-        item['properties']['source_unit_ids']={'type':'array','items':{'enum':ids}}
         item['properties'].pop('need_id')
-        item['required']=[key for key in item['required'] if key not in ('claim_ids','need_id')]+['source_unit_ids']
+        item['required']=[key for key in item['required'] if key not in ('claim_ids','need_id')]
         answers={'type':'object','properties':{nid:{'$ref':'#/$defs/need_answer'} for nid in need_ids},'required':need_ids}
-        return {'type':'object','$defs':{'need_answer':item},'properties':{'unit_answers':answers},'required':['unit_answers']}
+        uses={'type':'object','properties':{uid:{'$ref':'#/$defs/unit_needs'} for uid in ids},'required':ids}
+        return {'type':'object','$defs':{'need_answer':item,'unit_needs':{'type':'array','items':{'enum':need_ids}}},
+            'properties':{'unit_uses':uses,'need_status':answers},'required':['unit_uses','need_status']}
     return schema
 
 
@@ -348,6 +350,10 @@ class GenerationV2ResponseBuilder:
                 trace=response_trace,
                 response_format=generation_response_format(sources,state.task_plan,need_first=self.need_first_wire),
             )
+            if _generated._unit_decision_ids is not None:
+                expected={source.source_id+'U'+str(i) for source in sources
+                    for i,u in enumerate(complete_units(source.delivered),1) if len(u.quote)<=2000}
+                if set(_generated._unit_decision_ids)!=expected:raise ValueError('INCOMPLETE_SOURCE_UNIT_INSPECTION')
             claims, draft_units = _preserve_draft_units(_generated, claims, source_by_id, question)
             response_trace['generation_wire_protocol']='selected_source_units_only' if _generated._claims_only_wire else 'legacy_answer_and_claims'
             response_trace['generation_draft_units'] = draft_units
@@ -1054,6 +1060,9 @@ def _generation_messages(
         "there is no separate prose answer that can carry omitted content."
         " When the schema requests unit_answers, work through each need separately: select ALL source_unit_ids "
         "that deliver that need, including its required conditions. The host creates the claims and final body from those exact selections."
+        " When the schema requests unit_uses, inspect EVERY source unit and assign the N IDs it answers or conditions; "
+        "use an empty array for irrelevant units. Include the original whole-question N ID when a unit contributes to it. "
+        "Do not overlook a condition because another unit already supplies the main number. need_status evaluates those same selections."
     )
     request_metadata = _safe_compact_json(
         {
@@ -1164,6 +1173,15 @@ def _parse_generated_answer(
     payload = json.loads(text)
     if not isinstance(payload, dict):
         raise ValueError("generation response must be a JSON object")
+    inspected=None
+    if 'unit_uses' in payload:
+        if set(payload)!={'unit_uses','need_status'} or not isinstance(payload['unit_uses'],dict) or not isinstance(payload['need_status'],dict):raise ValueError('invalid unit disposition envelope')
+        inspected=tuple(payload['unit_uses'])
+        for uid,needs in payload['unit_uses'].items():
+            if not re.fullmatch(r'S[1-9]\d*U[1-9]\d*',uid) or not isinstance(needs,list) or len(set(needs))!=len(needs):raise ValueError('invalid unit disposition')
+            if any(nid not in payload['need_status'] for nid in needs):raise ValueError('unknown unit need')
+        payload={'unit_answers':{nid:{**status,'source_unit_ids':[uid for uid,needs in payload['unit_uses'].items() if nid in needs]}
+            for nid,status in payload['need_status'].items()}}
     if 'unit_answers' in payload:
         if isinstance(payload['unit_answers'],dict):
             payload={**payload,'unit_answers':[dict(value,need_id=key) if isinstance(value,dict) and 'need_id' not in value else None
@@ -1221,6 +1239,7 @@ def _parse_generated_answer(
     result._wire_claim_ids_rebound = rebound
     result._invalid_claim_rows = invalid_rows
     result._claims_only_wire = claims_only
+    result._unit_decision_ids=inspected
     return result
 
 

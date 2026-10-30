@@ -393,7 +393,7 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
         partial = True
         # Explain every known missing obligation, even when a prior policy had
         # already required partial; identical diagnostics are rendered once.
-        notes.extend(f"当前回答尚未核验这一问题：{(' / '.join(o.quote for o in n.origins) if task_mode else n.text)[:200]}。" for n in missing)
+        notes.extend(f"当前回答尚未核验这一问题：{(' / '.join(o.quote for o in n.origins) if task_mode and n.origins else n.text)[:200]}。" for n in missing)
         if incomplete:
             notes.append("相关章节存在未完整读取的内容，尚不能确认流程或多项问题已全部覆盖。")
     notes = list(dict.fromkeys(notes))
