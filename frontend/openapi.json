@@ -3651,7 +3651,6 @@
             "title": "Facts"
           }
         },
-        "additionalProperties": true,
         "type": "object",
         "title": "TurnPayload"
       },

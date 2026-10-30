@@ -29,6 +29,24 @@ def product(root):
     )
 
 
+def test_legacy_task_knowledge_is_not_misread_as_a_published_answer(tmp_path):
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        conversation = w.conversations.create()
+        payload = {
+            "task_id": "historical-task",
+            "knowledge": {"rule-ref": {"text": "原始业务规则"}},
+            "facts": {"purpose": "历史记录"},
+        }
+        turn = w.conversations.append(
+            conversation["id"], "assistant", "result", "已读取规则", payload
+        )
+        response = client.get("/api/conversations/" + conversation["id"])
+        assert response.status_code == 200
+        assert response.json()["turns"][0]["payload"]["knowledge"] is None
+        assert w.conversations.turns(conversation["id"])[0]["payload"] == payload
+
+
 def test_knowledge_failure_retry_reuses_user_turn(tmp_path):
     with product(tmp_path) as client:
         w = client.app.state.workspace

@@ -1485,8 +1485,6 @@ export interface components {
       facts?: {
         [key: string]: unknown;
       } | null;
-    } & {
-      [key: string]: unknown;
     };
     /** TurnView */
     TurnView: {

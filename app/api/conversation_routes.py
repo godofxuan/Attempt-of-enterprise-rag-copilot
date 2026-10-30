@@ -1,7 +1,7 @@
 """Conversation projection; the existing runtime executes all turns."""
 
 from fastapi import APIRouter
-from pydantic import BaseModel, Field, ConfigDict, field_serializer
+from pydantic import BaseModel, Field, ConfigDict, field_serializer, model_validator
 from app.domain.evidence import AnswerResponse
 from app.domain.product_views import PublishedAnswerView, ProposalView, ReceiptView
 
@@ -28,7 +28,7 @@ class ConversationSummary(BaseModel):
 
 
 class TurnPayload(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="ignore")
     knowledge: PublishedAnswerView | None = None
     result: AnswerResponse | None = None
     id: str | None = None
@@ -36,6 +36,23 @@ class TurnPayload(BaseModel):
     receipt: ReceiptView | None = None
     task_id: str | None = None
     facts: dict | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def project_legacy_task_payload(cls, value):
+        if not isinstance(value, dict):
+            return value
+        result = dict(value)
+        # Old persisted turns sometimes contain a complete Task payload, whose
+        # 'knowledge' is domain rule bindings, not a published knowledge answer.
+        # Project its actual published receipt; retain the original DB unchanged.
+        knowledge = result.get("knowledge")
+        if knowledge is not None and not {"id", "result"} <= set(knowledge):
+            result["knowledge"] = result.get("knowledge_result")
+        answer = result.get("result")
+        if isinstance(answer, dict) and not {"mode", "answer"} <= set(answer):
+            result.pop("result")
+        return result
 
     @field_serializer("result")
     def public_answer(self, value):
