@@ -56,7 +56,8 @@ def test_docx_locations_survive_index_guard_and_publication_without_markdown_rep
             records=json.loads(prompt.split('[BEGIN_UNTRUSTED_EVIDENCE nonce='+TEST_NONCE+']')[1].split('[END_UNTRUSTED_EVIDENCE')[0])
             source=next(r for r in records if 'current repair record' in r['matched_text'])
             unit=next(m for m in re.finditer(r'\[(S\d+U\d+)\](.*?)\[/\1\]',source['matched_text'],re.S) if 'current repair record' in m[2])
-            return json.dumps({'answer':unit[2],
+            assert 'answer' not in kwargs['response_format']['properties']
+            return json.dumps({
                 'claims':[{'claim_id':'C1','source_unit_id':unit[1],
                     'critical':True,'cited_source_ids':[source['source_id']],'need_refs':['N1']}],
                 'request_coverage':[{'need_id':'N1','claim_ids':['C1'],'status':'supported','subject_matches':True,
