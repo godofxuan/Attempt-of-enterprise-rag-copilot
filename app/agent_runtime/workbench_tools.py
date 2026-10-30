@@ -62,8 +62,7 @@ class ToolCatalog:
             from app.workbench_service import local_actor
             if not self.service.store.completion_ready(local_actor(),current['task_id']):allowed.discard('finish')
             missing=self.service.required_fields(current)
-            last_error=bool(current.get('observations') and current['observations'][-1]['result'].get('status')=='error')
-            if not any(not current['facts'].get(f) for f in missing) and not last_error:allowed.discard('ask_user')
+            if not any(not current['facts'].get(f) for f in missing):allowed.discard('ask_user')
         self.allowed_names=allowed
         return [tool.schema() for name,tool in self.tools.items() if name in allowed]
 
@@ -126,6 +125,8 @@ class ToolCatalog:
                 current=store.get_task(actor,task_id)
             if current.get('preferred_asset_id') and args['asset_id']!=current['preferred_asset_id']:raise ServiceError('USER_ASSET_SELECTION_MISMATCH')
             refs=[e['ref'] for e in current.get('knowledge',{}).values() if e['need_refs']==[domain.rule_need]]
+            if not refs:raise ServiceError('EVIDENCE_INSUFFICIENT',data={'missing_bindings':[domain.rule_need],
+                'message':'No executable domain rule has been read for this task. This is a missing tool observation, not missing user information. Use the available rule-reading capability before trying preparation again.'})
             return store.propose(actor,task_id,args['asset_id'],refs,_record_tool_result=True)
         if name=='knowledge_answer':
             if not current.get('kb_id'):raise ServiceError('KNOWLEDGE_BASE_REQUIRED')

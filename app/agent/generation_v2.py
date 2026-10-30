@@ -1026,8 +1026,6 @@ def _generation_messages(
         "Supported means the selected claims fully answer that question, including necessary conditions, not merely share a topic. "
         "A source-backed negative or unspecified policy item can answer a question; never infer user eligibility or a completed business action. "
         "Keep unknown facets unresolved. Do not demand unasked facts or business checks for a policy question."
-        " If the requested attribute is absent, emit no claims for that need and mark evidence_insufficient. "
-        "An explicit absence of a different attribute cannot answer it, even when both share a subject."
     )
     request_metadata = _safe_compact_json(
         {

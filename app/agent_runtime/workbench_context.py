@@ -27,6 +27,7 @@ class ContextBuilder:
             answer=linked['result']
             linked={'id':linked['id'],'question':linked['question'],'mode':answer['mode'],'answer':answer['answer'],
                     'sources':answer['sources'],'warnings':answer.get('warnings',[])}
+        valid=self.service.valid_observations(task)
         return {'task_kind':task['guided_request']['kind'],'execution_ceiling':task['user_execution_ceiling'],
             'requested_results':{name:(service.output_meanings or {}).get(name,OUTPUT_MEANINGS[name]) if service else OUTPUT_MEANINGS[name]
                 for name in task['task_goal']['required_outputs']},
@@ -37,7 +38,8 @@ class ContextBuilder:
             'reference_date':str(self.service.store.today()),'preferred_asset_id':task.get('preferred_asset_id'),
             'question':task['guided_request'].get('question') if not turn else None,
             'required_outputs':task['task_goal']['required_outputs'],'current_ticket':current_ticket,
-            'valid_observations':{k:v for k,v in self.service.valid_observations(task).items() if k not in observed},
+            'valid_observations':{k:v for k,v in valid.items() if k not in observed},
+            'missing_domain_observations':([service.rule_need] if service and service.rule_need not in valid else []),
             'missing_fields':[k for k in self.service.required_fields(task) if not task['facts'].get(k)],
             'field_schema':service.field_specs() if service else [],'knowledge_base_id':task.get('kb_id'),
             'knowledge_mode':'deep' if turn and turn.get('detailed') else 'fast',
