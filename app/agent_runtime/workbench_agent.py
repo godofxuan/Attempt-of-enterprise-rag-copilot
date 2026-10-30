@@ -249,10 +249,14 @@ class ServiceAgent:
                             return self.service.view(task_id)
                     if name == "prepare_preview" and result["status"] == "ok":
                         self.workspace.runs.event(run_id, "preview_ready", data)
-                        if not turn:
-                            if current["user_execution_ceiling"] == "PREVIEW_ONLY":
-                                self.store.finish_goal(actor, task_id)
-                            return self.service.view(task_id)
+                        # Preparation is a terminal delivery tool in both entry paths.
+                        # A later model sentence cannot erase the actual saved preview.
+                        if turn:
+                            with self.store.run_scope(started):
+                                self.service.finish_turn(task_id, "", observed)
+                        if not turn and current["user_execution_ceiling"] == "PREVIEW_ONLY":
+                            self.store.finish_goal(actor, task_id)
+                        return self.service.view(task_id)
             raise ServiceError("RUN_STEP_LIMIT")
         except Exception as exc:
             with self.store.transaction() as db:

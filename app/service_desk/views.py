@@ -55,6 +55,8 @@ def task_view(service, task_id):
         current_ticket=ticket,
         knowledge=task.get("knowledge_result"),
         outcome=task.get("outcome"),
+        pending_update=task.get("pending_update"),
+        last_error=task.get("last_error"),
         closed=not active,
         can_edit=editable,
         can_run=active and not busy,

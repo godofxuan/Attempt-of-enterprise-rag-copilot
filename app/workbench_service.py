@@ -658,6 +658,9 @@ class TaskService:
                 else "WAITING_CONFIRMATION"
                 if task.get("pending_proposal_id")
                 and task["user_execution_ceiling"] == "SUBMIT_AFTER_CONFIRMATION"
+                else "COMPLETED"
+                if task.get("pending_proposal_id")
+                and task["user_execution_ceiling"] == "PREVIEW_ONLY"
                 else "WAITING_USER"
                 if missing
                 else "NEW"

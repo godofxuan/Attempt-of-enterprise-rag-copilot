@@ -83,6 +83,8 @@ class TaskView(BaseModel):
     current_ticket: TicketView | None = None
     knowledge: PublishedAnswerView | None = None
     outcome: OutcomeView | None = None
+    pending_update: dict[str, str] | None = None
+    last_error: str | None = None
     can_edit: bool
     can_run: bool
     can_cancel: bool

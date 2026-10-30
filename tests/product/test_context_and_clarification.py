@@ -95,3 +95,34 @@ def test_model_prose_does_not_execute_or_finish_a_business_turn(tmp_path):
         current = w.service.view(task["task_id"])
         assert not current.get("preview") and not current.get("receipt")
         assert w.conversations.turns(task["conversation_id"])[0]["status"] == "FAILED"
+
+
+def test_real_preview_is_terminal_for_a_conversational_turn(tmp_path):
+    from tests.vnext.test_conversations import SequenceModel
+
+    with product(tmp_path) as client:
+        w = client.app.state.workspace
+        task = w.service.create(
+            {"kind": "loan", "execution_ceiling": "SUBMIT_AFTER_CONFIRMATION", "confirmed": True}
+        )
+        day = w.service.store.today() + timedelta(days=2)
+        facts = {
+            "loan_start": str(day),
+            "loan_end": str(day + timedelta(days=1)),
+            "purpose": "会话准备",
+        }
+        model = SequenceModel(
+            [("update_parameters", {"changes": facts}), ("loan_policy", {})],
+            [("assets_search", {}), ("tickets_list_mine", {})],
+            [("prepare_preview", {"asset_id": "loan-laptop-1", "parameters": facts})],
+        )
+        w.models.chat = model.chat
+        result = asyncio.run(
+            w.service.message(
+                task["task_id"], "用户正常办理消息", "terminal-preview", task["facts_revision"]
+            )
+        )
+        assert result["preview"] and not result["receipt"]
+        assert result["status"] == "WAITING_CONFIRMATION" and not result["active_run_id"]
+        assert len(model.calls) == 3 and not model.batches
+        assert not result["pending_update"]

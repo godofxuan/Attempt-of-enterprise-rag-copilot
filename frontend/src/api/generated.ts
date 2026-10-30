@@ -1437,6 +1437,12 @@ export interface components {
       current_ticket?: components["schemas"]["TicketView"] | null;
       knowledge?: components["schemas"]["PublishedAnswerView"] | null;
       outcome?: components["schemas"]["OutcomeView"] | null;
+      /** Pending Update */
+      pending_update?: {
+        [key: string]: string;
+      } | null;
+      /** Last Error */
+      last_error?: string | null;
       /** Can Edit */
       can_edit: boolean;
       /** Can Run */

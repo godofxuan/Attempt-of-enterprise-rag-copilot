@@ -68,6 +68,46 @@ export function TaskDetail({
                   : "提交前由你确认当前完整预览"}
             </p>
             {action.error && <ErrorNotice error={action.error} />}
+            {t.pending_update && (
+              <section className="card" role="status">
+                <h3>上次消息尚未处理完</h3>
+                <p>{t.pending_update.text}</p>
+                <p className="muted">
+                  已应用的参数保留。可重试原消息，或核对下方参数后继续当前范围；这不是提交确认。
+                </p>
+                {t.last_error && <p>原因：{t.last_error}</p>}
+                <button
+                  onClick={() =>
+                    action.mutate({
+                      path:
+                        "/api/product/conversations/" +
+                        t.conversation_id +
+                        "/turns/" +
+                        t.pending_update!.id +
+                        "/retry",
+                      body: {},
+                    })
+                  }
+                >
+                  重试原消息
+                </button>
+                <button
+                  onClick={() =>
+                    action.mutate({
+                      path: "/api/tasks/" + t.id + "/resolve-update",
+                      body: {
+                        execution_ceiling: t.ceiling,
+                        expected_facts_revision: t.revision,
+                        reviewed: true,
+                      },
+                      continueTask: true,
+                    })
+                  }
+                >
+                  已核对参数，保留当前范围并继续
+                </button>
+              </section>
+            )}
             {t.current_ticket && (
               <section className="card">
                 <h3>当前办理结果</h3>
