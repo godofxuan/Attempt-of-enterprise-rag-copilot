@@ -12,8 +12,16 @@
   UI now distinguishes stop-current-run from end-task. Related program checks21passed/0failed, S0_FINAL.xml.
 - Initial unprivileged Windows asyncio probe hung creating its loopback IPC; same checks in the permitted local environment completed.
   Original audit script partial run remains isolated and is not counted as acceptance. No real model calls for S0.
-- Next S1: persistent conversation/turn entry and existing loop context/tools; mixed knowledge+facts, post-submit query, UI timeline/reconnect.
-  S0 is a checkpoint, not completion of0.3/0.4. Browser/live new paths remain to be exercised during the product journey.
+- S1 U04-U08 candidate: additive conversation/turn storage, history projection, ContextBuilder and ToolCatalog reuse the one loop.
+  Typed normalized changes, shared knowledge, resource selection and post-submit reads are exposed by actual task scope.
+  UI split into api/events/conversation/tasks/library/renderers/settings modules; same-task timeline and current cards, cursor/terminal handling.
+- Related current program batch44passed; user-role targeted8passed after a real canary exposed that the message was embedded as system data.
+  First live canary4chat/1query embed: empty repair asks normally and shared policy answers, but supplied fields were not applied (FAIL).
+  Original logs:upgrade-030-040/S1_CANARY_20261030T004818.json. No business rows changed; primary44chat/27embed afterward.
+  Corrected the shared input boundary: current user message appears once as role=user, not duplicated in context; next live is targeted to that change.
+- First browser structure check reached the new conversation but did not open its collapsed service form; harness corrected, not a product success claim.
+- Next: restart current candidate, rerun one bounded mixed canary and current browser, then U09-U13 actual Deep/source/lifecycle work and0.3 release.
+  S0/S1 are checkpoints, not completion of0.3/0.4. S3/S4 service lifecycle/scheduling remain unimplemented.
 - Progress remains in this file; original design/evidence archived read-only under reviews/020-next.
 
 ## Current Position

@@ -79,7 +79,7 @@ def test_followup_context_uses_only_user_questions_and_rejects_wrong_base_before
     with client_for(tmp_path) as client:
         library=client.app.state.workspace.library;kb=library.create('One')['id'];other=library.create('Other')['id']
         with library.db() as db:
-            db.execute('INSERT INTO conversations VALUES(?,?)',('c1',kb))
+            db.execute('INSERT INTO conversations(id,kb_id) VALUES(?,?)',('c1',kb))
             db.execute('INSERT INTO knowledge_answers(id,conversation_id,kb_id,question,result_json,generation) VALUES(?,?,?,?,?,?)',
                        ('a1','c1',kb,'电脑借用期限是什么？',json.dumps({'answer':'UNTRUSTED_OLD_ANSWER_NEVER_BECOMES_CONTEXT_EVIDENCE'}),'old-generation'))
         assert library.conversation_context(kb,'c1')==[{'id':'a1','question':'电脑借用期限是什么？'}]

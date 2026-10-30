@@ -344,7 +344,7 @@ class Library:
         with self.db() as db:
             if db.execute('SELECT 1 FROM conversations WHERE id=? AND kb_id!=?',(conversation_id,kb_id)).fetchone():
                 raise ValueError('CONVERSATION_KNOWLEDGE_BASE_MISMATCH')
-            db.execute('INSERT OR IGNORE INTO conversations VALUES(?,?)',(conversation_id,kb_id))
+            db.execute('INSERT OR IGNORE INTO conversations(id,kb_id) VALUES(?,?)',(conversation_id,kb_id))
             db.execute('INSERT INTO knowledge_answers(id,conversation_id,kb_id,question,result_json,generation,context_answer_ids) VALUES(?,?,?,?,?,?,?)',
                        (answer_id,conversation_id,kb_id,question,result.model_dump_json(),snapshot.version.manifest.run_id,json.dumps([r['id'] for r in context])))
         value=result.model_dump(mode='json')
@@ -356,3 +356,14 @@ class Library:
             rows=[dict(r) for r in db.execute('SELECT * FROM knowledge_answers ORDER BY rowid DESC LIMIT 50')]
         return [{**{k:r[k] for k in r if k!='result_json'},'result':json.loads(r['result_json']),
                 'source_notices':self.source_notices(json.loads(r['result_json']))} for r in rows]
+
+    def valid_answer(self,answer_id,kb_id):
+        if not answer_id:return None
+        with self.db() as db:row=db.execute('SELECT * FROM knowledge_answers WHERE id=? AND kb_id=?',(answer_id,kb_id)).fetchone()
+        if not row:return None
+        try:snapshot=self.snapshot(kb_id)
+        except (ValueError,FileNotFoundError):return None
+        if row['generation']!=snapshot.version.manifest.run_id:return None
+        value=json.loads(row['result_json'])
+        return {'id':row['id'],'question':row['question'],'conversation_id':row['conversation_id'],'kb_id':kb_id,
+            'result':value,'source_notices':self.source_notices(value)}

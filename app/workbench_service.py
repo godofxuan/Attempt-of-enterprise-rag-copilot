@@ -1,28 +1,11 @@
 """Product service projection over the existing transactional ServiceDeskStore."""
 from datetime import datetime, timedelta, timezone
 import json
-from typing import Literal
 
 from app.security.identity import Principal
 from app.service_desk.contracts import GuidedTaskRequest
 from app.service_desk.store import ServiceDeskStore, ServiceError, encoded, digest
-from pydantic import BaseModel, ConfigDict, Field
-from app.service_desk.contracts import UserFacts
 from app.service_desk.catalog import SERVICES,service_for,seed_repairs
-
-
-class ParameterChange(BaseModel):
-    model_config=ConfigDict(extra='forbid')
-    field: Literal['loan_start','loan_end','purpose','asset_id','description','impact']
-    value: str | None
-    quote: str
-
-
-class MessageInterpretation(BaseModel):
-    model_config=ConfigDict(extra='forbid')
-    updates: list[ParameterChange] = Field(max_length=6)
-    execution_ceiling: Literal['READ_ONLY','PREVIEW_ONLY','SUBMIT_AFTER_CONFIRMATION'] | None = None
-    scope_quote: str = ''
 
 
 def local_actor():
@@ -72,6 +55,7 @@ class TaskService:
             current=self.store._task(db,local_actor(),task['task_id'])
             current.update(product_runtime=True,kb_id=kb_id,run_fence=0)
             self.store._save(db,current)
+        if hasattr(self.workspace,'conversations'):self.workspace.conversations.bind(task['task_id'])
         return self.view(task['task_id'])
 
     @staticmethod
@@ -151,96 +135,10 @@ class TaskService:
         return valid
 
     async def message(self,task_id,text,message_id,expected_facts_revision):
-        actor=local_actor();task=self.store.get_task(actor,task_id)
-        with self.store.transaction() as db:
-            known=db.execute('SELECT * FROM workbench_messages WHERE id=?',(message_id,)).fetchone()
-        if known:
-            if known['task_id']!=task_id or known['text']!=text:raise ServiceError('MESSAGE_ID_CONFLICT')
-            if known['status']!='APPLIED':raise ServiceError('MESSAGE_NOT_APPLIED')
-            return self.view(task_id)
-        if task['guided_request']['kind']=='knowledge':
-            if task['facts_revision']!=expected_facts_revision:raise ServiceError('TASK_CHANGED')
-            if task['status']=='CANCELLED':raise ServiceError('TASK_BUSY_OR_SUBMITTED')
-            if not task.get('kb_id'):raise ServiceError('KNOWLEDGE_BASE_REQUIRED')
-            previous=task.get('knowledge_result') or {}
-            question=text if previous else '原问题：'+task['guided_request']['question']+'\n追问：'+text
-            result=await self.workspace.library.answer(task['kb_id'],question,
-                conversation_id=previous.get('conversation_id'))
-            with self.store.transaction() as db:
-                current=self.store._task(db,actor,task_id)
-                if current['status']=='CANCELLED':raise ServiceError('TASK_BUSY_OR_SUBMITTED')
-                current.update(knowledge_result=result,status='COMPLETED' if result['result']['mode']=='answered' else 'BLOCKED')
-                current['messages'].append({'id':message_id,'text':text,'origin':'USER_MESSAGE'})
-                self.store._save(db,current)
-                db.execute('INSERT INTO workbench_messages VALUES(?,?,?,?,?)',(message_id,task_id,text,'APPLIED',encoded(result)))
-                self.store._event(db,task_id,'knowledge_followup',{'message_id':message_id,'answer_id':result['id']})
-            return self.view(task_id)
-        if task.get('receipt') or task['status'] in {'CANCELLED','RECONCILING'}:raise ServiceError('TASK_BUSY_OR_SUBMITTED')
-        if task.get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
-        if task['facts_revision']!=expected_facts_revision:raise ServiceError('TASK_CHANGED')
-        with self.store.transaction() as db:
-            existing=db.execute('SELECT * FROM workbench_messages WHERE id=?',(message_id,)).fetchone()
-            if existing:
-                if existing['task_id']!=task_id or existing['text']!=text:raise ServiceError('MESSAGE_ID_CONFLICT')
-                if existing['status']!='APPLIED':raise ServiceError('MESSAGE_NOT_APPLIED')
-            else:
-                current=self.store._task(db,actor,task_id)
-                if db.execute(f'SELECT 1 FROM {self.store.ticket_table(current)} WHERE task_id=?',(task_id,)).fetchone():raise ServiceError('TASK_BUSY_OR_SUBMITTED')
-                db.execute('INSERT INTO workbench_messages VALUES(?,?,?,?,?)',(message_id,task_id,text,'PENDING',None))
-                current.update(pending_user_update=message_id,status='WAITING_USER')
-                self.store._save(db,current)
-                self.store._event(db,task_id,'user_update_pending',{'message_id':message_id,'text':text})
-        if existing:return self.view(task_id)
-        service=service_for(task)
-        prompt=('Interpret only explicit parameter changes in this user message. Missing keys mean no change; '
-            'null means the user explicitly clears that field. Preserve all existing facts and prohibitions otherwise. '
-            'For every changed field give its exact supporting substring in sources. Interpret relative dates using '
-            'the supplied reference date. Scope may only tighten based on an exact user quote; never grant submission. '
-            'Use updates, an array of field/value/quote records. Allowed fields from this explicit service: '+
-            json.dumps(service.public()['fields'],ensure_ascii=False)+'. Dates use YYYY-MM-DD. '
-            'Purpose and description contain only their verbatim content, without unrelated dates or operations. '
-            'Impact uses low, medium, high corresponding to the explicitly stated impact. '
-            'One record per explicitly changed field; quote is the exact supporting user substring. '
-            'Return JSON updates/execution_ceiling/scope_quote. Current facts and scope: '+
-            json.dumps({'facts':task['facts'],'scope':task['user_execution_ceiling'],'reference_date':str(self.store.today())},ensure_ascii=False))
-        schema=MessageInterpretation.model_json_schema()
-        schema['$defs']['ParameterChange']['properties']['field']={'enum':[f for f,_,_ in service.fields]}
-        response=await self.workspace.models.chat([{'role':'system','content':prompt},{'role':'user','content':text}],
-            response_format=schema,max_tokens=500)
-        interpreted=MessageInterpretation.model_validate_json(response['content'])
-        with self.store.transaction() as db:
-            current=self.store._task(db,actor,task_id)
-            if current.get('pending_user_update')!=message_id:raise ServiceError('USER_UPDATE_SUPERSEDED')
-        changes={row.field:row.value for row in interpreted.updates}
-        sources={row.field:row.quote for row in interpreted.updates}
-        if len(changes)!=len(interpreted.updates) or any(not q or q not in text for q in sources.values()):
-            raise ServiceError('UNBOUND_PARAMETER_UPDATE')
-        for field in ('purpose','description','asset_id'):
-            if changes.get(field) and changes[field] not in sources[field]:raise ServiceError('UNBOUND_PARAMETER_UPDATE')
-        service.facts_type.model_validate(changes)
-        if interpreted.execution_ceiling and interpreted.execution_ceiling!=task['user_execution_ceiling']:
-            order=['READ_ONLY','PREVIEW_ONLY','SUBMIT_AFTER_CONFIRMATION']
-            scope=interpreted.execution_ceiling
-            if scope not in order or order.index(scope)>order.index(task['user_execution_ceiling']):
-                raise ServiceError('SCOPE_CHANGE_REQUIRES_USER_FORM')
-            if not interpreted.scope_quote or interpreted.scope_quote not in text:raise ServiceError('UNBOUND_SCOPE_CHANGE')
-            self.store.change_execution_scope(actor,task_id,scope,[],message_id,text,scope_confirmed=True,
-                expected_facts_revision=expected_facts_revision)
-            task=self.store.get_task(actor,task_id)
-        if changes:self.facts(task_id,changes,task['facts_revision'])
-        with self.store.transaction() as db:
-            current=self.store._task(db,actor,task_id)
-            if current.get('pending_user_update')!=message_id:raise ServiceError('USER_UPDATE_SUPERSEDED')
-            if message_id not in {m['id'] for m in current['messages']}:
-                current['messages'].append({'id':message_id,'text':text,'origin':'USER_MESSAGE'})
-            for field,quote in sources.items():
-                current.setdefault('fact_sources',{})[field]={'origin':'USER_MESSAGE','source_message_id':message_id,
-                    'quote':quote,'start':text.index(quote),'end':text.index(quote)+len(quote)}
-            current.pop('pending_user_update',None)
-            self.store._save(db,current)
-            db.execute("UPDATE workbench_messages SET status='APPLIED',result=? WHERE id=?",(interpreted.model_dump_json(),message_id))
-            self.store._event(db,task_id,'message_parameters',{'message_id':message_id,'text':text,'interpretation':interpreted.model_dump(mode='json')})
-        return self.view(task_id)
+        from app.conversations import ConversationService
+        if not hasattr(self.workspace,'conversations'):
+            self.workspace.conversations=ConversationService(self.workspace)
+        return await self.workspace.conversations.task_turn(task_id,text,message_id,expected_facts_revision)
 
     def message_failed(self,task_id,message_id,error):
         actor=local_actor()
@@ -310,7 +208,7 @@ class TaskService:
             return self.facts(task_id,{'asset_id':asset_id},revision)
         with self.store.transaction() as db:
             task=self.store._task(db,actor,task_id);self.store._live(task)
-            if task.get('receipt') or task.get('active_run_id'):raise ServiceError('TASK_BUSY_OR_SUBMITTED')
+            if task.get('receipt') or (task.get('active_run_id') and not self.store.owns_run(task)):raise ServiceError('TASK_BUSY_OR_SUBMITTED')
             if task['facts_revision']!=revision:raise ServiceError('TASK_CHANGED')
             if not db.execute('SELECT 1 FROM assets WHERE tenant=? AND asset_id=? AND available=1 AND category=?',(actor.tenant_id,asset_id,'laptop')).fetchone():
                 raise ServiceError('RESOURCE_CHANGED')
@@ -348,3 +246,18 @@ class TaskService:
         if self.store.get_task(local_actor(),task_id).get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
         from app.agent_runtime.workbench_agent import build_service_agent
         return await build_service_agent(self).run(task_id,run_id)
+
+    def finish_turn(self,task_id,text):
+        actor=local_actor()
+        with self.store.transaction() as db:
+            task=self.store._task(db,actor,task_id)
+            self.store._live(task)
+            missing=[k for k in self.required_fields(task) if not task['facts'].get(k)]
+            task['question']=service_for(task).questions(missing) if missing else None
+            task['assistant_text']=text
+            task['status']=('COMPLETED' if task.get('receipt') else 'WAITING_CONFIRMATION' if task.get('pending_proposal_id')
+                and task['user_execution_ceiling']=='SUBMIT_AFTER_CONFIRMATION' else 'WAITING_USER' if missing else 'NEW')
+            if task['guided_request']['kind']=='knowledge':
+                answer=task.get('knowledge_result')
+                task['status']='COMPLETED' if answer and answer['result']['mode']=='answered' else 'BLOCKED'
+            self.store._save(db,task)

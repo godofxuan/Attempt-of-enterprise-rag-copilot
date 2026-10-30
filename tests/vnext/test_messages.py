@@ -16,37 +16,40 @@ def test_message_preserves_ban_and_unmentioned_fields_and_is_idempotent(tmp_path
         calls=[]
         async def model(*args,**kwargs):
             calls.append(args)
-            return {'content':json.dumps({'updates':[{'field':'purpose','value':'出差测试','quote':'出差测试'}],
-                                          'execution_ceiling':None,'scope_quote':''})}
+            return {'content':'', 'tool_calls':[{'function':{'name':'update_parameters' if len(calls)==1 else 'finish',
+                'arguments':{'changes':{'purpose':'出差测试'}} if len(calls)==1 else {}}}]}
         workspace.models.chat=model
         result=asyncio.run(service.message(task['task_id'],'用途改为出差测试，其余保持','message-1',task['facts_revision']))
         assert result['facts']['purpose']=='出差测试'
         assert result['facts']['loan_start']==task['facts']['loan_start']
         assert result['user_execution_ceiling']=='PREVIEW_ONLY'
         again=asyncio.run(service.message(task['task_id'],'用途改为出差测试，其余保持','message-1',task['facts_revision']))
-        assert again['facts']==result['facts'] and len(calls)==1
+        assert again['facts']==result['facts'] and len(calls)==2
         proposal=preview(service,result)
         with pytest.raises(ServiceError,match='EXECUTION_CEILING'):
             service.submit(task['task_id'],{'proposal_id':proposal['proposal_id'],'content_digest':proposal['content_digest'],
                 'expected_facts_revision':result['facts_revision'],'accepted':True})
 
 
-def test_model_cannot_raise_scope_or_write_unquoted_parameters(tmp_path):
+def test_model_cannot_raise_scope_or_write_out_of_domain_fields(tmp_path):
     initialize(tmp_path,sample=True)
     with client_for(tmp_path) as client:
         workspace=client.app.state.workspace;service=workspace.service;task=create(service,'READ_ONLY')
-        async def upgrade(*args,**kwargs):return {'content':json.dumps({'updates':[],
-            'execution_ceiling':'SUBMIT_AFTER_CONFIRMATION','scope_quote':'继续'})}
+        async def upgrade(*args,**kwargs):return {'content':'','tool_calls':[{'function':{
+            'name':'set_execution_ceiling','arguments':{'value':'SUBMIT_AFTER_CONFIRMATION'}}}]}
         workspace.models.chat=upgrade
-        with pytest.raises(ServiceError,match='SCOPE_CHANGE_REQUIRES_USER_FORM'):
+        with pytest.raises(ServiceError,match='INVALID_TOOL_ARGUMENTS'):
             asyncio.run(service.message(task['task_id'],'继续','scope-1',task['facts_revision']))
-        async def invent(*args,**kwargs):return {'content':json.dumps({'updates':[{'field':'purpose','value':'编造值','quote':'不存在的文字'}],
-            'execution_ceiling':None,'scope_quote':''})}
-        workspace.models.chat=invent
-        task=create(service,'READ_ONLY')
-        with pytest.raises(ServiceError,match='UNBOUND_PARAMETER_UPDATE'):
-            asyncio.run(service.message(task['task_id'],'继续','scope-2',task['facts_revision']))
-        assert service.view(task['task_id'])['facts']==task['facts']
+        assert service.view(task['task_id'])['user_execution_ceiling']=='READ_ONLY'
+        observed=[]
+        async def invalid(*args,**kwargs):
+            observed.append(args)
+            return {'content':'','tool_calls':[{'function':{'name':'update_parameters' if len(observed)==1 else 'finish',
+                'arguments':{'changes':{'impact':'high'}} if len(observed)==1 else {}}}]}
+        workspace.models.chat=invalid;task=create(service,'READ_ONLY')
+        result=asyncio.run(service.message(task['task_id'],'继续','scope-2',task['facts_revision']))
+        assert result['facts']==task['facts']
+        assert any('INVALID_PARAMETER' in str(row) for row in observed)
 
 
 def test_unresolved_message_blocks_real_preview_confirmation_and_resume_until_user_resolves(tmp_path):
@@ -54,10 +57,9 @@ def test_unresolved_message_blocks_real_preview_confirmation_and_resume_until_us
     with client_for(tmp_path) as client:
         workspace=client.app.state.workspace;service=workspace.service;task=create(service)
         proposal=preview(service,task)
-        async def wrong(*args,**kwargs):return {'content':json.dumps({'updates':[
-            {'field':'purpose','value':'invented','quote':'absent'}],'execution_ceiling':None,'scope_quote':''})}
+        async def wrong(*args,**kwargs):raise ValueError('MODEL_RESPONSE_INVALID')
         workspace.models.chat=wrong
-        with pytest.raises(ServiceError,match='UNBOUND_PARAMETER_UPDATE'):
+        with pytest.raises(ValueError,match='MODEL_RESPONSE_INVALID'):
             asyncio.run(service.message(task['task_id'],'这条补充尚未理解','pending-1',task['facts_revision']))
         pending=service.view(task['task_id'])
         assert pending['pending_update']['text']=='这条补充尚未理解'

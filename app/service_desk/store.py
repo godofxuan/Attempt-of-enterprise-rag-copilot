@@ -462,6 +462,10 @@ class ServiceDeskStore:
         try:yield
         finally:_RUN_OWNER.reset(token)
 
+    @staticmethod
+    def owns_run(task):
+        return _RUN_OWNER.get()==(task['task_id'],task.get('active_run_id'),task.get('run_fence'))
+
     def remember_search(self,actor,task_id,receipt):
         with self.transaction() as db:
             task=self._task(db,actor,task_id); self._live(task)
@@ -517,7 +521,7 @@ class ServiceDeskStore:
         with self.transaction() as db:
             task = self._task(db,actor,task_id)
             self._live(task)
-            if task.get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
+            if task.get('pending_user_update') and not self.owns_run(task):raise ServiceError('USER_UPDATE_PENDING')
             if self._proposal_declined(db,actor,task):raise ServiceError('USER_DECLINED')
             if task.get('understanding_pending'):
                 raise ServiceError('NO_WRITE_GOAL')
@@ -576,7 +580,8 @@ class ServiceDeskStore:
                        (proposal_id,task_id,encoded(content),proposal['content_digest'],proposal['expires_at']))
             task.update(pending_proposal_id=proposal_id,
                 status='PREVIEW_READY' if ceiling=='PREVIEW_ONLY' else 'WAITING_CONFIRMATION',
-                active_run_id=task.get('active_run_id') if ceiling=='PREVIEW_ONLY' else None)
+                active_run_id=task.get('active_run_id') if ceiling=='PREVIEW_ONLY' or
+                    (task.get('pending_user_update') and self.owns_run(task)) else None)
             self._event(db,task_id,'proposal_created',proposal)
             if _record_tool_result:
                 # Persist the fenced action result before its terminal transition leaves this transaction.
@@ -661,7 +666,7 @@ class ServiceDeskStore:
         with self.transaction() as db:
             task = self._task(db,actor,task_id)
             self._live(task)
-            if task.get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
+            if task.get('pending_user_update') and not self.owns_run(task):raise ServiceError('USER_UPDATE_PENDING')
             from app.service_desk.goals import execution_ceiling
             if execution_ceiling(task)!='SUBMIT_AFTER_CONFIRMATION':
                 raise ServiceError('EXECUTION_CEILING')
@@ -714,7 +719,7 @@ class ServiceDeskStore:
                 if committed['content_digest'] != row['content_digest']:
                     raise ServiceError('COMMAND_CONFLICT')
                 return json.loads(committed['receipt'])
-            if task.get('pending_user_update'):raise ServiceError('USER_UPDATE_PENDING')
+            if task.get('pending_user_update') and not self.owns_run(task):raise ServiceError('USER_UPDATE_PENDING')
             if db.execute(f'SELECT 1 FROM {service.ticket_table} WHERE task_id=?',(task_id,)).fetchone():
                 raise ServiceError('ALREADY_SUBMITTED')
             self._bound_proposal(db,actor,task,proposal_id)
@@ -842,7 +847,7 @@ class ServiceDeskStore:
                 raise ServiceError('TASK_CHANGED',data={'current_revision':task['facts_revision'],
                     'current_facts':task['facts'],'conflicting_fields':list(raw_values)})
             self._live(task)
-            if task['active_run_id'] or task['receipt'] or db.execute(f'SELECT 1 FROM {self.ticket_table(task)} WHERE task_id=?',(task_id,)).fetchone():
+            if (task['active_run_id'] and not self.owns_run(task)) or task['receipt'] or db.execute(f'SELECT 1 FROM {self.ticket_table(task)} WHERE task_id=?',(task_id,)).fetchone():
                 raise ServiceError('TASK_BUSY_OR_SUBMITTED')
             values,sources=parameter_sources(raw_values,
                 {key:{'origin':'USER_FORM','value':value} for key,value in raw_values.items()},
@@ -945,12 +950,13 @@ class ServiceDeskStore:
             and confirmation['auth_digest']==self.auth_digest(actor)
             and content['task_revision']==task['facts_revision'] and content['parameters']==task['facts'])
 
-    def begin_run(self, actor, task_id):
+    def begin_run(self, actor, task_id, *, followup=False):
         with self.transaction() as db:
             task = self._task(db,actor,task_id)
             self._live(task)
             if self._proposal_declined(db,actor,task):raise ServiceError('USER_DECLINED')
-            if task['active_run_id'] or task['status'] in {'COMPLETED','WAITING_CONFIRMATION','RECONCILING','WAITING_EXTERNAL'}:
+            blocked={'RECONCILING'} if followup else {'COMPLETED','WAITING_CONFIRMATION','RECONCILING','WAITING_EXTERNAL'}
+            if task['active_run_id'] or task['status'] in blocked:
                 raise ServiceError('TASK_BUSY_OR_FINISHED')
             if not task.get('product_runtime') and task['model_calls'] >= task.get('task_attempt_limit',16):
                 raise ServiceError('BUDGET_EXCEEDED')

@@ -105,6 +105,8 @@ class Workspace:
         self.library = Library(self)
         self.runs = Runs(self)
         self.service = TaskService(self)
+        from app.conversations import ConversationService
+        self.conversations=ConversationService(self)
         await self.library.start()
         self.started = True
 
@@ -263,7 +265,8 @@ def workspace_router(workspace):
 
     @router.get("/api/history")
     def history():
-        return {"tasks":workspace.service.list(),"conversations":workspace.library.answers(),"database":str(workspace.db_path)}
+        return {"tasks":workspace.service.list(),"conversations":workspace.library.answers(),
+                'threads':workspace.conversations.list(),"database":str(workspace.db_path)}
 
     @router.get('/api/library')
     def library(): return workspace.library.list()
@@ -411,8 +414,10 @@ def workspace_router(workspace):
         return service_call(execute)
 
     @router.get('/api/runs/{run_id}/events')
-    async def events(run_id: str,after_seq: int=0):
+    async def events(run_id: str,request: Request,after_seq: int=0):
         from fastapi.responses import StreamingResponse
+        try:after_seq=max(after_seq,int(request.headers.get('last-event-id','0')))
+        except ValueError:raise HTTPException(422,'INVALID_EVENT_CURSOR')
         async def stream():
             seq=after_seq
             while True:
@@ -423,4 +428,6 @@ def workspace_router(workspace):
                 yield ': keepalive\n\n';await asyncio.sleep(1)
         return StreamingResponse(stream(),media_type='text/event-stream')
 
+    from app.api.conversation_routes import conversation_router
+    router.include_router(conversation_router(workspace,service_call))
     return router

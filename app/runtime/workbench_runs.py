@@ -33,7 +33,7 @@ class Runs:
 
     def start(self,kind,payload):
         run_id=uuid.uuid4().hex
-        target=payload.get('task_id') or payload.get('kb_id')
+        target=payload.get('task_id') or payload.get('conversation_id') or payload.get('kb_id')
         with self.db() as db:
             if db.execute("SELECT 1 FROM workbench_runs WHERE target=? AND status IN ('queued','running')",(target,)).fetchone():
                 raise ValueError('RUN_ALREADY_ACTIVE')
@@ -50,6 +50,8 @@ class Runs:
 
     def _finish(self,run_id,kind,payload,status,result,error):
         self.lifecycle.finish(run_id,kind,payload,status,error)
+        if status=='succeeded' and isinstance(result,dict) and result.get('task_id'):
+            result=self.workspace.service.view(result['task_id'])
         with self.db() as db:
             db.execute('UPDATE workbench_runs SET status=?,result_json=?,error=? WHERE id=?',
                 (status,json.dumps(result,ensure_ascii=False) if result is not None else None,error,run_id))
@@ -66,6 +68,7 @@ class Runs:
             if kind=='knowledge':result=await self.workspace.library.answer(**payload)
             elif kind=='service':result=await self.workspace.service.run(payload['task_id'],run_id)
             elif kind=='message':result=await self.workspace.service.message(**payload)
+            elif kind=='conversation':result=await self.workspace.conversations.turn(**payload)
             else:raise ValueError('Unknown run kind')
             if self.contexts[run_id].cancelled.is_set():raise asyncio.CancelledError()
             status='succeeded'

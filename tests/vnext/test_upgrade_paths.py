@@ -76,6 +76,13 @@ def test_knowledge_message_is_a_followup_not_a_pending_facts_update(tmp_path):
             calls.append((kb_id,question,kwargs))
             return {'id':'test-saved-result','conversation_id':'test-conversation','result':{'mode':'partial','answer':'测试来源不足','sources':[]}}
         w.library=SimpleNamespace(answer=answer)
+        class KnowledgeModel:
+            def __init__(self):self.n=0
+            async def chat(self,*args,**kwargs):
+                self.n+=1
+                return {'content':'','tool_calls':[{'function':{'name':'knowledge_answer' if self.n==1 else 'finish',
+                    'arguments':{'question':'为什么有这个期限？'} if self.n==1 else {}}}]}
+        w.models=KnowledgeModel()
         task=w.service.create({'kind':'knowledge','question':'电脑最长借多久？','execution_ceiling':'READ_ONLY','confirmed':True},kb_id='selected-kb')
         run=w.runs.start('message',{'task_id':task['task_id'],'text':'为什么有这个期限？','message_id':'followup-1','expected_facts_revision':task['facts_revision']})
         await w.runs.tasks[run['id']]
