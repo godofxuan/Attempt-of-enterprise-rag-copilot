@@ -182,6 +182,7 @@ class _PromptSource:
     json_record: str
     delivered: DeliveredEvidence
     aspects: tuple[str, ...]
+    packet_truncated: bool = False
 
 
 NonceFactory = Callable[[], str]
@@ -766,9 +767,10 @@ def _build_prompt_sources(
                     - 1,
                 )
             )
-            if record["matched_text"] != hit.matched_text or (
-                hit_context != hit.context_text and hit.context_text != hit.matched_text
-            ):
+            original_matched=read.result.content if read else hit.matched_text
+            unit_limited=record['matched_text']!=original_matched or (not read and
+                hit_context != hit.context_text and hit.context_text != hit.matched_text)
+            if unit_limited:
                 count("packet_truncation_reasons", "unit_limit")
             json_record = _bounded_json_record(record, allocation, max_bytes=byte_allocation)
             if json_record is None:
@@ -792,6 +794,7 @@ def _build_prompt_sources(
                         context_text=json.loads(json_record)["context_text"],
                     ),
                     aspects=source_aspects,
+                    packet_truncated=unit_limited or json_record!=_json_record(record),
                 )
             )
             covered_aspects.update(source_aspects)
@@ -851,7 +854,8 @@ def _build_prompt_sources(
             max_bytes=None if remaining_bytes is None else
             max(0, remaining_bytes // max(1, len(useful_opens - opened_ids) + 1) - 1),
         )
-        if record["matched_text"] != admitted.result.content:
+        unit_limited=record['matched_text']!=admitted.result.content
+        if unit_limited:
             count("packet_truncation_reasons", "unit_limit")
         if json_record is None:
             count(
@@ -873,6 +877,7 @@ def _build_prompt_sources(
                     matched_text=json.loads(json_record)["matched_text"],
                 ),
                 aspects=anchor_source.aspects,
+                packet_truncated=unit_limited or json_record!=_json_record(record),
             )
         )
         remaining -= len(json_record)

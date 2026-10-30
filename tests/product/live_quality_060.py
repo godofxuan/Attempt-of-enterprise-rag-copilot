@@ -19,6 +19,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default="http://127.0.0.1:8740")
     parser.add_argument("--kb", default="kb_18fb91057a234ace")
+    parser.add_argument("--targeted-long", action="store_true")
     args = parser.parse_args()
     folder = Path(".private/esa-vnext/upgrade-050-060")
     target = folder / (
@@ -67,14 +68,17 @@ def main():
             started = time.monotonic()
             try:
                 if entry == "RAG":
+                    if cid is None:
+                        cid = post(
+                            "/api/conversations", {"kb_id": args.kb, "title": question[:60]}
+                        )["id"]
                     run = wait(
                         post(
-                            "/api/knowledge/runs",
+                            "/api/conversations/" + cid + "/turns",
                             {
-                                "kb_id": args.kb,
-                                "question": question,
+                                "message_id": uuid.uuid4().hex,
+                                "text": question,
                                 "detailed": deep,
-                                "conversation_id": cid,
                             },
                         )
                     )
@@ -118,6 +122,44 @@ def main():
         record["instance"] = client.get("/api/instance").json()
         save()
         loan = "临时电脑借用的资格、期限和开始日期限制是什么？"
+        if args.targeted_long:
+            long_question = (
+                "我正在整理本地服务说明，需要了解规则依据，暂不进行任何提交。" * 20
+            ) + loan
+            cid = knowledge("long_first_question", long_question, required=("维修", "14", "早于"))
+            if cid:
+                knowledge(
+                    "long_context_followup",
+                    "如果维修还没登记，是否已符合申请资格？",
+                    cid=cid,
+                    required=("维修",),
+                )
+            else:
+                record["cases"].append(
+                    {
+                        "name": "long_context_followup",
+                        "status": "NOT_RUN",
+                        "reason": "prior long turn did not pass",
+                    }
+                )
+            knowledge(
+                "long_delegated", long_question, entry="AGENT", required=("维修", "14", "早于")
+            )
+            record["after"] = client.get("/api/status").json()
+            record["passed"] = all(row["status"] == "PASS" for row in record["cases"])
+            save()
+            print(
+                json.dumps(
+                    {
+                        "path": str(target),
+                        "results": [(r["name"], r["status"]) for r in record["cases"]],
+                        "chat_delta": record["after"]["generation_calls"]
+                        - record["before"]["generation_calls"],
+                    },
+                    ensure_ascii=False,
+                )
+            )
+            return
         knowledge("loan_direct", loan, required=("维修", "14", "早于"))
         knowledge("loan_delegated", loan, entry="AGENT", required=("维修", "14", "早于"))
         room = "会议室一次可以预订多久，开放时间和使用结束的要求是什么？"

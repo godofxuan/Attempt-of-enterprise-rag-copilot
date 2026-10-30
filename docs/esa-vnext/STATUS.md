@@ -2,6 +2,11 @@
 
 ## 当前实施：0.5 / 0.6 产品化（W01–W32）
 
+- 0.6首候选e8082fca实际包已完成最终整条真实UI借用/报修旅程（LIVE_050_2026-10-30T12-32-24-468Z，15chat），同一包知识质量7PASS/1FAIL（QUALITY_060_20261030T123044Z，12chat）：loan/room两入口、Deep、真实不足、只读交付通过；长原问内容正确但因未引用候选裁减被整体误降partial，后续长历史追问NOT_RUN，不能把此批写全绿。
+- 同包Windows独立解压/无系统Python、uv、Node的五次启动：中位3.844s/最慢5.5s/重复复用1.078s；中文路径、独占端口仍保留、模型离线、原会话重启均通过。native首选目录/自动浏览器仍未人工GUI验证，不用EXE命令启动冒充。探针init的-I忽略PYTHONUTF8导致输出解码警告，已明确加-X utf8，运行结果本身有DB/HTTP核对。
+- 长问已用原始模型输出+原向量+真实索引离线重放（LONG_PACKET_RED/GREEN）：不新增发送，旧partial→新answered；所引用来源完整，裁减发生在未引用候选。最新补丁只收紧裁减归属：实际引用截断、必要open截断、缺aspect和未解决need仍拦截；旧协议行为保留。当前源码较e808仅generation_v2/answer_publication新增该内部归属，需新包及受影响真实复验，旧结果不可冒充新完整验收。
+- 原AUTH/账本不改，当前主库201chat；长期Goal仍ACTIVE。下一动作：定向发布器正反例通过→冻结该修补commit→构建对应0.6包→只做受影响长问/追问与新包冒烟/现有回执读回，必要相关质量样例；最后整理唯一发行及准确剩余事项，不能停在checkpoint。
+
 - 0.5实际业务闭环已成立，跨小候选恢复不冒充一次全绿：原loan d3174ec4恢复→改期→旧确认409→当前确认→幂等读回→RESERVED/CHECKED_OUT/续借/RETURNED；原repair 565401ec真实9B提取/prepare→OPEN→IN_PROGRESS/RESOLVED/CLOSED→重开→再CLOSED。最终恢复记录LIVE_050_2026-10-30T12-09-11-778Z（该最后一步0新增chat）；完整链保留对12-02/12-06原件的指针。
 - 主库当前174chat，不能将run成功等同内容正确。cf4d3043独立知识资格/期限/日期实际通过，原Agent负结果未改。真实错误的共同修复：无tool_calls的prose不能隐式finish；真实prepare成功是同一产品两入口的交付终点；异步新建只做一次包含conversation/task的完整导航；历史Task.knowledge规则表不能按PublishedAnswer解码；HTTP retry必须在async路由中启动run。
 - 浏览器CURRENT_UI_NAVIGATION.json：真实React/API新建→URL与active_task一致→页面往返草稿保留→一个composer→结束事项解绑→390px无溢出，0chat；composition为合成事件，不冒充手动IME。新服务台显示实际工单编号，避免同描述无法分辨。

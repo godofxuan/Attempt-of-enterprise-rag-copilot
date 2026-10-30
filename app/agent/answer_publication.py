@@ -114,6 +114,31 @@ def _requirements(state, task) -> tuple[RequirementDecision, ...]:
     return tuple(decisions)
 
 
+def packet_incomplete_for_publication(state, trace, sources, claims, task_mode):
+    packet_incomplete = bool(
+        any(o.result.truncated for o in state.open_results)
+        or sum(trace.get("packet_drop_reasons", {}).values())
+        or sum(trace.get("packet_truncation_reasons", {}).values())
+    )
+    if task_mode and trace.get('generation_wire_protocol')=='selected_source_units_only':
+        # Candidate packing is not the answer's dependency set. Preserve actual
+        # cited-source/required-read truncation and missing aspect guards; do not
+        # call an uncited candidate's omitted tail an incomplete delivered answer.
+        cited={cid for claim in claims for cid in claim.cited_chunk_ids}
+        used=[source for source in sources if source.delivered.citation_id in cited]
+        used_truncated=sum(bool(source.packet_truncated) for source in used)
+        packed=trace.get('packed_aspect_coverage',{})
+        missing_aspect=packed.get('covered',0)<packed.get('required',0)
+        explicit_read_truncated=any(o.result.truncated for o in state.open_results)
+        packet_incomplete=bool(used_truncated or missing_aspect or explicit_read_truncated or
+            (state.analysis.intent=='completeness' and packet_incomplete))
+        trace['publication_packet_coverage']={'basis':'actual_cited_sources_and_required_reads_v1',
+            'cited_source_count':len(used),'cited_truncated_count':used_truncated,
+            'missing_aspect':missing_aspect,'explicit_read_truncated':explicit_read_truncated,
+            'blocking_incomplete':packet_incomplete}
+    return packet_incomplete
+
+
 def publish_answer(question, state, response: AnswerResponse, sources) -> AnswerResponse:
     """Select facts first, compute all coverage on them, render the response once."""
     from app.runtime.request_context import remaining_seconds, RequestDeadlineExceeded
@@ -266,11 +291,7 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
 
     texts = [c.text for c in claims]
     delivered = [source.delivered for source in sources]
-    packet_incomplete = bool(
-        any(o.result.truncated for o in state.open_results)
-        or sum(trace.get("packet_drop_reasons", {}).values())
-        or sum(trace.get("packet_truncation_reasons", {}).values())
-    )
+    packet_incomplete = packet_incomplete_for_publication(state, trace, sources, claims, task_mode)
     if not task_mode and requested_needs(question):
         read_ids = {h.hit.chunk_id for hits in state.evidence_by_aspect.values() for h in hits}
         read_ids.update(o.result.target_id for o in state.open_results)

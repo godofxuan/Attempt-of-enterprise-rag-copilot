@@ -22,6 +22,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
     "openapi-typescript": "7.13.0",
+    "playwright": "1.62.1",
     "prettier": "3.9.10",
     "typescript": "5.9.3",
     "vite": "8.3.5"
