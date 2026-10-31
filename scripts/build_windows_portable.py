@@ -100,7 +100,6 @@ try:
         uv,
         "build",
         "--offline",
-        "--no-build-isolation",
         "--wheel",
         "--python",
         sys.executable,

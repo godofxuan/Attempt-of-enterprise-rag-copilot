@@ -3,18 +3,21 @@
 import json
 import asyncio
 from functools import partial
+import pytest
 
 from tests.product.test_turn_recovery import product
 
 
+@pytest.mark.parametrize("experimental", [False, True])
 def test_prior_questions_reach_generation_without_becoming_clarification_replies(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, experimental
 ):
     from app.indexing.store import activate_version
     from app.agent.tools_v2 import V2ToolRegistry
 
     with product(tmp_path) as client:
         w = client.app.state.workspace
+        w.config = w.config.model_copy(update={"experimental_grounded_expression": experimental})
         kb = w.library.create("Followup")["id"]
         client.portal.call(
             w.library.upload,
@@ -49,19 +52,20 @@ def test_prior_questions_reach_generation_without_becoming_clarification_replies
         async def generate(messages, **kwargs):
             packets.append(messages)
             schema = kwargs["response_format"]["properties"]
+            assert ("answer_blocks" in schema) is experimental
+            uses = (
+                {"unit_uses": {uid: ["N1"] for uid in schema["unit_uses"]["properties"]}}
+                if not experimental
+                else {"answer_blocks": [{
+                    "text": "Only employees with a current repair record may borrow a computer.",
+                    "source_unit_ids": schema["answer_blocks"]["items"]["properties"]["source_unit_ids"]["items"]["enum"],
+                    "need_refs": ["N1"], "assumptions": [],
+                }]}
+            )
             return {
                 "content": json.dumps(
                     {
-                        "answer_blocks": [
-                            {
-                                "text": "Only employees with a current repair record may borrow a computer.",
-                                "source_unit_ids": schema["answer_blocks"]["items"]["properties"][
-                                    "source_unit_ids"
-                                ]["items"]["enum"],
-                                "need_refs": ["N1"],
-                                "assumptions": [],
-                            }
-                        ],
+                        **uses,
                         "need_status": {
                             "N1": {
                                 "status": "supported",

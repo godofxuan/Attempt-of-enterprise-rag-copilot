@@ -4,7 +4,7 @@
 
 启动器只识别相同工作区、应用 ID 和实例随机标识的服务。重复打开复用实例；默认端口被其他程序占用时绑定空闲端口。不杀旧服务或其他进程。模型离线时仍可读历史和设置。失败日志位于 `<DATA_DIR>/logs/launcher.log`。
 
-构建机需要 Python3.11/3.12、uv、Node/npm 和 Windows .NET Framework C# 编译器。将待发行源码提交到本地 feature 分支。
+构建机需要 Python3.11/3.12、uv、Node/npm 和 Windows .NET Framework C# 编译器。构建后端固定setuptools83.0.0，由uv在隔离构建环境解析；不要求驱动Python预装setuptools。纯离线时该版本也必须已进入缓存。将待发行源码提交到本地 feature 分支。
 
 一个构建命令从指定commit准备官方 Windows Python3.12.10 embeddable、按uv.lock哈希安装依赖、执行npm ci/build、构建wheel及薄启动器。缓存用于加速，不要求预先手动准备runtime，也不依赖作者.venv目录结构。运行时不安装依赖、不下载模型。
 

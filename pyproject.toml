@@ -18,7 +18,7 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 exclude = ["^data/", "^external_reproduction/"]
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools==83.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
