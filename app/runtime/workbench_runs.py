@@ -147,7 +147,7 @@ class Runs:
         if not cid and payload.get("task_id"):
             with self.db() as db:
                 binding = db.execute(
-                    "SELECT conversation_id FROM conversation_tasks WHERE task_id=?",
+                    "SELECT json_extract(payload,'$.conversation_id') FROM agent_tasks WHERE task_id=?",
                     (payload["task_id"],),
                 ).fetchone()
             cid = binding[0] if binding else None

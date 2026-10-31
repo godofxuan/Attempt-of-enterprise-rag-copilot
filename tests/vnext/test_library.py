@@ -52,6 +52,7 @@ def test_document_job_generation_and_history_survive_reopen(tmp_path):
         assert (tmp_path/'indexes'/kb/'active.json').read_bytes()==pointer
         # 0.7 contract: keep the published immutable version while its replacement
         # builds. This is reported as historical; explicit withdrawal is separate.
+        workspace.models.embed=embed  # changed upload auto-enqueues the real job
         new=client.post(f'/api/library/{kb}/documents',headers=HEADERS,files={'file':('policy.md',b'# Booking\n\nBooking now requires manager approval.\n')}).json()
         import pytest
         published=workspace.library.snapshot(kb)
