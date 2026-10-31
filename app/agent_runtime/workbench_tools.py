@@ -202,7 +202,7 @@ class ToolCatalog:
         schemas = [tool.schema() for name, tool in self.tools.items() if name in allowed]
         if self.turn and not self.service.workspace.conversations.coordinator.delivery(self.turn["id"])["accepted"]:
             request = {"type": "object", "properties": {
-                "preview": {"type": "boolean"}, "knowledge_quote": {"type": "string"}},
+                "preview": {"type": "boolean", **({"const": False} if current["user_execution_ceiling"] == "READ_ONLY" else {})}, "knowledge_quote": {"type": "string"}},
                 "required": ["preview", "knowledge_quote"], "additionalProperties": False}
             for schema in schemas:
                 if schema["function"]["name"] in {"update_parameters", "prepare_preview", "knowledge_answer", "finish"}:

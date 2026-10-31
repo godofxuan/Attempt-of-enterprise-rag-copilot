@@ -64,6 +64,13 @@ class TurnCoordinator:
             raise ServiceError("INVALID_TURN_REQUEST")
         with self.conversations.db() as db:
             text = db.execute("SELECT text FROM conversation_turns WHERE id=?", (turn_id,)).fetchone()[0]
+            command = db.execute("SELECT payload FROM turn_commands WHERE turn_id=?", (turn_id,)).fetchone()
+        task_id = json.loads(command[0]).get("task_id") if command else None
+        if task_id and request["preview"]:
+            from app.workbench_service import local_actor
+            task = self.workspace.service.store.get_task(local_actor(), task_id)
+            if task["user_execution_ceiling"] == "READ_ONLY":
+                raise ServiceError("EXECUTION_CEILING", data={"operation":"preview", "ceiling":"READ_ONLY"})
         if request["knowledge_quote"] and request["knowledge_quote"] not in text:
             raise ServiceError("TURN_QUOTE_NOT_IN_INPUT")
         state = self.delivery(turn_id)

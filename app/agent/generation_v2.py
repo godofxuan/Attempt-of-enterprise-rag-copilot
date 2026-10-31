@@ -414,6 +414,7 @@ class GenerationV2ResponseBuilder:
                 audit=response_trace,
                 primary_only=self.primary_read_anchors_only,
                 topics_by_doc=self.topics_by_doc,
+                include_subject_metadata=self.explanatory,
             )
             # The wire schema enumerates selected source units and need IDs.
             # Reconcile its actual size before any send; a static schema estimate
@@ -446,6 +447,7 @@ class GenerationV2ResponseBuilder:
                     audit=response_trace,
                     primary_only=self.primary_read_anchors_only,
                     topics_by_doc=self.topics_by_doc,
+                    include_subject_metadata=self.explanatory,
                 )
             response_trace["evidence_selection_policy"] = (
                 "planned_primary_read_anchors"
@@ -818,6 +820,7 @@ def _build_prompt_sources(
     audit: dict | None = None,
     primary_only: bool = False,
     topics_by_doc: dict | None = None,
+    include_subject_metadata: bool = False,
 ) -> list[_PromptSource]:
     audit = audit if audit is not None else {}
     audit.update(
@@ -934,11 +937,10 @@ def _build_prompt_sources(
                 "source_id": source_id,
                 "status": hit.status,
                 "version": hit.version,
-                "subject": " / ".join(hit.section_path),
-                "source_group": hit.policy_id or hit.doc_id,
-                "version_id": hit.version_id,
-                "topic": (topics_by_doc or {}).get(hit.doc_id) or "unknown",
             }
+            if include_subject_metadata:
+                record.update(subject=" / ".join(hit.section_path), source_group=hit.policy_id or hit.doc_id,
+                              version_id=hit.version_id, topic=(topics_by_doc or {}).get(hit.doc_id) or "unknown")
             read = primary_reads.get(hit.chunk_id)
             if read:
                 record.update(
@@ -1048,11 +1050,11 @@ def _build_prompt_sources(
             "status": anchor_source.evidence.hit.status,
             "version": anchor_source.evidence.hit.version,
             "authority_level": anchor_source.evidence.hit.authority_level,
-            "subject": " / ".join(anchor_source.evidence.hit.section_path),
-            "source_group": anchor_source.evidence.hit.policy_id or anchor_source.evidence.hit.doc_id,
-            "version_id": anchor_source.evidence.hit.version_id,
-            "topic": (topics_by_doc or {}).get(anchor_source.evidence.hit.doc_id) or "unknown",
         }
+        if include_subject_metadata:
+            hit = anchor_source.evidence.hit
+            record.update(subject=" / ".join(hit.section_path), source_group=hit.policy_id or hit.doc_id,
+                          version_id=hit.version_id, topic=(topics_by_doc or {}).get(hit.doc_id) or "unknown")
         json_record = _bounded_json_record(
             record,
             remaining // max(1, len(useful_opens - opened_ids) + 1),

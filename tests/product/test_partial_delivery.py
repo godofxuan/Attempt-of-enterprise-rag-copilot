@@ -113,3 +113,29 @@ def test_command_does_not_hold_a_connection_during_domain_projection(tmp_path, m
         monkeypatch.setattr(w.service, 'view', view)
         result = w.conversations.command({'conversation_id':task['conversation_id'], 'text':'继续', 'message_id':'connection-boundary'})
         assert result['task_id'] == task['task_id']
+
+
+def test_readonly_model_brief_cannot_add_a_preview_and_can_correct_without_repeating_reads(tmp_path):
+    with product(tmp_path) as c:
+        w = c.app.state.workspace
+        task = create(w.service, 'READ_ONLY'); cid = task['conversation_id']
+        model = SequenceModel(
+            [('loan_policy', {}), ('assets_search', {}), ('tickets_list_mine', {}),
+             ('finish', {'turn_request': {'preview': True, 'knowledge_quote': ''}})],
+            [('finish', {'turn_request': {'preview': False, 'knowledge_quote': ''}})],
+        )
+        w.models.chat = model.chat
+        run = c.post(f'/api/conversations/{cid}/turns', headers=H,
+                     json={'text': '只查询本人资格、库存和本人申请，不准备。', 'message_id': 'readonly-brief'})
+        done = wait(c, run.json()['id'])
+        assert done['status'] == 'succeeded', done.get('error')
+        current = w.service.view(task['task_id'])
+        assert not current['preview'] and not current['receipt']
+        turn = next(t for t in w.conversations.turns(cid) if t['id'] == 'readonly-brief')
+        assert turn['status'] == 'DONE' and turn['payload']['turn_delivery']['pending'] == []
+        assert len(model.calls) == 2
+        assert [o['tool'] for o in current['observations']].count('assets.search') == 1
+        assert any(e['kind'] == 'request_brief_rejected' for e in w.runs.events(run.json()['id']))
+        with w.service.store.transaction() as db:
+            assert db.execute('SELECT COUNT(*) FROM action_proposals').fetchone()[0] == 0
+            assert db.execute('SELECT COUNT(*) FROM tickets').fetchone()[0] == 0

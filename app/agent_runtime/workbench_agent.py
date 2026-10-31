@@ -170,7 +170,17 @@ class ServiceAgent:
                         args = json.loads(args)
                     args = dict(args)
                     if turn and "turn_request" in args:
-                        self.workspace.conversations.coordinator.accept_request(turn["id"], args.pop("turn_request"))
+                        try:
+                            self.workspace.conversations.coordinator.accept_request(turn["id"], args.pop("turn_request"))
+                        except ServiceError as exc:
+                            if protocol_feedbacks >= 1:
+                                raise
+                            protocol_feedbacks += 1
+                            feedback = {"status":"error", "code":exc.code, "data":exc.data,
+                                "message":"The turn brief must obey the user-selected execution ceiling and quote the actual current input. No action in this call ran. Retain actual read observations; correct the brief within the current schema, without requesting forbidden preparation or repeating completed reads."}
+                            self.workspace.runs.event(run_id, "request_brief_rejected", feedback)
+                            messages.append({"role":"tool", "tool_name":name, "content":json.dumps(feedback, ensure_ascii=False)})
+                            continue
                     if name not in catalog.tools:
                         raise ServiceError("INVALID_TOOL_ARGUMENTS")
                     if name in {"finish", "ask_user"}:
