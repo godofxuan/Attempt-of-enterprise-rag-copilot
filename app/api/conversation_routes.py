@@ -1,6 +1,6 @@
 """Conversation projection; the existing runtime executes all turns."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field, ConfigDict, field_serializer, model_validator
 from app.domain.evidence import AnswerResponse
 from app.domain.queries import MAX_USER_QUESTION_CHARS
@@ -26,6 +26,19 @@ class ConversationSummary(BaseModel):
     kb_id: str | None = None
     task_id: str | None = None
     updated_at: str | None = None
+    archived: bool = False
+
+
+class ConversationPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kb_id: str | None = None
+    title: str = Field(default="新会话", min_length=1, max_length=200)
+    archived: bool = False
+
+
+class ConversationPage(BaseModel):
+    items: list[ConversationSummary]
+    next_cursor: str | None = None
 
 
 class TurnPayload(BaseModel):
@@ -88,6 +101,23 @@ def conversation_router(workspace, service_call):
         if payload.kb_id:
             workspace.library.require(payload.kb_id)
         return workspace.conversations.create(payload.kb_id, payload.title)
+
+    @router.get("/page", response_model=ConversationPage)
+    def page(
+        limit: int = Query(default=30, ge=1, le=100),
+        cursor: str | None = None,
+        q: str = Query(default="", max_length=200),
+        archived: bool = False,
+    ):
+        return service_call(
+            lambda: workspace.conversations.page(limit=limit, cursor=cursor, q=q, archived=archived)
+        )
+
+    @router.patch("/{cid}", response_model=ConversationView)
+    def update(cid: str, payload: ConversationPatch):
+        return service_call(
+            lambda: workspace.conversations.update(cid, payload.model_dump(exclude_unset=True))
+        )
 
     @router.get("/{cid}", response_model=ConversationView)
     def get(cid: str):

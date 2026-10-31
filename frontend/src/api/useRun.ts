@@ -5,6 +5,7 @@ export function useRun(runId: string | null, onFinished: () => void) {
   const cache = useQueryClient();
   const [progress, setProgress] = useState("正在准备");
   useEffect(() => {
+    setProgress("正在准备");
     if (!runId) return;
     let disposed = false,
       source: EventSource | undefined,

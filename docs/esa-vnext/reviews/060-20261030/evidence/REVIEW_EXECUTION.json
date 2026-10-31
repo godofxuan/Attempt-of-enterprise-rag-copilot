@@ -1,0 +1,50 @@
+{
+  "review_date": "2026-10-30",
+  "source_archive": "ESA_060_REVIEW_20261030T175911Z.zip",
+  "application_commit": "1f9d26626f27a03dfd76683fc551c24aa78227a0",
+  "source_documentation_commit": "75ee211db8d171a01c397a9f296e24645cd8c5fa",
+  "independent_environment": {
+    "python": "3.13.5",
+    "project_supported": "3.11/3.12",
+    "supported_release_environment": false,
+    "python312_install": "DNS_BLOCKED",
+    "faiss": "MISSING",
+    "rank_bm25": "MISSING"
+  },
+  "independent_existing_tests": {
+    "passed": 56,
+    "environment_blocked_as_pytest_failures": 2,
+    "code_failures_in_executed_subset": 0,
+    "all_repository_tests_run": false,
+    "scope": "original product/API/domain tests; model dependencies may use test doubles as declared"
+  },
+  "independent_defects_reproduced": [
+    "F01",
+    "F02",
+    "F03",
+    "F04",
+    "F06"
+  ],
+  "source_confirmed_browser_risk_not_runtime_verified": [
+    "F05"
+  ],
+  "browser_status": "NOT_COMPLETED: Chromium navigation blocked ERR_BLOCKED_BY_ADMINISTRATOR; an offline-bundle attempt did not mount. No browser pass claimed; no policy workaround used.",
+  "live_model_run_in_this_review": false,
+  "native_windows_run_in_this_review": false,
+  "submitted_status": {
+    "decision": "LOCAL_PREVIEW_WITH_EXPLICIT_UNMET_GATES",
+    "goal_fully_complete": false,
+    "work_items": {
+      "PASS": 22,
+      "PARTIAL": 9,
+      "NOT_RUN": 1
+    },
+    "reported_tests": 104,
+    "duplicate_source_tests_do_not_add": true
+  },
+  "new_probes_are_reproductions_not_fixed_version_acceptance": true,
+  "modified_uploaded_project": false,
+  "connected_user_workspace": false,
+  "synced_github": false,
+  "files": "product_subset.xml; business_subset.xml; independent_probes.json; mixed_request_probe.json; submitted_quality_summary.json; SOURCE_EXCERPTS.md"
+}

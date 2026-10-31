@@ -1,0 +1,14 @@
+{
+  "id": "F06_PREVIEW_EARLY_RETURN_DROPS_PENDING_TOOL",
+  "method": "real service/run/store with scripted model tool batches and synthetic knowledge adapter",
+  "proposed_second_batch": [
+    "prepare_preview",
+    "knowledge_answer"
+  ],
+  "preview_created": true,
+  "knowledge_calls": [],
+  "knowledge_result": null,
+  "message_done": "DONE",
+  "receipt_exists": false,
+  "defect_reproduced": true
+}

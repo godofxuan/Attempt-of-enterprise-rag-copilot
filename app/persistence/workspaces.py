@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import json
 import sqlite3
+from contextlib import closing
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.security.model_endpoint import parse_pinned_model_endpoint
 
@@ -56,7 +57,7 @@ def _initialize(root, *, sample=False):
             stream.write(config.model_dump_json(indent=2) + "\n")
     for folder in ("documents", "indexes", "logs"):
         (root / folder).mkdir(exist_ok=True)
-    with sqlite3.connect(root / "app.sqlite3") as db:
+    with closing(sqlite3.connect(root / "app.sqlite3")) as db, db:
         db.execute(
             "CREATE TABLE IF NOT EXISTS workspace_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)"
         )

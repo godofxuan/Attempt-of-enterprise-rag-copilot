@@ -7,7 +7,11 @@ import {
   useNavigate,
   useSearchParams,
 } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   api,
   type ConversationSummary,
@@ -25,10 +29,22 @@ export function App() {
   const [params, setParams] = useSearchParams();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState("");
-  const [more, setMore] = useState(false);
-  const conversations = useQuery({
-    queryKey: ["conversations"],
-    queryFn: () => api<ConversationSummary[]>("/api/conversations"),
+  const cache = useQueryClient();
+  const [archived, setArchived] = useState(false);
+  const conversations = useInfiniteQuery({
+    queryKey: ["conversations", filter, archived],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) =>
+      api<{ items: ConversationSummary[]; next_cursor: string | null }>(
+        "/api/conversations/page?" +
+          new URLSearchParams({
+            q: filter,
+            archived: String(archived),
+            limit: "15",
+            ...(pageParam ? { cursor: pageParam } : {}),
+          }),
+      ),
+    getNextPageParam: (page) => page.next_cursor,
   });
   const status = useQuery({
     queryKey: ["status"],
@@ -37,10 +53,7 @@ export function App() {
   });
   const cid = params.get("c");
   const taskId = params.get("task");
-  const rows =
-    conversations.data?.filter((c) =>
-      (c.title || "知识会话").toLowerCase().includes(filter.toLowerCase()),
-    ) || [];
+  const rows = conversations.data?.pages.flatMap((page) => page.items) || [];
   const openTask = (id: string) =>
     setParams((old) => {
       const p = new URLSearchParams(old);
@@ -54,8 +67,9 @@ export function App() {
       return p;
     });
   const onRun = (run: Run, conversationId?: string | null) => {
-    sessionStorage.setItem("esa-active-product-run", run.id);
-    window.dispatchEvent(new CustomEvent("esa-product-run", { detail: run }));
+    cache.invalidateQueries({
+      queryKey: ["conversation-runs", run.conversation_id || conversationId],
+    });
     if (conversationId)
       navigate(
         "/assistant?c=" + conversationId + (taskId ? "&task=" + taskId : ""),
@@ -88,7 +102,7 @@ export function App() {
             onChange={(e) => setFilter(e.target.value)}
           />
           <div className="recent-list">
-            {(more ? rows : rows.slice(0, 7)).map((c) => (
+            {rows.map((c) => (
               <Link
                 aria-current={cid === c.id ? "page" : undefined}
                 key={c.id}
@@ -99,10 +113,48 @@ export function App() {
               </Link>
             ))}
           </div>
-          {rows.length > 7 && (
-            <button onClick={() => setMore(!more)}>
-              {more ? "收起" : "更多会话"}
+          {conversations.hasNextPage && (
+            <button
+              disabled={conversations.isFetchingNextPage}
+              onClick={() => conversations.fetchNextPage()}
+            >
+              更多会话
             </button>
+          )}
+          {!rows.length && <p className="muted">没有匹配的会话</p>}
+          <button onClick={() => setArchived(!archived)}>
+            {archived ? "查看当前会话" : "查看归档"}
+          </button>
+          {cid && (
+            <div className="inline">
+              <button
+                onClick={async () => {
+                  const title = window.prompt(
+                    "会话名称",
+                    rows.find((r) => r.id === cid)?.title || "",
+                  );
+                  if (title?.trim()) {
+                    await api("/api/conversations/" + cid, "PATCH", {
+                      title: title.trim(),
+                    });
+                    cache.invalidateQueries();
+                  }
+                }}
+              >
+                重命名
+              </button>
+              <button
+                onClick={async () => {
+                  await api("/api/conversations/" + cid, "PATCH", {
+                    archived: !archived,
+                  });
+                  cache.invalidateQueries();
+                  navigate("/assistant");
+                }}
+              >
+                {archived ? "恢复会话" : "归档会话"}
+              </button>
+            </div>
           )}
         </details>
         <nav className="secondary" aria-label="更多工具">

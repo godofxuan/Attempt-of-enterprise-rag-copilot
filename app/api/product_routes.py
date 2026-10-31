@@ -84,7 +84,10 @@ def product_router(workspace, service_call):
             if row["status"] not in {"FAILED", "CANCELLED", "INTERRUPTED"}:
                 raise ServiceError("TURN_NOT_RETRYABLE")
             return workspace.runs.start(
-                "conversation", {"conversation_id": cid, "text": row["text"], "message_id": turn_id}
+                "conversation",
+                workspace.conversations.command(
+                    {"conversation_id": cid, "text": row["text"], "message_id": turn_id}
+                ),
             )
 
         return service_call(start)
@@ -100,9 +103,6 @@ def product_router(workspace, service_call):
                 + ") ORDER BY rowid DESC LIMIT 10",
                 targets,
             ).fetchall()
-        return [
-            {"id": r["id"], "kind": r["kind"], "status": r["status"], "error": r["error"]}
-            for r in rows
-        ]
+        return [workspace.runs.get(r["id"]) for r in rows]
 
     return router

@@ -61,7 +61,7 @@ class ToolCatalog:
                 {"question": {"type": "string"}},
                 ("question",),
             )
-        if kind == "knowledge" or task.get("kb_id"):
+        if kind == "knowledge" or (turn.get("kb_id") if turn and "kb_id" in turn else task.get("kb_id")):
             properties = (
                 {} if kind == "knowledge" and not turn else {"question": {"type": "string"}}
             )
@@ -385,6 +385,7 @@ class ToolCatalog:
                 )
             return store.propose(actor, task_id, args["asset_id"], refs, _record_tool_result=True)
         if name == "knowledge_answer":
+            current = {**current, "kb_id": self.turn["kb_id"]} if self.turn and "kb_id" in self.turn else current
             if not current.get("kb_id"):
                 raise ServiceError("KNOWLEDGE_BASE_REQUIRED")
             question = args.get("question") or (

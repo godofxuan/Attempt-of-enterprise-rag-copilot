@@ -1,6 +1,17 @@
 # ESA vNext Current Status
 
+## 当前实施：0.6.1 → 0.7（T01—T18，2026-10-31）
+
+- 本轮按用户新授权继续升级，父本应用1f9d2662/文档75ee211d；分支codex/esa-061-070。保留7个无关tracked修改、全部其他未提交成果和活动DATA_DIR `.private/esa-vnext`。旧交付和下方延期记录不改写。
+- T01：实际8740未监听。用当前source的`python -m app.cli open --data-dir .private/esa-vnext --no-browser`启动原库成功，instance8142d51ddd0e47b79b18f6ee001b6e87/PID40884；未重建资料或账本。
+- 方案原文已存reviews/060-20261030。原审核脚本实际复现Deep重试true→false；Windows临时SQLite未释放导致原脚本退出清理错误保留，未当作成功。
+- T02/T04/T05/T06首批程序RED/GREEN保存在.private/esa-vnext/upgrade-061-070：原失败与夹具问题均保留。7项新产品测试通过（真实工厂/SQLite/业务工具，外部模型明确替身）：不可变原请求+append-only显式补绑定版本、原任务重试不改绑/回滚、丢失目录拒绝初始化、150历史分页搜索、两种预览/知识批次顺序完整执行。
+- S0相邻64项通过（S0-final.xml）；额外混合改期/部分失败/真实子进程launcher组10项通过（重叠不相加）。前端已按服务器owner恢复运行，补库/服务器分页搜索及归档重命名已接API；生成DTO/TS/Vite构建通过。原生选择器增加丢失目录定位/明确新建，C#实际编译通过，尚未桌面GUI验收。
+- 0.6.1代码里程碑准备提交，尚未运行本轮真模型或浏览器；不是0.7完成。下一动作：标准隔离浏览器入口、资料更新可用性、干净Windows构建，然后有依据的解释/比较协议与语义集。
+
 ## 当前交付：0.6 可运行预览（部分门槛待验，Goal未完成）
+
+- 2026-10-31 用户明确选择“先交付，桌面检查待验”。按当前0.6预览版交付，不再主动弹出桌面检查、不新增模型运行。原生首选目录/自动开页与真实中文输入法继续待验，未转为通过；冻结ZIP和历史证据不改。交付决定旁录于.private/esa-vnext/deliveries/DESKTOP_ACCEPTANCE_DEFERRED_20261031.json。
 
 - 当前应用1f9d26626f27a03dfd76683fc551c24aa78227a0，原DATA_DIR不变，入口http://127.0.0.1:8740/，PID44948/instance eec3e1c32d2f4532851ddf72ec8c0f81。Windows ZIP约78.8MB，解压双击ESA.exe；源码及完整证据另有小审核包。
 - 后端模型冻结7d4bfa28，最终1f9仅改变已提交事项的表现层：原参数/预览移入历史回执，不改变模型、API行为或事务。git diff已核对Python后端/依赖完全相同。实际104项产品/相邻回归通过，不是模型准确率。

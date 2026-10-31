@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="22" time="7.364" timestamp="2026-10-30T22:06:46.904852+00:00" hostname="9d96be534b49"><testcase classname="tests.product.test_turn_recovery" name="test_legacy_task_knowledge_is_not_misread_as_a_published_answer" time="0.249" /><testcase classname="tests.product.test_turn_recovery" name="test_actual_http_retry_route_runs_in_the_product_event_loop" time="0.185" /><testcase classname="tests.product.test_turn_recovery" name="test_knowledge_failure_retry_reuses_user_turn" time="0.171" /><testcase classname="tests.product.test_turn_recovery" name="test_cancelled_knowledge_turn_is_terminal_and_retryable" time="0.178" /><testcase classname="tests.product.test_turn_recovery" name="test_cancelled_task_does_not_capture_later_knowledge_or_reopen" time="0.215" /><testcase classname="tests.product.test_turn_recovery" name="test_restart_marks_orphan_turn_interrupted_without_duplication" time="0.222" /><testcase classname="tests.product.test_context_and_clarification" name="test_a_pending_user_message_is_consumed_before_missing_field_clarification" time="0.184" /><testcase classname="tests.product.test_context_and_clarification" name="test_long_prior_question_is_kept_whole_and_never_becomes_a_new_obligation" time="0.000" /><testcase classname="tests.product.test_context_and_clarification" name="test_editable_preview_remains_active_but_cancelled_task_does_not" time="0.154" /><testcase classname="tests.product.test_context_and_clarification" name="test_model_prose_does_not_execute_or_finish_a_business_turn" time="0.214" /><testcase classname="tests.product.test_context_and_clarification" name="test_real_preview_is_terminal_for_a_conversational_turn" time="0.334" /><testcase classname="tests.product.test_context_and_clarification" name="test_progress_delivery_preserves_actions_and_continues_to_a_real_preview" time="0.347" /><testcase classname="tests.product.test_context_and_clarification" name="test_readonly_conversational_delivery_uses_current_domain_observations" time="0.363" /><testcase classname="tests.product.test_context_and_clarification" name="test_guided_knowledge_accepts_the_same_question_size_without_duplicating_input" time="0.179" /><testcase classname="tests.product.test_context_and_clarification" name="test_displayed_options_and_model_observation_share_the_current_binding" time="0.197" /><testcase classname="tests.product.test_context_and_clarification" name="test_parameter_tool_observations_do_not_embed_the_whole_task_history" time="0.684" /><testcase classname="tests.product.test_context_and_clarification" name="test_resource_selection_returns_business_data_not_the_task_audit_graph" time="0.188" /><testcase classname="tests.product.test_context_and_clarification" name="test_preparation_cannot_inject_unrequested_fact_changes" time="0.158" /><testcase classname="tests.product.test_launcher" name="test_open_reuses_instance_chooses_free_port_and_preserves_workspace" time="2.201" /><testcase classname="tests.product.test_run_event_view" name="test_model_choices_tools_and_program_steps_are_not_conflated" time="0.177" /><testcase classname="tests.product.test_followup_delivery" name="test_prior_questions_reach_generation_without_becoming_clarification_replies" time="0.004"><failure message="ModuleNotFoundError: No module named 'faiss'">tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_prior_questions_reach_gen0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7f39e71e6ea0&gt;
+
+    def test_prior_questions_reach_generation_without_becoming_clarification_replies(
+        tmp_path, monkeypatch
+    ):
+&gt;       from app.indexing.store import activate_version
+
+tests/product/test_followup_delivery.py:13: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/indexing/__init__.py:1: in &lt;module&gt;
+    from app.indexing.builder import (
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    from __future__ import annotations
+    
+    import hashlib
+    import json
+    import pickle
+    import time
+    from collections import Counter
+    from dataclasses import dataclass
+    from datetime import datetime, timezone
+    from pathlib import Path
+    from typing import Callable, Literal
+    
+&gt;   import faiss
+E   ModuleNotFoundError: No module named 'faiss'
+
+app/indexing/builder.py:13: ModuleNotFoundError</failure></testcase><testcase classname="tests.product.test_followup_delivery" name="test_real_retrieval_failure_keeps_trace_and_retryable_turn" time="0.005"><failure message="ModuleNotFoundError: No module named 'faiss'">tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_real_retrieval_failure_ke0')
+
+    def test_real_retrieval_failure_keeps_trace_and_retryable_turn(tmp_path):
+&gt;       from app.indexing.store import activate_version
+
+tests/product/test_followup_delivery.py:85: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/indexing/__init__.py:1: in &lt;module&gt;
+    from app.indexing.builder import (
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    from __future__ import annotations
+    
+    import hashlib
+    import json
+    import pickle
+    import time
+    from collections import Counter
+    from dataclasses import dataclass
+    from datetime import datetime, timezone
+    from pathlib import Path
+    from typing import Callable, Literal
+    
+&gt;   import faiss
+E   ModuleNotFoundError: No module named 'faiss'
+
+app/indexing/builder.py:13: ModuleNotFoundError</failure></testcase></testsuite></testsuites>

@@ -20,11 +20,12 @@ def main():
         if name == 'open':
             command.add_argument('--no-browser',action='store_true')
             command.add_argument('--registry')
+            command.add_argument('--create',action='store_true',help='Explicitly initialize a new empty workspace')
     args = parser.parse_args()
     if args.command=='open':
         from app.launcher.core import open_workspace,selected_workspace,registry_path
         root=selected_workspace(args.data_dir,registry_path(args.registry))
-        print(json.dumps(open_workspace(root,registry=args.registry,port=args.port,browser=not args.no_browser),ensure_ascii=False))
+        print(json.dumps(open_workspace(root,registry=args.registry,port=args.port,browser=not args.no_browser,create=args.create),ensure_ascii=False))
         return
     root = data_root(args.data_dir)
     if args.command == "init":

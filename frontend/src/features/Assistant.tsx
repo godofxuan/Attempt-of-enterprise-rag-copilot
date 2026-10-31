@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
@@ -31,9 +31,6 @@ export function Assistant({
   const [deep, setDeep] = useState(false);
   const [kind, setKind] = useState<string | null>(null);
   const [scope, setScope] = useState("SUBMIT_AFTER_CONFIRMATION");
-  const [runId, setRunId] = useState<string | null>(() =>
-    sessionStorage.getItem("esa-active-product-run"),
-  );
   const composing = useRef(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const library = useQuery({
@@ -49,7 +46,13 @@ export function Assistant({
     queryKey: ["conversation-runs", cid],
     enabled: !!cid,
     queryFn: () => api<Run[]>("/api/product/conversations/" + cid + "/runs"),
+    refetchInterval: 2000,
   });
+  const runId =
+    runs.data?.find(
+      (r) =>
+        r.conversation_id === cid && ["queued", "running"].includes(r.status),
+    )?.id || null;
   const active = conversation.data?.active_task_id;
   const shownTask = active || conversation.data?.task_id;
   const task = useQuery({
@@ -58,26 +61,24 @@ export function Assistant({
     queryFn: () => api<Task>("/api/product/tasks/" + shownTask),
   });
   const finish = useCallback(() => {
-    setRunId(null);
-    sessionStorage.removeItem("esa-active-product-run");
     cache.invalidateQueries();
   }, [cache]);
   const progress = useRun(runId, finish);
   const track = (r: Run) => {
-    setRunId(r.id);
-    sessionStorage.setItem("esa-active-product-run", r.id);
+    if (r.conversation_id)
+      cache.setQueryData<Run[]>(
+        ["conversation-runs", r.conversation_id],
+        (old = []) => [r, ...old.filter((x) => x.id !== r.id)],
+      );
     cache.invalidateQueries();
   };
-  useEffect(() => {
-    const listener = (event: Event) =>
-      track((event as CustomEvent<Run>).detail);
-    window.addEventListener("esa-product-run", listener);
-    return () => window.removeEventListener("esa-product-run", listener);
-  }, []);
-  useEffect(() => {
-    const r = runs.data?.find((r) => ["queued", "running"].includes(r.status));
-    if (r && !runId) track(r);
-  }, [runs.data]);
+  const binding = useMutation({
+    mutationFn: (kb_id: string) =>
+      api<Conversation>("/api/conversations/" + cid, "PATCH", {
+        kb_id: kb_id || null,
+      }),
+    onSuccess: () => cache.invalidateQueries(),
+  });
   const ensure = async () => {
     if (cid) return cid;
     const c = await api<Conversation>("/api/conversations", "POST", {
@@ -142,10 +143,14 @@ export function Assistant({
         <select
           aria-label="当前资料库"
           value={
-            conversation.data?.kb_id || base || library.data?.bases[0]?.id || ""
+            cid
+              ? conversation.data?.kb_id || ""
+              : base || library.data?.bases[0]?.id || ""
           }
-          disabled={!!cid}
-          onChange={(e) => setBase(e.target.value)}
+          disabled={binding.isPending || !!runId}
+          onChange={(e) =>
+            cid ? binding.mutate(e.target.value) : setBase(e.target.value)
+          }
         >
           <option value="">选择资料库</option>
           {library.data?.bases.map((b) => (
@@ -159,6 +164,12 @@ export function Assistant({
       {send.error && <ErrorNotice error={send.error} />}
       {start.error && <ErrorNotice error={start.error} />}
       {retry.error && <ErrorNotice error={retry.error} />}
+      {binding.error && <ErrorNotice error={binding.error} />}
+      {cid && !conversation.data?.kb_id && (
+        <p className="muted">
+          此会话尚未绑定资料库。知识提问可先选择资料库，再重试原消息；纯业务查询不需要资料库。
+        </p>
+      )}
       {!cid && (
         <div className="welcome">
           <p>查资料、了解政策，或办理电脑借用和 IT 报修。</p>

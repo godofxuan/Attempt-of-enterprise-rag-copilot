@@ -591,8 +591,7 @@ class ServiceDeskStore:
                        (proposal_id,task_id,encoded(content),proposal['content_digest'],proposal['expires_at']))
             task.update(pending_proposal_id=proposal_id,
                 status='PREVIEW_READY' if ceiling=='PREVIEW_ONLY' else 'WAITING_CONFIRMATION',
-                active_run_id=task.get('active_run_id') if ceiling=='PREVIEW_ONLY' or
-                    (task.get('pending_user_update') and self.owns_run(task)) else None)
+                active_run_id=task.get('active_run_id') if ceiling=='PREVIEW_ONLY' or self.owns_run(task) else None)
             self._event(db,task_id,'proposal_created',proposal)
             if _record_tool_result:
                 # Persist the fenced action result before its terminal transition leaves this transaction.

@@ -1,0 +1,147 @@
+{
+  "basis": "submitted evidence, not new real model runs",
+  "cases": [
+    {
+      "case": "loan_direct",
+      "status": "PASS",
+      "elapsed_seconds": 8.11,
+      "required_content": [
+        "维修",
+        "14",
+        "早于"
+      ],
+      "content_checks": {
+        "维修": true,
+        "14": true,
+        "早于": true
+      },
+      "answer": "规则版本：loan-policy-v1。\n只有存在有效维修记录的员工可以申请临时电脑。\n借用期限为1至14天，开始日期不得早于申请当天。\n同一员工只能有一个未关闭的借用申请。",
+      "mode": "answered"
+    },
+    {
+      "case": "loan_delegated",
+      "status": "PASS",
+      "elapsed_seconds": 8.125,
+      "required_content": [
+        "维修",
+        "14",
+        "早于"
+      ],
+      "content_checks": {
+        "维修": true,
+        "14": true,
+        "早于": true
+      },
+      "answer": "规则版本：loan-policy-v1。\n只有存在有效维修记录的员工可以申请临时电脑。\n借用期限为1至14天，开始日期不得早于申请当天。\n同一员工只能有一个未关闭的借用申请。",
+      "mode": "answered"
+    },
+    {
+      "case": "room_direct",
+      "status": "PASS",
+      "elapsed_seconds": 7.594,
+      "required_content": [
+        "2小时",
+        "09:00",
+        "18:00",
+        "清理",
+        "关闭"
+      ],
+      "content_checks": {
+        "2小时": true,
+        "09:00": true,
+        "18:00": true,
+        "清理": true,
+        "关闭": true
+      },
+      "answer": "会议室每日开放时间为09:00至18:00。\n每次预订不得超过2小时。\n使用结束后必须清理桌面并关闭设备。",
+      "mode": "answered"
+    },
+    {
+      "case": "room_delegated",
+      "status": "PASS",
+      "elapsed_seconds": 8.11,
+      "required_content": [
+        "2小时",
+        "09:00",
+        "18:00",
+        "清理",
+        "关闭"
+      ],
+      "content_checks": {
+        "2小时": true,
+        "09:00": true,
+        "18:00": true,
+        "清理": true,
+        "关闭": true
+      },
+      "answer": "会议室每日开放时间为09:00至18:00。\n每次预订不得超过2小时。\n使用结束后必须清理桌面并关闭设备。",
+      "mode": "answered"
+    },
+    {
+      "case": "deep_two_documents",
+      "status": "PASS",
+      "elapsed_seconds": 14.141,
+      "required_content": [
+        "14",
+        "维修",
+        "2小时",
+        "09:00",
+        "18:00"
+      ],
+      "content_checks": {
+        "14": true,
+        "维修": true,
+        "2小时": true,
+        "09:00": true,
+        "18:00": true
+      },
+      "answer": "规则版本：loan-policy-v1。\n仅适用于本地TEST系统。\n只有存在有效维修记录的员工可以申请临时电脑。\n借用期限为1至14天，开始日期不得早于申请当天。\n同一员工只能有一个未关闭的借用申请。\n本文仅用于本地知识问答演示，未接入会议室办理系统。\n会议室每日开放时间为09:00至18:00。\n每次预订不得超过2小时。\n使用结束后必须清理桌面并关闭设备。",
+      "mode": "answered"
+    },
+    {
+      "case": "genuine_missing_attribute",
+      "status": "PASS",
+      "elapsed_seconds": 6.594,
+      "required_content": [],
+      "content_checks": {},
+      "answer": "No supported answer was found in the visible knowledge base.",
+      "mode": "partial"
+    },
+    {
+      "case": "readonly_actual_observation_delivery",
+      "status": "PASS",
+      "elapsed_seconds": null,
+      "required_content": null,
+      "content_checks": null,
+      "answer": null,
+      "mode": null
+    },
+    {
+      "case": "mixed_change_and_policy_progress",
+      "status": "PROGRESS_NOT_TASK_COMPLETE",
+      "elapsed_seconds": null,
+      "required_content": null,
+      "content_checks": null,
+      "answer": "本规则没有规定押金。",
+      "mode": "answered"
+    },
+    {
+      "case": "user_selects_second_and_real_preview",
+      "status": "PASS",
+      "elapsed_seconds": null,
+      "required_content": null,
+      "content_checks": null,
+      "answer": "本规则没有规定押金。",
+      "mode": "answered"
+    },
+    {
+      "case": "normal_followup_after_preserved_long_history",
+      "status": "PASS",
+      "elapsed_seconds": null,
+      "required_content": null,
+      "content_checks": null,
+      "answer": "借用期限为1至14天，开始日期不得早于申请当天。",
+      "mode": "answered"
+    }
+  ]
+}

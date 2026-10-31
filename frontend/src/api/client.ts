@@ -6,6 +6,8 @@ export type Answer = components["schemas"]["PublishedAnswerView"];
 export type Run = {
   id: string;
   kind: string;
+  conversation_id?: string | null;
+  turn_id?: string | null;
   status: string;
   error?: string | null;
   result?: unknown;
@@ -58,7 +60,12 @@ export async function api<T>(
   });
   const value = await response.json();
   if (!response.ok)
-    throw Error(value.error?.message || value.detail || "请求未完成");
+    throw Error(
+      value.error?.message ||
+        (typeof value.detail === "string"
+          ? value.detail
+          : JSON.stringify(value.detail || "请求未完成")),
+    );
   return value;
 }
 export const label: Record<string, string> = {

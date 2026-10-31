@@ -5,8 +5,9 @@ Do not restore retired historical directories, reset dirty work or overwrite lat
 
 ## Current Goal
 
-Continue current0.4 and later effective edits into `docs/esa-vnext/reviews/040-product/GOAL.md`,
-W01-W32: deliver0.5 one-click React product, then0.6 maintainable verified release.
+Continue the effective0.6 work into `docs/esa-vnext/reviews/060-20261030/GOAL.md`,
+T01-T18: deliver0.6.1 recovery fixes, then0.7 evidence-supported knowledge and verified Windows product.
+The earlier W01-W32 results and deferred checks remain historical evidence.
 Preserve earlier R1/R2 results. The sole implementation
 progress record is `docs/esa-vnext/STATUS.md`; preserve earlier actual progress.
 

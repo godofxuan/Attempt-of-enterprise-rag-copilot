@@ -138,6 +138,10 @@ class ServiceAgent:
                         }
                     )
                     continue
+                batch_preview = False
+                batch_errors = []
+                # Terminal requests consume all other proposed observations first.
+                calls = sorted(calls, key=lambda c: c["function"]["name"] in {"finish", "ask_user"})
                 for call in calls:
                     current = self.store.get_task(actor, task_id)
                     if current.get("active_run_id") != started["active_run_id"]:
@@ -150,6 +154,8 @@ class ServiceAgent:
                     if name not in catalog.tools:
                         raise ServiceError("INVALID_TOOL_ARGUMENTS")
                     if name in {"finish", "ask_user"}:
+                        if name == "finish" and batch_preview:
+                            continue
                         try:
                             catalog.validate(name, args)
                             if name == "ask_user":
@@ -241,6 +247,8 @@ class ServiceAgent:
                     )
                     if result["status"] == "ok":
                         observed.add(name)
+                    else:
+                        batch_errors.append({"tool": name, "code": result.get("code")})
                     messages.append(
                         {
                             "role": "tool",
@@ -275,14 +283,24 @@ class ServiceAgent:
                             return self.service.view(task_id)
                     if name == "prepare_preview" and result["status"] == "ok":
                         self.workspace.runs.event(run_id, "preview_ready", data)
-                        # Preparation is a terminal delivery tool in both entry paths.
-                        # A later model sentence cannot erase the actual saved preview.
-                        if turn:
-                            with self.store.run_scope(started):
-                                self.service.finish_turn(task_id, "", observed)
-                        if not turn and current["user_execution_ceiling"] == "PREVIEW_ONLY":
-                            self.store.finish_goal(actor, task_id)
-                        return self.service.view(task_id)
+                        batch_preview = True
+                # Complete the proposed batch first. A preview is a deliverable,
+                # not permission to discard a later knowledge read or fact edit.
+                latest = self.store.get_task(actor, task_id)
+                if batch_preview and latest.get("pending_proposal_id"):
+                    if turn:
+                        with self.store.run_scope(started):
+                            self.service.finish_turn(task_id, "", observed)
+                    elif latest["user_execution_ceiling"] == "PREVIEW_ONLY":
+                        self.store.finish_goal(actor, task_id)
+                    if batch_errors:
+                        with self.store.transaction() as db:
+                            task = self.store._task(db, actor, task_id)
+                            task.update(status="BLOCKED", last_error="TURN_PARTIALLY_DELIVERED")
+                            task["assistant_text"] = (task.get("assistant_text") or "当前预览已保存，尚未提交。") + "\n尚未完成：" + json.dumps(batch_errors, ensure_ascii=False)
+                            self.store._save(db, task)
+                    self.workspace.runs.event(run_id, "turn_delivery", {"completed_tools": sorted(observed), "unresolved": batch_errors})
+                    return self.service.view(task_id)
             raise ServiceError("RUN_STEP_LIMIT")
         except Exception as exc:
             with self.store.transaction() as db:

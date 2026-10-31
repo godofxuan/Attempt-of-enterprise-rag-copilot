@@ -114,10 +114,12 @@ class QueryOperations:
             if not conversation:
                 raise ValueError("CONVERSATION_NOT_FOUND")
             if conversation["kb_id"] != kb_id:
-                raise ValueError("CONVERSATION_KNOWLEDGE_BASE_MISMATCH")
+                bound = db.execute("SELECT 1 FROM turn_commands WHERE conversation_id=? AND json_extract(payload,'$.kb_id')=? LIMIT 1", (conversation_id, kb_id)).fetchone()
+                if not bound:
+                    raise ValueError("CONVERSATION_KNOWLEDGE_BASE_MISMATCH")
             rows = db.execute(
-                "SELECT id,question FROM knowledge_answers WHERE conversation_id=? ORDER BY rowid DESC LIMIT 4",
-                (conversation_id,),
+                "SELECT id,question FROM knowledge_answers WHERE conversation_id=? AND kb_id=? ORDER BY rowid DESC LIMIT 4",
+                (conversation_id, kb_id),
             ).fetchall()
         from app.runtime.context_window import recent_questions
 
