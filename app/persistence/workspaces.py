@@ -15,6 +15,7 @@ class WorkspaceConfig(BaseModel):
     request_timeout_seconds: float = Field(default=90, ge=1, le=300)
     max_parallel_requests: int = Field(default=1, ge=1, le=4)
     sample_data: bool = False
+    experimental_grounded_expression: bool = False
 
     @field_validator("model_endpoint")
     @classmethod

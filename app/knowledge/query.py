@@ -285,7 +285,7 @@ class QueryOperations:
                     max_attempts=1,
                     primary_read_anchors_only=bool(deep_plan),
                     need_first_wire=True,
-                    explanatory=True,
+                    explanatory=self.workspace.config.experimental_grounded_expression,
                 ),
                 budget=AgentBudget(
                     deadline_ms=240000,
@@ -306,6 +306,9 @@ class QueryOperations:
                     "trace": {
                         **result.trace,
                         "named_source_policy_ids": named_policies,
+                        "answer_style": "experimental_grounded_expression"
+                        if self.workspace.config.experimental_grounded_expression
+                        else "verified_source_units",
                         "knowledge_strategy": controller.report()
                         if deep_plan
                         else {"strategy": "fast_shared_runner"},

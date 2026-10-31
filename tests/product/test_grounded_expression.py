@@ -7,6 +7,13 @@ from app.agent.generation_v2 import _parse_generated_answer
 from app.domain.evidence import AnswerBlock, Claim
 
 
+def test_failed_expression_experiment_is_not_the_product_default():
+    from app.persistence.workspaces import WorkspaceConfig
+
+    assert WorkspaceConfig().experimental_grounded_expression is False
+    assert WorkspaceConfig(experimental_grounded_expression=True).experimental_grounded_expression is True
+
+
 def test_sparse_uses_parse_one_representation_and_keep_necessary_sources():
     wire = {
         "unit_uses": [
