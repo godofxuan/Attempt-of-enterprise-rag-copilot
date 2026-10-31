@@ -2,7 +2,7 @@
 
 ## 当前本机演示
 
-当前验证页面：http://127.0.0.1:8748/ ，0.7.0rc3 / `13fbe071`（预发布）。
+当前验证页面：http://127.0.0.1:8748/ ，0.7.0rc4 / `78f7464e`（预发布）。
 DATA_DIR 为本轮完整历史TEST副本 `.private/esa-vnext/upgrade-070-next/live-workspace`。
 原 `.private/esa-vnext` 和8740旧实例保留，不能把它当成新版。使用发行包 `ESA.exe` 选已存在的完整目录；在别的电脑明确选自己的工作区。
 
@@ -13,9 +13,9 @@ DATA_DIR 为本轮完整历史TEST副本 `.private/esa-vnext/upgrade-070-next/li
 ```
 
 也可在已配置的源码环境用 `esa open --data-dir "你的完整TEST工作区" --port 8748`。
-`/api/instance` 与设置展开区显示真实commit/build。原生已有目录选择及正常升级已验证；自动打开浏览器只观察到ESA窗口，URL/内容检查被工具策略阻断，物理IME仍待验。完整分层结果见[rc3收尾结果](FINISH_RC3.md)。
+`/api/instance` 与设置展开区显示真实commit/build。本轮最终EXE正常切换与非交互包检查通过；原生GUI/自动开页内容和物理IME本轮未验。完整分层结果见[rc4结果](RESULT_RC4.md)，历史rc3原生部分结果保留在[原报告](FINISH_RC3.md)。
 
-本机快捷入口为`.private/esa-vnext/rc2-finish-20261031/打开ESA演示.cmd`；Windows包为`.private/esa-vnext/build/releases/ESA-0.7.0rc3-windows-x64-13fbe071.zip`。其他电脑完整解压后双击ESA.exe，选择自己的完整工作区，不复制本机私人数据。
+本机快捷入口为`.private/esa-vnext/rc3-final-20261031/打开ESA演示.cmd`；Windows包为`.private/esa-vnext/build/releases/ESA-0.7.0rc4-windows-x64-78f7464e.zip`。其他电脑完整解压后双击ESA.exe，选择自己的完整工作区，不复制本机私人数据。
 
 ### 五步使用与升级
 
@@ -24,6 +24,8 @@ DATA_DIR 为本轮完整历史TEST副本 `.private/esa-vnext/upgrade-070-next/li
 3. 助理提问或开始借用/报修；补齐必填字段。保存成功立即显示当前服务端参数，需要设备时直接选择候选，不重复保存旧数据。
 4. 检查当前预览，改期后重新预览；仅对当前内容精确确认。仅预览任务不可提交，借用待审批不等于批准或分配。
 5. 我的事项/本地TEST服务台查看当前状态与生命周期；原提交回执仍保留。混合请求若知识未交付，明确追问知识；正常补字段不点故障重试。
+
+知识调用失败时“重试解释”只补知识，不要求先填写借用日期；混合请求分别显示知识和预览进度。我的事项可服务器搜索和加载更多，手机可展开最近会话。预览到期会显示参考内容与“重新生成预览”，参数保留；不能确认过期版本。
 
 ## Windows 发行包
 

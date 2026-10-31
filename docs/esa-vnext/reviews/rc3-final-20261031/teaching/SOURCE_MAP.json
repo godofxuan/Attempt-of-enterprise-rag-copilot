@@ -6,7 +6,7 @@
     "symbol": "open_workspace",
     "start_line": 86,
     "end_line": 187,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -17,7 +17,7 @@
     "symbol": "create_workbench_app",
     "start_line": 11,
     "end_line": 59,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -28,7 +28,7 @@
     "symbol": "Workspace.start",
     "start_line": 28,
     "end_line": 62,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -39,7 +39,7 @@
     "symbol": "ConversationService.command",
     "start_line": 240,
     "end_line": 288,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -50,7 +50,7 @@
     "symbol": "Runs.start",
     "start_line": 54,
     "end_line": 77,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -61,7 +61,7 @@
     "symbol": "TurnCoordinator.result",
     "start_line": 151,
     "end_line": 202,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -72,7 +72,7 @@
     "symbol": "CatalogOperations.upload",
     "start_line": 70,
     "end_line": 133,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -83,7 +83,7 @@
     "symbol": "JobsOperations._build",
     "start_line": 110,
     "end_line": 208,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -94,7 +94,7 @@
     "symbol": "HybridRetrievalPipeline._fuse",
     "start_line": 380,
     "end_line": 422,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -104,8 +104,8 @@
     "path": "app/knowledge/query.py",
     "symbol": "QueryOperations.answer",
     "start_line": 154,
-    "end_line": 382,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "end_line": 388,
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -116,7 +116,7 @@
     "symbol": "DeepController.next_decision",
     "start_line": 97,
     "end_line": 194,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -127,7 +127,7 @@
     "symbol": "publish_answer",
     "start_line": 159,
     "end_line": 583,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -138,7 +138,7 @@
     "symbol": "ServiceAgent.run",
     "start_line": 39,
     "end_line": 395,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -149,7 +149,7 @@
     "symbol": "ToolCatalog.call",
     "start_line": 278,
     "end_line": 401,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -159,8 +159,8 @@
     "path": "app/service_desk/views.py",
     "symbol": "next_task_action",
     "start_line": 38,
-    "end_line": 101,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "end_line": 105,
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "当前回合知识恢复独立于预览所缺字段；真正运行/待核对修改优先；过期预览重新生成。"
   },
@@ -171,7 +171,7 @@
     "symbol": "ServiceDeskStore.update_facts",
     "start_line": 857,
     "end_line": 896,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -182,7 +182,7 @@
     "symbol": "ServiceDeskStore._submit_bound",
     "start_line": 716,
     "end_line": 766,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -193,7 +193,7 @@
     "symbol": "available",
     "start_line": 24,
     "end_line": 27,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -202,9 +202,9 @@
     "lesson": "L07",
     "path": "app/api/product_routes.py",
     "symbol": "product_router.save_facts",
-    "start_line": 94,
-    "end_line": 99,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "start_line": 97,
+    "end_line": 102,
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -213,9 +213,9 @@
     "lesson": "L07",
     "path": "app/service_desk/views.py",
     "symbol": "task_view",
-    "start_line": 104,
-    "end_line": 165,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "start_line": 108,
+    "end_line": 169,
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "preview_state/server_time只读投影与can_submit一致；提交事务仍最终校验。"
   },
@@ -226,7 +226,7 @@
     "symbol": "TurnCoordinator.prepared_by_user",
     "start_line": 212,
     "end_line": 227,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -237,7 +237,7 @@
     "symbol": "ServiceDeskStore._bound_proposal",
     "start_line": 613,
     "end_line": 635,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
@@ -248,19 +248,31 @@
     "symbol": "TaskService.list",
     "start_line": 211,
     "end_line": 213,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
-    "note": "兼容首屏包装，同一page查询按rowid游标分页，产品前端使用/tasks/page。"
+    "note": "兼容首屏包装，同一page查询按rowid游标分页，产品前端使用/tasks/page。",
+    "related_symbols": [
+      {
+        "symbol": "TaskService.page",
+        "start_line": 215
+      }
+    ]
   },
   {
     "id": "L08-S3",
     "lesson": "L08",
     "path": "app/knowledge/query.py",
     "symbol": "QueryOperations.answers",
-    "start_line": 404,
-    "end_line": 410,
-    "source_commit": "CURRENT_RC4_APPLICATION_FREEZE_SEE_STATUS",
+    "start_line": 410,
+    "end_line": 416,
+    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
     "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
-    "note": "最近列表用于列表；答案详情使用answer_by_id，不在最近50条过滤。"
+    "note": "最近列表用于列表；答案详情使用answer_by_id，不在最近50条过滤。",
+    "related_symbols": [
+      {
+        "symbol": "QueryOperations.answer_by_id",
+        "start_line": 418
+      }
+    ]
   }
 ]

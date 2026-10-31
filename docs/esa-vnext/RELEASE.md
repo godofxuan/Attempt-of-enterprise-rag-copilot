@@ -1,3 +1,11 @@
+# ESA 0.7.0rc4：有限工程收尾完成，仍为预发布
+
+当前应用冻结78f7464e，已实际运行在8748；知识恢复、历史可达、过期预览三组修复完成，现有两个业务与确认/事务/幂等保留。139项相关默认回归、12条浏览器旅程及同commit Windows/Linux产品CI通过。真实模型3条有限检查新增7chat/4query/0index；混合知识仍partial，原生GUI/物理IME本轮未验。不是stable或通用自由文本保证。
+
+一个当前Windows候选、启动与原数据位置见[START](START.md)；唯一有限验收表、负结果、源码/证据与教学映射见[RESULT_RC4](RESULT_RC4.md)。feature分支与Draft PR #2已同步，不合并main，不自动开0.8。
+
+## 以下为历史发行说明，不是当前验收结果
+
 # ESA 0.7.0rc2：默认产品候选，解释实验关闭
 
 应用冻结提交：`70a5005022e234e047d6c8e9ef515d86dccbcbb8`。公开分支 `codex/esa-061-070`，Draft PR：
