@@ -99,7 +99,9 @@ try:
     command(
         uv,
         "build",
-        "--offline",
+        *(["--offline"] if args.offline else []),
+        "--default-index",
+        "https://pypi.org/simple",
         "--wheel",
         "--python",
         sys.executable,
