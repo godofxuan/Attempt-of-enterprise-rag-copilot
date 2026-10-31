@@ -127,7 +127,7 @@ class QueryOperations:
                     )
         return list(dict.fromkeys(notices))
 
-    def conversation_context(self, kb_id, conversation_id, current_question=""):
+    def conversation_context(self, kb_id, conversation_id, current_question="", context_scope=None):
         if not conversation_id:
             return []
         with self.db() as db:
@@ -144,14 +144,14 @@ class QueryOperations:
                 if not bound:
                     raise ValueError("CONVERSATION_KNOWLEDGE_BASE_MISMATCH")
             rows = db.execute(
-                "SELECT id,question FROM knowledge_answers WHERE conversation_id=? AND kb_id=? ORDER BY rowid DESC LIMIT 4",
-                (conversation_id, kb_id),
+                "SELECT id,question FROM knowledge_answers WHERE conversation_id=? AND kb_id=? AND (? IS NULL OR context_scope=?) ORDER BY rowid DESC LIMIT 4",
+                (conversation_id, kb_id, context_scope, context_scope),
             ).fetchall()
         from app.runtime.context_window import recent_questions
 
         return recent_questions(rows, current_question)
 
-    async def answer(self, kb_id, question, *, conversation_id=None, detailed=False):
+    async def answer(self, kb_id, question, *, conversation_id=None, detailed=False, context_scope=None):
         from app.domain.agent import AgentBudget
         from app.domain.queries import UserContext
         from app.retrieval.pipeline import HybridRetrievalPipeline
@@ -160,12 +160,18 @@ class QueryOperations:
         from app.agent.runner_v2 import V2AgentRunner
         from app.agent.generation_v2 import GenerationV2ResponseBuilder
 
-        context = self.conversation_context(kb_id, conversation_id, question)
+        if context_scope not in {None, "loan", "repair"}:
+            raise ValueError("INVALID_CONTEXT_SCOPE")
+        context = self.conversation_context(kb_id, conversation_id, question, context_scope)
         search = "\n".join([question] + [row["question"] for row in context])
 
         loop = asyncio.get_running_loop()
         snapshot = await asyncio.to_thread(self.snapshot, kb_id)
         allowed_documents = self.published_scope(snapshot)
+        with self.db() as db:
+            topics_by_doc = {row["id"]: json.loads(row["metadata"]).get("service_tags")
+                for row in db.execute("SELECT id,metadata FROM library_documents WHERE kb_id=?", (kb_id,))
+                if row["id"] in allowed_documents}
         named_policies = named_source_scope(question, snapshot)
         deep_plan = None
         if detailed:
@@ -286,6 +292,7 @@ class QueryOperations:
                     primary_read_anchors_only=bool(deep_plan),
                     need_first_wire=True,
                     explanatory=self.workspace.config.experimental_grounded_expression,
+                    topics_by_doc=topics_by_doc,
                 ),
                 budget=AgentBudget(
                     deadline_ms=240000,
@@ -346,7 +353,7 @@ class QueryOperations:
                 (conversation_id, kb_id),
             )
             db.execute(
-                "INSERT INTO knowledge_answers(id,conversation_id,kb_id,question,result_json,generation,context_answer_ids) VALUES(?,?,?,?,?,?,?)",
+                "INSERT INTO knowledge_answers(id,conversation_id,kb_id,question,result_json,generation,context_answer_ids,context_scope) VALUES(?,?,?,?,?,?,?,?)",
                 (
                     answer_id,
                     conversation_id,
@@ -355,6 +362,7 @@ class QueryOperations:
                     result.model_dump_json(),
                     snapshot.version.manifest.run_id,
                     json.dumps([r["id"] for r in context]),
+                    context_scope,
                 ),
             )
         value = result.model_dump(mode="json")
@@ -367,6 +375,7 @@ class QueryOperations:
             "conversation_id": conversation_id,
             "kb_id": kb_id,
             "question": question,
+            "context_scope": context_scope,
             "source_notices": self.source_notices(value),
             "result": value,
             "service_options": self.service_options(value),
@@ -429,6 +438,7 @@ class QueryOperations:
         return {
             "id": row["id"],
             "question": row["question"],
+            "context_scope": row["context_scope"],
             "conversation_id": row["conversation_id"],
             "kb_id": kb_id,
             "result": value,

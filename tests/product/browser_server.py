@@ -41,9 +41,28 @@ def main():
         async def lifespan(app):
             async with original(app):
                 w = app.state.workspace
+                counters = {"agent_decisions":0,"explanation_attempts":0}
+
+                @app.get('/__test/counters')
+                def test_counters():
+                    return counters
+
+                async def model(messages, **kwargs):
+                    counters['agent_decisions'] += 1
+                    return {'content':'','tool_calls':[
+                        {'function':{'name':'prepare_preview','arguments':{'asset_id':'loan-laptop-1',
+                            'turn_request':{'preview':True,'knowledge_quote':'解释押金制度'}}}},
+                        {'function':{'name':'knowledge_answer','arguments':{'question':'解释押金制度'}}},
+                    ]}
+                w.models.chat = model
 
                 async def answer(kb, question, **options):
                     w.library.require(kb)
+                    if question == '解释押金制度':
+                        from app.service_desk.store import ServiceError
+                        counters['explanation_attempts'] += 1
+                        if counters['explanation_attempts'] == 1:
+                            raise ServiceError('EVIDENCE_INSUFFICIENT')
                     # Controlled latency for ownership/cancel tests, not a model decision.
                     if question.startswith("UI等待"):
                         await asyncio.Event().wait()

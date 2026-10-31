@@ -6,7 +6,7 @@ class ESA {
  [STAThread] static int Main(string[] args) {
   string root=AppDomain.CurrentDomain.BaseDirectory;
   string registry=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"ESA","workspaces.json");
-  string selected=null;bool choose=false,create=false;
+  string selected=null;bool choose=false,create=false;string existingChoice=null;
   for(int i=0;i<args.Length;i++) {if(args[i]=="--choose-workspace")choose=true;if(args[i]=="--registry"&&i+1<args.Length)registry=args[i+1];}
   if(choose || (args.Length==0 && !File.Exists(registry))) {
    var choice=MessageBox.Show("欢迎使用 ESA。\n\n继续已有工作区请选择‘是’；新建个人工作区请选择‘否’。\n已有工作区应包含 workspace.json 和 app.sqlite3。", "ESA · 选择工作区",MessageBoxButtons.YesNoCancel,MessageBoxIcon.Question);
@@ -15,7 +15,7 @@ class ESA {
    else {selected=ChooseFolder(true);if(selected==null)return 0;create=true;}
   }
   try {
-   for(int attempt=0;attempt<2;attempt++) {
+   for(int attempt=0;attempt<3;attempt++) {
    var info=new ProcessStartInfo(Path.Combine(root,"runtime","python.exe"));
    info.WorkingDirectory=root; info.UseShellExecute=false;info.CreateNoWindow=true;
    info.RedirectStandardError=true;info.RedirectStandardOutput=true;
@@ -23,8 +23,16 @@ class ESA {
    info.Arguments="-B -X utf8 -m app.launcher open";
    if(selected!=null)info.Arguments+=" --data-dir "+Quote(selected);
    if(create)info.Arguments+=" --create";
+   if(existingChoice!=null)info.Arguments+=" --existing "+existingChoice;
    for(int i=0;i<args.Length;i++){string arg=args[i];if(arg=="--choose-workspace")continue;if(selected!=null&&arg=="--data-dir"){i++;continue;}if(selected!=null&&arg=="--create")continue;info.Arguments+=" "+Quote(arg);}
-   using(var process=Process.Start(info)) {string output=process.StandardOutput.ReadToEnd();string error=process.StandardError.ReadToEnd();process.WaitForExit();if(process.ExitCode==0)return 0;
+   using(var process=Process.Start(info)) {string output=process.StandardOutput.ReadToEnd();string error=process.StandardError.ReadToEnd();process.WaitForExit();if(process.ExitCode==0){
+    var data=new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<System.Collections.Generic.Dictionary<string,object>>(output);
+    if(data.ContainsKey("upgrade_required")){
+     var running=(System.Collections.Generic.Dictionary<string,object>)data["running"];var wanted=(System.Collections.Generic.Dictionary<string,object>)data["requested"];
+     string current=running.ContainsKey("build_id")?Convert.ToString(running["build_id"]):"旧版（版本未知）";
+     var answer=MessageBox.Show("当前运行："+current+"\n本包版本："+wanted["build_id"]+"\n\n是：空闲时正常重启到本包；否：明确打开旧实例；取消：保持不变。不会强杀进程。","ESA · 选择运行版本",MessageBoxButtons.YesNoCancel,MessageBoxIcon.Question);
+     if(answer==DialogResult.Cancel)return 0;existingChoice=answer==DialogResult.Yes?"restart":"open";continue;
+    }return 0;}
     if(attempt==0&&error.Contains("WORKSPACE_MISSING")) {
      var choice=MessageBox.Show("上次登记的工作区已移动或不完整，未在旧位置创建空库。\n\n‘是’：定位原工作区；‘否’：明确新建；‘取消’：退出。", "ESA · 恢复工作区",MessageBoxButtons.YesNoCancel,MessageBoxIcon.Warning);
      if(choice==DialogResult.Cancel)return 0;

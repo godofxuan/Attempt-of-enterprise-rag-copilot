@@ -64,4 +64,5 @@ def task_view(service, task_id):
         can_submit=editable
         and bool(task.get("preview"))
         and task["user_execution_ceiling"] == "SUBMIT_AFTER_CONFIRMATION",
+        turn_delivery=service.workspace.conversations.coordinator.for_task(task),
     )

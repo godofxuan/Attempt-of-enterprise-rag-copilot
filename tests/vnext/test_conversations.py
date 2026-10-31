@@ -11,10 +11,17 @@ from app.conversations import ConversationService
 
 
 class SequenceModel:
-    def __init__(self,*batches):self.batches=list(batches);self.calls=[]
+    def __init__(self,*batches,request=None):self.batches=list(batches);self.calls=[];self.request=request
     async def chat(self,*args,**kwargs):
         self.calls.append((args,kwargs))
         batch=self.batches.pop(0)
+        # Explicit TEST-model contract, never used by the live transport.
+        eligible={t['function']['name'] for t in kwargs.get('tools',[]) if 'turn_request' in t['function']['parameters']['properties']}
+        if self.request is not None:
+            batch=list(batch)
+            for i,(name,arguments) in enumerate(batch):
+                if name in eligible:
+                    batch[i]=(name,{**arguments,'turn_request':self.request});break
         return {'content':'当前回合已处理','tool_calls':[{'function':{'name':name,'arguments':arguments}} for name,arguments in batch]}
 
 
@@ -28,11 +35,11 @@ def test_one_turn_normalizes_date_and_queries_policy_without_expanding_scope(tmp
             calls.append((kb_id,question));return {'id':'synthetic-saved-knowledge','conversation_id':'knowledge-cid',
                 'result':{'mode':'partial','answer':'夹具：当前资料未规定押金','sources':[]}}
         w.library=SimpleNamespace(answer=answer)
-        w.models=SequenceModel([('update_parameters',{'changes':{'loan_end':changed}}),('knowledge_answer',{'question':'是否需要押金？'})],[('finish',{})])
+        w.models=SequenceModel([('update_parameters',{'changes':{'loan_end':changed}}),('knowledge_answer',{'question':'是否需要押金？'})],[('finish',{})],request={'preview':False,'knowledge_quote':'告诉我是不是要交押金？'})
         text='结束日期延后两天，再告诉我是不是要交押金？'
         result=await w.service.message(task['task_id'],text,'mixed-turn',task['facts_revision'])
         assert result['facts']['loan_end']==changed and result['facts']['purpose']=='本来用途'
-        assert result['user_execution_ceiling']=='PREVIEW_ONLY' and calls==[('explicit-kb','是否需要押金？')]
+        assert result['user_execution_ceiling']=='PREVIEW_ONLY' and calls==[('explicit-kb','告诉我是不是要交押金？')]
         assert result['knowledge_result']['result']['answer']=='夹具：当前资料未规定押金'
         assert not result['pending_update'] and not result['active_run_id']
         request=w.models.calls[0][0][0]
@@ -109,7 +116,8 @@ def test_prepare_in_user_turn_consumes_typed_fields_through_same_update_path(tmp
         assert result['facts']==fields and result['preview']['content']['parameters']==fields
         assert result['preview']['content']['execution_ceiling']=='PREVIEW_ONLY' and not result['receipt']
         assert all(result['fact_sources'][key]['source_message_id']=='typed-preview-turn' for key in fields)
-        assert result['fact_sources']['asset_id']['origin']=='MODEL_TOOL_TARGET_VALIDATED_OWNED_RESOURCE'
+        assert result['fact_sources']['asset_id']['origin']=='USER_MESSAGE'
+        assert any(e['kind']=='preparation_usecase' and e['payload']['resource_validation']=='MODEL_TOOL_TARGET_VALIDATED_OWNED_RESOURCE' for e in result['events'])
         with pytest.raises(ServiceError,match='EXECUTION_CEILING'):
             w.service.store.confirm(local_actor(),task['task_id'],result['preview']['proposal_id'],result['preview']['content_digest'],True)
         await w.runs.close()

@@ -189,6 +189,7 @@ def test_retry_after_later_same_task_change_cannot_reapply_old_parameters(tmp_pa
         model = SequenceModel(
             [("loan_policy", {}), ("assets_search", {}), ("tickets_list_mine", {})],
             [("prepare_preview", {"asset_id": "loan-laptop-1"})],
+            request={"preview": True, "knowledge_quote": ""},
         )
         w.models.chat = model.chat
         retry = c.post(
@@ -258,7 +259,8 @@ def test_all_proposed_mixed_results_are_delivered_without_extra_model_step(tmp_p
         if order == "knowledge_first":
             operations.reverse()
         model = SequenceModel(
-            [("loan_policy", {}), ("assets_search", {}), ("tickets_list_mine", {})], operations
+            [("loan_policy", {}), ("assets_search", {}), ("tickets_list_mine", {})], operations,
+            request={"preview": True, "knowledge_quote": "解释押金"},
         )
         w.models.chat = model.chat
         result = c.portal.call(
@@ -268,7 +270,7 @@ def test_all_proposed_mixed_results_are_delivered_without_extra_model_step(tmp_p
             "mixed",
             task["facts_revision"],
         )
-        assert called == ["押金如何规定？"]
+        assert called == ["解释押金"]
         assert result["preview"] and result["knowledge_result"]["id"] == "external-test"
         assert "外部知识替身" in result["assistant_text"]
         assert len(model.calls) == 2 and not result["active_run_id"]
@@ -287,6 +289,7 @@ def test_preview_then_date_change_invalidates_and_rebuilds(tmp_path):
                 ("update_parameters", {"changes": {"loan_end": end}}),
             ],
             [("assets_search", {}), ("prepare_preview", {"asset_id": "loan-laptop-1"})],
+            request={"preview": True, "knowledge_quote": ""},
         )
         w.models.chat = model.chat
         result = c.portal.call(

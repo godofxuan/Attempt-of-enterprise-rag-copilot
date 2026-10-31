@@ -255,31 +255,37 @@ class ConversationService:
                 "SELECT input_json FROM workbench_runs WHERE json_extract(input_json,'$.message_id')=? ORDER BY rowid LIMIT 1",
                 (turn_id,),
             ).fetchone()
-            original = json.loads(previous[0]) if previous else payload
-            conversation = self.get(cid)
-            command = {
-                "conversation_id": cid,
-                "text": original["text"],
-                "message_id": turn_id,
-                "detailed": bool(original.get("detailed", False)),
-                "task_id": original.get(
-                    "task_id", conversation["active_task_id"] if not previous else None
-                ),
-                "kb_id": original.get("kb_id", conversation["kb_id"]),
-            }
-            if command["task_id"]:
-                command["accepted_facts_revision"] = original.get(
-                    "accepted_facts_revision", original.get("expected_facts_revision")
-                )
-                if command["accepted_facts_revision"] is None and not previous:
-                    command["accepted_facts_revision"] = self.workspace.service.view(
-                        command["task_id"]
-                    )["facts_revision"]
+        original = json.loads(previous[0]) if previous else payload
+        conversation = self.get(cid)
+        command = {
+            "conversation_id": cid,
+            "text": original["text"],
+            "message_id": turn_id,
+            "detailed": bool(original.get("detailed", False)),
+            "task_id": original.get(
+                "task_id", conversation["active_task_id"] if not previous else None
+            ),
+            "kb_id": original.get("kb_id", conversation["kb_id"]),
+        }
+        if command["task_id"]:
+            command["accepted_facts_revision"] = original.get(
+                "accepted_facts_revision", original.get("expected_facts_revision")
+            )
+            if command["accepted_facts_revision"] is None and not previous:
+                command["accepted_facts_revision"] = self.workspace.service.view(
+                    command["task_id"]
+                )["facts_revision"]
+        with self.db() as db:
             db.execute(
-                "INSERT INTO turn_commands(turn_id,revision,conversation_id,payload) VALUES(?,0,?,?)",
+                "INSERT OR IGNORE INTO turn_commands(turn_id,revision,conversation_id,payload) VALUES(?,0,?,?)",
                 (turn_id, cid, encoded(command)),
             )
-        return command
+            stored = json.loads(db.execute(
+                "SELECT payload FROM turn_commands WHERE turn_id=? ORDER BY revision DESC LIMIT 1", (turn_id,)
+            ).fetchone()[0])
+        if stored["conversation_id"] != cid or stored["text"] != payload["text"]:
+            raise ServiceError("MESSAGE_ID_CONFLICT")
+        return stored
 
     def turns(self, cid):
         with self.db() as db:
@@ -340,14 +346,16 @@ class ConversationService:
         return turn_id
 
     async def task_turn(
-        self, task_id, text, message_id, expected_facts_revision, detailed=False, kb_id=None
+        self, task_id, text, message_id, expected_facts_revision, detailed=False, kb_id=None, retry_pending=False
     ):
         from app.workbench_service import local_actor
         from app.agent_runtime.workbench_agent import build_service_agent
 
         service = self.workspace.service
         task = service.store.get_task(local_actor(), task_id)
-        if task["status"] == "CANCELLED":
+        previous_delivery = self.coordinator.result(message_id, task)
+        retry_knowledge = retry_pending and "knowledge" in previous_delivery["pending"]
+        if task["status"] == "CANCELLED" and not retry_knowledge:
             raise ServiceError("CANCELLED")
         cid = self.bind(task_id)
         command = self.command(
@@ -360,7 +368,7 @@ class ConversationService:
                 "kb_id": kb_id if kb_id is not None else task.get("kb_id"),
             }
         )
-        async with self.coordinator.attempt(cid, text, message_id, task_id=task_id) as attempt:
+        async with self.coordinator.attempt(cid, text, message_id, task_id=task_id, retry=retry_pending) as attempt:
             if attempt["cached"] is not None:
                 if attempt["cached"].get("task_id") != task_id:
                     raise ServiceError("MESSAGE_ID_CONFLICT")
@@ -371,7 +379,8 @@ class ConversationService:
                 raise ServiceError("USER_UPDATE_PENDING")
             with service.store.transaction() as db:
                 current = service.store._task(db, local_actor(), task_id)
-                current["pending_user_update"] = message_id
+                if current["status"] != "CANCELLED":
+                    current["pending_user_update"] = message_id
                 service.store._save(db, current)
                 db.execute(
                     "INSERT INTO workbench_messages VALUES(?,?,?,'PENDING',NULL) ON CONFLICT(id) DO UPDATE SET status='PENDING',result=NULL",
@@ -384,9 +393,25 @@ class ConversationService:
                 "detailed": command["detailed"],
                 "kb_id": command["kb_id"],
                 "preserve_latest_parameters": len(self.coordinator.attempts(message_id)) > 1
-                and command.get("accepted_facts_revision") != task["facts_revision"],
+                and (previous_delivery.get("input_applied") or command.get("accepted_facts_revision") != task["facts_revision"]),
             }
-            await build_service_agent(service).run(task_id, attempt["run_id"], turn=turn)
+            if task["guided_request"]["kind"] == "knowledge":
+                self.coordinator.accept_request(message_id, {"preview": False, "knowledge_quote": text})
+            if retry_knowledge:
+                quote = previous_delivery["requested"].get("knowledge_quote") or text
+                answer = await self.workspace.library.answer(command["kb_id"], quote,
+                    conversation_id=cid, detailed=command["detailed"],
+                    context_scope=task["guided_request"]["kind"] if task["guided_request"]["kind"] in {"loan","repair"} else None)
+                with service.store.transaction() as db:
+                    latest = service.store._task(db, local_actor(), task_id)
+                    latest["knowledge_result"] = answer
+                    service.store._save(db, latest)
+                self.coordinator.observe(message_id, "knowledge_answer", {"status": "ok", "data": answer}, task)
+                self.workspace.runs.event(attempt["run_id"], "tool_result", {"tool": "knowledge_answer", "origin": "USER_RETRY_PENDING_DELIVERY", "result": {"status":"ok", "data": answer}})
+                if task["status"] != "CANCELLED":
+                    service.finish_turn(task_id, "", {"knowledge_answer"})
+            else:
+                await build_service_agent(service).run(task_id, attempt["run_id"], turn=turn)
             with service.store.transaction() as db:
                 current = service.store._task(db, local_actor(), task_id)
                 if current.get("pending_user_update") == message_id:
@@ -396,8 +421,10 @@ class ConversationService:
                     "UPDATE workbench_messages SET status='APPLIED',result=? WHERE id=?",
                     (encoded({"conversation_id": cid}), message_id),
                 )
-            service.complete_readonly_turn(task_id, (task.get("knowledge_result") or {}).get("id"))
             result = service.view(task_id)
+            result["turn_delivery"] = self.coordinator.result(message_id, result)
+            if result["turn_delivery"]["status"] == "complete" and result["status"] != "CANCELLED":
+                service.complete_readonly_turn(task_id, (task.get("knowledge_result") or {}).get("id"))
             self.append(
                 cid,
                 "assistant",
@@ -412,11 +439,12 @@ class ConversationService:
                     "preview": result.get("preview"),
                     "receipt": result.get("receipt"),
                     "facts": result["facts"],
+                    "turn_delivery": result["turn_delivery"],
                 },
                 run_id=attempt["run_id"],
             )
             attempt["result"] = result
-        return service.view(task_id)
+        return {**service.view(task_id), "turn_delivery": self.coordinator.result(message_id, service.view(task_id))}
 
     def _done(self, message_id):
         with self.db() as db:
@@ -426,6 +454,7 @@ class ConversationService:
         return bool(row and row["status"] == "DONE")
 
     async def turn(self, conversation_id, text, message_id, detailed=False, **scope):
+        retry_pending = scope.pop("retry_pending", False)
         self.get(conversation_id)
         command = self.command(
             {
@@ -446,6 +475,7 @@ class ConversationService:
                 task["facts_revision"],
                 detailed=detailed,
                 kb_id=kb_id,
+                retry_pending=retry_pending,
             )
         async with self.coordinator.attempt(conversation_id, text, message_id) as attempt:
             if attempt["cached"] is not None:

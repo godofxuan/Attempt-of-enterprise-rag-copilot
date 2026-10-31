@@ -41,13 +41,15 @@ const save=()=>fs.writeFileSync(out,JSON.stringify(report,null,2));
   let current=await get('/api/tasks/'+task.task_id);
   if(!current.preview){
    await open(current);
-   const run=p.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith('/runs'));
+   const prepared=p.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith('/prepare'));
    if(current.guided_request.kind==='loan'){
     const options=await get('/api/product/tasks/'+task.task_id+'/alternatives');assert(options.length);
     report.resource_choice={chosen:options[0],origin:'EXPLICIT_TEST_USER_CURRENT_UI_OPTION'};save();
-    await p.getByText('可选设备与日期',{exact:true}).click();await p.getByRole('button',{name:'选择并继续',exact:true}).first().click();
-   } else await p.getByRole('button',{name:'继续处理',exact:true}).click();
-   await wait(await(await run).json());await p.getByRole('button',{name:'关闭详情',exact:true}).click();
+    await p.getByText('可选设备与日期',{exact:true}).click();await p.getByRole('button',{name:'选择并生成预览',exact:true}).first().click();
+   } else await p.getByRole('button',{name:'生成当前预览',exact:true}).click();
+   const response=await prepared;assert(response.ok(),await response.text());
+   report.actions.push({action:'EXPLICIT_USER_PREPARE_SHARED_USECASE',result:await response.json()});save();
+   await p.getByRole('button',{name:'关闭详情',exact:true}).click();
    current=await get('/api/tasks/'+task.task_id);
   }
   assert(current.preview&&!current.receipt,'No actual preview; do not replace it with an oracle action');return current;
@@ -77,7 +79,7 @@ const save=()=>fs.writeFileSync(out,JSON.stringify(report,null,2));
   return (await get('/api/service-desk')).tickets.find(x=>x.ticket.ticket_id===ticketId).ticket;
  }
  try{
-  report.instance=await get('/api/instance');report.before=await get('/api/status');assert.equal(report.before.mode,'SYNTHETIC_LOCAL');report.before_desk=await get('/api/service-desk');save();
+  report.instance=await get('/api/instance');assert.equal(report.instance.source_commit,commit,'Actual running source must match measured candidate');report.before=await get('/api/status');assert.equal(report.before.mode,'SYNTHETIC_LOCAL');report.before_desk=await get('/api/service-desk');save();
   let created;
   if(resumeTask){
    created=await get('/api/tasks/'+resumeTask);assert(!created.receipt);assert.equal(created.guided_request.kind,'loan');
@@ -92,12 +94,13 @@ const save=()=>fs.writeFileSync(out,JSON.stringify(report,null,2));
   report.loan_task_id=created.task_id;save();
   let loan=await ensurePreview(created);report.first_loan_preview=loan;save();
   await open(loan);await p.getByLabel(/结束日期/).fill('2026-11-27');
-  const next=p.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith('/runs'));
+  const next=p.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith('/prepare'));
   const patch=p.waitForResponse(r=>r.request().method()==='PATCH'&&r.url().endsWith('/facts'));
-  await p.getByRole('button',{name:'保存并继续',exact:true}).click();await patch;
+  await p.getByRole('button',{name:'保存并生成预览',exact:true}).click();await patch;
   const stale=await p.request.post(base+'/api/tasks/'+loan.task_id+'/submit',{headers:{'X-ESA-Request':'1'},data:{proposal_id:loan.preview.proposal_id,content_digest:loan.preview.content_digest,expected_facts_revision:loan.facts_revision,accepted:true}});
   report.stale_confirmation={status:stale.status(),body:await stale.json()};save();assert.equal(stale.status(),409);
-  await wait(await(await next).json());await p.getByRole('button',{name:'关闭详情',exact:true}).click();loan=await ensurePreview(loan);
+  const preparedResponse=await next;assert(preparedResponse.ok(),await preparedResponse.text());
+  await p.getByRole('button',{name:'关闭详情',exact:true}).click();loan=await ensurePreview(loan);
   assert.equal(loan.preview.content.parameters.loan_end,'2026-11-27');loan=await commitPreview(loan);report.loan_receipt=loan.receipt;save();assert.equal(loan.receipt.ticket.status,'PENDING_APPROVAL');
   const again=await post('/api/tasks/'+loan.task_id+'/submit',{proposal_id:loan.preview.proposal_id,content_digest:loan.preview.content_digest,expected_facts_revision:loan.facts_revision,accepted:true});
   assert.equal(again.receipt.command_id,loan.receipt.command_id);report.idempotent=again.receipt;

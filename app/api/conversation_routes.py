@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field, ConfigDict, field_serializer, model_validator
 from app.domain.evidence import AnswerResponse
 from app.domain.queries import MAX_USER_QUESTION_CHARS
-from app.domain.product_views import PublishedAnswerView, ProposalView, ReceiptView
+from app.domain.product_views import PublishedAnswerView, ProposalView, ReceiptView, TurnDeliveryView
 
 
 class CreateConversation(BaseModel):
@@ -50,6 +50,7 @@ class TurnPayload(BaseModel):
     receipt: ReceiptView | None = None
     task_id: str | None = None
     facts: dict | None = None
+    turn_delivery: TurnDeliveryView | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -125,7 +126,6 @@ def conversation_router(workspace, service_call):
 
     @router.post("/{cid}/turns", status_code=202)
     async def turn(cid: str, payload: ConversationMessage):
-        workspace.conversations.get(cid)
         return service_call(
             lambda: workspace.runs.start(
                 "conversation", {"conversation_id": cid, **payload.model_dump()}

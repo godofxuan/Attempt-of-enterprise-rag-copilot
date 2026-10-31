@@ -77,6 +77,9 @@ def command(*parts, cwd=root):
 
 
 try:
+    (source / "app/resources/build.json").write_text(json.dumps({
+        "version":version,"source_commit":commit,"build_id":commit,"source_dirty":False,
+    }),"utf8")
     command(
         args.npm,
         "ci",
@@ -129,6 +132,7 @@ try:
         "/target:winexe",
         "/reference:System.Windows.Forms.dll",
         "/reference:System.Drawing.dll",
+        "/reference:System.Web.Extensions.dll",
         "/out:" + str(package / "ESA.exe"),
         source / "packaging/windows/Launcher.cs",
     )

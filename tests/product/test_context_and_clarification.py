@@ -115,6 +115,7 @@ def test_real_preview_is_terminal_for_a_conversational_turn(tmp_path):
             [("update_parameters", {"changes": facts}), ("loan_policy", {})],
             [("assets_search", {}), ("tickets_list_mine", {})],
             [("prepare_preview", {"asset_id": "loan-laptop-1"})],
+            request={"preview": True, "knowledge_quote": ""},
         )
         w.models.chat = model.chat
         result = asyncio.run(
@@ -146,7 +147,7 @@ def test_progress_delivery_preserves_actions_and_continues_to_a_real_preview(tmp
             packets.append(messages)
             if len(packets) == 1:
                 actions = [
-                    ("update_parameters", {"changes": facts}),
+                    ("update_parameters", {"changes": facts, "turn_request": {"preview":True,"knowledge_quote":""}}),
                     ("loan_policy", {}),
                     ("assets_search", {}),
                     ("tickets_list_mine", {}),
@@ -154,7 +155,7 @@ def test_progress_delivery_preserves_actions_and_continues_to_a_real_preview(tmp
             elif len(packets) == 2:
                 return {"role": "assistant", "content": "The preview is complete and approved."}
             else:
-                actions = [("prepare_preview", {"asset_id": "loan-laptop-1"})]
+                actions = [("prepare_preview", {"asset_id": "loan-laptop-1", "turn_request": {"preview": True,"knowledge_quote":""}})]
             return {
                 "role": "assistant",
                 "content": "",
@@ -197,6 +198,7 @@ def test_readonly_conversational_delivery_uses_current_domain_observations(tmp_p
         model = SequenceModel(
             [("loan_policy", {}), ("assets_search", {}), ("tickets_list_mine", {})],
             [("finish", {})],
+            request={"preview": False, "knowledge_quote": ""},
         )
         w.models.chat = model.chat
         result = asyncio.run(
@@ -358,7 +360,7 @@ def test_preparation_cannot_inject_unrequested_fact_changes(tmp_path):
         task = w.service.create({'kind':'loan','execution_ceiling':'PREVIEW_ONLY','confirmed':True,'facts':facts})
         tool = ToolCatalog(w.service, task, {'id':'preview','text':'其余不变'})
         schema = next(s for s in tool.schemas(task) if s['function']['name']=='prepare_preview')
-        assert set(schema['function']['parameters']['properties']) == {'asset_id'}
+        assert set(schema['function']['parameters']['properties']) == {'asset_id', 'turn_request'}
         with pytest.raises(ServiceError, match='INVALID_TOOL_ARGUMENTS'):
             asyncio.run(tool.call('prepare_preview', {'asset_id':'loan-laptop-2','parameters':{'pickup_location':'unrequested'}}, task, 'program-only'))
         actual = w.service.view(task['task_id'])

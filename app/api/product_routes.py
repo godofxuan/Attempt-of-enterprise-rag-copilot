@@ -1,6 +1,6 @@
 """Small typed views for the product; domain operations retain their existing APIs."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.service_desk.store import ServiceError
 
@@ -23,7 +23,12 @@ def product_router(workspace, service_call):
         return service_call(lambda: project_run_events(workspace.runs.events(run_id)))
 
     @router.post("/shutdown")
-    def shutdown():
+    def shutdown(request: Request):
+        expected = request.headers.get("x-esa-instance")
+        if expected and expected != getattr(workspace,"instance_info",{}).get("instance_id"):
+            raise ServiceError("INSTANCE_CHANGED")
+        if workspace.runs.tasks or workspace.library.running or getattr(workspace,"active_operations",0) > 1:
+            raise ServiceError("INSTANCE_BUSY")
         callback = getattr(workspace, "request_shutdown", None)
         if callback is None:
             raise ServiceError("NOT_LAUNCHER_OWNED")
@@ -71,6 +76,17 @@ def product_router(workspace, service_call):
     def alternatives(task_id: str):
         return service_call(lambda: workspace.service.presented_options(task_id))
 
+    from app.api.workbench_contracts import PrepareTask
+
+    @router.post("/tasks/{task_id}/prepare", response_model=TaskView)
+    def prepare(task_id: str, payload: PrepareTask):
+        def execute():
+            proposal = workspace.service.prepare_application(task_id, payload.asset_id,
+                revision=payload.expected_facts_revision)
+            workspace.conversations.coordinator.prepared_by_user(workspace.service.view(task_id), proposal)
+            return task_view(workspace.service, task_id)
+        return service_call(execute)
+
     @router.post("/conversations/{cid}/turns/{turn_id}/retry", status_code=202)
     async def retry(cid: str, turn_id: str):
         def start():
@@ -82,13 +98,13 @@ def product_router(workspace, service_call):
                 ).fetchone()
             if not row:
                 raise ServiceError("TURN_NOT_FOUND")
-            if row["status"] not in {"FAILED", "CANCELLED", "INTERRUPTED"}:
+            if row["status"] not in {"FAILED", "CANCELLED", "INTERRUPTED", "PARTIAL"}:
                 raise ServiceError("TURN_NOT_RETRYABLE")
             return workspace.runs.start(
                 "conversation",
-                workspace.conversations.command(
+                {**workspace.conversations.command(
                     {"conversation_id": cid, "text": row["text"], "message_id": turn_id}
-                ),
+                ), "retry_pending": True},
             )
 
         return service_call(start)

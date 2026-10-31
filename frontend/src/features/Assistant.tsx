@@ -212,7 +212,7 @@ export function Assistant({
                 <p className="muted">完整预览已保存在事项详情中。</p>
               )}
               {turn.role === "user" &&
-                ["FAILED", "CANCELLED", "INTERRUPTED"].includes(
+                ["FAILED", "CANCELLED", "INTERRUPTED", "PARTIAL"].includes(
                   turn.status,
                 ) && (
                   <div className="retry-note">
@@ -225,7 +225,7 @@ export function Assistant({
                       disabled={!!runId || retry.isPending}
                       onClick={() => retry.mutate(turn.id)}
                     >
-                      重试这条消息
+                      {turn.payload?.turn_delivery?.next_action || "重试这条消息"}
                     </button>
                   </div>
                 )}

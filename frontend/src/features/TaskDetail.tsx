@@ -33,13 +33,17 @@ export function TaskDetail({
       body,
       method = "POST",
       continueTask = false,
+      prepareAfter = false,
     }: {
       path: string;
       body?: unknown;
       method?: string;
       continueTask?: boolean;
+      prepareAfter?: boolean;
     }) => {
       let value = await api<JSONRecord>(path, method, body);
+      if (prepareAfter)
+        value = await api<JSONRecord>(`/api/product/tasks/${id}/prepare`, "POST", {expected_facts_revision: value.facts_revision});
       if (continueTask)
         value = await api<JSONRecord>("/api/tasks/" + id + "/runs", "POST", {});
       await cache.invalidateQueries();
@@ -61,6 +65,18 @@ export function TaskDetail({
             <h3>{t.title}</h3>
             <p className="status-pill">{t.status_label}</p>
             <p>{t.next_step}</p>
+            {t.turn_delivery?.status === "partial" && (
+              <section className="card" role="status">
+                <strong>本回合部分交付</strong>
+                <p>{t.preview ? "当前预览已保留。" : "当前参数已保留。"} {t.turn_delivery.next_action}</p>
+                {t.turn_delivery.pending?.includes("knowledge") && (
+                  <button disabled={action.isPending} onClick={() => action.mutate({
+                    path: `/api/product/conversations/${t.conversation_id}/turns/${t.turn_delivery!.turn_id}/retry`,
+                    body: {},
+                  })}>重试解释</button>
+                )}
+              </section>
+            )}
             <p className="muted">
               {t.receipt
                 ? "已提交。当前业务状态与提交当时的回执分别展示。"
@@ -133,7 +149,7 @@ export function TaskDetail({
                   action.mutate({
                     path: "/api/tasks/" + t.id + "/facts",
                     method: "PATCH",
-                    continueTask: true,
+                    prepareAfter: true,
                     body: { changes, expected_facts_revision: t.revision },
                   })
                 }
@@ -171,7 +187,7 @@ export function TaskDetail({
                         onClick={() =>
                           action.mutate({
                             path: "/api/tasks/" + t.id + "/asset",
-                            continueTask: true,
+                            prepareAfter: true,
                             body: {
                               asset_id: c.asset_id,
                               date_shift_days: c.date_shift_days || 0,
@@ -180,7 +196,7 @@ export function TaskDetail({
                           })
                         }
                       >
-                        选择并继续
+                        选择并生成预览
                       </button>
                     </div>
                   ))
@@ -189,6 +205,12 @@ export function TaskDetail({
             )}
             {dirty && (
               <p role="status">请先保存并继续修改，再运行或确认预览。</p>
+            )}
+            {t.can_edit && !dirty && !t.preview && !t.receipt && (
+              <button disabled={action.isPending} onClick={() => action.mutate({
+                path: `/api/product/tasks/${t.id}/prepare`,
+                body: {expected_facts_revision: t.revision},
+              })}>生成当前预览</button>
             )}
             {t.preview && !t.receipt && (
               <section className="card preview">
@@ -363,7 +385,7 @@ function FieldEditor({
         </label>
       ))}
       <button disabled={pending} type="submit">
-        保存并继续
+        保存并生成预览
       </button>
     </form>
   );

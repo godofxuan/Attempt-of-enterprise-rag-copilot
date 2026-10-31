@@ -195,6 +195,18 @@ def test_compound_expression_checks_each_bound_clause_without_mixing_polarities(
     assert retained_blocks([hidden], claims, "开放时间和时长？")[1]
 
 
+@pytest.mark.experimental
+def test_provenance_only_experiment_preserves_diagnostics_without_weakening_reference_binding():
+    claims=[Claim(claim_id="C1", text="会议室每日开放时间为09:00至18:00。", cited_chunk_ids=["d"]),
+            Claim(claim_id="C2", text="每次预订不得超过2小时。", cited_chunk_ids=["d"])]
+    block=AnswerBlock(text="会议室每日开放时间为09:00至18:00，单次预订不得超过2小时。",claim_ids=["C1","C2"])
+    audit=[]
+    kept,errors=retained_blocks([block],claims,"开放时间和时长？",diagnostics_only=True,audit=audit)
+    assert kept==[block] and not errors and audit[0]["reason"]=="polarity_mismatch"
+    missing=block.model_copy(update={"claim_ids":["UNKNOWN"]})
+    assert retained_blocks([missing],claims,"开放时间和时长？",diagnostics_only=True)[1][0]["reason"]=="unbound_or_discarded_evidence"
+
+
 def test_bound_symbolic_value_cannot_disappear_from_an_explanation():
     claim = Claim(claim_id="C1", text="用户确认后保存OPEN待受理工单。", cited_chunk_ids=["d"])
     incomplete = AnswerBlock(text="用户确认后保存为", claim_ids=["C1"])

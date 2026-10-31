@@ -1927,6 +1927,55 @@
         }
       }
     },
+    "/api/product/tasks/{task_id}/prepare": {
+      "post": {
+        "summary": "Prepare",
+        "operationId": "prepare_api_product_tasks__task_id__prepare_post",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareTask"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/product/conversations/{cid}/turns/{turn_id}/retry": {
       "post": {
         "summary": "Retry",
@@ -3194,6 +3243,32 @@
         "type": "object",
         "title": "OutcomeView"
       },
+      "PrepareTask": {
+        "properties": {
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "expected_facts_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Facts Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_facts_revision"
+        ],
+        "title": "PrepareTask"
+      },
       "ProposalContent": {
         "properties": {
           "target": {
@@ -3597,6 +3672,17 @@
               }
             ],
             "title": "Request Timeout Seconds"
+          },
+          "experimental_grounded_expression": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experimental Grounded Expression"
           }
         },
         "additionalProperties": false,
@@ -3958,6 +4044,16 @@
           "can_submit": {
             "type": "boolean",
             "title": "Can Submit"
+          },
+          "turn_delivery": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnDeliveryView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -4017,6 +4113,54 @@
           "next_step"
         ],
         "title": "TicketView"
+      },
+      "TurnDeliveryView": {
+        "properties": {
+          "turn_id": {
+            "type": "string",
+            "title": "Turn Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "pending": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pending"
+          },
+          "items": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Items"
+          },
+          "retryable": {
+            "type": "boolean",
+            "title": "Retryable"
+          },
+          "next_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "turn_id",
+          "status",
+          "pending",
+          "items",
+          "retryable"
+        ],
+        "title": "TurnDeliveryView"
       },
       "TurnPayload": {
         "properties": {
@@ -4093,6 +4237,16 @@
               }
             ],
             "title": "Facts"
+          },
+          "turn_delivery": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnDeliveryView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

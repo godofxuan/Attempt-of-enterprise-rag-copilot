@@ -1,5 +1,26 @@
 import { test, expect } from "@playwright/test";
 const headers = { "X-ESA-Request": "1" };
+
+test('partial preview survives navigation and retries only its explanation', async ({page,request})=>{
+  const kb=(await(await request.post('/api/library',{headers,data:{name:'部分交付浏览器替身'}})).json()).id;
+  const task=await(await request.post('/api/tasks',{headers,data:{kb_id:kb,request:{kind:'loan',execution_ceiling:'PREVIEW_ONLY',confirmed:true,
+    facts:{loan_start:'2026-12-01',loan_end:'2026-12-03',purpose:'隔离浏览器回归'}}}})).json();
+  const run=await(await request.post(`/api/conversations/${task.conversation_id}/turns`,{headers,data:{text:'请准备完整预览，并解释押金制度，不提交。',message_id:'browser-partial'}})).json();
+  await expect.poll(async()=> (await(await request.get(`/api/runs/${run.id}`)).json()).status).toBe('succeeded');
+  const original=await(await request.get(`/api/tasks/${task.task_id}`)).json();
+  expect(original.preview).toBeTruthy();expect(original.receipt).toBeNull();
+  await page.goto('/#/assistant?c='+task.conversation_id);
+  await expect(page.getByRole('button',{name:'重试解释',exact:true})).toBeVisible();
+  await page.getByRole('link',{name:'▤ 我的事项',exact:true}).click();
+  await page.goto('/#/assistant?c='+task.conversation_id);
+  await page.getByRole('button',{name:'重试解释',exact:true}).click();
+  await expect(page.getByText('UI外部回答替身，非实时模型。',{exact:true})).toBeVisible();
+  const after=await(await request.get(`/api/tasks/${task.task_id}`)).json();
+  expect(after.preview.proposal_id).toBe(original.preview.proposal_id);expect(after.receipt).toBeNull();
+  const counters=await(await request.get('/__test/counters')).json();
+  expect(counters.agent_decisions).toBe(1);expect(counters.explanation_attempts).toBe(2);
+  await page.screenshot({path:'test-results/partial-recovered.png',fullPage:true});
+});
 test("existing empty scope is truthful, binds explicitly and retries the same Deep turn", async ({
   page,
   request,

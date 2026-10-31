@@ -53,7 +53,8 @@ class Runs:
 
     def start(self, kind, payload):
         if kind == "conversation":
-            payload = self.workspace.conversations.command(payload)
+            retry_pending = payload.get("retry_pending", False)
+            payload = {**self.workspace.conversations.command(payload), "retry_pending": retry_pending}
         run_id = uuid.uuid4().hex
         target = payload.get("task_id") or payload.get("conversation_id") or payload.get("kb_id")
         with self.db() as db:
@@ -85,6 +86,8 @@ class Runs:
         self.lifecycle.finish(run_id, kind, payload, status, error)
         if status == "succeeded" and isinstance(result, dict) and result.get("task_id"):
             result = self.workspace.service.view(result["task_id"])
+            if payload.get("message_id"):
+                result["turn_delivery"] = self.workspace.conversations.coordinator.result(payload["message_id"], result)
         with self.db() as db:
             db.execute(
                 "UPDATE workbench_runs SET status=?,result_json=?,error=? WHERE id=?",

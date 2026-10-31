@@ -10,6 +10,7 @@ from app.runtime.context_window import recent_tool_groups
 
 SYSTEM = (
     "You are ESA local service assistant. Address every part of the current user turn. "
+    "In the same native tool response provide turn_request once: preview=true only if this turn requests it, knowledge_quote is an exact quote of the current knowledge request (empty when none). This brief is not consent. "
     "Use update_parameters for explicit changes; normalize dates from reference_date. Never turn a question into purpose. "
     "For a new user turn, first consume facts it supplies before deciding what is missing. An empty typed patch is valid when there are no changes; optional fields are not required. "
     "Use knowledge_answer for policy questions, including mixed changes/questions; preserve the published body and sources. "
@@ -45,6 +46,7 @@ class ServiceAgent:
         observed = set()
         finish_feedbacks = 0
         protocol_feedbacks = 0
+        delivery_feedbacks = 0
         try:
             for step in range(8):
                 current = self.store.get_task(actor, task_id)
@@ -166,6 +168,9 @@ class ServiceAgent:
                     args = function.get("arguments", {})
                     if isinstance(args, str):
                         args = json.loads(args)
+                    args = dict(args)
+                    if turn and "turn_request" in args:
+                        self.workspace.conversations.coordinator.accept_request(turn["id"], args.pop("turn_request"))
                     if name not in catalog.tools:
                         raise ServiceError("INVALID_TOOL_ARGUMENTS")
                     if name in {"finish", "ask_user"}:
@@ -260,6 +265,10 @@ class ServiceAgent:
                     self.workspace.runs.event(
                         run_id, "tool_result", {"tool": name, "result": result}
                     )
+                    if turn:
+                        self.workspace.conversations.coordinator.observe(
+                            turn["id"], name, result, self.store.get_task(actor, task_id)
+                        )
                     if result["status"] == "ok":
                         observed.add(name)
                     else:
@@ -303,6 +312,14 @@ class ServiceAgent:
                 # not permission to discard a later knowledge read or fact edit.
                 latest = self.store.get_task(actor, task_id)
                 if batch_preview and latest.get("pending_proposal_id"):
+                    delivery = self.workspace.conversations.coordinator.result(turn["id"], latest) if turn else None
+                    if delivery and delivery["status"] == "partial" and not batch_errors and delivery_feedbacks < 1:
+                        delivery_feedbacks += 1
+                        messages.append({"role": "system", "content": json.dumps({
+                            "current_delivery": delivery,
+                            "instruction": "The real preview is already saved. Address pending items only; do not reapply edits or prepare again. Include the request brief if still absent. Finish cannot turn missing work into complete.",
+                        }, ensure_ascii=False)})
+                        continue
                     if turn:
                         with self.store.run_scope(started):
                             self.service.finish_turn(task_id, "", observed)

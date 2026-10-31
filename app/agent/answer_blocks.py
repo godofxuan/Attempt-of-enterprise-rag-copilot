@@ -16,7 +16,7 @@ def scalar_literals(text):
     return set(re.findall(r"(?<![A-Za-z0-9_])\d+(?:\.\d+)?(?![A-Za-z0-9_])", text))
 
 
-def retained_blocks(blocks, claims, question, provenance_by_claim=None):
+def retained_blocks(blocks, claims, question, provenance_by_claim=None, *, diagnostics_only=False, audit=None):
     by_id = {claim.claim_id: claim for claim in claims}
     retained, rejected = [], []
     for block in blocks:
@@ -66,6 +66,14 @@ def retained_blocks(blocks, claims, question, provenance_by_claim=None):
                 reason = "polarity_mismatch"
             elif RetrievedContentGuard().scan(block.text).disposition != "ADMIT":
                 reason = "content_guard"
+        if diagnostics_only and reason not in {None, "unbound_or_discarded_evidence", "unbound_user_premise", "premises_require_conditional_expression", "content_guard"}:
+            if audit is not None:
+                audit.append({"text":block.text,"reason":reason,"authority":"DIAGNOSTIC_NOT_SEMANTIC_PROOF"})
+            reason = None
+        if reason is None and block.assumptions and any(a not in question for a in block.assumptions):
+            reason = "unbound_user_premise"
+        if reason is None and RetrievedContentGuard().scan(block.text).disposition != "ADMIT":
+            reason = "content_guard"
         if reason:
             rejected.append({"text": block.text, "reason": reason})
         else:

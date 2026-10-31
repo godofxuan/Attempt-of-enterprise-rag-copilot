@@ -7,7 +7,7 @@
 
 完整解压 Windows x64 发行包，双击 `ESA.exe`。包内已有 Python 和固定版本依赖；日常启动不安装软件，不需要 Node、uv 或系统 Python。
 
-首次选择已有工作区或新建个人工作区。升级时继续选择原目录，不重新 `init`。再次打开会复用同一个实例；端口被其他程序占用时自动选择空闲端口，并打开实际页面。关闭网页不删除数据，设置中可停止本地服务。
+首次选择已有工作区或新建个人工作区。升级时继续选择原目录，不重新 `init`。再次打开同一构建会复用实例；新旧构建不同会明确选择打开旧版或在空闲时正常切换，不静默当作新版；端口被其他程序占用时自动选择空闲端口，并打开实际页面。关闭网页不删除数据，设置中可停止本地服务。
 
 已登记目录移动后会要求定位原目录或明确新建，不能在旧位置自动生成空库。已有工作区应包含 `workspace.json`、`app.sqlite3` 以及原 `documents/`、`indexes/`；需要重选时运行 `ESA.exe --choose-workspace`。
 
@@ -36,7 +36,7 @@ uv run --no-sync esa doctor --data-dir .private/esa-vnext
 2. 资料库创建集合，批量上传 MD/TXT/PDF/DOCX 或导入合成规则示例；页面按真实处理任务显示索引进度和错误，无需猜测额外步骤。
 3. 知识入口选 Fast 普通问答或 Deep 分题搜索和锚定阅读；引用可查看原版本和真实页/段。旧索引没有的新定位不会伪装成原页码。
 4. 会话里提问、解释、补充字段或混合改期。开始服务事项时明确只读、仅预览或确认后提交。
-5. 选择真实设备，核对当前参数及预览；改期使旧确认失效。提交先生成待审批借用或待受理报修。
+5. 选择真实设备、保存参数或点击“生成当前预览”直接调用公共业务用例，不额外请求模型选择动作。核对当前参数及预览；改期使旧确认失效。提交先生成待审批借用或待受理报修。
 6. 本地服务台中核对处理预览并确认：借用批准并预留 → 领用 → 归还；报修处理 → 解决 → 关闭。可撤回待审批申请或为已领用借用预览续借。
 7. 回到原会话看当前业务状态。原始提交回执不变；归还或关闭后可在同一目录再次办理，不必重建数据库。
 
@@ -45,7 +45,7 @@ IT报修工单与借用资格的 `repairs` 记录是不同来源，不自动联�
 
 模型使用 Ollama 原生工具调用；页面展示工具名和实际观察，不展示伪造的思考过程。停用或更新资料后自动排入索引队列；尚未发布时会提示资料变化，原答案与原版本保留。无文本 PDF 不具备 OCR。
 
-0.7 候选按会话恢复运行，重试保留原问题、Deep 和原事项绑定。后续已修改的业务参数优先，旧回合不能重新覆盖；空绑定会话可明确补选资料库并重试。历史搜索和“更多会话”请求服务器，可重命名、归档或恢复，不限于最近100条。
+0.7 候选按会话恢复运行，重试保留原问题、Deep 和原事项绑定。后续已修改的业务参数优先，旧回合不能重新覆盖；混合请求的预览和知识分别记录交付，部分失败可以只重试解释，已有预览保留，参数变化后只重建当前预览；空绑定会话可明确补选资料库并重试。历史搜索和“更多会话”请求服务器，可重命名、归档或恢复，不限于最近100条。
 
 知识默认交付已验证来源单元与必要条件。0.7的解释、假设推导和比较实验未过真实质量门槛，默认关闭；仅在明确修改工作区配置 `experimental_grounded_expression: true` 后使用，不作为稳定能力。其引用绑定和有限一致性检查不能证明语义正确。新增资料或替换处理中继续使用已发布代次，页面明确更新状态；主动停用立即从新查询排除。原文与旧答案保持原版本。
 
@@ -53,7 +53,8 @@ IT报修工单与借用资格的 `repairs` 记录是不同来源，不自动联�
 
 ```powershell
 uv sync --locked --extra dev
-uv run --no-sync python -m pytest tests/product tests/vnext tests/agent_v2/test_a1_draft_delivery.py -q
+uv run --no-sync python -m pytest tests/product tests/vnext tests/agent_v2/test_a1_draft_delivery.py -m "not experimental" -q
+uv run --no-sync python -m pytest tests/product/test_grounded_expression.py -m experimental -q
 cd frontend
 npm ci
 npm run build
@@ -62,7 +63,7 @@ cd ..
 uv run --no-sync python scripts/build_windows_portable.py
 ```
 
-浏览器回归自启临时工作区，外部模型使用明确测试替身，不连接活动库，不代表真实模型通过。默认Windows用已有Edge，其他平台需准备Playwright Chromium；`ESA_TEST_PYTHON`、`ESA_BROWSER_CHANNEL`、`ESA_UI_TEST_PORT`可覆盖测试环境。手动CI工作流已经提供，远端未执行不得记为CI通过。
+浏览器回归自启临时工作区，外部模型使用明确测试替身，不连接活动库，不代表真实模型通过。默认Windows用已有Edge，其他平台需准备Playwright Chromium；`ESA_TEST_PYTHON`、`ESA_BROWSER_CHANNEL`、`ESA_UI_TEST_PORT`可覆盖测试环境。PR自动运行产品回归；解释实验独立显示，保留已知红例，不用 skip/xfail 隐藏。远端未执行不得记为CI通过。实验命令预期仍有已知失败，不能用其代替默认产品质量判断。
 
 Windows构建需要开发期Node/npm、uv与系统C#编译器，可用`--uv`/`--npm`指定工具；默认按锁准备官方嵌入式Python和依赖并构建同commit前端。`--embed-zip`可复用官方ZIP，`--offline`要求全部构建缓存已存在。日常用户运行包不执行上述安装步骤。具体已实测版本与未完成项以[STATUS](docs/esa-vnext/STATUS.md)为准。
 

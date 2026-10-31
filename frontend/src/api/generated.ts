@@ -810,6 +810,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/product/tasks/{task_id}/prepare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Prepare */
+        post: operations["prepare_api_product_tasks__task_id__prepare_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/product/conversations/{cid}/turns/{turn_id}/retry": {
         parameters: {
             query?: never;
@@ -1274,6 +1291,13 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** PrepareTask */
+        PrepareTask: {
+            /** Asset Id */
+            asset_id?: string | null;
+            /** Expected Facts Revision */
+            expected_facts_revision: number;
+        };
         /** ProposalContent */
         ProposalContent: {
             /** Target */
@@ -1421,6 +1445,8 @@ export interface components {
             embedding_model?: string | null;
             /** Request Timeout Seconds */
             request_timeout_seconds?: number | null;
+            /** Experimental Grounded Expression */
+            experimental_grounded_expression?: boolean | null;
         };
         /**
          * SourceSpan
@@ -1543,6 +1569,7 @@ export interface components {
             can_cancel: boolean;
             /** Can Submit */
             can_submit: boolean;
+            turn_delivery?: components["schemas"]["TurnDeliveryView"] | null;
         };
         /** TicketView */
         TicketView: {
@@ -1563,6 +1590,23 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** TurnDeliveryView */
+        TurnDeliveryView: {
+            /** Turn Id */
+            turn_id: string;
+            /** Status */
+            status: string;
+            /** Pending */
+            pending: string[];
+            /** Items */
+            items: {
+                [key: string]: unknown;
+            };
+            /** Retryable */
+            retryable: boolean;
+            /** Next Action */
+            next_action?: string | null;
+        };
         /** TurnPayload */
         TurnPayload: {
             knowledge?: components["schemas"]["PublishedAnswerView"] | null;
@@ -1577,6 +1621,7 @@ export interface components {
             facts?: {
                 [key: string]: unknown;
             } | null;
+            turn_delivery?: components["schemas"]["TurnDeliveryView"] | null;
         };
         /** TurnView */
         TurnView: {
@@ -3213,6 +3258,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    prepare_api_product_tasks__task_id__prepare_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrepareTask"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskView"];
                 };
             };
             /** @description Validation Error */

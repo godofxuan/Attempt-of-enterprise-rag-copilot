@@ -10,6 +10,7 @@ class SettingsPatch(BaseModel):
     chat_model: str | None = Field(default=None, min_length=1, max_length=200)
     embedding_model: str | None = Field(default=None, min_length=1, max_length=200)
     request_timeout_seconds: float | None = Field(default=None, ge=1, le=300)
+    experimental_grounded_expression: bool | None = None
 
 
 class CreateKnowledgeBase(BaseModel):
@@ -43,6 +44,12 @@ class SubmitTask(BaseModel):
     proposal_id: str
     content_digest: str
     accepted: bool = Field(strict=True)
+    expected_facts_revision: int = Field(ge=1)
+
+
+class PrepareTask(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    asset_id: str | None = None
     expected_facts_revision: int = Field(ge=1)
 
 

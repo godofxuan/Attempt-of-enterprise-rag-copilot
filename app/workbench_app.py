@@ -43,5 +43,17 @@ def create_workbench_app(settings, *, model_transport=None):
     def ready():return {'status':'ready' if workspace.started else 'starting','storage':workspace.started,'generation':'CHECK_API_STATUS'}
     @app.get('/api/instance')
     def instance():
-        return {**getattr(workspace,'instance_info',{}),'app':'esa-workbench','data_dir':str(workspace.root),'ready':workspace.started}
+        from app.build_info import build_info
+        return {**getattr(workspace,'instance_info',{}), **build_info(),
+                'app':'esa-workbench','data_dir':str(workspace.root),'ready':workspace.started,
+                'active_runs':len(workspace.runs.tasks) if workspace.started else 0,
+                'index_jobs':len(workspace.library.running) if workspace.started else 0,
+                'active_operations':getattr(workspace,'active_operations',0)}
+    @app.middleware('http')
+    async def active_operations(request, call_next):
+        tracked = request.method not in {'GET','HEAD','OPTIONS'}
+        if tracked: workspace.active_operations = getattr(workspace,'active_operations',0) + 1
+        try: return await call_next(request)
+        finally:
+            if tracked: workspace.active_operations -= 1
     return app

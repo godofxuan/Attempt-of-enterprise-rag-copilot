@@ -97,6 +97,14 @@ export function failureMessage(error: unknown) {
     TURN_ALREADY_RUNNING: "这条消息还在处理，请等待或停止本次执行。",
     TASK_CHANGED: "事项已更新，请核对最新参数后再保存。",
     SETTINGS_IN_USE: "先完成或停止当前运行，再更换模型。",
+    STORAGE_BUSY: "本地数据正在保存。已保存内容保留，请稍后重试当前操作。",
+    TRANSIENT_TOOL_FAILURE: "数据暂时忙碌。已保存的参数和预览仍在，请重试未完成项。",
+    RESOURCE_SELECTION_REQUIRED: "请展开可选设备，选择实际设备后生成预览。",
+    MISSING_FIELDS: "请补齐当前参数中的必填项，再生成预览。",
+    EXISTING_TICKET: "已有本人未关闭的申请，请到“我的事项”查看原单。",
+    NOT_ELIGIBLE: "当前业务记录不满足申请资格，尚未创建申请。",
+    EXECUTION_CEILING: "当前操作超出你选择的范围，未执行。",
+    INSTANCE_BUSY: "实例仍有运行中的任务，请先完成或明确停止该任务。",
   };
   return known[raw] || "这次操作没有完成。请查看原因后重试。";
 }

@@ -80,6 +80,15 @@ class OutcomeView(BaseModel):
     next_step: str = ""
 
 
+class TurnDeliveryView(BaseModel):
+    turn_id: str
+    status: str
+    pending: list[str]
+    items: dict[str, Any]
+    retryable: bool
+    next_action: str | None = None
+
+
 class TaskView(BaseModel):
     id: str
     conversation_id: str | None = None
@@ -103,3 +112,4 @@ class TaskView(BaseModel):
     can_run: bool
     can_cancel: bool
     can_submit: bool
+    turn_delivery: TurnDeliveryView | None = None

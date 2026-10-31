@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Status, type JSONRecord } from "../api/client";
 import { ErrorNotice } from "../components/common";
 export function SettingsPage() {
+  const instance = useQuery({queryKey:["instance"], queryFn:()=>api<JSONRecord>("/api/instance")});
   const cache = useQueryClient();
   const q = useQuery({
     queryKey: ["settings"],
@@ -25,6 +26,11 @@ export function SettingsPage() {
     <div className="settings-page">
       <p className="eyebrow">次级工具</p>
       <h1>设置</h1>
+      <section className="card"><h2>当前运行版本</h2>
+        <p>版本 {instance.data?.version || "未知"}</p>
+        <p className="muted">构建 {instance.data?.build_id || "未报告"}</p>
+        {instance.data?.source_dirty && <p>源码工作区含未提交修改。</p>}
+      </section>
       {!s.data?.onboarding_complete && (
         <p>
           首次配置：确认下方工作区，连接已有模型，再到资料库导入文件；需要业务演示时明确启用

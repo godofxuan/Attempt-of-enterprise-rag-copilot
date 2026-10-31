@@ -22,7 +22,7 @@ class Tool:
                 "description": self.description,
                 "parameters": {
                     "type": "object",
-                    "properties": self.properties,
+                    "properties": dict(self.properties),
                     "required": list(self.required),
                     "additionalProperties": False,
                 },
@@ -199,7 +199,15 @@ class ToolCatalog:
             if not any(not current["facts"].get(f) for f in missing):
                 allowed.discard("ask_user")
         self.allowed_names = allowed
-        return [tool.schema() for name, tool in self.tools.items() if name in allowed]
+        schemas = [tool.schema() for name, tool in self.tools.items() if name in allowed]
+        if self.turn and not self.service.workspace.conversations.coordinator.delivery(self.turn["id"])["accepted"]:
+            request = {"type": "object", "properties": {
+                "preview": {"type": "boolean"}, "knowledge_quote": {"type": "string"}},
+                "required": ["preview", "knowledge_quote"], "additionalProperties": False}
+            for schema in schemas:
+                if schema["function"]["name"] in {"update_parameters", "prepare_preview", "knowledge_answer", "finish"}:
+                    schema["function"]["parameters"]["properties"]["turn_request"] = request
+        return schemas
 
     def clarification(self, args, current):
         """Questions refer to the same required-field schema as forms and facts."""
@@ -345,47 +353,10 @@ class ToolCatalog:
                 "facts": selected["facts"],
             }
         if name == "prepare_preview":
-            domain = service_for(current)
-            if domain.selection_field:
-                given = current["facts"].get(domain.selection_field)
-                if given and given != args["asset_id"]:
-                    raise ServiceError("USER_ASSET_SELECTION_MISMATCH")
-                service.choose_asset(
-                    task_id, args["asset_id"], current["facts_revision"], origin="MODEL_TOOL_TARGET"
-                )
-                current = store.get_task(actor, task_id)
-                with store.transaction() as db:
-                    bound = store._task(db, actor, task_id)
-                    bound.setdefault("fact_sources", {})[domain.selection_field] = {
-                        "origin": "MODEL_TOOL_TARGET_VALIDATED_OWNED_RESOURCE",
-                        "value": args["asset_id"],
-                        "source_message_id": self.turn["id"] if self.turn else None,
-                    }
-                    store._save(db, bound)
-            if (
-                current.get("preferred_asset_id")
-                and args["asset_id"] != current["preferred_asset_id"]
-            ):
-                raise ServiceError("USER_ASSET_SELECTION_MISMATCH")
-            if not current.get("preferred_asset_id") and not domain.selection_field:
-                service.choose_asset(
-                    task_id, args["asset_id"], current["facts_revision"], origin="MODEL_TOOL_TARGET"
-                )
-                current = store.get_task(actor, task_id)
-            refs = [
-                e["ref"]
-                for e in current.get("knowledge", {}).values()
-                if e["need_refs"] == [domain.rule_need]
-            ]
-            if not refs:
-                raise ServiceError(
-                    "EVIDENCE_INSUFFICIENT",
-                    data={
-                        "missing_bindings": [domain.rule_need],
-                        "message": "No executable domain rule has been read for this task. This is a missing tool observation, not missing user information. Use the available rule-reading capability before trying preparation again.",
-                    },
-                )
-            return store.propose(actor, task_id, args["asset_id"], refs, _record_tool_result=True)
+            return service.prepare_application(
+                task_id, args["asset_id"], revision=current["facts_revision"],
+                origin="MODEL_TOOL_TARGET", message_id=self.turn["id"] if self.turn else None,
+            )
         if name == "knowledge_answer":
             current = (
                 {**current, "kb_id": self.turn["kb_id"]}
@@ -397,6 +368,9 @@ class ToolCatalog:
             question = (
                 None if current["guided_request"]["kind"] == "knowledge" else args.get("question")
             ) or (self.turn["text"] if self.turn else current["guided_request"]["question"])
+            if self.turn:
+                brief = service.workspace.conversations.coordinator.delivery(self.turn["id"])
+                question = brief["requested"].get("knowledge_quote") or self.turn["text"]
             detailed = bool(self.turn and self.turn.get("detailed"))
             key = (current["kb_id"], question.strip(), detailed)
             if key in self.knowledge_cache:
@@ -408,6 +382,9 @@ class ToolCatalog:
                 if linked and hasattr(library, "valid_answer")
                 else None
             )
+            expected_scope = current["guided_request"]["kind"] if current["guided_request"]["kind"] in {"loan","repair"} else None
+            if cached and cached.get("context_scope") != expected_scope:
+                cached = None
             if cached and not detailed and question.strip() == cached["question"].strip():
                 self.knowledge_cache[key] = {**cached, "reused": True}
                 return self.knowledge_cache[key]
@@ -417,6 +394,7 @@ class ToolCatalog:
                 question,
                 conversation_id=current.get("conversation_id") or previous.get("conversation_id"),
                 detailed=detailed,
+                context_scope=current["guided_request"]["kind"] if current["guided_request"]["kind"] in {"loan","repair"} else None,
             )
             self.knowledge_cache[key] = answer
             return answer

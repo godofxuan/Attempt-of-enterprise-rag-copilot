@@ -83,7 +83,7 @@ def running_instance(root):
     return None
 
 
-def open_workspace(root, *, registry=None, port=8740, browser=True, wait_seconds=25, create=False):
+def open_workspace(root, *, registry=None, port=8740, browser=True, wait_seconds=25, create=False, existing_choice=None):
     root = Path(root).resolve()
     registry = registry_path(registry)
     if create:
@@ -111,6 +111,25 @@ def open_workspace(root, *, registry=None, port=8740, browser=True, wait_seconds
             time.sleep(0.15)
     try:
         existing = running_instance(root)
+        if existing:
+            from app.build_info import build_info
+            desired = build_info()
+            if existing.get("build_id") != desired["build_id"]:
+                if existing_choice is None:
+                    return {"upgrade_required":True,"running":existing,"requested":desired,"url":existing["url"],"data_dir":str(root)}
+                if existing_choice == "restart":
+                    if "active_runs" not in existing or "active_operations" not in existing:
+                        raise RuntimeError("LEGACY_INSTANCE_MANUAL_STOP: 旧实例未报告空闲状态。请在旧页面设置中正常停止后再打开；未自动关闭。")
+                    if existing["active_runs"] or existing.get("index_jobs") or existing["active_operations"]:
+                        raise RuntimeError("INSTANCE_BUSY: 旧实例仍有工作，请先完成或明确取消。未停止。")
+                    with httpx.Client(trust_env=False, timeout=5, follow_redirects=False) as client:
+                        response=client.post(existing["url"]+"/api/product/shutdown", headers={"X-ESA-Request":"1","X-ESA-Instance":existing["instance_id"]})
+                        response.raise_for_status()
+                    while running_instance(root):
+                        if time.monotonic() >= deadline:
+                            raise RuntimeError("实例仍在正常停止中；未强制终止。")
+                        time.sleep(.15)
+                    existing = None
         if existing:
             remember(root, registry)
             if browser:
@@ -199,6 +218,8 @@ def serve_workspace(root, port=8740, *, auto_port=True, host="127.0.0.1"):
             "url": url,
             "pid": os.getpid(),
         }
+        from app.build_info import build_info
+        workspace.instance_info.update(build_info())
         server = uvicorn.Server(uvicorn.Config(app, host=host, port=actual_port, access_log=False))
         workspace.request_shutdown = lambda: setattr(server, "should_exit", True)
         print("Workspace:", root, flush=True)
@@ -216,6 +237,7 @@ def main():
     parser.add_argument("--port", type=int, default=8740)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--create", action="store_true")
+    parser.add_argument("--existing", choices=["open","restart"])
     args = parser.parse_args()
     root = selected_workspace(args.data_dir, registry_path(args.registry))
     if args.action == "serve":
@@ -229,6 +251,7 @@ def main():
                     port=args.port,
                     browser=not args.no_browser,
                     create=args.create,
+                    existing_choice=args.existing,
                 ),
                 ensure_ascii=False,
             )

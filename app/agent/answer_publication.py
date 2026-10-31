@@ -519,11 +519,15 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
         claim.claim_id: "\n".join(delivered_by_id[cid].text for cid in claim.cited_chunk_ids)
         for claim in claims
     }
-    blocks, block_errors = retained_blocks(response.answer_blocks, claims, question, provenance)
+    expression_diagnostics = []
+    blocks, block_errors = retained_blocks(response.answer_blocks, claims, question, provenance,
+        diagnostics_only=trace.get("generation_wire_protocol") == "grounded_answer_blocks_v1",
+        audit=expression_diagnostics)
     trace["answer_expression"] = {
         "basis": "model_expression_with_exact_provenance_and_finite_consistency_not_entailment",
         "retained": len(blocks),
         "rejected": block_errors,
+        "diagnostics": expression_diagnostics,
     }
     if block_errors:
         partial = True
