@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import {
   api,
@@ -16,6 +16,7 @@ import { Drawer, ErrorNotice, Parameters } from "../components/common";
 import { useRun } from "../api/useRun";
 import { RunTrace } from "../components/RunTrace";
 import { refreshRunScope, refreshTaskScope } from "../api/taskActions";
+type RequestScope = { locationKey: string; conversationId: string | null };
 export function Assistant({
   drafts,
   setDraft,
@@ -27,6 +28,24 @@ export function Assistant({
 }) {
   const [params, setParams] = useSearchParams();
   const cid = params.get("c");
+  const location = useLocation();
+  const currentLocation = useRef<string | null>(location.key);
+  const currentDrafts = useRef(drafts);
+  currentLocation.current = location.key;
+  currentDrafts.current = drafts;
+  useEffect(() => {
+    currentLocation.current = location.key;
+    return () => {
+      currentLocation.current = null;
+    };
+  }, []);
+  const requestScope = (): RequestScope => ({
+    locationKey: location.key,
+    conversationId: cid,
+  });
+  const belongsHere = (scope?: RequestScope) =>
+    scope?.conversationId === cid &&
+    (cid !== null || scope?.locationKey === location.key);
   const cache = useQueryClient();
   const [base, setBase] = useState("");
   const [deep, setDeep] = useState(false);
@@ -106,8 +125,9 @@ export function Assistant({
     return c.id;
   };
   const send = useMutation({
-    mutationFn: async () => {
-      const text = drafts[cid || "new"] || "";
+    mutationFn: async (owner: RequestScope) => {
+      const draftId = owner.conversationId || "new";
+      const text = drafts[draftId] || "";
       if (!text.trim()) return;
       const target = await ensure();
       const r = await api<Run>(
@@ -115,13 +135,14 @@ export function Assistant({
         "POST",
         { text, message_id: crypto.randomUUID(), detailed: deep },
       );
-      setDraft(cid || "new", "");
-      setParams({ c: target });
+      if (currentDrafts.current[draftId] === text) setDraft(draftId, "");
+      if (currentLocation.current === owner.locationKey)
+        setParams({ c: target });
       track(r);
     },
   });
   const start = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (owner: RequestScope) => {
       const target = await ensure();
       const task = await api<JSONRecord>("/api/tasks", "POST", {
         request: { kind, execution_ceiling: scope, confirmed: true },
@@ -132,11 +153,12 @@ export function Assistant({
           library.data?.bases[0]?.id ||
           null,
       });
-      setKind(null);
+      if (currentLocation.current === owner.locationKey) setKind(null);
       await refreshTaskScope(cache, task.task_id, target);
       // One navigation after the async creation. React Router's search-param
       // callbacks are not queued React state and can retain a pre-create URL.
-      setParams({ c: target, task: task.task_id });
+      if (currentLocation.current === owner.locationKey)
+        setParams({ c: target, task: task.task_id });
     },
   });
   const retry = useMutation({
@@ -179,8 +201,12 @@ export function Assistant({
         </select>
       </div>
       {conversation.error && <ErrorNotice error={conversation.error} />}
-      {send.error && <ErrorNotice error={send.error} />}
-      {start.error && <ErrorNotice error={start.error} />}
+      {belongsHere(send.variables) && send.error && (
+        <ErrorNotice error={send.error} />
+      )}
+      {belongsHere(start.variables) && start.error && (
+        <ErrorNotice error={start.error} />
+      )}
       {retry.error && <ErrorNotice error={retry.error} />}
       {binding.error && <ErrorNotice error={binding.error} />}
       {cid && !conversation.data?.kb_id && (
@@ -288,7 +314,7 @@ export function Assistant({
         className="composer"
         onSubmit={(e) => {
           e.preventDefault();
-          send.mutate();
+          send.mutate(requestScope());
         }}
       >
         <textarea
@@ -297,7 +323,7 @@ export function Assistant({
           placeholder="问资料、补充信息，或告诉我需要怎样修改…"
           value={text}
           maxLength={2000}
-          disabled={send.isPending}
+          disabled={send.isPending && belongsHere(send.variables)}
           onChange={(e) => setDraft(cid || "new", e.target.value)}
           onCompositionStart={() => (composing.current = true)}
           onCompositionEnd={() => (composing.current = false)}
@@ -310,7 +336,7 @@ export function Assistant({
               e.keyCode !== 229
             ) {
               e.preventDefault();
-              if (!runId && text.trim()) send.mutate();
+              if (!runId && text.trim()) send.mutate(requestScope());
             }
           }}
         />
@@ -326,7 +352,11 @@ export function Assistant({
           <span className="muted">Enter 发送 · Shift+Enter 换行</span>
           <button
             className="primary"
-            disabled={!!runId || send.isPending || !text.trim()}
+            disabled={
+              !!runId ||
+              (send.isPending && belongsHere(send.variables)) ||
+              !text.trim()
+            }
             type="submit"
           >
             发送
@@ -365,8 +395,8 @@ export function Assistant({
         </div>
         <button
           className="primary"
-          disabled={start.isPending}
-          onClick={() => start.mutate()}
+          disabled={start.isPending && belongsHere(start.variables)}
+          onClick={() => start.mutate(requestScope())}
         >
           按所选范围开始
         </button>

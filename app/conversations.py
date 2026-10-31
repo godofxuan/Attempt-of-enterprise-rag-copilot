@@ -355,6 +355,11 @@ class ConversationService:
         task = service.store.get_task(local_actor(), task_id)
         previous_delivery = self.coordinator.result(message_id, task)
         retry_knowledge = retry_pending and "knowledge" in previous_delivery["pending"]
+        if retry_knowledge and task.get("pending_user_update") == message_id:
+            # Only a prior successful host attempt proves that the original
+            # input was consumed. An unresolved first attempt still needs review.
+            if not any(a["status"] == "succeeded" for a in self.coordinator.attempts(message_id)):
+                raise ServiceError("USER_UPDATE_PENDING")
         if task["status"] == "CANCELLED" and not retry_knowledge:
             raise ServiceError("CANCELLED")
         cid = self.bind(task_id)
@@ -379,12 +384,18 @@ class ConversationService:
                 raise ServiceError("USER_UPDATE_PENDING")
             with service.store.transaction() as db:
                 current = service.store._task(db, local_actor(), task_id)
-                if current["status"] != "CANCELLED":
+                if retry_knowledge:
+                    # This attempt only recovers a known delivery. Its original
+                    # input was already handled; a read failure is not an
+                    # unresolved change of business parameters or authority.
+                    if current.get("pending_user_update") == message_id:
+                        current.pop("pending_user_update")
+                elif current["status"] != "CANCELLED":
                     current["pending_user_update"] = message_id
                 service.store._save(db, current)
                 db.execute(
-                    "INSERT INTO workbench_messages VALUES(?,?,?,'PENDING',NULL) ON CONFLICT(id) DO UPDATE SET status='PENDING',result=NULL",
-                    (message_id, task_id, text),
+                    "INSERT INTO workbench_messages VALUES(?,?,?,?,NULL) ON CONFLICT(id) DO UPDATE SET status=excluded.status,result=NULL",
+                    (message_id, task_id, text, "APPLIED" if retry_knowledge else "PENDING"),
                 )
             turn = {
                 "id": message_id,
@@ -399,9 +410,14 @@ class ConversationService:
                 self.coordinator.accept_request(message_id, {"preview": False, "knowledge_quote": text})
             if retry_knowledge:
                 quote = previous_delivery["requested"].get("knowledge_quote") or text
-                answer = await self.workspace.library.answer(command["kb_id"], quote,
-                    conversation_id=cid, detailed=command["detailed"],
-                    context_scope=task["guided_request"]["kind"] if task["guided_request"]["kind"] in {"loan","repair"} else None)
+                try:
+                    answer = await self.workspace.library.answer(command["kb_id"], quote,
+                        conversation_id=cid, detailed=command["detailed"],
+                        context_scope=task["guided_request"]["kind"] if task["guided_request"]["kind"] in {"loan","repair"} else None)
+                except Exception as exc:
+                    self.coordinator.observe(message_id, "knowledge_answer",
+                        {"status": "error", "code": getattr(exc, "code", type(exc).__name__)}, task)
+                    raise
                 with service.store.transaction() as db:
                     latest = service.store._task(db, local_actor(), task_id)
                     latest["knowledge_result"] = answer
