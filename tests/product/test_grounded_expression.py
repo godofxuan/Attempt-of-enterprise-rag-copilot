@@ -179,6 +179,7 @@ def test_formatting_numbers_and_presentation_kind_do_not_become_business_facts()
     )
 
 
+@pytest.mark.experimental
 def test_compound_expression_checks_each_bound_clause_without_mixing_polarities():
     claims = [
         Claim(claim_id="C1", text="会议室每日开放时间为09:00至18:00。", cited_chunk_ids=["d"]),

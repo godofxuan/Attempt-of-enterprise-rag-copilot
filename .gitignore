@@ -76,3 +76,5 @@ Thumbs.db
 # Frontend development/build tools (bundled app/web_dist is tracked)
 frontend/node_modules/
 frontend/*.tsbuildinfo
+# Original incoming audit execution material is local evidence, not public source.
+docs/esa-vnext/reviews/070-next-20261031/evidence/

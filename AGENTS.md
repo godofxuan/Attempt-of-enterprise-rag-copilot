@@ -5,9 +5,11 @@ Do not restore retired historical directories, reset dirty work or overwrite lat
 
 ## Current Goal
 
-Continue the effective0.6 work into `docs/esa-vnext/reviews/060-20261030/GOAL.md`,
-T01-T18: deliver0.6.1 recovery fixes, then0.7 evidence-supported knowledge and verified Windows product.
-The earlier W01-W32 results and deferred checks remain historical evidence.
+Continue `docs/esa-vnext/reviews/070-next-20261031/GOAL.md`, A01-D02:
+publish the public feature branch and Draft PR, then finish resumable default
+delivery, a shared explicit preparation use case and identifiable upgrades.
+The explanation experiment stays independent and off until supported by evidence.
+Earlier W01-W32 and T01-T18 results are historical, not parallel active plans.
 Preserve earlier R1/R2 results. The sole implementation
 progress record is `docs/esa-vnext/STATUS.md`; preserve earlier actual progress.
 
