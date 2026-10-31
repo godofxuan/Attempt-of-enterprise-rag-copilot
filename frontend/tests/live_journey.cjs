@@ -45,7 +45,8 @@ const save=()=>fs.writeFileSync(out,JSON.stringify(report,null,2));
    if(current.guided_request.kind==='loan'){
     const options=await get('/api/product/tasks/'+task.task_id+'/alternatives');assert(options.length);
     report.resource_choice={chosen:options[0],origin:'EXPLICIT_TEST_USER_CURRENT_UI_OPTION'};save();
-    await p.getByText('可选设备与日期',{exact:true}).click();await p.getByRole('button',{name:'选择并生成预览',exact:true}).first().click();
+    const choices=p.locator('details.resource-options');if(!(await choices.getAttribute('open')))await choices.getByText('可选设备与日期',{exact:true}).click();
+    await p.getByRole('radio',{name:'选择设备 '+options[0].asset_id,exact:true}).check();await p.getByRole('button',{name:'选择并生成预览',exact:true}).click();
    } else await p.getByRole('button',{name:'生成当前预览',exact:true}).click();
    const response=await prepared;assert(response.ok(),await response.text());
    report.actions.push({action:'EXPLICIT_USER_PREPARE_SHARED_USECASE',result:await response.json()});save();
@@ -69,6 +70,7 @@ const save=()=>fs.writeFileSync(out,JSON.stringify(report,null,2));
    const candidate=row.actions.find(a=>a.name===action);assert(candidate,action);
    const card=p.getByRole('article',{name:'工单 '+ticketId,exact:true});await card.getByRole('button',{name:candidate.label,exact:true}).click();
    await p.getByLabel('处理说明',{exact:true}).fill('本地合成TEST：'+candidate.label);
+   if(action==='extend')await p.getByLabel('新的结束日期',{exact:true}).fill('2026-11-28');
    let response=p.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith('/api/service-desk/proposals'));
    await p.getByRole('button',{name:'查看本次动作预览',exact:true}).click();const preview=await(await response).json();
    report.actions.push({action,preview,confirmed_by:'EXPLICIT_TEST_USER'});save();
@@ -89,7 +91,7 @@ const save=()=>fs.writeFileSync(out,JSON.stringify(report,null,2));
   }else{
    await p.goto(base+'/#/assistant');await p.getByLabel('当前资料库').selectOption(kb);
    created=await start('loan','SUBMIT_AFTER_CONFIRMATION');
-   await say('我想从2026年11月24日借到11月26日，用于本地合成现场培训，至少16GB内存。请准备完整预览。');
+   await say('我想从2026年11月24日借到11月26日，用于本地合成现场培训，至少16GB内存。请准备完整预览，并说明借用期限。');
   }
   report.loan_task_id=created.task_id;save();
   let loan=await ensurePreview(created);report.first_loan_preview=loan;save();
@@ -105,12 +107,17 @@ const save=()=>fs.writeFileSync(out,JSON.stringify(report,null,2));
   const again=await post('/api/tasks/'+loan.task_id+'/submit',{proposal_id:loan.preview.proposal_id,content_digest:loan.preview.content_digest,expected_facts_revision:loan.facts_revision,accepted:true});
   assert.equal(again.receipt.command_id,loan.receipt.command_id);report.idempotent=again.receipt;
   await p.screenshot({path:out+'.pending.png',fullPage:true});
-  report.returned=await lifecycle(loan.receipt.ticket_id,['approve','checkout','return']);assert.equal(report.returned.status,'RETURNED');
+  report.returned=await lifecycle(loan.receipt.ticket_id,['approve','checkout','extend','return']);assert.equal(report.returned.status,'RETURNED');assert.equal(report.returned.parameters.loan_end,'2026-11-28');
   await p.goto(base+'/#/assistant?c='+loan.conversation_id);
   const repairCreated=await start('repair','SUBMIT_AFTER_CONFIRMATION');report.repair_task_id=repairCreated.task_id;save();
-  await say('我本人的 employee-laptop-1 屏幕频繁闪烁，影响程度 high，请准备报修预览。');
+  await say('我的笔记本无法开机，请帮我准备报修预览。');
+  const waiting=await get('/api/tasks/'+repairCreated.task_id);report.repair_clarification=waiting;save();
+  assert.equal(waiting.status,'WAITING_USER');assert(waiting.missing_fields.length);
+  await open(waiting);await p.locator('[data-field-name="asset_id"]').fill('employee-laptop-1');await p.locator('[data-field-name="impact"]').selectOption('high');
+  const repairPrepared=p.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith('/prepare'));
+  await p.getByRole('button',{name:'保存参数',exact:true}).click();assert((await repairPrepared).ok());await p.getByRole('button',{name:'关闭详情',exact:true}).click();
   let repair=await ensurePreview(repairCreated);repair=await commitPreview(repair);report.repair_receipt=repair.receipt;save();assert.equal(repair.receipt.ticket.status,'OPEN');
-  report.closed=await lifecycle(repair.receipt.ticket_id,['start','resolve','close']);assert.equal(report.closed.status,'CLOSED');
+  report.closed=await lifecycle(repair.receipt.ticket_id,['start','resolve','close','reopen','start','resolve','close']);assert.equal(report.closed.status,'CLOSED');
   await p.screenshot({path:out+'.closed.png',fullPage:true});
   report.passed=true;
  }catch(error){report.failure=String(error.stack||error);process.exitCode=1;}

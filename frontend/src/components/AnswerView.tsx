@@ -3,7 +3,13 @@ import ReactMarkdown from "react-markdown";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Answer, type JSONRecord } from "../api/client";
 import { Drawer, ErrorNotice } from "./common";
-export function AnswerView({ value }: { value: Answer }) {
+export function AnswerView({
+  value,
+  inlineSources = false,
+}: {
+  value: Answer;
+  inlineSources?: boolean;
+}) {
   const [source, setSource] = useState<JSONRecord | null>(null);
   const result = value.result;
   const detail = useQuery({
@@ -26,6 +32,29 @@ export function AnswerView({ value }: { value: Answer }) {
           }),
       ),
   });
+  const sourceContent = detail.isPending ? (
+    <p>正在打开原版本…</p>
+  ) : detail.error ? (
+    <ErrorNotice error={detail.error} />
+  ) : (
+    <>
+      <h3>
+        {detail.data?.name} · v{detail.data?.version}
+      </h3>
+      <p className="muted">
+        {detail.data?.active ? "当前导入版本" : "回答当时的历史版本"}
+      </p>
+      <p>
+        {(detail.data?.source_spans || [])
+          .map(
+            (s: JSONRecord) =>
+              `${s.locator_kind} ${s.locator_start} ${s.section_path.join(" / ")}`,
+          )
+          .join("；")}
+      </p>
+      <pre>{detail.data?.text || detail.data?.parsed?.text}</pre>
+    </>
+  );
   return (
     <div className="answer">
       <ReactMarkdown>{result.answer}</ReactMarkdown>
@@ -56,31 +85,23 @@ export function AnswerView({ value }: { value: Answer }) {
           ))}
         </div>
       )}
-      <Drawer title="引用原文" open={!!source} onClose={() => setSource(null)}>
-        {detail.isPending ? (
-          <p>正在打开原版本…</p>
-        ) : detail.error ? (
-          <ErrorNotice error={detail.error} />
-        ) : (
-          <>
-            <h3>
-              {detail.data?.name} · v{detail.data?.version}
-            </h3>
-            <p className="muted">
-              {detail.data?.active ? "当前导入版本" : "回答当时的历史版本"}
-            </p>
-            <p>
-              {(detail.data?.source_spans || [])
-                .map(
-                  (s: JSONRecord) =>
-                    `${s.locator_kind} ${s.locator_start} ${s.section_path.join(" / ")}`,
-                )
-                .join("；")}
-            </p>
-            <pre>{detail.data?.text || detail.data?.parsed?.text}</pre>
-          </>
-        )}
-      </Drawer>
+      {inlineSources && source ? (
+        <section className="card source-inline">
+          <h4>引用原文</h4>
+          <button onClick={() => setSource(null)}>收起引用</button>
+          {sourceContent}
+        </section>
+      ) : (
+        !inlineSources && (
+          <Drawer
+            title="引用原文"
+            open={!!source}
+            onClose={() => setSource(null)}
+          >
+            {sourceContent}
+          </Drawer>
+        )
+      )}
     </div>
   );
 }

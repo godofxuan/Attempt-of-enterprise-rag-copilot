@@ -25,9 +25,13 @@ def product_router(workspace, service_call):
     @router.post("/shutdown")
     def shutdown(request: Request):
         expected = request.headers.get("x-esa-instance")
-        if expected and expected != getattr(workspace,"instance_info",{}).get("instance_id"):
+        if expected and expected != getattr(workspace, "instance_info", {}).get("instance_id"):
             raise ServiceError("INSTANCE_CHANGED")
-        if workspace.runs.tasks or workspace.library.running or getattr(workspace,"active_operations",0) > 1:
+        if (
+            workspace.runs.tasks
+            or workspace.library.running
+            or getattr(workspace, "active_operations", 0) > 1
+        ):
             raise ServiceError("INSTANCE_BUSY")
         callback = getattr(workspace, "request_shutdown", None)
         if callback is None:
@@ -77,14 +81,37 @@ def product_router(workspace, service_call):
         return service_call(lambda: workspace.service.presented_options(task_id))
 
     from app.api.workbench_contracts import PrepareTask
+    from app.api.workbench_contracts import UpdateFacts, SelectAsset
+
+    @router.patch("/tasks/{task_id}/facts", response_model=TaskView)
+    def save_facts(task_id: str, payload: UpdateFacts):
+        def execute():
+            workspace.service.facts(task_id, payload.changes, payload.expected_facts_revision)
+            return task_view(workspace.service, task_id)
+
+        return service_call(execute)
+
+    @router.post("/tasks/{task_id}/asset", response_model=TaskView)
+    def select_asset(task_id: str, payload: SelectAsset):
+        def execute():
+            workspace.service.choose_asset(
+                task_id, payload.asset_id, payload.expected_facts_revision, payload.date_shift_days
+            )
+            return task_view(workspace.service, task_id)
+
+        return service_call(execute)
 
     @router.post("/tasks/{task_id}/prepare", response_model=TaskView)
     def prepare(task_id: str, payload: PrepareTask):
         def execute():
-            proposal = workspace.service.prepare_application(task_id, payload.asset_id,
-                revision=payload.expected_facts_revision)
-            workspace.conversations.coordinator.prepared_by_user(workspace.service.view(task_id), proposal)
+            proposal = workspace.service.prepare_application(
+                task_id, payload.asset_id, revision=payload.expected_facts_revision
+            )
+            workspace.conversations.coordinator.prepared_by_user(
+                workspace.service.view(task_id), proposal
+            )
             return task_view(workspace.service, task_id)
+
         return service_call(execute)
 
     @router.post("/conversations/{cid}/turns/{turn_id}/retry", status_code=202)
@@ -98,13 +125,21 @@ def product_router(workspace, service_call):
                 ).fetchone()
             if not row:
                 raise ServiceError("TURN_NOT_FOUND")
+            command = workspace.conversations.command(
+                {"conversation_id": cid, "text": row["text"], "message_id": turn_id}
+            )
+            if command.get("task_id"):
+                task = workspace.service.view(command["task_id"])
+                delivery = workspace.conversations.coordinator.result(turn_id, task)
+                if delivery["status"] == "waiting_input":
+                    raise ServiceError(
+                        "USER_INPUT_REQUIRED", data={"next_action": delivery["next_action"]}
+                    )
             if row["status"] not in {"FAILED", "CANCELLED", "INTERRUPTED", "PARTIAL"}:
                 raise ServiceError("TURN_NOT_RETRYABLE")
             return workspace.runs.start(
                 "conversation",
-                {**workspace.conversations.command(
-                    {"conversation_id": cid, "text": row["text"], "message_id": turn_id}
-                ), "retry_pending": True},
+                {**command, "retry_pending": True},
             )
 
         return service_call(start)

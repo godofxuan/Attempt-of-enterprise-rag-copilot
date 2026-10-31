@@ -7,7 +7,6 @@ export function Requests({ openTask }: { openTask: (id: string) => void }) {
     queryKey: ["tasks"],
     queryFn: () => api<Task[]>("/api/product/tasks"),
   });
-  const ended = new Set(["CANCELLED", "CLOSED", "RETURNED", "REJECTED"]);
   return (
     <div>
       <p className="eyebrow">办理进展</p>
@@ -37,12 +36,29 @@ export function Requests({ openTask }: { openTask: (id: string) => void }) {
                     <p className="status-pill">{t.status_label}</p>
                     <Parameters
                       value={
-                        t.current_ticket?.parameters ||
-                        Object.fromEntries(
-                          t.fields
-                            .filter((f) => f.value != null)
-                            .map((f) => [f.name, f.value]),
-                        )
+                        t.current_ticket
+                          ? {
+                              loan_start:
+                                t.current_ticket.parameters.loan_start,
+                              loan_end: t.current_ticket.parameters.loan_end,
+                              asset_id: t.current_ticket.asset_id,
+                              purpose: t.current_ticket.parameters.purpose,
+                            }
+                          : Object.fromEntries(
+                              t.fields
+                                .filter(
+                                  (f) =>
+                                    f.value != null &&
+                                    [
+                                      "loan_start",
+                                      "loan_end",
+                                      "asset_id",
+                                      "purpose",
+                                      "description",
+                                    ].includes(f.name),
+                                )
+                                .map((f) => [f.name, f.value]),
+                            )
                       }
                     />
                     <p>{t.next_step}</p>

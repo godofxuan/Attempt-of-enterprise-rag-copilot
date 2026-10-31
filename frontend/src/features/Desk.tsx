@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type JSONRecord, label } from "../api/client";
 import { Drawer, ErrorNotice, Parameters } from "../components/common";
+import { refreshTaskScope } from "../api/taskActions";
 export function Desk() {
   const cache = useQueryClient();
   const q = useQuery({
@@ -15,30 +16,58 @@ export function Desk() {
   const [note, setNote] = useState("");
   const [end, setEnd] = useState("");
   const [preview, setPreview] = useState<JSONRecord | null>(null);
-  const action = useMutation({
-    mutationFn: async (commit: boolean) => {
-      if (commit) {
-        await api("/api/service-desk/commit", "POST", {
-          proposal_id: preview!.proposal_id,
-          content_digest: preview!.content_digest,
-          accepted: true,
-        });
-        setSelected(null);
-        setPreview(null);
-        await cache.invalidateQueries();
-      } else
-        setPreview(
-          await api("/api/service-desk/proposals", "POST", {
-            kind: selected!.kind,
-            ticket_id: selected!.ticket.ticket_id,
-            action: selected!.action,
-            expected_version: selected!.ticket.version,
-            note,
-            ...(selected!.action === "extend" ? { loan_end: end } : {}),
-          }),
-        );
+  const selectionKey = selected
+    ? `${selected.kind}:${selected.ticket.ticket_id}:${selected.action}`
+    : null;
+  const currentSelection = useRef(selectionKey);
+  currentSelection.current = selectionKey;
+  const prepareAction = useMutation({
+    mutationFn: ({
+      row,
+      note,
+      end,
+      key,
+    }: {
+      row: JSONRecord;
+      note: string;
+      end: string;
+      key: string;
+    }) =>
+      api<JSONRecord>("/api/service-desk/proposals", "POST", {
+        kind: row.kind,
+        ticket_id: row.ticket.ticket_id,
+        action: row.action,
+        expected_version: row.ticket.version,
+        note,
+        ...(row.action === "extend" ? { loan_end: end } : {}),
+      }).then((value) => ({ value, key })),
+    onSuccess: ({ value, key }) => {
+      if (currentSelection.current === key) setPreview(value);
     },
   });
+  const commitAction = useMutation({
+    mutationFn: ({
+      proposal,
+    }: {
+      proposal: JSONRecord;
+      row: JSONRecord;
+      key: string;
+    }) =>
+      api("/api/service-desk/commit", "POST", {
+        proposal_id: proposal.proposal_id,
+        content_digest: proposal.content_digest,
+        accepted: true,
+      }),
+    onSuccess: (_, request) => {
+      if (currentSelection.current === request.key) {
+        setSelected(null);
+        setPreview(null);
+      }
+      void cache.invalidateQueries({ queryKey: ["desk"] });
+      void refreshTaskScope(cache, request.row.ticket.task_id);
+    },
+  });
+  const busy = prepareAction.isPending || commitAction.isPending;
   return (
     <div>
       <p className="eyebrow">次级工具</p>
@@ -53,7 +82,10 @@ export function Desk() {
             key={row.ticket.ticket_id}
           >
             <h3>{row.kind === "loan" ? "电脑借用" : "IT 报修"}</h3>
-            <p className="muted path">编号：{row.ticket.ticket_id}</p>
+            <details>
+              <summary>工单详情</summary>
+              <p className="path">编号：{row.ticket.ticket_id}</p>
+            </details>
             <p>{label[row.ticket.status] || row.notice}</p>
             <Parameters
               value={{
@@ -67,6 +99,8 @@ export function Desk() {
                 <button
                   key={a.name}
                   onClick={() => {
+                    prepareAction.reset();
+                    commitAction.reset();
                     setSelected({
                       ...row,
                       action: a.name,
@@ -101,17 +135,26 @@ export function Desk() {
           setPreview(null);
         }}
       >
-        {action.error && <ErrorNotice error={action.error} />}
+        {(prepareAction.error || commitAction.error) && (
+          <ErrorNotice error={prepareAction.error || commitAction.error} />
+        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            action.mutate(false);
+            if (selected && selectionKey)
+              prepareAction.mutate({
+                row: selected,
+                note,
+                end,
+                key: selectionKey,
+              });
           }}
         >
           <label>
             处理说明
             <input
               required
+              disabled={busy}
               value={note}
               onChange={(e) => {
                 setNote(e.target.value);
@@ -125,6 +168,7 @@ export function Desk() {
               <input
                 type="date"
                 required
+                disabled={busy}
                 value={end}
                 onChange={(e) => {
                   setEnd(e.target.value);
@@ -133,7 +177,9 @@ export function Desk() {
               />
             </label>
           )}
-          <button disabled={action.isPending}>查看本次动作预览</button>
+          <button className={!preview ? "primary" : ""} disabled={busy}>
+            查看本次动作预览
+          </button>
         </form>
         {preview && (
           <section className="card">
@@ -148,8 +194,17 @@ export function Desk() {
             </details>
             <button
               className="primary"
-              disabled={action.isPending}
-              onClick={() => action.mutate(true)}
+              disabled={busy}
+              onClick={() =>
+                selected &&
+                preview &&
+                selectionKey &&
+                commitAction.mutate({
+                  row: selected,
+                  proposal: preview,
+                  key: selectionKey,
+                })
+              }
             >
               确认办理此动作
             </button>

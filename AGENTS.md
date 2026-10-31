@@ -5,13 +5,13 @@ Do not restore retired historical directories, reset dirty work or overwrite lat
 
 ## Current Goal
 
-Continue `docs/esa-vnext/reviews/070-next-20261031/GOAL.md`, A01-D02:
-publish the public feature branch and Draft PR, then finish resumable default
-delivery, a shared explicit preparation use case and identifiable upgrades.
-The explanation experiment stays independent and off until supported by evidence.
-Earlier W01-W32 and T01-T18 results are historical, not parallel active plans.
-Preserve earlier R1/R2 results. The sole implementation
-progress record is `docs/esa-vnext/STATUS.md`; preserve earlier actual progress.
+Finish `docs/esa-vnext/reviews/rc2-finish-20261031/03_CODEX_GOAL.md`, W01-W08:
+fix saved facts/cache baselines and ordinary waiting-input finalization, unify
+existing pages/actions and validate the current release. Preserve every feature.
+The explanation experiment stays independent and off; do not start 0.8.
+Earlier W01-W32, T01-T18 and A01-D02 are historical results, not parallel plans.
+The sole implementation progress record is `docs/esa-vnext/STATUS.md`;
+preserve earlier actual progress and all unrelated user modifications.
 
 ## Execution
 

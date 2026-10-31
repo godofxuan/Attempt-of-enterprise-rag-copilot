@@ -171,17 +171,31 @@ class ServiceAgent:
                     args = dict(args)
                     if turn and "turn_request" in args:
                         try:
-                            projection = self.workspace.conversations.coordinator.accept_request(turn["id"], args.pop("turn_request"))
+                            projection = self.workspace.conversations.coordinator.accept_request(
+                                turn["id"], args.pop("turn_request")
+                            )
                             if projection:
-                                self.workspace.runs.event(run_id, "request_scope_projected", projection)
+                                self.workspace.runs.event(
+                                    run_id, "request_scope_projected", projection
+                                )
                         except ServiceError as exc:
                             if protocol_feedbacks >= 1:
                                 raise
                             protocol_feedbacks += 1
-                            feedback = {"status":"error", "code":exc.code, "data":exc.data,
-                                "message":"The turn brief must obey the user-selected execution ceiling and quote the actual current input. No action in this call ran. Retain actual read observations; correct the brief within the current schema, without requesting forbidden preparation or repeating completed reads."}
+                            feedback = {
+                                "status": "error",
+                                "code": exc.code,
+                                "data": exc.data,
+                                "message": "The turn brief must obey the user-selected execution ceiling and quote the actual current input. No action in this call ran. Retain actual read observations; correct the brief within the current schema, without requesting forbidden preparation or repeating completed reads.",
+                            }
                             self.workspace.runs.event(run_id, "request_brief_rejected", feedback)
-                            messages.append({"role":"tool", "tool_name":name, "content":json.dumps(feedback, ensure_ascii=False)})
+                            messages.append(
+                                {
+                                    "role": "tool",
+                                    "tool_name": name,
+                                    "content": json.dumps(feedback, ensure_ascii=False),
+                                }
+                            )
                             continue
                     if name not in catalog.tools:
                         raise ServiceError("INVALID_TOOL_ARGUMENTS")
@@ -216,6 +230,7 @@ class ServiceAgent:
                             with self.store.transaction() as db:
                                 latest = self.store._task(db, actor, task_id)
                                 latest["question"] = question
+                                latest["assistant_text"] = question
                                 self.store._save(db, latest)
                             self.workspace.runs.event(
                                 run_id, "needs_input", {"fields": fields, "question": question}
@@ -324,13 +339,30 @@ class ServiceAgent:
                 # not permission to discard a later knowledge read or fact edit.
                 latest = self.store.get_task(actor, task_id)
                 if batch_preview and latest.get("pending_proposal_id"):
-                    delivery = self.workspace.conversations.coordinator.result(turn["id"], latest) if turn else None
-                    if delivery and delivery["status"] == "partial" and not batch_errors and delivery_feedbacks < 1:
+                    delivery = (
+                        self.workspace.conversations.coordinator.result(turn["id"], latest)
+                        if turn
+                        else None
+                    )
+                    if (
+                        delivery
+                        and delivery["status"] == "partial"
+                        and not batch_errors
+                        and delivery_feedbacks < 1
+                    ):
                         delivery_feedbacks += 1
-                        messages.append({"role": "system", "content": json.dumps({
-                            "current_delivery": delivery,
-                            "instruction": "The real preview is already saved. Address pending items only; do not reapply edits or prepare again. Include the request brief if still absent. Finish cannot turn missing work into complete.",
-                        }, ensure_ascii=False)})
+                        messages.append(
+                            {
+                                "role": "system",
+                                "content": json.dumps(
+                                    {
+                                        "current_delivery": delivery,
+                                        "instruction": "The real preview is already saved. Address pending items only; do not reapply edits or prepare again. Include the request brief if still absent. Finish cannot turn missing work into complete.",
+                                    },
+                                    ensure_ascii=False,
+                                ),
+                            }
+                        )
                         continue
                     if turn:
                         with self.store.run_scope(started):

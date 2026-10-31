@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
@@ -15,6 +15,7 @@ import { AnswerView } from "../components/AnswerView";
 import { Drawer, ErrorNotice, Parameters } from "../components/common";
 import { useRun } from "../api/useRun";
 import { RunTrace } from "../components/RunTrace";
+import { refreshRunScope, refreshTaskScope } from "../api/taskActions";
 export function Assistant({
   drafts,
   setDraft,
@@ -33,6 +34,17 @@ export function Assistant({
   const [scope, setScope] = useState("SUBMIT_AFTER_CONFIRMATION");
   const composing = useRef(false);
   const input = useRef<HTMLTextAreaElement>(null);
+  const following = useRef(true);
+  const [showLatest, setShowLatest] = useState(false);
+  useEffect(() => {
+    const track = () => {
+      following.current =
+        document.documentElement.scrollHeight - innerHeight - scrollY < 220;
+      setShowLatest(!following.current);
+    };
+    window.addEventListener("scroll", track, { passive: true });
+    return () => window.removeEventListener("scroll", track);
+  }, []);
   const library = useQuery({
     queryKey: ["library"],
     queryFn: () => api<Library>("/api/library"),
@@ -60,24 +72,30 @@ export function Assistant({
     enabled: !!shownTask,
     queryFn: () => api<Task>("/api/product/tasks/" + shownTask),
   });
-  const finish = useCallback(() => {
-    cache.invalidateQueries();
-  }, [cache]);
-  const progress = useRun(runId, finish);
+  useEffect(() => {
+    if (following.current)
+      requestAnimationFrame(() =>
+        input.current?.scrollIntoView({ block: "end" }),
+      );
+  }, [conversation.data?.turns.length]);
+  const progress = useRun(runId);
   const track = (r: Run) => {
     if (r.conversation_id)
       cache.setQueryData<Run[]>(
         ["conversation-runs", r.conversation_id],
         (old = []) => [r, ...old.filter((x) => x.id !== r.id)],
       );
-    cache.invalidateQueries();
+    refreshRunScope(cache, r);
   };
   const binding = useMutation({
     mutationFn: (kb_id: string) =>
       api<Conversation>("/api/conversations/" + cid, "PATCH", {
         kb_id: kb_id || null,
       }),
-    onSuccess: () => cache.invalidateQueries(),
+    onSuccess: (value) => {
+      cache.setQueryData(["conversation", value.id], value);
+      void cache.invalidateQueries({ queryKey: ["conversations"] });
+    },
   });
   const ensure = async () => {
     if (cid) return cid;
@@ -115,7 +133,7 @@ export function Assistant({
           null,
       });
       setKind(null);
-      await cache.invalidateQueries();
+      await refreshTaskScope(cache, task.task_id, target);
       // One navigation after the async creation. React Router's search-param
       // callbacks are not queued React state and can retain a pre-create URL.
       setParams({ c: target, task: task.task_id });
@@ -205,6 +223,16 @@ export function Assistant({
                 <AnswerView
                   value={(turn.payload.knowledge || turn.payload) as Answer}
                 />
+              ) : turn.payload?.turn_delivery?.status === "partial" ? (
+                <>
+                  <p>
+                    已保存部分结果。{turn.payload.turn_delivery.next_action}
+                  </p>
+                  <details>
+                    <summary>本次执行说明</summary>
+                    <ReactMarkdown>{turn.text}</ReactMarkdown>
+                  </details>
+                </>
               ) : (
                 <ReactMarkdown>{turn.text}</ReactMarkdown>
               )}
@@ -212,21 +240,39 @@ export function Assistant({
                 <p className="muted">完整预览已保存在事项详情中。</p>
               )}
               {turn.role === "user" &&
-                ["FAILED", "CANCELLED", "INTERRUPTED", "PARTIAL"].includes(
-                  turn.status,
-                ) && (
+                [
+                  "FAILED",
+                  "CANCELLED",
+                  "INTERRUPTED",
+                  "PARTIAL",
+                  "WAITING_USER",
+                ].includes(turn.status) && (
                   <div className="retry-note">
                     <span>
-                      {turn.status === "CANCELLED"
-                        ? "本次执行已停止"
-                        : "这次没有完成，原消息已保留"}
+                      {turn.status === "WAITING_USER"
+                        ? "等待补充必要信息"
+                        : turn.status === "CANCELLED"
+                          ? "本次执行已停止"
+                          : "这次没有完成，原消息已保留"}
                     </span>
-                    <button
-                      disabled={!!runId || retry.isPending}
-                      onClick={() => retry.mutate(turn.id)}
-                    >
-                      {turn.payload?.turn_delivery?.next_action || "重试这条消息"}
-                    </button>
+                    {turn.status !== "WAITING_USER" &&
+                    turn.payload?.turn_delivery?.retryable !== false ? (
+                      <button
+                        disabled={!!runId || retry.isPending}
+                        onClick={() => retry.mutate(turn.id)}
+                      >
+                        {turn.payload?.turn_delivery?.next_action ||
+                          "重试这条消息"}
+                      </button>
+                    ) : (
+                      turn.payload?.task_id && (
+                        <button
+                          onClick={() => openTask(turn.payload!.task_id!)}
+                        >
+                          补充事项信息
+                        </button>
+                      )
+                    )}
                   </div>
                 )}
             </article>
@@ -247,6 +293,22 @@ export function Assistant({
         </div>
       )}
       <RunTrace id={runId || runs.data?.[0]?.id} />
+      {showLatest && (
+        <button
+          className="back-to-latest"
+          onClick={() => {
+            following.current = true;
+            input.current?.scrollIntoView({
+              block: "end",
+              behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+                ? "auto"
+                : "smooth",
+            });
+          }}
+        >
+          回到最新
+        </button>
+      )}
       <form
         className="composer"
         onSubmit={(e) => {

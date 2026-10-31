@@ -558,7 +558,9 @@ class TaskService:
             )
         return self.view(task_id)
 
-    def prepare_application(self, task_id, asset_id=None, *, revision=None, origin="USER_UI", message_id=None):
+    def prepare_application(
+        self, task_id, asset_id=None, *, revision=None, origin="USER_UI", message_id=None
+    ):
         """One preparation use case for a user button and a model-selected tool.
 
         Reads are real domain operations, not injected model decisions. The
@@ -581,26 +583,48 @@ class TaskService:
         missing = [key for key in self.required_fields(task) if not task["facts"].get(key)]
         if missing:
             raise ServiceError("MISSING_FIELDS", data={"fields": missing})
-        chosen = asset_id or task.get("preferred_asset_id") or task["facts"].get(domain.selection_field)
+        chosen = (
+            asset_id or task.get("preferred_asset_id") or task["facts"].get(domain.selection_field)
+        )
         if not chosen:
-            raise ServiceError("RESOURCE_SELECTION_REQUIRED", data={"alternatives": self.presented_options(task_id)})
-        given = task["facts"].get(domain.selection_field) if domain.selection_field else task.get("preferred_asset_id")
+            raise ServiceError(
+                "RESOURCE_SELECTION_REQUIRED",
+                data={"alternatives": self.presented_options(task_id)},
+            )
+        given = (
+            task["facts"].get(domain.selection_field)
+            if domain.selection_field
+            else task.get("preferred_asset_id")
+        )
         if given and given != chosen:
             raise ServiceError("USER_ASSET_SELECTION_MISMATCH")
         if not given:
             self.choose_asset(task_id, chosen, task["facts_revision"], origin=origin)
             task = self.store.get_task(actor, task_id)
         evidence = self.policy(task_id)
-        for name, data in (("assets.search", self.assets(task_id)),
-                           ("tickets.list_mine", {"tickets": self.tickets(task_id)})):
+        for name, data in (
+            ("assets.search", self.assets(task_id)),
+            ("tickets.list_mine", {"tickets": self.tickets(task_id)}),
+        ):
             self.store.observe(actor, task_id, name, {"status": "ok", "data": data})
-        self.store.record(actor, task_id, "preparation_usecase", {
-            "origin": origin, "source_message_id": message_id,
-            "asset_id": chosen, "facts_revision": task["facts_revision"],
-            "authority": "SHARED_DOMAIN_USECASE_NOT_MODEL_TOOL_SEQUENCE",
-            "resource_validation": "MODEL_TOOL_TARGET_VALIDATED_OWNED_RESOURCE" if origin == "MODEL_TOOL_TARGET" else "USER_SELECTED_RESOURCE_VALIDATED",
-        })
-        return self.store.propose(actor, task_id, chosen, [evidence["ref"]], _record_tool_result=True)
+        self.store.record(
+            actor,
+            task_id,
+            "preparation_usecase",
+            {
+                "origin": origin,
+                "source_message_id": message_id,
+                "asset_id": chosen,
+                "facts_revision": task["facts_revision"],
+                "authority": "SHARED_DOMAIN_USECASE_NOT_MODEL_TOOL_SEQUENCE",
+                "resource_validation": "MODEL_TOOL_TARGET_VALIDATED_OWNED_RESOURCE"
+                if origin == "MODEL_TOOL_TARGET"
+                else "USER_SELECTED_RESOURCE_VALIDATED",
+            },
+        )
+        return self.store.propose(
+            actor, task_id, chosen, [evidence["ref"]], _record_tool_result=True
+        )
 
     def submit(self, task_id, payload):
         actor = local_actor()
@@ -647,8 +671,13 @@ class TaskService:
         return evidence
 
     async def run(self, task_id, run_id):
-        if self.store.get_task(local_actor(), task_id).get("pending_user_update"):
+        task = self.store.get_task(local_actor(), task_id)
+        if task.get("pending_user_update"):
             raise ServiceError("USER_UPDATE_PENDING")
+        if task["status"] == "WAITING_USER" and any(
+            not task["facts"].get(k) for k in self.required_fields(task)
+        ):
+            raise ServiceError("USER_INPUT_REQUIRED")
         from app.agent_runtime.workbench_agent import build_service_agent
 
         return await build_service_agent(self).run(task_id, run_id)

@@ -137,7 +137,12 @@ export function App() {
                     await api("/api/conversations/" + cid, "PATCH", {
                       title: title.trim(),
                     });
-                    cache.invalidateQueries();
+                    await Promise.all([
+                      cache.invalidateQueries({ queryKey: ["conversations"] }),
+                      cache.invalidateQueries({
+                        queryKey: ["conversation", cid],
+                      }),
+                    ]);
                   }
                 }}
               >
@@ -148,7 +153,7 @@ export function App() {
                   await api("/api/conversations/" + cid, "PATCH", {
                     archived: !archived,
                   });
-                  cache.invalidateQueries();
+                  cache.invalidateQueries({ queryKey: ["conversations"] });
                   navigate("/assistant");
                 }}
               >
@@ -175,25 +180,22 @@ export function App() {
               : "个人工作区"}
           </Link>
         </header>
-        {status.data && !status.data.onboarding_complete && (
-          <div className="connection-banner">
-            首次使用：① 当前工作区 → ② 连接已有本地模型 → ③ 导入资料或启用 TEST
-            演示。
-            <Link to="/settings">完成首次配置</Link>
-          </div>
-        )}
-        {status.data?.configuration_error && (
+        {status.data?.configuration_error ? (
           <div role="alert" className="connection-banner">
             {status.data.configuration_error.message}
             <Link to="/settings">修复配置</Link>
           </div>
-        )}
-        {status.data && !status.data.chat.ready && (
+        ) : status.data && !status.data.onboarding_complete ? (
+          <div className="connection-banner">
+            首次使用：选择工作区、连接已有本地模型，再导入资料或启用TEST演示。
+            <Link to="/settings">完成首次配置</Link>
+          </div>
+        ) : status.data && !status.data.chat.ready ? (
           <div className="connection-banner">
             模型尚未就绪，历史与设置仍可使用。
             <Link to="/settings">连接模型</Link>
           </div>
-        )}
+        ) : null}
         <div className="page">
           <Routes>
             <Route

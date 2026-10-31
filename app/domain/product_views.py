@@ -87,6 +87,14 @@ class TurnDeliveryView(BaseModel):
     items: dict[str, Any]
     retryable: bool
     next_action: str | None = None
+    action_kind: str | None = None
+
+
+class NextActionView(BaseModel):
+    kind: str
+    label: str
+    detail: str
+    fields: list[str] = []
 
 
 class TaskView(BaseModel):
@@ -113,3 +121,4 @@ class TaskView(BaseModel):
     can_cancel: bool
     can_submit: bool
     turn_delivery: TurnDeliveryView | None = None
+    next_action: NextActionView | None = None

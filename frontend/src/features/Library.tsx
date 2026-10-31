@@ -19,12 +19,20 @@ export function LibraryPage() {
   const [doc, setDoc] = useState<string | null>(null);
   const [oldDoc, setOldDoc] = useState<string | null>(null);
   const [rename, setRename] = useState("");
+  const [uploadReport, setUploadReport] = useState<{
+    kb: string;
+    documents: JSONRecord[];
+  } | null>(null);
   const kb = params.get("kb") || query.data?.bases[0]?.id;
   const current = query.data?.bases.find((b) => b.id === kb);
   const mutation = useMutation({
     mutationFn: async (fn: () => Promise<unknown>) => {
       await fn();
-      await cache.invalidateQueries();
+      await Promise.all(
+        [["library"], ["document"], ["status"]].map((queryKey) =>
+          cache.invalidateQueries({ queryKey }),
+        ),
+      );
     },
   });
   const content = useQuery({
@@ -86,12 +94,18 @@ export function LibraryPage() {
         <>
           <section className="library-upload card">
             <h2>{current?.name}</h2>
-            <p className="muted">
-              已发布索引：
-              {query.data?.publications?.[kb]?.published_run_id || "尚未发布"} ·
-              更新状态：
-              {query.data?.publications?.[kb]?.update_state || "待处理"}
+            <p className="status-pill">
+              {query.data?.publications?.[kb]?.published_run_id
+                ? "已发布资料可问答"
+                : "尚未发布索引"}
             </p>
+            <details>
+              <summary>查看索引版本与更新状态</summary>
+              <p className="path">
+                {query.data?.publications?.[kb]?.published_run_id || "尚未发布"}
+              </p>
+              <p>{query.data?.publications?.[kb]?.update_state || "待处理"}</p>
+            </details>
             <p className="muted">
               查询使用已发布资料，新变更成功后切换；主动停用立即从新查询排除。更新失败可重试，旧版本来源保持可查看。
             </p>
@@ -118,41 +132,67 @@ export function LibraryPage() {
                       "POST",
                       body,
                     );
+                    setUploadReport({ kb, documents: result.documents });
                     if (!result.index_job && result.successful) await build();
                   });
                   e.target.value = "";
                 }}
               />
             </label>
-            <div className="actions">
-              <button
-                disabled={mutation.isPending}
-                onClick={() =>
-                  mutation.mutate(async () => {
-                    await api("/api/library/" + kb + "/samples", "POST", {});
-                    await build();
-                  })
-                }
-              >
-                导入本地演示制度
-              </button>
-              <button
-                disabled={mutation.isPending}
-                onClick={() => mutation.mutate(build)}
-              >
-                重新处理索引
-              </button>
-            </div>
+            <details>
+              <summary>更多资料操作</summary>
+              <div className="actions">
+                <button
+                  disabled={mutation.isPending}
+                  onClick={() =>
+                    mutation.mutate(async () => {
+                      await api("/api/library/" + kb + "/samples", "POST", {});
+                      await build();
+                    })
+                  }
+                >
+                  导入本地演示制度
+                </button>
+                <button
+                  disabled={mutation.isPending}
+                  onClick={() => mutation.mutate(build)}
+                >
+                  重新处理索引
+                </button>
+              </div>
+            </details>
           </section>
+          {uploadReport?.kb === kb && (
+            <section className="notice" role="status">
+              <h3>本次导入结果</h3>
+              {uploadReport.documents.map((document, i) => (
+                <div key={i}>
+                  <strong>{document.name}</strong> ·{" "}
+                  {label[document.status] || document.status}
+                  {document.error && (
+                    <details>
+                      <summary>查看此文件失败原因</summary>
+                      <pre>{document.error}</pre>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </section>
+          )}
           <div role="status">
             {query.data?.jobs
               .filter((j) => j.kb_id === kb)
               .slice(0, 3)
               .map((j) => (
-                <p key={j.id}>
+                <div key={j.id}>
                   {label[j.status] || j.status}
-                  {j.error && <span>：{j.error}</span>}
-                </p>
+                  {j.error && (
+                    <details>
+                      <summary>查看处理失败原因</summary>
+                      <pre>{j.error}</pre>
+                    </details>
+                  )}
+                </div>
               ))}
           </div>
           <div className="document-list">

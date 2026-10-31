@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, type Run } from "./client";
-export function useRun(runId: string | null, onFinished: () => void) {
+import { refreshRunScope } from "./taskActions";
+export function useRun(runId: string | null) {
   const cache = useQueryClient();
   const [progress, setProgress] = useState("正在准备");
   useEffect(() => {
@@ -12,16 +13,17 @@ export function useRun(runId: string | null, onFinished: () => void) {
       reconnect: ReturnType<typeof setTimeout> | undefined;
     let cursor = Number(sessionStorage.getItem("esa-cursor-" + runId) || 0);
     let done = false;
+    let active: Run | undefined;
     const finish = () => {
       if (disposed || done) return;
       done = true;
       source?.close();
-      cache.invalidateQueries();
-      onFinished();
+      if (active) refreshRunScope(cache, active);
     };
     const connect = async () => {
       try {
         const run = await api<Run>("/api/runs/" + runId);
+        active = run;
         if (disposed) return;
         if (!["queued", "running"].includes(run.status)) {
           finish();
@@ -74,6 +76,6 @@ export function useRun(runId: string | null, onFinished: () => void) {
       source?.close();
       clearTimeout(reconnect);
     };
-  }, [runId, cache, onFinished]);
+  }, [runId, cache]);
   return progress;
 }

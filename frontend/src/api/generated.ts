@@ -810,6 +810,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/product/tasks/{task_id}/facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Save Facts */
+        patch: operations["save_facts_api_product_tasks__task_id__facts_patch"];
+        trace?: never;
+    };
+    "/api/product/tasks/{task_id}/asset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Select Asset */
+        post: operations["select_asset_api_product_tasks__task_id__asset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/product/tasks/{task_id}/prepare": {
         parameters: {
             query?: never;
@@ -1276,6 +1310,20 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** NextActionView */
+        NextActionView: {
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Detail */
+            detail: string;
+            /**
+             * Fields
+             * @default []
+             */
+            fields: string[];
+        };
         /** OutcomeView */
         OutcomeView: {
             /**
@@ -1570,6 +1618,7 @@ export interface components {
             /** Can Submit */
             can_submit: boolean;
             turn_delivery?: components["schemas"]["TurnDeliveryView"] | null;
+            next_action?: components["schemas"]["NextActionView"] | null;
         };
         /** TicketView */
         TicketView: {
@@ -1606,6 +1655,8 @@ export interface components {
             retryable: boolean;
             /** Next Action */
             next_action?: string | null;
+            /** Action Kind */
+            action_kind?: string | null;
         };
         /** TurnPayload */
         TurnPayload: {
@@ -3258,6 +3309,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_facts_api_product_tasks__task_id__facts_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFacts"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    select_asset_api_product_tasks__task_id__asset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelectAsset"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskView"];
                 };
             };
             /** @description Validation Error */

@@ -78,3 +78,6 @@ frontend/node_modules/
 frontend/*.tsbuildinfo
 # Original incoming audit execution material is local evidence, not public source.
 docs/esa-vnext/reviews/070-next-20261031/evidence/
+
+# Original incoming review evidence stays local; public design only.
+docs/esa-vnext/reviews/rc2-finish-20261031/evidence/
