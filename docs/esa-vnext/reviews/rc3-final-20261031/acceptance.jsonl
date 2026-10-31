@@ -1,0 +1,10 @@
+{"id": "A01", "title": "正常启动与既有工作区", "precondition": "当前Windows候选；已存在资料/会话", "steps": "双击、重复打开、关闭再开，核对实际实例版本及数据根", "expected": "一个实例；历史保留；模型未就绪仍能开设置", "method": "Windows原生，Linux结果不替代", "status": "NOT_RUN_FOR_FIXED_VERSION"}
+{"id": "A02", "title": "已修保存与正常补信息不回退", "precondition": "借用完整日期/用途；报修缺asset_id/impact", "steps": "保存→选择→prepare；报修补字段→prepare", "expected": "缓存revision及时更新；缺信息是正常等待；两项实际可继续", "method": "当前HTTP+浏览器", "status": "NOT_RUN_FOR_FIXED_VERSION"}
+{"id": "A03", "title": "知识-only故障恢复", "precondition": "空借用草稿；当前只请求政策；知识外部调用首次失败", "steps": "原回合retry", "expected": "不要求日期；只知识重试；无预览/新申请，第二次成功交付", "method": "外部替身+真实SQLite", "status": "NOT_RUN_FOR_FIXED_VERSION"}
+{"id": "A04", "title": "混合请求依赖与部分结果", "precondition": "请求预览+解释；分别有缺字段/知识失败/已有有效预览", "steps": "补字段或仅重试知识", "expected": "哪项受阻说清；独立项可继续；不重放旧更新，不重复提交", "method": "协调器+API", "status": "NOT_RUN_FOR_FIXED_VERSION"}
+{"id": "A05", "title": "旧事项与答案可达", "precondition": "至少55条合法记录，包含同时间戳与空结果", "steps": "分页、跨页搜索、旧答案按ID直达", "expected": "不依赖最近列表；无重复漏项；原归属与来源说明保留", "method": "API+列表浏览器", "status": "NOT_RUN_FOR_FIXED_VERSION"}
+{"id": "A06", "title": "预览截止行为", "precondition": "使用可注入时钟，不实际等10分钟", "steps": "截止前GET，截止后GET和POST，再重新生成", "expected": "can_submit/主按钮一致；过期不新增票；新预览可确认", "method": "API+前端时钟", "status": "NOT_RUN_FOR_FIXED_VERSION"}
+{"id": "A07", "title": "借用与报修完整周期", "precondition": "临时合成工作区，正常业务API", "steps": "借用批准领用续借归还再申请；报修处理解决关闭重开", "expected": "真实状态与回执；重复操作不重复建单", "method": "复用现有领域/浏览器关键链", "status": "NOT_RUN_FOR_FIXED_VERSION"}
+{"id": "A08", "title": "真实资料与模型路径", "precondition": "实际可用模型和公开/合成文档", "steps": "上传→索引→Fast/Deep问答→来源；一条混合任务", "expected": "来源支持范围明确；Deep有实际分题；调用范围真实记录", "method": "真实模型，不与替身混计", "status": "NOT_RUN_FOR_FIXED_VERSION"}
+{"id": "A09", "title": "界面与可达性", "precondition": "实际构建页面1440/1024/390", "steps": "知识错误、补字段、候选、过期、历史搜索；键盘中文输入", "expected": "一个输入框；无遮挡/横向溢出；窄屏历史可达；焦点恢复", "method": "真实浏览器/Windows输入法", "status": "NOT_RUN_FOR_FIXED_VERSION"}
+{"id": "A10", "title": "交付与教学无损接入", "precondition": "同一源码commit与最终候选；原学习目录", "steps": "构建、开启、确认README；注册ESA3资源并读原断点", "expected": "源码/产物对应；48对可查；旧题号/作答不覆盖；没有虚假掌握", "method": "发行+资源结构检查", "status": "NOT_RUN_FOR_FIXED_VERSION"}

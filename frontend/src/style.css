@@ -760,7 +760,12 @@ section {
     padding: 6px 8px;
   }
   .recent {
-    display: none;
+    display: block;
+    width: 100%;
+  }
+  .recent-list {
+    max-height: 240px;
+    overflow-y: auto;
   }
   .new-chat {
     position: absolute;
@@ -919,6 +924,10 @@ section {
 .back-to-latest {
   display: block;
   margin: var(--space-4) auto;
+}
+.retry-note button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 @media (max-width: 600px) {
   button,

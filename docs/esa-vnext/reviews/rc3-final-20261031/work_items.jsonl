@@ -1,0 +1,6 @@
+{"id": "W1", "title": "本轮请求驱动恢复，不被无关业务字段拦截", "priority": "P1", "depends_on": [], "findings": ["F1"], "modules": "service_desk/views.py; runtime/turn_coordinator.py; product_routes.py", "done_when": "知识-only能重试；混合请求可分开补足；已有预览和业务写入不重放", "status": "TODO"}
+{"id": "W2", "title": "历史按ID读取与事项分页", "priority": "P1", "depends_on": [], "findings": ["F2"], "modules": "knowledge/query.py; product_routes.py; workbench_service.py; 当前事项列表组件", "done_when": "55条后旧答案直达、旧事项可搜索/分页；无数据迁移丢失", "status": "TODO"}
+{"id": "W3", "title": "过期预览读模型与主操作一致", "priority": "P2", "depends_on": [], "findings": ["F3"], "modules": "service_desk/views.py; store现有预览契约; 任务卡组件", "done_when": "截止前可确认，截止后仅重新生成；提交仍事务校验", "status": "TODO"}
+{"id": "W4", "title": "整理关联UI和重复状态，不重画全站", "priority": "P2", "depends_on": ["W1", "W2", "W3"], "findings": [], "modules": "当前TS组件/Query键/错误映射", "done_when": "一次完整视觉与交互修正，移动历史可达；不减少功能", "status": "TODO"}
+{"id": "W5", "title": "当前套件、真实入口、最终候选与远端同步", "priority": "P1", "depends_on": ["W1", "W2", "W3", "W4"], "findings": [], "modules": "当前tests; 浏览器入口; 构建与发布脚本", "done_when": "同一commit结果；外部受阻如实记；一个候选/Draft PR", "status": "TODO"}
+{"id": "W6", "title": "教学资源无损接入和源码映射", "priority": "P2", "depends_on": [], "findings": [], "modules": "学习实验室资源目录和现有课程索引", "done_when": "48题答、8单元、6实验可用；保留现有学习状态，工程改动后局部更新映射", "status": "TODO"}

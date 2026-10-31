@@ -15,6 +15,26 @@ TASK_LABELS = {
 }
 
 
+def preview_state(service, task, now=None):
+    """Known read-side currency only; submit still checks all dependencies in its transaction."""
+    preview = task.get("preview")
+    if not preview:
+        return None
+    from app.service_desk.goals import execution_binding
+
+    content = preview["content"]
+    if (
+        preview["proposal_id"] != task.get("pending_proposal_id")
+        or content["task_revision"] != task["facts_revision"]
+        or content["parameters"] != task["facts"]
+        or content.get("execution_binding") != execution_binding(task)
+    ):
+        return "stale"
+    if (service.store.clock() if now is None else now) >= preview["expires_at"]:
+        return "expired"
+    return "current"
+
+
 def next_task_action(service, task, delivery=None):
     """Pure projection of existing facts/results. It never changes permissions."""
 
@@ -26,6 +46,16 @@ def next_task_action(service, task, delivery=None):
     if task.get("pending_user_update"):
         return action(
             "resolve", "核对原消息与当前参数", "原消息尚未处理完，先核对已保存参数与操作范围。"
+        )
+    pending = (delivery or {}).get("pending", [])
+    # Knowledge has no dependency on a future application date or device.
+    # Mixed turns keep their preview pending while the independent read recovers.
+    if "knowledge" in pending:
+        return action(
+            "retry_knowledge",
+            "重试解释",
+            "已保存的参数和预览保留，只补未交付的知识内容。"
+            + ("预览所需信息仍可在下方补充。" if "preview" in pending else ""),
         )
     active = service.is_active(task)
     if active and not task.get("receipt"):
@@ -39,7 +69,6 @@ def next_task_action(service, task, delivery=None):
                 task.get("question") or "请补充：" + "、".join(names.get(k, k) for k in missing),
                 missing,
             )
-    pending = (delivery or {}).get("pending", [])
     if active and not task.get("receipt") and not task.get("preview") and "preview" in pending:
         kind = task["guided_request"]["kind"]
         selected = (
@@ -47,10 +76,6 @@ def next_task_action(service, task, delivery=None):
         )
         if kind == "loan" and not selected:
             return action("choice", "选择设备", "参数已保存，请选择设备后生成预览。")
-    if "knowledge" in pending:
-        return action(
-            "retry_knowledge", "重试解释", "已保存的参数和预览保留，只补未交付的知识内容。"
-        )
     if task.get("current_ticket"):
         return action("receipt", "查看当前工单", task["current_ticket"]["next_step"])
     if not active:
@@ -58,6 +83,15 @@ def next_task_action(service, task, delivery=None):
             "closed", "查看已保存结果", "事项已结束，历史结果保留；可在助理中开始新的事项。"
         )
     if task.get("preview"):
+        currency = preview_state(service, task)
+        if currency != "current":
+            return action(
+                "prepare",
+                "重新生成预览",
+                "预览已过期，参数已保留。重新生成后再确认。"
+                if currency == "expired"
+                else "预览已失效，参数已保留。重新生成后再确认。",
+            )
         submit = task["user_execution_ceiling"] == "SUBMIT_AFTER_CONFIRMATION"
         return action(
             "preview",
@@ -85,6 +119,8 @@ def task_view(service, task_id):
         and not busy
         and task["user_execution_ceiling"] != "READ_ONLY"
     )
+    now = service.store.clock()
+    currency = preview_state(service, task, now)
     delivery = service.workspace.conversations.coordinator.for_task(task)
     action = next_task_action(service, task, delivery)
     return TaskView(
@@ -113,6 +149,8 @@ def task_view(service, task_id):
         if catalog
         else [],
         preview=task.get("preview"),
+        preview_state=currency,
+        server_time=now,
         receipt=task.get("receipt"),
         current_ticket=ticket,
         knowledge=task.get("knowledge_result"),
@@ -124,7 +162,7 @@ def task_view(service, task_id):
         can_run=active and not busy and action.kind not in {"input", "choice"},
         can_cancel=not cancelled and not task.get("receipt"),
         can_submit=editable
-        and bool(task.get("preview"))
+        and currency == "current"
         and task["user_execution_ceiling"] == "SUBMIT_AFTER_CONFIRMATION",
         turn_delivery=delivery,
         next_action=action,

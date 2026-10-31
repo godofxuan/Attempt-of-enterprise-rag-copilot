@@ -31,6 +31,9 @@ export function App() {
   const [filter, setFilter] = useState("");
   const cache = useQueryClient();
   const [archived, setArchived] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(
+    () => !matchMedia("(max-width: 620px)").matches,
+  );
   const conversations = useInfiniteQuery({
     queryKey: ["conversations", filter, archived],
     initialPageParam: null as string | null,
@@ -92,7 +95,11 @@ export function App() {
           <NavLink to="/requests">▤ 我的事项</NavLink>
           <NavLink to="/library">▥ 资料库</NavLink>
         </nav>
-        <details className="recent" open>
+        <details
+          className="recent"
+          open={historyOpen}
+          onToggle={(e) => setHistoryOpen(e.currentTarget.open)}
+        >
           <summary>最近会话</summary>
           <input
             type="search"

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "resource_name": "ESA3 rc3 project bridge",
+  "source_commit": "13fbe0714a59f6b52a75796156f560faa0af9123",
+  "question_count": 48,
+  "answer_count": 48,
+  "lesson_count": 8,
+  "lab_count": 6,
+  "mode": "RESOURCE_ONLY_NO_PROGRESS_RESET",
+  "current_student_checkpoint": null,
+  "current_student_mastery": null,
+  "preserve_other_projects": true,
+  "registration_is_not_mastery": true,
+  "exact_cross_library_dedup": "NOT_PERFORMED",
+  "question_id_policy": "ESA3-独立命名空间；旧题保留；语义重复挂别名"
+}

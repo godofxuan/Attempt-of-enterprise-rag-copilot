@@ -223,10 +223,14 @@ export function Assistant({
                 <AnswerView
                   value={(turn.payload.knowledge || turn.payload) as Answer}
                 />
-              ) : turn.payload?.turn_delivery?.status === "partial" ? (
+              ) : turn.role === "assistant" &&
+                turn.payload?.turn_delivery?.status === "partial" ? (
                 <>
                   <p>
-                    已保存部分结果。{turn.payload.turn_delivery.next_action}
+                    {deliverySummary(
+                      turn.payload.turn_delivery,
+                      task.data?.turn_delivery,
+                    )}
                   </p>
                   <details>
                     <summary>本次执行说明</summary>
@@ -239,42 +243,13 @@ export function Assistant({
               {turn.payload?.preview && (
                 <p className="muted">完整预览已保存在事项详情中。</p>
               )}
-              {turn.role === "user" &&
-                [
-                  "FAILED",
-                  "CANCELLED",
-                  "INTERRUPTED",
-                  "PARTIAL",
-                  "WAITING_USER",
-                ].includes(turn.status) && (
-                  <div className="retry-note">
-                    <span>
-                      {turn.status === "WAITING_USER"
-                        ? "等待补充必要信息"
-                        : turn.status === "CANCELLED"
-                          ? "本次执行已停止"
-                          : "这次没有完成，原消息已保留"}
-                    </span>
-                    {turn.status !== "WAITING_USER" &&
-                    turn.payload?.turn_delivery?.retryable !== false ? (
-                      <button
-                        disabled={!!runId || retry.isPending}
-                        onClick={() => retry.mutate(turn.id)}
-                      >
-                        {turn.payload?.turn_delivery?.next_action ||
-                          "重试这条消息"}
-                      </button>
-                    ) : (
-                      turn.payload?.task_id && (
-                        <button
-                          onClick={() => openTask(turn.payload!.task_id!)}
-                        >
-                          补充事项信息
-                        </button>
-                      )
-                    )}
-                  </div>
-                )}
+              <TurnRecovery
+                turn={turn}
+                task={task.data}
+                busy={!!runId || retry.isPending}
+                retry={() => retry.mutate(turn.id)}
+                openTask={openTask}
+              />
             </article>
           ))
         )}
@@ -396,6 +371,78 @@ export function Assistant({
           按所选范围开始
         </button>
       </Drawer>
+    </div>
+  );
+}
+
+function deliverySummary(
+  record: { turn_id?: string },
+  current?: Task["turn_delivery"],
+) {
+  if (record.turn_id !== current?.turn_id)
+    return "这条历史记录曾有未交付内容，当前状态见事项。";
+  return current?.status === "complete"
+    ? "这条记录的未完成内容已续办，结果见后续回答。"
+    : "已保存部分结果。" +
+        (current?.next_action || "查看当前事项继续未完成内容。");
+}
+
+function TurnRecovery({
+  turn,
+  task,
+  busy,
+  retry,
+  openTask,
+}: {
+  turn: Conversation["turns"][number];
+  task?: Task;
+  busy: boolean;
+  retry: () => void;
+  openTask: (id: string) => void;
+}) {
+  if (turn.role !== "user") return null;
+  const latest = task?.turn_delivery?.turn_id === turn.id;
+  const delivery = latest ? task!.turn_delivery : turn.payload?.turn_delivery;
+  const status =
+    latest && delivery?.status === "complete"
+      ? "DONE"
+      : latest && delivery?.status === "partial"
+        ? "PARTIAL"
+        : turn.status;
+  if (
+    !["FAILED", "CANCELLED", "INTERRUPTED", "PARTIAL", "WAITING_USER"].includes(
+      status,
+    )
+  )
+    return null;
+  const finished =
+    task?.id === turn.payload?.task_id && (task?.closed || !!task?.receipt);
+  const canRetry =
+    delivery?.retryable !== false &&
+    status !== "WAITING_USER" &&
+    (!finished || delivery?.pending?.includes("knowledge"));
+  return (
+    <div className="retry-note">
+      <span>
+        {canRetry
+          ? "未完成的内容可继续，已有结果保留"
+          : status === "WAITING_USER"
+            ? latest && !finished
+              ? "等待补充必要信息"
+              : "当时曾等待补充，查看事项了解当前状态"
+            : "本次执行已停止或尚未完成"}
+      </span>
+      {canRetry ? (
+        <button disabled={busy} onClick={retry}>
+          {delivery?.next_action || "重试这条消息"}
+        </button>
+      ) : (
+        turn.payload?.task_id && (
+          <button onClick={() => openTask(turn.payload!.task_id!)}>
+            {latest && !finished ? "补充事项信息" : "查看事项"}
+          </button>
+        )
+      )}
     </div>
   );
 }

@@ -209,14 +209,30 @@ class TaskService:
         return self.store.get_ticket(local_actor(), ticket_id, kind=service.key)
 
     def list(self):
+        """Compatibility first page; product history uses the same paged query."""
+        return self.page(limit=50)["items"]
+
+    def page(self, *, limit=20, cursor=None, q=""):
         actor = local_actor()
+        clauses = ["tenant=?", "owner=?"]
+        values = [actor.tenant_id, actor.subject]
+        if cursor is not None:
+            clauses.append("rowid < ?")
+            values.append(cursor)
+        if q.strip():
+            clauses.append(
+                "instr(lower(task_id || ' ' || json_extract(payload,'$.goal') || ' ' || json_extract(payload,'$.facts')),lower(?)) > 0"
+            )
+            values.append(q.strip())
         with self.store.transaction() as db:
             rows = db.execute(
-                "SELECT payload FROM agent_tasks WHERE tenant=? AND owner=? ORDER BY rowid DESC LIMIT 50",
-                (actor.tenant_id, actor.subject),
+                "SELECT rowid,payload FROM agent_tasks WHERE "
+                + " AND ".join(clauses)
+                + " ORDER BY rowid DESC LIMIT ?",
+                [*values, limit + 1],
             ).fetchall()
-        tasks = [json.loads(row["payload"]) for row in rows]
-        return [
+        tasks = [json.loads(row["payload"]) for row in rows[:limit]]
+        items = [
             {
                 key: task.get(key)
                 for key in (
@@ -231,6 +247,10 @@ class TaskService:
             }
             for task in tasks
         ]
+        return {
+            "items": items,
+            "next_cursor": rows[limit - 1]["rowid"] if len(rows) > limit else None,
+        }
 
     def view(self, task_id):
         actor = local_actor()

@@ -265,7 +265,7 @@ wheels = [
 
 [[package]]
 name = "enterprise-service-agent"
-version = "0.7.0rc3"
+version = "0.7.0rc4"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },

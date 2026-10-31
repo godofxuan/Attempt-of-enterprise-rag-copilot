@@ -1829,6 +1829,76 @@
         }
       }
     },
+    "/api/product/tasks/page": {
+      "get": {
+        "summary": "Task Page",
+        "operationId": "task_page_api_product_tasks_page_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "",
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/product/tasks": {
       "get": {
         "summary": "Tasks",
@@ -4026,6 +4096,33 @@
         ],
         "title": "TaskMessage"
       },
+      "TaskPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TaskView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "TaskPage"
+      },
       "TaskView": {
         "properties": {
           "id": {
@@ -4092,6 +4189,21 @@
                 "type": "null"
               }
             ]
+          },
+          "preview_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview State"
+          },
+          "server_time": {
+            "type": "number",
+            "title": "Server Time"
           },
           "receipt": {
             "anyOf": [
@@ -4206,6 +4318,7 @@
           "ceiling",
           "revision",
           "fields",
+          "server_time",
           "can_edit",
           "can_run",
           "can_cancel",

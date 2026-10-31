@@ -110,6 +110,8 @@ class TaskView(BaseModel):
     revision: int
     fields: list[FieldView]
     preview: ProposalView | None = None
+    preview_state: str | None = None
+    server_time: float
     receipt: ReceiptView | None = None
     current_ticket: TicketView | None = None
     knowledge: PublishedAnswerView | None = None
@@ -122,3 +124,8 @@ class TaskView(BaseModel):
     can_submit: bool
     turn_delivery: TurnDeliveryView | None = None
     next_action: NextActionView | None = None
+
+
+class TaskPage(BaseModel):
+    items: list[TaskView]
+    next_cursor: int | None = None

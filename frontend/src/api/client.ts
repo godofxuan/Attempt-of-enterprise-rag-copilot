@@ -1,5 +1,6 @@
 import type { components } from "./generated";
 export type Task = components["schemas"]["TaskView"];
+export type TaskPage = components["schemas"]["TaskPage"];
 export type Conversation = components["schemas"]["ConversationView"];
 export type ConversationSummary = components["schemas"]["ConversationSummary"];
 export type Answer = components["schemas"]["PublishedAnswerView"];

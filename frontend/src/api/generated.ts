@@ -759,6 +759,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/product/tasks/page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Task Page */
+        get: operations["task_page_api_product_tasks_page_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/product/tasks": {
         parameters: {
             query?: never;
@@ -1571,6 +1588,13 @@ export interface components {
              */
             detailed: boolean;
         };
+        /** TaskPage */
+        TaskPage: {
+            /** Items */
+            items: components["schemas"]["TaskView"][];
+            /** Next Cursor */
+            next_cursor?: number | null;
+        };
         /** TaskView */
         TaskView: {
             /** Id */
@@ -1599,6 +1623,10 @@ export interface components {
             /** Fields */
             fields: components["schemas"]["FieldView"][];
             preview?: components["schemas"]["ProposalView"] | null;
+            /** Preview State */
+            preview_state?: string | null;
+            /** Server Time */
+            server_time: number;
             receipt?: components["schemas"]["ReceiptView"] | null;
             current_ticket?: components["schemas"]["TicketView"] | null;
             knowledge?: components["schemas"]["PublishedAnswerView"] | null;
@@ -3227,6 +3255,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublishedAnswerView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    task_page_api_product_tasks_page_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: number | null;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskPage"];
                 };
             };
             /** @description Validation Error */

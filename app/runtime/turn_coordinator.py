@@ -178,6 +178,11 @@ class TurnCoordinator:
         pending = [
             kind for kind, item in items.items() if item["status"] not in {"ready", "cancelled"}
         ]
+        if "preview" in pending:
+            missing = [k for k in self.workspace.service.required_fields(task) if not task["facts"].get(k)]
+            items["preview"]["blocked_by"] = missing
+            if not missing and task["guided_request"]["kind"] == "loan" and not task.get("preferred_asset_id"):
+                items["preview"]["blocked_by"] = ["asset_selection"]
         if not state["accepted"]:
             pending.append("request_brief")
         from app.service_desk.views import next_task_action

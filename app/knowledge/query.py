@@ -151,7 +151,9 @@ class QueryOperations:
 
         return recent_questions(rows, current_question)
 
-    async def answer(self, kb_id, question, *, conversation_id=None, detailed=False, context_scope=None):
+    async def answer(
+        self, kb_id, question, *, conversation_id=None, detailed=False, context_scope=None
+    ):
         from app.domain.agent import AgentBudget
         from app.domain.queries import UserContext
         from app.retrieval.pipeline import HybridRetrievalPipeline
@@ -169,9 +171,13 @@ class QueryOperations:
         snapshot = await asyncio.to_thread(self.snapshot, kb_id)
         allowed_documents = self.published_scope(snapshot)
         with self.db() as db:
-            topics_by_doc = {row["id"]: json.loads(row["metadata"]).get("service_tags")
-                for row in db.execute("SELECT id,metadata FROM library_documents WHERE kb_id=?", (kb_id,))
-                if row["id"] in allowed_documents}
+            topics_by_doc = {
+                row["id"]: json.loads(row["metadata"]).get("service_tags")
+                for row in db.execute(
+                    "SELECT id,metadata FROM library_documents WHERE kb_id=?", (kb_id,)
+                )
+                if row["id"] in allowed_documents
+            }
         named_policies = named_source_scope(question, snapshot)
         deep_plan = None
         if detailed:
@@ -407,15 +413,24 @@ class QueryOperations:
                 dict(r)
                 for r in db.execute("SELECT * FROM knowledge_answers ORDER BY rowid DESC LIMIT 50")
             ]
-        return [
-            {
-                **{k: r[k] for k in r if k != "result_json"},
-                "result": json.loads(r["result_json"]),
-                "source_notices": self.source_notices(json.loads(r["result_json"])),
-                "service_options": self.service_options(json.loads(r["result_json"])),
-            }
-            for r in rows
-        ]
+        return [self._answer_record(r) for r in rows]
+
+    def answer_by_id(self, answer_id):
+        with self.db() as db:
+            row = db.execute("SELECT * FROM knowledge_answers WHERE id=?", (answer_id,)).fetchone()
+        if row is None:
+            from app.service_desk.store import ServiceError
+
+            raise ServiceError("ANSWER_NOT_FOUND")
+        return self._answer_record(dict(row))
+
+    def _answer_record(self, r):
+        return {
+            **{k: r[k] for k in r if k != "result_json"},
+            "result": json.loads(r["result_json"]),
+            "source_notices": self.source_notices(json.loads(r["result_json"])),
+            "service_options": self.service_options(json.loads(r["result_json"])),
+        }
 
     def valid_answer(self, answer_id, kb_id):
         if not answer_id:

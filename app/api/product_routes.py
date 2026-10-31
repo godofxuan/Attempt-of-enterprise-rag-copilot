@@ -1,6 +1,6 @@
 """Small typed views for the product; domain operations retain their existing APIs."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Query
 
 from app.service_desk.store import ServiceError
 
@@ -8,6 +8,7 @@ from app.service_desk.store import ServiceError
 from app.domain.product_views import (
     PublishedAnswerView,
     TaskView,
+    TaskPage,
     RunView,
 )
 from app.service_desk.views import task_view
@@ -60,11 +61,20 @@ def product_router(workspace, service_call):
 
     @router.get("/answers/{answer_id}", response_model=PublishedAnswerView)
     def answer(answer_id: str):
+        return service_call(lambda: workspace.library.answer_by_id(answer_id))
+
+    @router.get("/tasks/page", response_model=TaskPage)
+    def task_page(
+        limit: int = Query(default=20, ge=1, le=100),
+        cursor: int | None = Query(default=None, gt=0),
+        q: str = Query(default="", max_length=200),
+    ):
         def read():
-            result = next((a for a in workspace.library.answers() if a["id"] == answer_id), None)
-            if result is None:
-                raise ServiceError("ANSWER_NOT_FOUND")
-            return result
+            page = workspace.service.page(limit=limit, cursor=cursor, q=q)
+            return {
+                **page,
+                "items": [task_view(workspace.service, t["task_id"]) for t in page["items"]],
+            }
 
         return service_call(read)
 
@@ -135,7 +145,13 @@ def product_router(workspace, service_call):
                     raise ServiceError(
                         "USER_INPUT_REQUIRED", data={"next_action": delivery["next_action"]}
                     )
-            if row["status"] not in {"FAILED", "CANCELLED", "INTERRUPTED", "PARTIAL"}:
+            legacy_wait = (
+                row["status"] == "WAITING_USER" and command.get("task_id") and delivery["retryable"]
+            )
+            if (
+                row["status"] not in {"FAILED", "CANCELLED", "INTERRUPTED", "PARTIAL"}
+                and not legacy_wait
+            ):
                 raise ServiceError("TURN_NOT_RETRYABLE")
             return workspace.runs.start(
                 "conversation",

@@ -43,6 +43,7 @@ def main():
                 w = app.state.workspace
                 counters = {"agent_decisions": 0, "explanation_attempts": 0}
                 plans = {}
+                original_clock = w.service.store.clock
                 from fastapi import Request
 
                 @app.post("/__test/decisions/{task_id}")
@@ -53,6 +54,12 @@ def main():
                 @app.get("/__test/counters")
                 def test_counters():
                     return counters
+
+                @app.post("/__test/clock")
+                async def test_clock(request: Request):
+                    offset = float((await request.json())["offset"])
+                    w.service.store.clock = lambda: original_clock() + offset
+                    return {"external_test_clock_offset": offset}
 
                 async def model(messages, **kwargs):
                     from app.runtime.request_context import current_request_id
@@ -97,6 +104,11 @@ def main():
 
                 async def answer(kb, question, **options):
                     w.library.require(kb)
+                    if question == "借用期限":
+                        from app.service_desk.store import ServiceError
+                        counters["knowledge_recovery_attempts"] = counters.get("knowledge_recovery_attempts", 0) + 1
+                        if counters["knowledge_recovery_attempts"] == 1:
+                            raise ServiceError("TRANSIENT_TOOL_FAILURE")
                     if question == "解释押金制度":
                         from app.service_desk.store import ServiceError
 

@@ -34,7 +34,39 @@ export function TaskDetail({
   });
   const t = task.data;
   const actions = useTaskActions(id, onRun);
-  const kind = t?.next_action?.kind;
+  const [deadlineReached, setDeadlineReached] = useState(false);
+  useEffect(() => {
+    setDeadlineReached(false);
+    if (!t?.preview || t.receipt || t.preview_state !== "current") return;
+    const refresh = () => {
+      void cache.invalidateQueries({ queryKey: ["task", t.id] });
+    };
+    const timer = window.setTimeout(
+      () => {
+        setDeadlineReached(true);
+        refresh();
+      },
+      Math.max(0, t.preview.expires_at - t.server_time) * 1000,
+    );
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [
+    t?.id,
+    t?.preview?.proposal_id,
+    t?.server_time,
+    t?.preview_state,
+    t?.receipt,
+    cache,
+  ]);
+  const expired = deadlineReached || t?.preview_state === "expired";
+  const previewCurrent = t?.preview_state === "current" && !deadlineReached;
+  const kind =
+    expired && t?.next_action?.kind === "preview"
+      ? "prepare"
+      : t?.next_action?.kind;
   const runs = useQuery({
     queryKey: ["conversation-runs", t?.conversation_id],
     enabled: kind === "running" && !!t?.conversation_id,
@@ -105,7 +137,11 @@ export function TaskDetail({
           <div className="detail-summary">
             <h2>{t.title}</h2>
             <span className="status-pill">{t.status_label}</span>
-            <p>{actions.feedback?.message || t.next_step}</p>
+            <p>
+              {expired
+                ? "预览已过期，参数已保留。重新生成后再确认。"
+                : actions.feedback?.message || t.next_step}
+            </p>
             {actions.feedback?.error != null && (
               <ErrorNotice error={actions.feedback.error} />
             )}
@@ -116,6 +152,27 @@ export function TaskDetail({
               </details>
             )}
             {task.error && <ErrorNotice error={task.error} />}
+            {t.turn_delivery &&
+              Object.keys(t.turn_delivery.items).length > 0 && (
+                <ul className="delivery-items" aria-label="本轮交付进度">
+                  {Object.entries(t.turn_delivery.items).map(([name, raw]) => {
+                    const item = raw as {
+                      status: string;
+                      blocked_by?: string[];
+                    };
+                    return (
+                      <li key={name}>
+                        {name === "knowledge" ? "知识回答" : "业务预览"}：
+                        {item.status === "ready"
+                          ? "已交付"
+                          : item.blocked_by?.length
+                            ? "等待补充业务条件"
+                            : "尚未交付"}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             <p className="muted">
               {t.receipt
                 ? "当前业务状态与提交当时的回执分别保留。"
@@ -303,7 +360,7 @@ export function TaskDetail({
           )}
           {t.can_edit &&
             !dirty &&
-            !t.preview &&
+            (!t.preview || !previewCurrent) &&
             !t.receipt &&
             kind === "prepare" && (
               <button
@@ -317,12 +374,18 @@ export function TaskDetail({
                   });
                 }}
               >
-                生成当前预览
+                {t.preview ? "重新生成预览" : "生成当前预览"}
               </button>
             )}
           {t.preview && !t.receipt && (
             <section className="card preview">
-              <h3>当前完整预览</h3>
+              <h3>
+                {previewCurrent
+                  ? "当前完整预览"
+                  : expired
+                    ? "已过期的预览（仅供参考）"
+                    : "已失效的预览（仅供参考）"}
+              </h3>
               <Parameters
                 value={{
                   ...t.preview.content.parameters,
@@ -341,7 +404,7 @@ export function TaskDetail({
                 <summary>核对完整预览内容</summary>
                 <pre>{JSON.stringify(t.preview.content, null, 2)}</pre>
               </details>
-              {t.can_submit ? (
+              {t.can_submit && previewCurrent ? (
                 <button
                   className={!dirty && kind === "preview" ? "primary" : ""}
                   disabled={dirty || pending}
