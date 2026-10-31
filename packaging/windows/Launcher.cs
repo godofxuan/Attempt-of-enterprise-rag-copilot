@@ -23,7 +23,7 @@ class ESA {
    info.Arguments="-B -X utf8 -m app.launcher open";
    if(selected!=null)info.Arguments+=" --data-dir "+Quote(selected);
    if(create)info.Arguments+=" --create";
-   foreach(string arg in args)if(arg!="--choose-workspace")info.Arguments+=" "+Quote(arg);
+   for(int i=0;i<args.Length;i++){string arg=args[i];if(arg=="--choose-workspace")continue;if(selected!=null&&arg=="--data-dir"){i++;continue;}if(selected!=null&&arg=="--create")continue;info.Arguments+=" "+Quote(arg);}
    using(var process=Process.Start(info)) {string output=process.StandardOutput.ReadToEnd();string error=process.StandardError.ReadToEnd();process.WaitForExit();if(process.ExitCode==0)return 0;
     if(attempt==0&&error.Contains("WORKSPACE_MISSING")) {
      var choice=MessageBox.Show("上次登记的工作区已移动或不完整，未在旧位置创建空库。\n\n‘是’：定位原工作区；‘否’：明确新建；‘取消’：退出。", "ESA · 恢复工作区",MessageBoxButtons.YesNoCancel,MessageBoxIcon.Warning);

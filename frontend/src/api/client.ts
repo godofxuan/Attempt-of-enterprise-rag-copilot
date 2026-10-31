@@ -3,16 +3,17 @@ export type Task = components["schemas"]["TaskView"];
 export type Conversation = components["schemas"]["ConversationView"];
 export type ConversationSummary = components["schemas"]["ConversationSummary"];
 export type Answer = components["schemas"]["PublishedAnswerView"];
-export type Run = {
-  id: string;
-  kind: string;
-  conversation_id?: string | null;
-  turn_id?: string | null;
-  status: string;
-  error?: string | null;
-  result?: unknown;
-};
+export type Run = components["schemas"]["RunView"];
 export type Library = {
+  publications?: Record<
+    string,
+    {
+      published_run_id: string | null;
+      update_state: string;
+      notice?: string;
+      update_error?: string | null;
+    }
+  >;
   bases: { id: string; name: string }[];
   documents: {
     id: string;

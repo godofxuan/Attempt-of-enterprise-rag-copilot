@@ -418,6 +418,13 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
         if incomplete:
             notes.append("相关章节存在未完整读取的内容，尚不能确认流程或多项问题已全部覆盖。")
     notes = list(dict.fromkeys(notes))
+    from app.agent.answer_blocks import retained_blocks
+    blocks, block_errors = retained_blocks(response.answer_blocks, claims, question)
+    trace['answer_expression'] = {'basis':'model_expression_with_exact_provenance_and_finite_consistency_not_entailment',
+                                'retained':len(blocks),'rejected':block_errors}
+    if block_errors:
+        partial=True
+        notes.append('部分解释与当前保留的依据不一致，未予发布；下方保留可核验原文。')
     warnings = list(dict.fromkeys([*warnings, *notes]))
     claim_ids = {c.claim_id for c in claims}
     cited_ids = {cid for c in claims for cid in c.cited_chunk_ids}
@@ -438,14 +445,17 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
         tuple((s.chunk_id, s.index_run_id or "", s.version_id or "") for s in kept_sources),
     )
     trace.update(final_mode=mode, stop_reason=reason, answer_decision=decision.summary())
-    answer = "\n".join(dict.fromkeys([*(c.text for c in claims), *notes]))
+    expression=[block.text for block in blocks]
+    basis=[c.text for c in claims]
+    answer = "\n".join(dict.fromkeys([*expression, *(['依据与适用条件：'] if expression and basis else []), *basis, *notes]))
     if not answer:
-        answer = "No supported answer was found in the visible knowledge base."
+        answer = "当前可访问的资料尚未提供所问内容的充分依据。" if re.search(r'[\u4e00-\u9fff]',question) else "No supported answer was found in the visible knowledge base."
     return AnswerResponse(
         mode=mode,
         stop_reason=reason,
         answer=answer,
         claims=claims,
+        answer_blocks=blocks,
         citations=citations,
         sources=kept_sources,
         warnings=warnings,

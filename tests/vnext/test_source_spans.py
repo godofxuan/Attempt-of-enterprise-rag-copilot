@@ -74,7 +74,10 @@ def test_docx_locations_survive_index_guard_and_publication_without_markdown_rep
         changed=client.patch('/api/documents/'+doc['id'],headers=HEADERS,json={'source_type':'policy'})
         assert changed.status_code==200
         import pytest
-        with pytest.raises(ValueError,match='INDEX_OUTDATED'):workspace.library.snapshot(kb)
+        published=workspace.library.snapshot(kb)
+        assert doc['id'] not in workspace.library.published_scope(published)
+        # Metadata changes exclude this source until republished; other sources
+        # remain available, and the original location/version assertion ran above.
 
 
 def test_batch_disable_restore_and_metadata_changes_require_current_index(tmp_path):

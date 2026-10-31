@@ -63,7 +63,7 @@ class ToolCatalog:
             )
         if kind == "knowledge" or (turn.get("kb_id") if turn and "kb_id" in turn else task.get("kb_id")):
             properties = (
-                {} if kind == "knowledge" and not turn else {"question": {"type": "string"}}
+                {} if kind == "knowledge" else {"question": {"type": "string"}}
             )
             tools.append(
                 Tool(
@@ -388,7 +388,7 @@ class ToolCatalog:
             current = {**current, "kb_id": self.turn["kb_id"]} if self.turn and "kb_id" in self.turn else current
             if not current.get("kb_id"):
                 raise ServiceError("KNOWLEDGE_BASE_REQUIRED")
-            question = args.get("question") or (
+            question = (None if current["guided_request"]["kind"] == "knowledge" else args.get("question")) or (
                 self.turn["text"] if self.turn else current["guided_request"]["question"]
             )
             detailed = bool(self.turn and self.turn.get("detailed"))

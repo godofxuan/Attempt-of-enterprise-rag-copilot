@@ -8,6 +8,7 @@ from app.service_desk.store import ServiceError
 from app.domain.product_views import (
     PublishedAnswerView,
     TaskView,
+    RunView,
 )
 from app.service_desk.views import task_view
 
@@ -92,7 +93,7 @@ def product_router(workspace, service_call):
 
         return service_call(start)
 
-    @router.get("/conversations/{cid}/runs")
+    @router.get("/conversations/{cid}/runs", response_model=list[RunView])
     def runs(cid: str):
         conversation = workspace.conversations.get(cid)
         targets = [cid, *conversation["task_history"]]

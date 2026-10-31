@@ -171,7 +171,6 @@ def open_workspace(root, *, registry=None, port=8740, browser=True, wait_seconds
 def serve_workspace(root, port=8740, *, auto_port=True, host="127.0.0.1"):
     import uvicorn
     from app.config import Settings
-    from app.workspace import load_config
     from app.workbench_app import create_workbench_app
 
     root = Path(root).resolve()

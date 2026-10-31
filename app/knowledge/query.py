@@ -11,9 +11,22 @@ class QueryOperations:
         self.require(kb_id)
         root = self.workspace.root / "indexes" / kb_id
         pointer = load_active_pointer(root)
+        run_id = pointer.run_id
+        with self.db() as db:
+            publishing = db.execute(
+                "SELECT status FROM library_jobs WHERE id=?", (run_id,)
+            ).fetchone()
+            if publishing and publishing[0] != "SUCCEEDED":
+                previous = db.execute(
+                    "SELECT generation FROM library_jobs WHERE kb_id=? AND status='SUCCEEDED' ORDER BY rowid DESC LIMIT 1",
+                    (kb_id,),
+                ).fetchone()
+                if not previous:
+                    raise ValueError("INDEX_NOT_READY: 首次发布尚未完成")
+                run_id = previous[0]
         cached = self.snapshots.get(kb_id)
-        if not cached or cached.version.manifest.run_id != pointer.run_id:
-            cached = V2IndexSnapshot.load(root, pointer.run_id)
+        if not cached or cached.version.manifest.run_id != run_id:
+            cached = V2IndexSnapshot.load(root, run_id)
             self.snapshots[kb_id] = cached
         if cached.version.manifest.embedding.model.removesuffix(
             ":latest"
@@ -21,33 +34,43 @@ class QueryOperations:
             raise ValueError(
                 "INDEX_EMBEDDING_MODEL_CHANGED: 查询模型与索引不匹配，请用当前嵌入模型更新索引"
             )
-        with self.db() as db:
-            current = {
-                r[0]
-                for r in db.execute(
-                    "SELECT id FROM library_documents WHERE kb_id=? AND active=1 AND parsed IS NOT NULL",
-                    (kb_id,),
-                )
-            }
-            job = db.execute(
-                "SELECT status,metrics FROM library_jobs WHERE id=?", (pointer.run_id,)
-            ).fetchone()
-            metadata_now = {
-                r["id"]: json.loads(r["metadata"])
-                for r in db.execute(
-                    "SELECT id,metadata FROM library_documents WHERE kb_id=? AND active=1 AND parsed IS NOT NULL",
-                    (kb_id,),
-                )
-            }
-        if job:
-            if job["status"] != "SUCCEEDED":
-                raise ValueError("INDEX_NOT_READY: 当前索引发布尚未完成，请稍后重试")
-            old_metadata = json.loads(job["metrics"] or "{}").get("document_metadata")
-            if old_metadata is not None and old_metadata != metadata_now:
-                raise ValueError("INDEX_OUTDATED: 资料元数据已变化，请更新索引")
-        if current != set(cached.documents_by_id):
-            raise ValueError("INDEX_OUTDATED: 资料已变化，请更新索引后再提问；历史答案和版本仍保留")
+        # Pending catalog changes do not invalidate the whole published index.
+        # Per-document visibility is intersected with the original ACL below.
         return cached
+
+    def published_scope(self, snapshot):
+        with self.db() as db:
+            job = db.execute(
+                "SELECT metrics FROM library_jobs WHERE id=?", (snapshot.version.manifest.run_id,)
+            ).fetchone()
+            published = json.loads(job[0] or "{}").get("document_metadata", {}) if job else {}
+            rows = db.execute("SELECT id,metadata,withdrawn FROM library_documents").fetchall()
+        return {
+            r["id"]
+            for r in rows
+            if r["id"] in snapshot.documents_by_id
+            and not r["withdrawn"]
+            and (r["id"] not in published or published[r["id"]] == json.loads(r["metadata"]))
+        }
+
+    def publication_state(self, kb_id):
+        from app.indexing.store import load_active_pointer
+
+        try:
+            pointer = load_active_pointer(self.workspace.root / "indexes" / kb_id)
+        except (ValueError, FileNotFoundError):
+            return {"published_run_id": None, "update_state": "INDEX_REQUIRED"}
+        with self.db() as db:
+            latest = db.execute(
+                "SELECT status,error FROM library_jobs WHERE kb_id=? ORDER BY rowid DESC LIMIT 1",
+                (kb_id,),
+            ).fetchone()
+        return {
+            "published_run_id": pointer.run_id,
+            "update_state": latest["status"] if latest else "PUBLISHED",
+            "update_error": latest["error"] if latest else None,
+            "notice": "查询使用已发布版本；新变更成功后切换，主动停用立即排除。",
+        }
 
     def excerpt(self, doc_id, index_run_id, target_type, target_id):
         from app.retrieval.snapshot import V2IndexSnapshot
@@ -114,7 +137,10 @@ class QueryOperations:
             if not conversation:
                 raise ValueError("CONVERSATION_NOT_FOUND")
             if conversation["kb_id"] != kb_id:
-                bound = db.execute("SELECT 1 FROM turn_commands WHERE conversation_id=? AND json_extract(payload,'$.kb_id')=? LIMIT 1", (conversation_id, kb_id)).fetchone()
+                bound = db.execute(
+                    "SELECT 1 FROM turn_commands WHERE conversation_id=? AND json_extract(payload,'$.kb_id')=? LIMIT 1",
+                    (conversation_id, kb_id),
+                ).fetchone()
                 if not bound:
                     raise ValueError("CONVERSATION_KNOWLEDGE_BASE_MISMATCH")
             rows = db.execute(
@@ -139,6 +165,7 @@ class QueryOperations:
 
         loop = asyncio.get_running_loop()
         snapshot = await asyncio.to_thread(self.snapshot, kb_id)
+        allowed_documents = self.published_scope(snapshot)
         named_policies = named_source_scope(question, snapshot)
         deep_plan = None
         if detailed:
@@ -219,8 +246,20 @@ class QueryOperations:
                     # the current original question, never the old answer as fact.
                     return analysis
 
+            from app.security.access import AccessPolicy, AccessDecision
+
+            class PublishedAccess(AccessPolicy):
+                def evaluate(self, user, resource):
+                    decision = super().evaluate(user, resource)
+                    if decision.allowed and resource.doc_id not in allowed_documents:
+                        return AccessDecision(allowed=False, code="group_mismatch")
+                    return decision
+
+            published_access = PublishedAccess()
             pipeline = HybridRetrievalPipeline(
-                snapshot, embed_text=self.workspace.models.sync_embed(loop)
+                snapshot,
+                embed_text=self.workspace.models.sync_embed(loop),
+                access_policy=published_access,
             )
             from app.agent.deep_knowledge import DeepController
 
@@ -235,7 +274,9 @@ class QueryOperations:
                 else V2AgentController(semantic_question=True, search_timeout_ms=search_timeout_ms)
             )
             runner = V2AgentRunner(
-                registry=V2ToolRegistry(DocumentNavigator(snapshot, pipeline=pipeline)),
+                registry=V2ToolRegistry(
+                    DocumentNavigator(snapshot, pipeline=pipeline, access_policy=published_access)
+                ),
                 controller=controller,
                 analyzer=ConversationAnalyzer(),
                 response_builder=GenerationV2ResponseBuilder(
@@ -244,6 +285,7 @@ class QueryOperations:
                     max_attempts=1,
                     primary_read_anchors_only=bool(deep_plan),
                     need_first_wire=True,
+                    explanatory=True,
                 ),
                 budget=AgentBudget(
                     deadline_ms=240000,
@@ -272,6 +314,8 @@ class QueryOperations:
             )
 
         result = await asyncio.to_thread(generate)
+        if any(source.doc_id not in self.published_scope(snapshot) for source in result.sources):
+            raise ValueError("SOURCE_WITHDRAWN_DURING_RUN: 资料在运行中停用或改变，未发布旧结果")
         with self.db() as db:
             names = {
                 r["id"]: r["name"]
@@ -294,10 +338,6 @@ class QueryOperations:
         answer_id = identifier("answer")
         conversation_id = conversation_id or identifier("conversation")
         with self.db() as db:
-            if db.execute(
-                "SELECT 1 FROM conversations WHERE id=? AND kb_id!=?", (conversation_id, kb_id)
-            ).fetchone():
-                raise ValueError("CONVERSATION_KNOWLEDGE_BASE_MISMATCH")
             db.execute(
                 "INSERT OR IGNORE INTO conversations(id,kb_id) VALUES(?,?)",
                 (conversation_id, kb_id),
@@ -381,6 +421,8 @@ class QueryOperations:
         if row["generation"] != snapshot.version.manifest.run_id:
             return None
         value = json.loads(row["result_json"])
+        if any(s["doc_id"] not in self.published_scope(snapshot) for s in value.get("sources", [])):
+            return None
         return {
             "id": row["id"],
             "question": row["question"],

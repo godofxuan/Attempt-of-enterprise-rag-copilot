@@ -24,6 +24,7 @@ class CatalogOperations:
                 "directory_sources": [
                     dict(r) for r in db.execute("SELECT * FROM directory_sources")
                 ],
+                "publications": {r[0]: self.publication_state(r[0]) for r in db.execute("SELECT id FROM knowledge_bases")},
             }
 
     def create(self, name):
@@ -267,6 +268,8 @@ class CatalogOperations:
                     "UPDATE library_documents SET active=0 WHERE kb_id=? AND source_key=?",
                     (row["kb_id"], row["source_key"]),
                 )
+            if "active" in changes:
+                db.execute("UPDATE library_documents SET withdrawn=? WHERE kb_id=? AND source_key=?", (int(not changes["active"]), row["kb_id"], row["source_key"]))
             db.execute(
                 "UPDATE library_documents SET name=?,active=?,metadata=? WHERE id=?",
                 (

@@ -416,7 +416,7 @@ class ConversationService:
         return bool(row and row["status"] == "DONE")
 
     async def turn(self, conversation_id, text, message_id, detailed=False, **scope):
-        conversation = self.get(conversation_id)
+        self.get(conversation_id)
         command = self.command(
             {
                 "conversation_id": conversation_id,

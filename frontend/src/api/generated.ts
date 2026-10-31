@@ -906,6 +906,22 @@ export interface components {
             /** Path */
             path: string;
         };
+        /**
+         * AnswerBlock
+         * @description Model explanation with verified provenance, not a proof of entailment.
+         */
+        AnswerBlock: {
+            /**
+             * Kind
+             * @default explanation
+             * @enum {string}
+             */
+            kind: "explanation" | "comparison" | "rule";
+            /** Text */
+            text: string;
+            /** Claim Ids */
+            claim_ids: string[];
+        };
         /** AnswerResponse */
         AnswerResponse: {
             /**
@@ -917,6 +933,8 @@ export interface components {
             answer: string;
             /** Claims */
             claims?: components["schemas"]["Claim"][];
+            /** Answer Blocks */
+            answer_blocks?: components["schemas"]["AnswerBlock"][];
             /** Citations */
             citations?: components["schemas"]["ClaimCitation"][];
             /** Sources */
@@ -1350,6 +1368,34 @@ export interface components {
             details?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** RunView */
+        RunView: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Target */
+            target?: string | null;
+            /** Status */
+            status: string;
+            /** Conversation Id */
+            conversation_id?: string | null;
+            /** Turn Id */
+            turn_id?: string | null;
+            /**
+             * Input Json
+             * @default {}
+             */
+            input_json: string;
+            /** Result Json */
+            result_json?: string | null;
+            /** Result */
+            result?: unknown;
+            /** Error */
+            error?: string | null;
+            /** Created At */
+            created_at?: string | null;
         };
         /** SelectAsset */
         SelectAsset: {
@@ -2218,7 +2264,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["RunView"];
                 };
             };
             /** @description Validation Error */
@@ -3227,7 +3273,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["RunView"][];
                 };
             };
             /** @description Validation Error */

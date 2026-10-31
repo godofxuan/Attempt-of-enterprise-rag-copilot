@@ -36,7 +36,8 @@ def test_deep_actually_searches_each_subquestion_and_reads_bound_results():
         if name!='search':assert request.anchor_chunk_id and request.filters==analysis.filters
         assert request.user==user_context()
     assert state.task_plan.needs[0].text==analysis.original_question
-    assert [n.text for n in state.task_plan.needs[1:]]==[q.question for q in plan.subquestions]
+    assert len(state.task_plan.needs)==1 and state.task_plan.model_added_needs==0
+    assert state.task_plan.needs[0].text not in [q.question for q in plan.subquestions]
     report=controller.report()
     assert len(report['evidence_table'])==2 and all(not r['retrieval_gap'] for r in report['evidence_table'])
     assert len(report['opened_targets'])==2

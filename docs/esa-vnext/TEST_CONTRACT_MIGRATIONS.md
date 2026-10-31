@@ -1,17 +1,11 @@
-# 本轮必要测试契约迁移
+# 0.7 的资料更新契约
 
-`test_generation_v2.py::evidence_records_from_prompt` 现在先验证、解码主机添加的
-来源单元标签，再执行原有来源正文与注入边界断言。生产正文、canonical packing、
-引用绑定和原始字节没有被修改；模型视图在完整单元旁展示 SxUy 标识。
-旧断言要求模型视图字段逐字等于 canonical 字段，会把这些标签误报成来源污染。
-替代不变式：标签闭合且每字段唯一，去标签后仍等于原准入正文；外层 nonce、
-伪造边界/角色文本仍必须在 JSON 内。未删除或跳过原断言。
+旧 0.6：任一资料/元数据变化后，整个库 `snapshot()` 报 `INDEX_OUTDATED`。
+新 0.7：原子发布的旧代次可继续查询；未发布的新文档不加入结果；旧版本更新期间有明确历史提示。
+主动停用按 source_key 撤销已发布版本；单个资料元数据改变先排除该来源，再等待重新发布，不让其他资料全部不可用。
 
-新资料库测试中的 HTTP 冲突期望从 FastAPI 默认 detail 改为当前产品的
-`error.code/data`。测试仍要求409、TASK_CHANGED、实际当前参数；原受保护接口
-错误脱敏行为不改。
+`tests/vnext/test_library.py` 与 `test_source_spans.py` 的两处旧 INDEX_OUTDATED 断言迁移为上述精确不变式。
+原错误输出保存在本轮 S1-index-RED.xml；原文件可由 6006cd06 重建。来源偏移、非法目标、历史版本、缓存、重启和实际 FAISS 断言全部保留并到达。
+新 `test_publication_availability.py` 验证更新失败后旧发布仍可用、停用立即排除、恢复/重新发布和重启。不是删除断言或把问题归为旧测试无效。
 
-迁入的 `test_continuous_generation_handoff` 空答案输入显式增加
-`request_coverage: []`，以到达当前“明确的证据不足”分支；仍断言 partial、零断言、
-零来源且未发布模型自由文本。遗漏必要契约的空数组仍走原非法输入 system 分支，
-原 `test_generation_v2` 非法输入断言保留。
+Deep旧测试曾断言模型检索子题也成为新的用户义务。真实基线显示它把“延期/提前归还”等未问内容扩写成未完成项。现在保留全部实际search/find/open/身份/来源选择断言，改为严格核对唯一原问义务且model_added_needs=0；子题仍在evidence_table中逐项核对。知识Agent工具不再接受模型覆写原问；知识followup替身改为合法空参数，原字段/消息/调用/无副作用断言不变。

@@ -50,11 +50,13 @@ def test_document_job_generation_and_history_survive_reopen(tmp_path):
         active=[d for d in client.get('/api/library').json()['documents'] if d['active']]
         assert [d['id'] for d in active]==[doc['id']]
         assert (tmp_path/'indexes'/kb/'active.json').read_bytes()==pointer
-        # A real replacement must not silently answer current questions from
-        # the old generation; the old source remains independently readable.
+        # 0.7 contract: keep the published immutable version while its replacement
+        # builds. This is reported as historical; explicit withdrawal is separate.
         new=client.post(f'/api/library/{kb}/documents',headers=HEADERS,files={'file':('policy.md',b'# Booking\n\nBooking now requires manager approval.\n')}).json()
         import pytest
-        with pytest.raises(ValueError,match='INDEX_OUTDATED'):workspace.library.snapshot(kb)
+        published=workspace.library.snapshot(kb)
+        assert doc['id'] in workspace.library.published_scope(published)
+        assert new['id'] not in published.documents_by_id
         historical=client.get('/api/documents/'+doc['id']).json()
         assert not historical['active'] and 'sponsor' in historical['parsed']['text']
         notices=workspace.library.source_notices({'sources':[{'doc_id':doc['id']}]})

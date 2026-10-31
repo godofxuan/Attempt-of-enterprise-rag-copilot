@@ -1,0 +1,30 @@
+{
+  "version": "esa-semantic-070-v1",
+  "scoring": "逐例核对原文、结论、必要条件、禁止推论、来源和正文；自动字段检查仅为辅助，不是独立人审",
+  "cases": [
+    {"id":"scope-1","split":"dev","category":"事实与范围","entry":"RAG","question":"临时电脑最多借多少天？最少几天？","must":["1至14天"],"must_not":["把会议室2小时作为电脑借期"],"sources":["sample_loan.md"]},
+    {"id":"scope-2","split":"dev","category":"事实与范围","entry":"Agent","question":"会议室每天什么时候开放，单次最多多久？","must":["09:00至18:00","每次不超过2小时"],"must_not":["保证已经订到会议室"],"sources":["sample_meeting.md"]},
+    {"id":"scope-3","split":"holdout","category":"事实与范围","entry":"Agent","question":"这套资料能否真的替我预订会议室？它说明的开放时段是什么？","must":["会议室仅知识演示，未接入办理","09:00至18:00"],"must_not":["宣称已预订"],"sources":["sample_meeting.md"]},
+    {"id":"scope-4","split":"holdout","category":"事实与范围","entry":"RAG","question":"提交报修申请以后，OPEN代表什么？是不是修好了？","must":["OPEN待受理","不代表维修完成"],"must_not":["已解决"],"sources":["sample_repair.md"]},
+    {"id":"condition-1","split":"dev","category":"条件例外否定","entry":"Agent","question":"借电脑的维修条件和申请数量限制是什么？","must":["员工有有效维修记录才能申请","同一员工只能有一个未关闭借用申请"],"must_not":["允许多个未关闭申请"],"sources":["sample_loan.md"]},
+    {"id":"condition-2","split":"dev","category":"条件例外否定","entry":"RAG","question":"借用开始日期有什么限制？待审批是不是已经预留了一台？","must":["开始日期不得早于申请当天","待审批不等于批准、分配或预留"],"must_not":["已预留设备"],"sources":["sample_loan.md"]},
+    {"id":"condition-3","split":"holdout","category":"条件例外否定","entry":"RAG","question":"报修能替别人的电脑提交吗？同一台已有未关闭报修时怎么办？","must":["只可为本人有效设备报修","读取原工单而非重复创建"],"must_not":["代他人报修已获授权"],"sources":["sample_repair.md"]},
+    {"id":"condition-4","split":"holdout","category":"条件例外否定","entry":"Agent","question":"会议室用完可以直接离开吗？请说明收尾要求。","must":["清理桌面","关闭设备"],"must_not":["新增罚款"],"sources":["sample_meeting.md"]},
+    {"id":"hypothesis-1","split":"dev","category":"假设推导","entry":"RAG","question":"假设我没有有效维修记录，只按这份借用制度，我是否符合申请资格？不需要查我的实际记录。","must":["按假设不满足维修资格条件","不声称查询过个人记录"],"must_not":["以未查个人记录为由完全不回答规则推导"],"sources":["sample_loan.md"]},
+    {"id":"hypothesis-2","split":"dev","category":"假设推导","entry":"Agent","question":"假设我有有效维修记录，能否据此保证借到电脑？请区分申请条件与审批和库存。","must":["满足维修这一必要条件","不能保证库存、批准或分配","实际状态查业务工具"],"must_not":["有维修记录就必然借到"],"sources":["sample_loan.md"]},
+    {"id":"hypothesis-3","split":"holdout","category":"假设推导","entry":"Agent","question":"假设我还有一个未关闭的借用申请，能不能同时再申请一份？","must":["不符合仅一个未关闭申请的限制"],"must_not":["伪称已查询实际工单"],"sources":["sample_loan.md"]},
+    {"id":"hypothesis-4","split":"holdout","category":"假设推导","entry":"RAG","question":"假设会议室要连续使用3小时，按现有说明是否超过单次上限？","must":["3小时超过2小时上限","仅规则解释非实际预订"],"must_not":["以库存未知为由拒绝比较时长"],"sources":["sample_meeting.md"]},
+    {"id":"comparison-1","split":"dev","category":"跨文档比较","entry":"Agent","deep":true,"question":"比较电脑借用和会议室预订的时长上限与适用条件，按维度解释差异。","must":["电脑1至14天及有效维修条件","会议室单次不超过2小时及开放时段","维度组织而非两段全文串联"],"must_not":["把两个制度的条件互换"],"sources":["sample_loan.md","sample_meeting.md"]},
+    {"id":"comparison-2","split":"dev","category":"跨文档比较","entry":"RAG","deep":true,"question":"电脑借用和IT报修提交后分别是什么状态？哪些结论不能据此推出？","must":["借用待审批不等于批准分配预留","报修OPEN待受理不代表维修完成"],"must_not":["报修申请自动取得借用维修资格"],"sources":["sample_loan.md","sample_repair.md"]},
+    {"id":"comparison-3","split":"holdout","category":"跨文档比较","entry":"RAG","deep":true,"question":"请按身份范围、重复申请处理和提交后的状态三个维度，对比借用与报修。","must":["借用有效维修员工/仅一未关闭","报修本人有效设备/同设备未关闭读原单","待审批与OPEN分别表达"],"must_not":["虚构企业生产流程"],"sources":["sample_loan.md","sample_repair.md"]},
+    {"id":"comparison-4","split":"holdout","category":"跨文档比较","entry":"Agent","deep":true,"question":"两种服务中，电脑借用可以准备申请，会议室是否也能办理？顺便比较两者时长单位。","must":["会议室知识演示未接办理","电脑按天，会议室按小时","不跨制度借用权限"],"must_not":["会议室申请已创建"],"sources":["sample_loan.md","sample_meeting.md"]},
+    {"id":"context-1","split":"dev","category":"长首问与指代","entry":"RAG","background_repeat":18,"question":"背景到此结束。现在只问：临时电脑的维修资格、最长天数、开始日期限制和未关闭申请数量分别是什么？","must":["有效维修记录","14天","不得早于申请当天","同一员工仅一个未关闭"],"must_not":["遗漏末尾问题"],"sources":["sample_loan.md"]},
+    {"id":"context-2","split":"dev","category":"长首问与指代","entry":"Agent","prior":"请解释电脑借用的期限。","question":"它的开始日期能设在申请前一天吗？不要办理。","must":["电脑借用开始日期不得早于申请当天","不产生预览或工单"],"must_not":["转去回答会议室时间"],"sources":["sample_loan.md"]},
+    {"id":"context-3","split":"holdout","category":"长首问与指代","entry":"Agent","background_repeat":20,"question":"实际问题只有这一句：会议室最长一次能用多久，用后要做什么？","must":["不超过2小时","清理桌面关闭设备"],"must_not":["回答背景而丢失问题"],"sources":["sample_meeting.md"]},
+    {"id":"context-4","split":"holdout","category":"长首问与指代","entry":"RAG","prior":"先告诉我报修提交后的状态。","question":"那是不是说明设备已经修好了？","must":["OPEN待受理不代表维修完成"],"must_not":["已解决或已关闭"],"sources":["sample_repair.md"]},
+    {"id":"unknown-1","split":"dev","category":"缺失冲突不相关","entry":"Agent","question":"电脑借用押金是多少？如果原文没写，请明确说明。","must":["本规则没有规定押金","不能据此推出免费或免押"],"must_not":["押金0元"],"sources":["sample_loan.md"]},
+    {"id":"unknown-2","split":"dev","category":"缺失冲突不相关","entry":"RAG","question":"临时电脑跨国运费由谁承担、额度多少？不要用押金条款替代回答。","must":["当前资料未说明跨国运费金额和承担方"],"must_not":["没有规定押金即回答运费免费"],"sources":[]},
+    {"id":"unknown-3","split":"holdout","category":"缺失冲突不相关","entry":"RAG","question":"电脑最长14天和会议室每次2小时是否矛盾？能否把会议室上限直接套到借电脑？","must":["主体不同不构成同一规则冲突","不能跨制度套用"],"must_not":["把电脑上限改2小时"],"sources":["sample_loan.md","sample_meeting.md"]},
+    {"id":"unknown-4","split":"holdout","category":"缺失冲突不相关","entry":"Agent","question":"资料有没有说明IT报修一定几小时修好，以及逾期赔偿金额？","must":["没有规定保证修复时长和赔偿金额"],"must_not":["从会议室开放时间推断报修SLA"],"sources":[]}
+  ]
+}

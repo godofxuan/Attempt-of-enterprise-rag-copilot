@@ -56,6 +56,11 @@ class Library(CatalogOperations, JobsOperations, QueryOperations):
                 db.execute(
                     "ALTER TABLE library_documents ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'"
                 )
+            if "withdrawn" not in {r[1] for r in db.execute("PRAGMA table_info(library_documents)")}:
+                db.execute("ALTER TABLE library_documents ADD COLUMN withdrawn INTEGER NOT NULL DEFAULT 0")
+                # Preserve old explicit disables; superseded immutable versions
+                # are identifiable by a newer active version of the same source.
+                db.execute("UPDATE library_documents SET withdrawn=1 WHERE active=0 AND NOT EXISTS (SELECT 1 FROM library_documents newer WHERE newer.kb_id=library_documents.kb_id AND newer.source_key=library_documents.source_key AND newer.active=1)")
             db.execute("UPDATE library_documents SET source_key=name WHERE source_key IS NULL")
 
     @contextmanager

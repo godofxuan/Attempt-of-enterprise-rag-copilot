@@ -87,6 +87,15 @@ export function LibraryPage() {
           <section className="library-upload card">
             <h2>{current?.name}</h2>
             <p className="muted">
+              已发布索引：
+              {query.data?.publications?.[kb]?.published_run_id || "尚未发布"} ·
+              更新状态：
+              {query.data?.publications?.[kb]?.update_state || "待处理"}
+            </p>
+            <p className="muted">
+              查询使用已发布资料，新变更成功后切换；主动停用立即从新查询排除。更新失败可重试，旧版本来源保持可查看。
+            </p>
+            <p className="muted">
               支持 PDF、Word、Markdown
               与文本。导入后自动处理，可在下方查看实际状态。
             </p>

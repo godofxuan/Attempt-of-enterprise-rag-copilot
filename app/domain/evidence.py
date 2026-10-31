@@ -168,10 +168,18 @@ class Clarification(StrictModel):
     options: list[str] = Field(default_factory=list, max_length=4)
 
 
+class AnswerBlock(StrictModel):
+    """Model explanation with verified provenance, not a proof of entailment."""
+    kind: Literal["explanation", "comparison", "rule"] = "explanation"
+    text: str = Field(min_length=1, max_length=1800)
+    claim_ids: list[str] = Field(min_length=1, max_length=20)
+
+
 class AnswerResponse(StrictModel):
     mode: AnswerMode
     answer: str = Field(min_length=1, max_length=20_000)
     claims: list[Claim] = Field(default_factory=list)
+    answer_blocks: list[AnswerBlock] = Field(default_factory=list, exclude_if=lambda value: not value)
     citations: list[ClaimCitation] = Field(default_factory=list)
     sources: list[AnswerSource] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)

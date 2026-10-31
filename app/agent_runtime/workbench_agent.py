@@ -62,7 +62,10 @@ class ServiceAgent:
                     actor,
                     task_id,
                     started["active_run_id"],
-                    {"purpose": "tool_selection", "context": context},
+                    {"purpose": "tool_selection", "context": context,
+                     "input_measurement": {"estimator":"utf8_bytes_not_exact_tokens", "system_bytes":len(system.encode('utf8')),
+                         "tool_schema_bytes":len(json.dumps(catalog.schemas(current),ensure_ascii=False).encode('utf8')),
+                         "history_bytes":len(json.dumps(messages,ensure_ascii=False).encode('utf8'))}},
                 )
                 user_messages = [
                     {

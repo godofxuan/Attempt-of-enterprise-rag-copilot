@@ -18,6 +18,20 @@ class PublishedAnswerView(BaseModel):
         return value.model_dump(exclude={"trace"})
 
 
+class RunView(BaseModel):
+    id: str
+    kind: str
+    target: str | None = None
+    status: str
+    conversation_id: str | None = None
+    turn_id: str | None = None
+    input_json: str = "{}"
+    result_json: str | None = None
+    result: Any = None
+    error: str | None = None
+    created_at: str | None = None
+
+
 class FieldView(BaseModel):
     name: str
     label: str

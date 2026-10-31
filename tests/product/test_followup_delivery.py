@@ -52,7 +52,8 @@ def test_prior_questions_reach_generation_without_becoming_clarification_replies
             return {
                 "content": json.dumps(
                     {
-                        "unit_uses": {u: ["N1"] for u in schema["unit_uses"]["required"]},
+                        "unit_uses": [{"unit_id":u,"need_refs":["N1"]} for u in schema["unit_uses"]["items"]["properties"]["unit_id"]["enum"]],
+                        "answer_blocks": [],
                         "need_status": {
                             "N1": {
                                 "status": "supported",

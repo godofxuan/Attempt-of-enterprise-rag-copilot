@@ -145,7 +145,12 @@ class Runs:
         payload = json.loads(row["input_json"])
         cid = payload.get("conversation_id")
         if not cid and payload.get("task_id"):
-            cid = self.workspace.service.view(payload["task_id"]).get("conversation_id")
+            with self.db() as db:
+                binding = db.execute(
+                    "SELECT conversation_id FROM conversation_tasks WHERE task_id=?",
+                    (payload["task_id"],),
+                ).fetchone()
+            cid = binding[0] if binding else None
         return {
             **dict(row),
             "conversation_id": cid,

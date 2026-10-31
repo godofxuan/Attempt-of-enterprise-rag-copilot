@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
 import httpx
 from app.api.workbench_errors import WorkspaceError
+from app.domain.product_views import RunView
 from app.api.workbench_contracts import (
     SettingsPatch,
     CreateKnowledgeBase,
@@ -244,7 +245,7 @@ def workspace_router(workspace):
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
 
-    @router.get("/api/runs/{run_id}")
+    @router.get("/api/runs/{run_id}", response_model=RunView)
     def run(run_id: str):
         try:
             return workspace.runs.get(run_id)

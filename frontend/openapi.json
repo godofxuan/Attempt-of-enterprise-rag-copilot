@@ -745,7 +745,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/RunView"
+                }
               }
             }
           },
@@ -1991,7 +1993,13 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunView"
+                  },
+                  "title": "Response Runs Api Product Conversations  Cid  Runs Get"
+                }
               }
             }
           },
@@ -2080,6 +2088,43 @@
         ],
         "title": "AddDirectory"
       },
+      "AnswerBlock": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "explanation",
+              "comparison",
+              "rule"
+            ],
+            "title": "Kind",
+            "default": "explanation"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 1800,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "claim_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Claim Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "claim_ids"
+        ],
+        "title": "AnswerBlock",
+        "description": "Model explanation with verified provenance, not a proof of entailment."
+      },
       "AnswerResponse": {
         "properties": {
           "mode": {
@@ -2109,6 +2154,13 @@
             },
             "type": "array",
             "title": "Claims"
+          },
+          "answer_blocks": {
+            "items": {
+              "$ref": "#/components/schemas/AnswerBlock"
+            },
+            "type": "array",
+            "title": "Answer Blocks"
           },
           "citations": {
             "items": {
@@ -3360,6 +3412,103 @@
           "observation"
         ],
         "title": "RunEventView"
+      },
+      "RunView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "turn_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Id"
+          },
+          "input_json": {
+            "type": "string",
+            "title": "Input Json",
+            "default": "{}"
+          },
+          "result_json": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Json"
+          },
+          "result": {
+            "title": "Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status"
+        ],
+        "title": "RunView"
       },
       "SelectAsset": {
         "properties": {

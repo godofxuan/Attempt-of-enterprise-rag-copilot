@@ -33,7 +33,7 @@ def retrieval_windows(text, *, width=1000, overlap=100):
     return [text[start : start + width] for start in range(0, len(text), width - overlap)][:4]
 
 
-def recent_tool_groups(messages):
+def recent_tool_groups(messages, *, max_bytes=None):
     """Retain complete call/result groups; older facts are rebuilt from state.
 
     This is a history byte allowance, not a claim to have the model tokenizer.
@@ -46,7 +46,7 @@ def recent_tool_groups(messages):
         if message["role"] == "assistant" or not groups:
             groups.append([])
         groups[-1].append(message)
-    budget = SERVING_CONTEXT_TOKENS - SERVING_OUTPUT_TOKENS
+    budget = max_bytes if max_bytes is not None else SERVING_CONTEXT_TOKENS - SERVING_OUTPUT_TOKENS
     while len(groups) > 1 and len(json.dumps(groups, ensure_ascii=False).encode("utf8")) > budget:
         groups.pop(0)
     return [message for group in groups for message in group]
