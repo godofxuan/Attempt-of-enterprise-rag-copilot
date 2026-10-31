@@ -127,6 +127,7 @@ try:
         "/nologo",
         "/target:winexe",
         "/reference:System.Windows.Forms.dll",
+        "/reference:System.Drawing.dll",
         "/out:" + str(package / "ESA.exe"),
         source / "packaging/windows/Launcher.cs",
     )
