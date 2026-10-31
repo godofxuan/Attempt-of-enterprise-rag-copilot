@@ -139,3 +139,17 @@ def test_readonly_model_brief_cannot_add_a_preview_and_can_correct_without_repea
         with w.service.store.transaction() as db:
             assert db.execute('SELECT COUNT(*) FROM action_proposals').fetchone()[0] == 0
             assert db.execute('SELECT COUNT(*) FROM tickets').fetchone()[0] == 0
+        # Saved metadata from the measured 219b failure must be recoverable,
+        # without silently rewriting its original model proposal as correct.
+        legacy = w.conversations.coordinator.delivery('readonly-brief')
+        legacy['requested']['preview'] = True
+        w.conversations.coordinator.save_delivery('readonly-brief', legacy)
+        with w.conversations.db() as db:
+            db.execute("UPDATE conversation_turns SET status='PARTIAL' WHERE id='readonly-brief'")
+        assert not w.conversations.coordinator.delivery('readonly-brief')['accepted']
+        w.models.chat = SequenceModel([('finish', {'turn_request': {'preview': False, 'knowledge_quote': ''}})]).chat
+        resumed = c.post(f'/api/product/conversations/{cid}/turns/readonly-brief/retry', headers=H, json={})
+        assert resumed.status_code == 202, resumed.text
+        assert wait(c, resumed.json()['id'])['status'] == 'succeeded'
+        final = w.conversations.coordinator.for_task(w.service.view(task['task_id']))
+        assert final['status'] == 'complete' and final['rejected_prior_request']['preview']

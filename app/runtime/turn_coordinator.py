@@ -41,11 +41,22 @@ class TurnCoordinator:
     def delivery(self, turn_id):
         with self.conversations.db() as db:
             row = db.execute("SELECT payload FROM conversation_turns WHERE id=?", (turn_id,)).fetchone()
-        return (json.loads(row[0] or "{}") if row else {}).get("turn_delivery", {
+            command = db.execute("SELECT payload FROM turn_commands WHERE turn_id=?", (turn_id,)).fetchone()
+        state = (json.loads(row[0] or "{}") if row else {}).get("turn_delivery", {
             "accepted": False, "requested": {}, "items": {}, "input_applied": False,
             "turn_id": turn_id, "status": "partial", "pending": ["request_brief"],
             "retryable": True, "next_action": "继续处理未完成请求",
         })
+        task_id = json.loads(command[0]).get("task_id") if command else None
+        if task_id and state.get("accepted") and state.get("requested", {}).get("preview"):
+            from app.workbench_service import local_actor
+            task = self.workspace.service.store.get_task(local_actor(), task_id)
+            if task["user_execution_ceiling"] == "READ_ONLY":
+                # Re-evaluate persisted model metadata against current user authority.
+                # Keep the old proposal as evidence, never revive a forbidden action.
+                state = {**state, "accepted":False, "rejected_prior_request":state["requested"],
+                         "requested":{}, "items":{k:v for k,v in state["items"].items() if k != "preview"}}
+        return state
 
     def save_delivery(self, turn_id, delivery):
         with self.conversations.db() as db:
