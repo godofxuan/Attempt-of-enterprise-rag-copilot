@@ -170,3 +170,26 @@ def test_formatting_numbers_and_presentation_kind_do_not_become_business_facts()
         retained_blocks([version], claims, "最长几天？")[1][0]["reason"]
         == "unbound_source_identifier"
     )
+
+
+def test_compound_expression_checks_each_bound_clause_without_mixing_polarities():
+    claims = [
+        Claim(claim_id="C1", text="会议室每日开放时间为09:00至18:00。", cited_chunk_ids=["d"]),
+        Claim(claim_id="C2", text="每次预订不得超过2小时。", cited_chunk_ids=["d"]),
+    ]
+    text = "会议室每日开放时间为09:00至18:00，单次预订不得超过2小时。"
+    block = AnswerBlock(text=text, claim_ids=["C1", "C2"])
+    assert retained_blocks([block], claims, "开放时间和时长？")[0] == [block]
+    reversed_limit = block.model_copy(update={"text": text.replace("不得超过", "可以超过")})
+    assert retained_blocks([reversed_limit], claims, "开放时间和时长？")[1]
+    # Keeping a separate negative sentence cannot conceal a reversed limit.
+    hidden = reversed_limit.model_copy(update={"text": reversed_limit.text + "不得代订。"})
+    assert retained_blocks([hidden], claims, "开放时间和时长？")[1]
+
+
+def test_bound_symbolic_value_cannot_disappear_from_an_explanation():
+    claim = Claim(claim_id="C1", text="用户确认后保存OPEN待受理工单。", cited_chunk_ids=["d"])
+    incomplete = AnswerBlock(text="用户确认后保存为", claim_ids=["C1"])
+    assert retained_blocks([incomplete], [claim], "保存为什么状态？")[1][0]["reason"] == "missing_bound_symbol"
+    complete = incomplete.model_copy(update={"text": "用户确认后保存为OPEN待受理工单。"})
+    assert retained_blocks([complete], [claim], "保存为什么状态？")[0] == [complete]

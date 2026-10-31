@@ -44,6 +44,10 @@ def retained_blocks(blocks, claims, question, provenance_by_claim=None):
             scalar_text = re.sub(identity_pattern, "", block.text)
             if not identifiers <= known_identifiers:
                 reason = "unbound_source_identifier"
+            elif not set(re.findall(r"(?<![A-Za-z0-9_])[A-Z][A-Z0-9_]+(?![A-Za-z0-9_])", evidence)) <= set(
+                re.findall(r"(?<![A-Za-z0-9_])[A-Z][A-Z0-9_]+(?![A-Za-z0-9_])", block.text)
+            ):
+                reason = "missing_bound_symbol"
             elif not scalar_literals(scalar_text) <= scalar_literals(
                 factual_basis
             ) or _date_mismatch(scalar_text, factual_basis):
