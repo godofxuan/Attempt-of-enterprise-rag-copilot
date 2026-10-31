@@ -1,6 +1,7 @@
 """Explicit dependencies and lifetime for the sole product factory."""
 
 from datetime import datetime
+from contextlib import closing
 import sqlite3
 import httpx
 from app.persistence.workspaces import load_config, WorkspaceConfig
@@ -30,7 +31,12 @@ class Workspace:
 
         self.lease = WorkspaceLease(self.root).acquire()
         self.root.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.db_path) as db:
+        with closing(sqlite3.connect(self.db_path)) as db, db:
+            # History/source snapshots must not block short business commits.
+            # Keep the existing single-workspace lease and BEGIN IMMEDIATE
+            # transaction checks; WAL changes reader/writer coexistence only.
+            if db.execute("PRAGMA journal_mode=WAL").fetchone()[0].lower() != "wal":
+                raise RuntimeError("WORKSPACE_WAL_UNAVAILABLE: 工作区需要支持SQLite WAL的本地磁盘")
             db.execute(
                 "CREATE TABLE IF NOT EXISTS workspace_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)"
             )

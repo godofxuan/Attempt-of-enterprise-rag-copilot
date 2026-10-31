@@ -3,8 +3,9 @@
  */
 const {chromium}=require('playwright');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
-const option=(name)=>process.argv[process.argv.indexOf(name)+1];
+const option=(name)=>{const i=process.argv.indexOf(name);return i<0?undefined:process.argv[i+1];};
 const base=option('--url'),kb=option('--kb'),out=option('--out'),commit=option('--commit');
+const resumeTask=option('--resume-task');
 if(!base||!kb||!out||!commit)throw Error('Required --url --kb --out --commit');
 if(fs.existsSync(out))throw Error('Preserve original run; use a new distinct measurement output');
 fs.mkdirSync(path.dirname(out),{recursive:true});
@@ -77,9 +78,18 @@ const save=()=>fs.writeFileSync(out,JSON.stringify(report,null,2));
  }
  try{
   report.instance=await get('/api/instance');report.before=await get('/api/status');assert.equal(report.before.mode,'SYNTHETIC_LOCAL');report.before_desk=await get('/api/service-desk');save();
-  await p.goto(base+'/#/assistant');await p.getByLabel('当前资料库').selectOption(kb);
-  const created=await start('loan','SUBMIT_AFTER_CONFIRMATION');report.loan_task_id=created.task_id;save();
-  await say('我想从2026年11月24日借到11月26日，用于本地合成现场培训，至少16GB内存。请准备完整预览。');
+  let created;
+  if(resumeTask){
+   created=await get('/api/tasks/'+resumeTask);assert(!created.receipt);assert.equal(created.guided_request.kind,'loan');
+   report.recovery_basis='Same task now has the domain rule actually read in the saved failed run; no recreated task, no oracle action.';
+   await p.goto(base+'/#/assistant?c='+created.conversation_id);
+   await say('继续办理当前任务，保持现有参数与已选设备不变。');
+  }else{
+   await p.goto(base+'/#/assistant');await p.getByLabel('当前资料库').selectOption(kb);
+   created=await start('loan','SUBMIT_AFTER_CONFIRMATION');
+   await say('我想从2026年11月24日借到11月26日，用于本地合成现场培训，至少16GB内存。请准备完整预览。');
+  }
+  report.loan_task_id=created.task_id;save();
   let loan=await ensurePreview(created);report.first_loan_preview=loan;save();
   await open(loan);await p.getByLabel(/结束日期/).fill('2026-11-27');
   const next=p.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith('/runs'));

@@ -18,6 +18,31 @@ from app.workbench_service import local_actor
 H = {"X-ESA-Request": "1"}
 
 
+def test_history_reader_does_not_block_real_fact_commit(tmp_path):
+    import sqlite3
+
+    with product(tmp_path) as c:
+        w = c.app.state.workspace
+        task = create(w.service, "PREVIEW_ONLY")
+        # A history/source reader may retain a snapshot while another request
+        # saves facts. Exercise the actual HTTP/domain transaction, not a mock.
+        reader = sqlite3.connect(w.db_path)
+        try:
+            reader.execute("BEGIN")
+            reader.execute("SELECT * FROM conversations").fetchall()
+            response = c.patch(
+                "/api/tasks/" + task["task_id"] + "/facts", headers=H,
+                json={"changes": {"purpose": "并发读取时保存的用途"},
+                      "expected_facts_revision": task["facts_revision"]},
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["facts"]["purpose"] == "并发读取时保存的用途"
+            assert not response.json()["receipt"]
+        finally:
+            reader.rollback()
+            reader.close()
+
+
 def reply(question):
     return {
         "id": "external-test",
