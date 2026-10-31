@@ -6,6 +6,8 @@
 
 升级只替换程序目录，继续关联原完整 DATA_DIR。需要重新选择目录时使用 `ESA.exe --choose-workspace`。程序包不含模型、个人资料或业务数据。构建与具体检查边界见 `packaging/windows/README.md`。
 
+先在旧页面“设置”正常停止本地服务，再启动新包；同一目录已有实例时会复用，不能仅凭打开网页认定版本已更新。当前候选与实际运行实例的区别见STATUS顶部。工作区使用本地SQLite WAL，备份前停服务复制完整目录或使用SQLite backup API；运行时不能只复制app.sqlite3。新增解释实验默认关闭，未达到稳定语义质量门槛。
+
 ## 源码入口
 
 在源码根目录，使用Python3.11/3.12、uv与已运行的本地Ollama：
@@ -45,7 +47,7 @@ uv run --no-sync esa doctor --data-dir .private/esa-vnext
 
 - WORKSPACE_ALREADY_RUNNING：使用原页面，或正常结束原实例。崩溃后操作系统释放锁，不用删锁文件。
 - MODEL_UNAVAILABLE：检查Ollama和已有模型名称；不自动下载或替换模型。
-- INDEX_OUTDATED：文档更新了，先更新索引；历史答案及原文仍保留。
+- 更新处理中/失败：可继续查询已发布代次，尚未发布的新资料不加入答案；主动停用立即排除。首次无成功代次时需完成索引，不能伪装有可用知识。
 - INDEX_EMBEDDING_MODEL_CHANGED：当前查询模型与索引模型不同，需要更新该库索引。
 - TASK_CHANGED：另一页面修改了参数，比较服务端当前值后重新保存；失败时不丢自己的输入。
 - USER_UPDATE_PENDING：检查解释失败的原文和参数，明确范围后恢复，这不代表确认提交。
