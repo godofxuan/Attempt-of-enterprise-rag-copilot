@@ -115,14 +115,13 @@ def test_command_does_not_hold_a_connection_during_domain_projection(tmp_path, m
         assert result['task_id'] == task['task_id']
 
 
-def test_readonly_model_brief_cannot_add_a_preview_and_can_correct_without_repeating_reads(tmp_path):
+def test_readonly_host_scope_bounds_model_metadata_without_an_extra_model_correction(tmp_path):
     with product(tmp_path) as c:
         w = c.app.state.workspace
         task = create(w.service, 'READ_ONLY'); cid = task['conversation_id']
         model = SequenceModel(
             [('loan_policy', {}), ('assets_search', {}), ('tickets_list_mine', {}),
              ('finish', {'turn_request': {'preview': True, 'knowledge_quote': ''}})],
-            [('finish', {'turn_request': {'preview': False, 'knowledge_quote': ''}})],
         )
         w.models.chat = model.chat
         run = c.post(f'/api/conversations/{cid}/turns', headers=H,
@@ -133,9 +132,10 @@ def test_readonly_model_brief_cannot_add_a_preview_and_can_correct_without_repea
         assert not current['preview'] and not current['receipt']
         turn = next(t for t in w.conversations.turns(cid) if t['id'] == 'readonly-brief')
         assert turn['status'] == 'DONE' and turn['payload']['turn_delivery']['pending'] == []
-        assert len(model.calls) == 2
+        assert len(model.calls) == 1
         assert [o['tool'] for o in current['observations']].count('assets.search') == 1
-        assert any(e['kind'] == 'request_brief_rejected' for e in w.runs.events(run.json()['id']))
+        assert any(e['kind'] == 'request_scope_projected' for e in w.runs.events(run.json()['id']))
+        assert turn['payload']['turn_delivery']['scope_projection']['model_request']['preview']
         with w.service.store.transaction() as db:
             assert db.execute('SELECT COUNT(*) FROM action_proposals').fetchone()[0] == 0
             assert db.execute('SELECT COUNT(*) FROM tickets').fetchone()[0] == 0
@@ -147,7 +147,7 @@ def test_readonly_model_brief_cannot_add_a_preview_and_can_correct_without_repea
         with w.conversations.db() as db:
             db.execute("UPDATE conversation_turns SET status='PARTIAL' WHERE id='readonly-brief'")
         assert not w.conversations.coordinator.delivery('readonly-brief')['accepted']
-        w.models.chat = SequenceModel([('finish', {'turn_request': {'preview': False, 'knowledge_quote': ''}})]).chat
+        w.models.chat = SequenceModel([('finish', {'turn_request': {'preview': True, 'knowledge_quote': ''}})]).chat
         resumed = c.post(f'/api/product/conversations/{cid}/turns/readonly-brief/retry', headers=H, json={})
         assert resumed.status_code == 202, resumed.text
         assert wait(c, resumed.json()['id'])['status'] == 'succeeded'

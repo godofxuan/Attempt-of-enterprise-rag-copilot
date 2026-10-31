@@ -171,7 +171,9 @@ class ServiceAgent:
                     args = dict(args)
                     if turn and "turn_request" in args:
                         try:
-                            self.workspace.conversations.coordinator.accept_request(turn["id"], args.pop("turn_request"))
+                            projection = self.workspace.conversations.coordinator.accept_request(turn["id"], args.pop("turn_request"))
+                            if projection:
+                                self.workspace.runs.event(run_id, "request_scope_projected", projection)
                         except ServiceError as exc:
                             if protocol_feedbacks >= 1:
                                 raise

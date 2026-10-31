@@ -77,18 +77,27 @@ class TurnCoordinator:
             text = db.execute("SELECT text FROM conversation_turns WHERE id=?", (turn_id,)).fetchone()[0]
             command = db.execute("SELECT payload FROM turn_commands WHERE turn_id=?", (turn_id,)).fetchone()
         task_id = json.loads(command[0]).get("task_id") if command else None
+        projection = None
         if task_id and request["preview"]:
             from app.workbench_service import local_actor
             task = self.workspace.service.store.get_task(local_actor(), task_id)
             if task["user_execution_ceiling"] == "READ_ONLY":
-                raise ServiceError("EXECUTION_CEILING", data={"operation":"preview", "ceiling":"READ_ONLY"})
+                # This is untrusted output bookkeeping, not an executable tool.
+                # The user's narrower scope wins without making a useful read
+                # depend on the model correcting a redundant boolean.
+                projection = {"model_request":dict(request), "ceiling":"READ_ONLY",
+                              "basis":"USER_SCOPE_INTERSECTION_NOT_MODEL_UNDERSTANDING"}
+                request = {**request, "preview":False}
         if request["knowledge_quote"] and request["knowledge_quote"] not in text:
             raise ServiceError("TURN_QUOTE_NOT_IN_INPUT")
         state = self.delivery(turn_id)
         if state["accepted"] and state["requested"] != request:
             raise ServiceError("TURN_REQUEST_CONFLICT")
         state.update(accepted=True, requested=request, authority="MAIN_MODEL_BRIEF_NOT_PERMISSION_OR_TRUTH")
+        if projection:
+            state["scope_projection"] = projection
         self.save_delivery(turn_id, state)
+        return projection
 
     def observe(self, turn_id, name, result, task):
         state = self.delivery(turn_id)
