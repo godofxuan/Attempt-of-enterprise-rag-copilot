@@ -52,7 +52,16 @@ def test_prior_questions_reach_generation_without_becoming_clarification_replies
             return {
                 "content": json.dumps(
                     {
-                        "answer_blocks": [{"kind":"rule","text":"Only employees with a current repair record may borrow a computer.","source_unit_ids":schema["answer_blocks"]["items"]["properties"]["source_unit_ids"]["items"]["enum"],"need_refs":["N1"],"assumptions":[]}],
+                        "answer_blocks": [
+                            {
+                                "text": "Only employees with a current repair record may borrow a computer.",
+                                "source_unit_ids": schema["answer_blocks"]["items"]["properties"][
+                                    "source_unit_ids"
+                                ]["items"]["enum"],
+                                "need_refs": ["N1"],
+                                "assumptions": [],
+                            }
+                        ],
                         "need_status": {
                             "N1": {
                                 "status": "supported",

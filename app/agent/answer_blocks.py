@@ -10,7 +10,13 @@ from app.domain.evidence import AnswerBlock
 from app.security.retrieved_content import RetrievedContentGuard
 
 
-def retained_blocks(blocks, claims, question):
+def scalar_literals(text):
+    # Markdown ordinals and ASCII identifiers are syntax, not quantities.
+    text = re.sub(r"(?m)^\s{0,3}\d+[.)]\s+(?=\S)", "", text)
+    return set(re.findall(r"(?<![A-Za-z0-9_])\d+(?:\.\d+)?(?![A-Za-z0-9_])", text))
+
+
+def retained_blocks(blocks, claims, question, provenance_by_claim=None):
     by_id = {claim.claim_id: claim for claim in claims}
     retained, rejected = [], []
     for block in blocks:
@@ -24,9 +30,23 @@ def retained_blocks(blocks, claims, question):
             assumptions = "\n".join(block.assumptions)
             tokens = _content_tokens(block.text)
             shared = tokens & _content_tokens(evidence + "\n" + question)
-            scalars = set(re.findall(r"\d+(?:\.\d+)?", block.text))
-            permitted = set(re.findall(r"\d+(?:\.\d+)?", evidence + "\n" + question))
-            if not scalars <= permitted or _date_mismatch(block.text, evidence + "\n" + question):
+            identifier_context = "\n".join(
+                (provenance_by_claim or {}).get(cid, "") for cid in block.claim_ids
+            )
+            identity_pattern = r"\b[A-Za-z][A-Za-z0-9_-]*\d[A-Za-z0-9_-]*\b"
+            identifiers = set(re.findall(identity_pattern, block.text))
+            known_identifiers = set(
+                re.findall(
+                    identity_pattern, evidence + "\n" + identifier_context + "\n" + assumptions
+                )
+            )
+            factual_basis = evidence + ("\n" + assumptions if block.assumptions else "")
+            scalar_text = re.sub(identity_pattern, "", block.text)
+            if not identifiers <= known_identifiers:
+                reason = "unbound_source_identifier"
+            elif not scalar_literals(scalar_text) <= scalar_literals(
+                factual_basis
+            ) or _date_mismatch(scalar_text, factual_basis):
                 reason = "scalar_or_date_mismatch"
             elif tokens and len(shared) / len(tokens) < 0.4:
                 reason = "unrelated_expression"
@@ -53,7 +73,7 @@ def bind_generated_blocks(rows, generated_claims):
     ids = {claim.source_unit_id: claim.claim_id for claim in generated_claims}
     result = []
     for row in rows:
-        if not {"kind", "text", "source_unit_ids"} <= set(row) or set(row) - {
+        if not {"text", "source_unit_ids"} <= set(row) or set(row) - {
             "kind",
             "text",
             "source_unit_ids",
@@ -70,8 +90,11 @@ def bind_generated_blocks(rows, generated_claims):
         ):
             raise ValueError("answer block must bind its selected complete source units")
         # Host IDs are provenance syntax, not quantities in the explanation.
-        mentioned = re.findall(r"(?<![A-Za-z0-9])S[1-9]\d*U[1-9]\d*(?![A-Za-z0-9])", row["text"])
-        if not set(mentioned) <= set(units):
+        mentioned = re.findall(
+            r"(?<![A-Za-z0-9])S[1-9]\d*(?:U[1-9]\d*)?(?![A-Za-z0-9])", row["text"]
+        )
+        known_labels = set(units) | {uid.split("U")[0] for uid in units}
+        if not set(mentioned) <= known_labels:
             raise ValueError("unbound source label in answer text")
         text = row["text"]
         for uid in sorted(set(mentioned), key=len, reverse=True):
@@ -83,7 +106,7 @@ def bind_generated_blocks(rows, generated_claims):
             )
         result.append(
             AnswerBlock(
-                kind=row["kind"],
+                kind="conditional" if row.get("assumptions") else "explanation",
                 text=text,
                 claim_ids=[ids[uid] for uid in units],
                 assumptions=row.get("assumptions", []),

@@ -515,7 +515,11 @@ def publish_answer(question, state, response: AnswerResponse, sources) -> Answer
     notes = list(dict.fromkeys(notes))
     from app.agent.answer_blocks import retained_blocks
 
-    blocks, block_errors = retained_blocks(response.answer_blocks, claims, question)
+    provenance = {
+        claim.claim_id: "\n".join(delivered_by_id[cid].text for cid in claim.cited_chunk_ids)
+        for claim in claims
+    }
+    blocks, block_errors = retained_blocks(response.answer_blocks, claims, question, provenance)
     trace["answer_expression"] = {
         "basis": "model_expression_with_exact_provenance_and_finite_consistency_not_entailment",
         "retained": len(blocks),

@@ -118,3 +118,55 @@ def test_conditional_premise_requires_exact_user_quote_and_remains_hypothetical(
     assert retained_blocks([block], claims, question)[0] == [block]
     forged = block.model_copy(update={"assumptions": ["我已经被批准"]})
     assert retained_blocks([forged], claims, question)[1][0]["reason"] == "unbound_user_premise"
+
+
+def test_formatting_numbers_and_presentation_kind_do_not_become_business_facts():
+    wire = {
+        "answer_blocks": [
+            {
+                "kind": "conditional",
+                "text": "1. 最长14天 [S1]。开始日期不得早于申请当天。",
+                "source_unit_ids": ["S1U1"],
+                "need_refs": ["N1"],
+                "assumptions": [],
+            }
+        ],
+        "need_status": {
+            "N1": {
+                "status": "supported",
+                "subject_matches": True,
+                "attribute_matches": True,
+                "conditions_preserved": True,
+                "selection_scope": "linked_units",
+            }
+        },
+    }
+    parsed = _parse_generated_answer(json.dumps(wire))
+    assert (
+        parsed._answer_blocks[0].kind == "explanation" and not parsed._answer_blocks[0].assumptions
+    )
+    claims = [
+        Claim(
+            claim_id="C1",
+            text="借用期限为1至14天，开始日期不得早于申请当天。",
+            critical=True,
+            cited_chunk_ids=["doc"],
+            need_refs=["N1"],
+        )
+    ]
+    assert retained_blocks(parsed._answer_blocks, claims, "最长几天？")[0]
+    wrong = parsed._answer_blocks[0].model_copy(
+        update={"text": "最长30天，开始日期不得早于申请当天。"}
+    )
+    assert (
+        retained_blocks([wrong], claims, "是不是最长30天？")[1][0]["reason"]
+        == "scalar_or_date_mismatch"
+    )
+    version = parsed._answer_blocks[0].model_copy(
+        update={"text": "依据loan-policy-v1，最长14天，开始日期不得早于申请当天。"}
+    )
+    assert retained_blocks([version], claims, "最长几天？", {"C1": "规则版本loan-policy-v1。"})[0]
+    assert (
+        retained_blocks([version], claims, "最长几天？")[1][0]["reason"]
+        == "unbound_source_identifier"
+    )

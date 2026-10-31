@@ -262,7 +262,6 @@ def generation_response_format(sources, plan, *, need_first=False, explanatory=F
                 "items": {
                     "type": "object",
                     "properties": {
-                        "kind": {"enum": ["explanation", "comparison", "rule", "conditional"]},
                         "text": {"type": "string"},
                         "source_unit_ids": {"type": "array", "items": {"enum": ids}, "minItems": 1},
                         "need_refs": {"type": "array", "items": {"enum": need_ids}, "minItems": 1},
@@ -272,7 +271,7 @@ def generation_response_format(sources, plan, *, need_first=False, explanatory=F
                             "items": {"type": "string"},
                         },
                     },
-                    "required": ["kind", "text", "source_unit_ids", "need_refs", "assumptions"],
+                    "required": ["text", "source_unit_ids", "need_refs", "assumptions"],
                     "additionalProperties": False,
                 },
             }
@@ -1407,7 +1406,7 @@ def _generation_messages(
                 "Write concise answer_blocks: direct conclusions, conditional reasoning when the user gives a hypothesis, or comparisons organized by dimensions. Each block binds selected source_unit_ids. "
                 "Keep subjects, necessary conditions, exceptions, quantities and units. The host also retains selected exact quotations as the basis; do not quote whole documents. "
                 "A necessary criterion alone does not guarantee business eligibility, stock, approval or allocation. An absent policy item is not a zero price or a business result. "
-                "For a hypothetical answer use kind=conditional and assumptions containing exact quotes of the user's given premises. These are unverified premises, never evidence of personal records. Otherwise assumptions=[]. "
+                "For a hypothetical answer give assumptions containing exact quotes of the user's given premises. The host labels these as conditional and unverified, never evidence of personal records. For ordinary rule questions assumptions=[]. Do not classify a second kind field. "
                 "A rule-level conditional answer can be supported without checking personal records: supported describes the conditional answer, not actual eligibility or approval. "
                 "Put host IDs only in source_unit_ids, never in prose text. For absent attributes do not select unrelated facts; use empty blocks and evidence_insufficient if no source contributes. "
                 "In need_status assess the SAME complete answer, not source validity alone: subject_matches, attribute_matches and conditions_preserved must all hold for supported. "
