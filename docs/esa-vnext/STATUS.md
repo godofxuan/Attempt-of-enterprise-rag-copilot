@@ -1,3 +1,20 @@
+# ESA 当前进度：本轮默认预发布收尾完成
+
+- 应用冻结：`70a5005022e234e047d6c8e9ef515d86dccbcbb8`，**0.7.0rc2**；后续只提交本次文档和CI环境修正，不改应用/前端。不继续追加功能。
+- GitHub：`origin/codex/esa-061-070` 已同步，Draft PR https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/pull/2 ，未合并main/未发stable标签。原7个未提交文件字节保持。
+- 当前真实新版：http://127.0.0.1:8748/ 。DATA_DIR为 `.private/esa-vnext/upgrade-070-next/live-workspace`，保留完整原历史的隔离TEST副本。原 `.private/esa-vnext` / 8740旧实例不动；不会静默替换。
+- Windows产物：`.private/esa-vnext/build/releases/ESA-0.7.0rc2-windows-x64-70a50050.zip`；本机快捷启动 `.private/esa-vnext/upgrade-070-next/打开ESA演示.cmd`。包内带Python与锁定依赖，日常不安装。具体命令见START。
+- 最终应用commit的GitHub product-regression Windows/Linux均成功：https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/runs/41175705182 。133项相关产品/A1默认程序回归，5项明确模型替身浏览器；不是模型准确率。研究两断言1通过1已知失败，独立公开，不skip/xfail。
+- 本轮新真实证据：最终双入口借用七项知识齐全；原只读同任务/输入/回合恢复且零准备/提交；最终UI新借用预览/改期/旧确认409/当前确认/唯一待审批/幂等读回、归还，报修OPEN至关闭。模型输入/原响应/真实工具/数据库留私有原件。当前包正常版本切换/重复复用/端口冲突/模型离线/中文路径通过。
+- 实际新增 **30 chat / 13 query embedding文本 / 0 index**。工作台表累计412chat/227embedding；旧1条SENDING结果未知保持原样，更早研究账本不重置、不虚构总计。后续整理不再调用模型。
+- 新解释无稳定改善，保持关闭。默认报修知识的一种问法仍partial、漏提交状态；不是所有知识问题已完整正确。尚未证明追平main。
+- 未验：Windows原生首次目录选择、完整自动开页桌面路径及物理IME；目前不是正式stable070。旧全仓CI的Python3.11.9不支持新ubuntu-latest 26.04，已仅将其OS固定22.04，保留完整旧检查，结果与产品CI分开。
+- **下一项具体未完成**：对冻结包完成原生首次目录/自动开页/物理中文输入法人工检查。报修问答漏答作为后续独立问题登记，不在本轮扩题/调参。默认任务到此冻结交付。
+
+详见[结果与证据索引](RESULT_070_RC2.md)、[使用/升级](START.md)、[支持范围](RELEASE.md)。
+
+<details><summary>本轮实施经过与负结果（历史，不是并行活动计划）</summary>
+
 # ESA 当前进度
 
 当前范围：A01—D02，见reviews/070-next-20261031/GOAL.md；旧T01—T18不再作为并行活动计划。历史状态保留在history/STATUS_THROUGH_070_CANDIDATE.md，既有成果和失败不清零。
@@ -25,3 +42,5 @@
 - 下一项：冻结上述修正并正常升级本轮自有8748实例，复验受影响只读/默认知识；不重复借用报修整链。
 
 - 23432d15实时补查：借用同题独立RAG/knowledge Agent均交付资格、1–14天、开始日期、唯一未关闭申请、待审批非分配及押金未知；报修问法仍漏状态且partial，保留限制。只读纠错方案真实失败（模型文字承认只读，布尔仍true），转第二个机制：宿主将交付声明与用户范围求交，保留原声明，实际工具权限不变。定向16项通过，冻结后仅再测这条受影响恢复和最终业务旅程，不重复解释配对。
+
+</details>
