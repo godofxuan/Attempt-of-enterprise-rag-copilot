@@ -4,12 +4,14 @@
 
 启动器只识别相同工作区、应用 ID 和实例随机标识的服务。重复打开复用实例；默认端口被其他程序占用时绑定空闲端口。不杀旧服务或其他进程。模型离线时仍可读历史和设置。失败日志位于 `<DATA_DIR>/logs/launcher.log`。
 
-构建机需要 Python、uv、Node 和 Windows .NET Framework C# 编译器。前端先在 `frontend/` 执行 `npm ci`、`npm run build`，再将待发行源码提交到本地 feature 分支。
+构建机需要 Python3.11/3.12、uv、Node/npm 和 Windows .NET Framework C# 编译器。将待发行源码提交到本地 feature 分支。
 
-构建前在私有构建目录准备官方 Windows Python 3.12.10 embeddable，启用 `Lib/site-packages` 和 `import site`。用 `uv export --locked --no-dev --no-emit-project` 导出默认依赖，再在**构建时**把这些锁定 wheel 安装到该目录。运行时不安装依赖、不下载模型。
+一个构建命令从指定commit准备官方 Windows Python3.12.10 embeddable、按uv.lock哈希安装依赖、执行npm ci/build、构建wheel及薄启动器。缓存用于加速，不要求预先手动准备runtime，也不依赖作者.venv目录结构。运行时不安装依赖、不下载模型。
 
 ```powershell
-python scripts/build_windows_portable.py --ref HEAD --runtime <已准备的官方嵌入式运行时目录> --output-dir <发行输出目录>
+python scripts/build_windows_portable.py --ref HEAD --output-dir <发行输出目录>
+# 纯离线重建（工具与包缓存已经准备好）
+python scripts/build_windows_portable.py --ref HEAD --offline --embed-zip <官方CPython嵌入式ZIP> --uv <uv可执行文件> --npm <npm可执行文件>
 ```
 
 脚本只从指定 commit 导出产品，构建 wheel、安装到私有运行时、编译薄 C# 启动器并生成 ZIP。产物包含 `release.json` 的 commit/版本；不含数据库、私有资料、模型和索引。不得将个人 `.venv` 替代运行时目录。新工作区可在设置显式启用 TEST 数据和导入示例；升级使用原完整 DATA_DIR。

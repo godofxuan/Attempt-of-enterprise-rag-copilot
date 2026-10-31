@@ -916,11 +916,13 @@ export interface components {
              * @default explanation
              * @enum {string}
              */
-            kind: "explanation" | "comparison" | "rule";
+            kind: "explanation" | "comparison" | "rule" | "conditional";
             /** Text */
             text: string;
             /** Claim Ids */
             claim_ids: string[];
+            /** Assumptions */
+            assumptions?: string[];
         };
         /** AnswerResponse */
         AnswerResponse: {

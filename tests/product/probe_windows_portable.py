@@ -70,7 +70,7 @@ def main():
         "artifact": str(args.artifact.resolve()),
         "release": json.loads((package / "release.json").read_text("utf8")),
         "starts": [],
-        "native_first_dialog": "NOT_RUN_APPLICATION_CONTROL_APPROVAL_TIMEOUT",
+        "native_first_dialog": "NOT_RUN_BY_NONINTERACTIVE_PROBE",
         "automatic_browser_open": "NOT_RUN_NATIVE_GUI",
         "program_path": str(package),
     }

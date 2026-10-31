@@ -67,3 +67,54 @@ def test_paraphrase_keeps_binding_and_rejects_invented_number_or_lost_source():
 def test_source_ids_cannot_be_empty_or_unselected():
     with pytest.raises(ValueError, match="bind"):
         bind_generated_blocks([{"kind": "rule", "text": "任意内容", "source_unit_ids": []}], [])
+
+
+def test_one_block_binding_drives_both_claims_and_coverage_and_strips_only_known_labels():
+    wire = {
+        "answer_blocks": [
+            {
+                "kind": "rule",
+                "text": "最长14天 [S1U1]，开始日期不得早于申请当天。",
+                "source_unit_ids": ["S1U1"],
+                "need_refs": ["N1"],
+                "assumptions": [],
+            }
+        ],
+        "need_status": {
+            "N1": {
+                "status": "supported",
+                "subject_matches": True,
+                "attribute_matches": True,
+                "conditions_preserved": True,
+                "selection_scope": "linked_units",
+            }
+        },
+    }
+    result = _parse_generated_answer(json.dumps(wire))
+    assert len(result.claims) == 1 and result.request_coverage[0].claim_ids == ["C1"]
+    assert "S1U1" not in result._answer_blocks[0].text and "14天" in result._answer_blocks[0].text
+    wire["answer_blocks"][0]["text"] = "最长14天 [S9U9]"
+    with pytest.raises(ValueError, match="unbound source label"):
+        _parse_generated_answer(json.dumps(wire))
+
+
+def test_conditional_premise_requires_exact_user_quote_and_remains_hypothetical():
+    claims = [
+        Claim(
+            claim_id="C1",
+            text="只有存在有效维修记录的员工可以申请临时电脑。",
+            critical=True,
+            cited_chunk_ids=["doc"],
+            need_refs=["N1"],
+        )
+    ]
+    question = "假设我没有有效维修记录，按制度是否可以申请？"
+    block = AnswerBlock(
+        kind="conditional",
+        text="没有有效维修记录就不满足制度的申请条件。",
+        claim_ids=["C1"],
+        assumptions=["我没有有效维修记录"],
+    )
+    assert retained_blocks([block], claims, question)[0] == [block]
+    forged = block.model_copy(update={"assumptions": ["我已经被批准"]})
+    assert retained_blocks([forged], claims, question)[1][0]["reason"] == "unbound_user_premise"

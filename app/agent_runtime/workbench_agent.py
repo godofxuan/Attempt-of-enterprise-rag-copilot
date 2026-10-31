@@ -62,10 +62,22 @@ class ServiceAgent:
                     actor,
                     task_id,
                     started["active_run_id"],
-                    {"purpose": "tool_selection", "context": context,
-                     "input_measurement": {"estimator":"utf8_bytes_not_exact_tokens", "system_bytes":len(system.encode('utf8')),
-                         "tool_schema_bytes":len(json.dumps(catalog.schemas(current),ensure_ascii=False).encode('utf8')),
-                         "history_bytes":len(json.dumps(messages,ensure_ascii=False).encode('utf8'))}},
+                    {
+                        "purpose": "tool_selection",
+                        "context": context,
+                        "input_measurement": {
+                            "estimator": "utf8_bytes_not_exact_tokens",
+                            "system_bytes": len(system.encode("utf8")),
+                            "tool_schema_bytes": len(
+                                json.dumps(catalog.schemas(current), ensure_ascii=False).encode(
+                                    "utf8"
+                                )
+                            ),
+                            "history_bytes": len(
+                                json.dumps(messages, ensure_ascii=False).encode("utf8")
+                            ),
+                        },
+                    },
                 )
                 user_messages = [
                     {
@@ -300,9 +312,17 @@ class ServiceAgent:
                         with self.store.transaction() as db:
                             task = self.store._task(db, actor, task_id)
                             task.update(status="BLOCKED", last_error="TURN_PARTIALLY_DELIVERED")
-                            task["assistant_text"] = (task.get("assistant_text") or "当前预览已保存，尚未提交。") + "\n尚未完成：" + json.dumps(batch_errors, ensure_ascii=False)
+                            task["assistant_text"] = (
+                                (task.get("assistant_text") or "当前预览已保存，尚未提交。")
+                                + "\n尚未完成："
+                                + json.dumps(batch_errors, ensure_ascii=False)
+                            )
                             self.store._save(db, task)
-                    self.workspace.runs.event(run_id, "turn_delivery", {"completed_tools": sorted(observed), "unresolved": batch_errors})
+                    self.workspace.runs.event(
+                        run_id,
+                        "turn_delivery",
+                        {"completed_tools": sorted(observed), "unresolved": batch_errors},
+                    )
                     return self.service.view(task_id)
             raise ServiceError("RUN_STEP_LIMIT")
         except Exception as exc:

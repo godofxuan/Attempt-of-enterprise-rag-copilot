@@ -52,8 +52,7 @@ def test_prior_questions_reach_generation_without_becoming_clarification_replies
             return {
                 "content": json.dumps(
                     {
-                        "unit_uses": [{"unit_id":u,"need_refs":["N1"]} for u in schema["unit_uses"]["items"]["properties"]["unit_id"]["enum"]],
-                        "answer_blocks": [],
+                        "answer_blocks": [{"kind":"rule","text":"Only employees with a current repair record may borrow a computer.","source_unit_ids":schema["answer_blocks"]["items"]["properties"]["source_unit_ids"]["items"]["enum"],"need_refs":["N1"],"assumptions":[]}],
                         "need_status": {
                             "N1": {
                                 "status": "supported",

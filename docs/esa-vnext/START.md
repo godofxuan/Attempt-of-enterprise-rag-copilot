@@ -39,6 +39,10 @@ uv run --no-sync esa doctor --data-dir .private/esa-vnext
 
 ## 常见错误
 
+- WORKSPACE_MISSING：旧登记目录丢失或不完整。选择定位原工作区；不要为了恢复而在旧位置新建空库。
+- KNOWLEDGE_BASE_REQUIRED：在原会话右上角明确补选资料库后重试。显示值与服务器绑定一致；普通业务只读不强制选库。
+- 历史重试早于后续参数变更：仍保持原事项，以最新参数继续未完读取/准备；旧消息不能回滚新值，需要原修改时发送新的明确消息。
+
 - WORKSPACE_ALREADY_RUNNING：使用原页面，或正常结束原实例。崩溃后操作系统释放锁，不用删锁文件。
 - MODEL_UNAVAILABLE：检查Ollama和已有模型名称；不自动下载或替换模型。
 - INDEX_OUTDATED：文档更新了，先更新索引；历史答案及原文仍保留。

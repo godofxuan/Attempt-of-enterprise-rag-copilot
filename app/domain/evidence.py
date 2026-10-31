@@ -170,9 +170,10 @@ class Clarification(StrictModel):
 
 class AnswerBlock(StrictModel):
     """Model explanation with verified provenance, not a proof of entailment."""
-    kind: Literal["explanation", "comparison", "rule"] = "explanation"
+    kind: Literal["explanation", "comparison", "rule", "conditional"] = "explanation"
     text: str = Field(min_length=1, max_length=1800)
     claim_ids: list[str] = Field(min_length=1, max_length=20)
+    assumptions: list[str] = Field(default_factory=list, max_length=3)
 
 
 class AnswerResponse(StrictModel):

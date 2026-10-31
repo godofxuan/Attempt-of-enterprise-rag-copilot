@@ -61,10 +61,10 @@ class ToolCatalog:
                 {"question": {"type": "string"}},
                 ("question",),
             )
-        if kind == "knowledge" or (turn.get("kb_id") if turn and "kb_id" in turn else task.get("kb_id")):
-            properties = (
-                {} if kind == "knowledge" else {"question": {"type": "string"}}
-            )
+        if kind == "knowledge" or (
+            turn.get("kb_id") if turn and "kb_id" in turn else task.get("kb_id")
+        ):
+            properties = {} if kind == "knowledge" else {"question": {"type": "string"}}
             tools.append(
                 Tool(
                     "knowledge_answer",
@@ -132,6 +132,8 @@ class ToolCatalog:
                         )
                     )
         self.tools = {tool.name: tool for tool in tools}
+        if turn and turn.get("preserve_latest_parameters"):
+            self.tools.pop("update_parameters", None)
 
     def schemas(self, current=None):
         current = current or self.task
@@ -177,7 +179,7 @@ class ToolCatalog:
                 f for f in self.service.required_fields(current) if not current["facts"].get(f)
             ]
             actual = current.get("observations", [])[len(self.task.get("observations", [])) :]
-            applied = any(
+            applied = bool(self.turn.get("preserve_latest_parameters")) or any(
                 o["tool"] in {"update_parameters", "tickets.propose_create"}
                 and o["result"].get("status") == "ok"
                 for o in actual
@@ -385,12 +387,16 @@ class ToolCatalog:
                 )
             return store.propose(actor, task_id, args["asset_id"], refs, _record_tool_result=True)
         if name == "knowledge_answer":
-            current = {**current, "kb_id": self.turn["kb_id"]} if self.turn and "kb_id" in self.turn else current
+            current = (
+                {**current, "kb_id": self.turn["kb_id"]}
+                if self.turn and "kb_id" in self.turn
+                else current
+            )
             if not current.get("kb_id"):
                 raise ServiceError("KNOWLEDGE_BASE_REQUIRED")
-            question = (None if current["guided_request"]["kind"] == "knowledge" else args.get("question")) or (
-                self.turn["text"] if self.turn else current["guided_request"]["question"]
-            )
+            question = (
+                None if current["guided_request"]["kind"] == "knowledge" else args.get("question")
+            ) or (self.turn["text"] if self.turn else current["guided_request"]["question"])
             detailed = bool(self.turn and self.turn.get("detailed"))
             key = (current["kb_id"], question.strip(), detailed)
             if key in self.knowledge_cache:

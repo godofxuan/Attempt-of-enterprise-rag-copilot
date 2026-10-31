@@ -30,6 +30,8 @@ class ModelService:
                 db.execute(
                     "ALTER TABLE model_calls ADD COLUMN purpose TEXT NOT NULL DEFAULT 'UNCLASSIFIED_EARLIER_PRODUCT_CALL'"
                 )
+            if "run_id" not in {row[1] for row in db.execute("PRAGMA table_info(model_calls)")}:
+                db.execute("ALTER TABLE model_calls ADD COLUMN run_id TEXT")
 
     @contextmanager
     def db(self):
@@ -44,7 +46,11 @@ class ModelService:
         await self.client.aclose()
 
     async def send(self, kind, payload, *, purpose=None):
-        from app.runtime.request_context import remaining_seconds, RequestDeadlineExceeded
+        from app.runtime.request_context import (
+            remaining_seconds,
+            RequestDeadlineExceeded,
+            current_request_id,
+        )
 
         config = self.workspace.config
         call_id = uuid.uuid4().hex
@@ -54,8 +60,21 @@ class ModelService:
             if remaining is not None and remaining <= 0:
                 raise RequestDeadlineExceeded("Run deadline exhausted before send")
             with self.db() as db:
+                run_id = current_request_id()
+                db.execute("BEGIN IMMEDIATE")
+                if (
+                    kind == "chat"
+                    and run_id
+                    and db.execute(
+                        "SELECT COUNT(*) FROM model_calls WHERE run_id=? AND kind='chat'", (run_id,)
+                    ).fetchone()[0]
+                    >= 8
+                ):
+                    raise ValueError(
+                        "RUN_CHAT_LIMIT: all nested calls and failed attempts share the existing 8-call run ceiling"
+                    )
                 db.execute(
-                    "INSERT INTO model_calls(id,kind,model,status,input_json,purpose) VALUES(?,?,?,?,?,?)",
+                    "INSERT INTO model_calls(id,kind,model,status,input_json,purpose,run_id) VALUES(?,?,?,?,?,?,?)",
                     (
                         call_id,
                         kind,
@@ -63,6 +82,7 @@ class ModelService:
                         "SENDING",
                         json.dumps(payload, ensure_ascii=False),
                         purpose or kind,
+                        run_id,
                     ),
                 )
             try:

@@ -21,6 +21,7 @@ def retained_blocks(blocks, claims, question):
             reason = "unbound_or_discarded_evidence"
         else:
             evidence = "\n".join(by_id[cid].text for cid in block.claim_ids)
+            assumptions = "\n".join(block.assumptions)
             tokens = _content_tokens(block.text)
             shared = tokens & _content_tokens(evidence + "\n" + question)
             scalars = set(re.findall(r"\d+(?:\.\d+)?", block.text))
@@ -29,7 +30,15 @@ def retained_blocks(blocks, claims, question):
                 reason = "scalar_or_date_mismatch"
             elif tokens and len(shared) / len(tokens) < 0.4:
                 reason = "unrelated_expression"
-            elif _negation_mismatch(block.text, evidence):
+            elif block.kind == "conditional" and (
+                not block.assumptions or any(not a or a not in question for a in block.assumptions)
+            ):
+                reason = "unbound_user_premise"
+            elif block.kind != "conditional" and block.assumptions:
+                reason = "premises_require_conditional_expression"
+            elif _negation_mismatch(
+                block.text, evidence + ("\n" + assumptions if block.kind == "conditional" else "")
+            ):
                 reason = "polarity_mismatch"
             elif RetrievedContentGuard().scan(block.text).disposition != "ADMIT":
                 reason = "content_guard"
@@ -44,7 +53,13 @@ def bind_generated_blocks(rows, generated_claims):
     ids = {claim.source_unit_id: claim.claim_id for claim in generated_claims}
     result = []
     for row in rows:
-        if set(row) != {"kind", "text", "source_unit_ids"}:
+        if not {"kind", "text", "source_unit_ids"} <= set(row) or set(row) - {
+            "kind",
+            "text",
+            "source_unit_ids",
+            "need_refs",
+            "assumptions",
+        }:
             raise ValueError("invalid answer block fields")
         units = row["source_unit_ids"]
         if (
@@ -54,7 +69,24 @@ def bind_generated_blocks(rows, generated_claims):
             or not set(units) <= set(ids)
         ):
             raise ValueError("answer block must bind its selected complete source units")
+        # Host IDs are provenance syntax, not quantities in the explanation.
+        mentioned = re.findall(r"(?<![A-Za-z0-9])S[1-9]\d*U[1-9]\d*(?![A-Za-z0-9])", row["text"])
+        if not set(mentioned) <= set(units):
+            raise ValueError("unbound source label in answer text")
+        text = row["text"]
+        for uid in sorted(set(mentioned), key=len, reverse=True):
+            text = (
+                text.replace("[" + uid + "]", "")
+                .replace("（" + uid + "）", "")
+                .replace("(" + uid + ")", "")
+                .replace(uid, "")
+            )
         result.append(
-            AnswerBlock(kind=row["kind"], text=row["text"], claim_ids=[ids[uid] for uid in units])
+            AnswerBlock(
+                kind=row["kind"],
+                text=text,
+                claim_ids=[ids[uid] for uid in units],
+                assumptions=row.get("assumptions", []),
+            )
         )
     return result

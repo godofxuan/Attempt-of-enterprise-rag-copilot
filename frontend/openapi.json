@@ -2095,7 +2095,8 @@
             "enum": [
               "explanation",
               "comparison",
-              "rule"
+              "rule",
+              "conditional"
             ],
             "title": "Kind",
             "default": "explanation"
@@ -2114,6 +2115,14 @@
             "maxItems": 20,
             "minItems": 1,
             "title": "Claim Ids"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Assumptions"
           }
         },
         "additionalProperties": false,

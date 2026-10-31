@@ -80,11 +80,15 @@ class ContextBuilder:
             ),
             "missing_fields": (
                 [k for k in self.service.required_fields(task) if not task["facts"].get(k)]
-                if not turn or "update_parameters" in observed
+                if not turn
+                or "update_parameters" in observed
+                or turn.get("preserve_latest_parameters")
                 else None
             ),
             "current_input_application": (
-                "pending: stored facts do not yet include the current user message"
+                "historical_retry: later parameter changes are authoritative; do not reapply old edits. Continue unresolved work using current facts. Ask for a new user message if an unapplied old change is still wanted."
+                if turn and turn.get("preserve_latest_parameters")
+                else "pending: stored facts do not yet include the current user message"
                 if turn and "update_parameters" not in observed
                 else "applied_or_no_new_input"
             ),

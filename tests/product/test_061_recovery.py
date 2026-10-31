@@ -138,6 +138,57 @@ def test_missing_registered_workspace_never_creates_old_directory(tmp_path):
     assert not old.exists() and (moved / "app.sqlite3").is_file()
 
 
+def test_retry_after_later_same_task_change_cannot_reapply_old_parameters(tmp_path):
+    from app.agent_runtime.workbench_tools import ToolCatalog
+    from app.service_desk.store import ServiceError
+
+    with product(tmp_path) as c:
+        w = c.app.state.workspace
+        task = create(w.service, "PREVIEW_ONLY")
+        cid = task["conversation_id"]
+
+        async def fail(*a, **kw):
+            raise ConnectionError("first attempt before input application")
+
+        w.models.chat = fail
+        run = c.post(
+            f"/api/conversations/{cid}/turns",
+            headers=H,
+            json={"message_id": "superseded", "text": "把用途改为原来的培训活动"},
+        )
+        assert wait(c, run.json()["id"])["status"] == "failed"
+        current = w.service.view(task["task_id"])
+        latest = w.service.facts(
+            task["task_id"], {"purpose": "随后明确的新用途"}, current["facts_revision"]
+        )
+        model = SequenceModel(
+            [("loan_policy", {}), ("assets_search", {}), ("tickets_list_mine", {})],
+            [("prepare_preview", {"asset_id": "loan-laptop-1"})],
+        )
+        w.models.chat = model.chat
+        retry = c.post(
+            f"/api/product/conversations/{cid}/turns/superseded/retry", headers=H, json={}
+        )
+        assert wait(c, retry.json()["id"])["status"] == "succeeded"
+        result = w.service.view(task["task_id"])
+        assert result["facts"]["purpose"] == "随后明确的新用途"
+        assert result["preview"]["content"]["parameters"]["purpose"] == "随后明确的新用途"
+        assert "update_parameters" not in {
+            t["function"]["name"] for t in model.calls[0][1]["tools"]
+        }
+        bound = w.service.store.get_task(local_actor(), task["task_id"])
+        catalog = ToolCatalog(
+            w.service,
+            bound,
+            {"id": "superseded", "text": "旧输入", "preserve_latest_parameters": True},
+        )
+        with pytest.raises(ServiceError, match="INVALID_TOOL_ARGUMENTS"):
+            catalog.validate("update_parameters", {"changes": {"purpose": "旧用途"}})
+        assert latest["facts"]["purpose"] == result["facts"][
+            "purpose"
+        ] and not w.service.store.list_tickets(local_actor())
+
+
 def test_server_history_pages_and_search_find_earliest_of_150(tmp_path):
     with product(tmp_path) as c:
         w = c.app.state.workspace

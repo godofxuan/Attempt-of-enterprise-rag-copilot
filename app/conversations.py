@@ -267,6 +267,14 @@ class ConversationService:
                 ),
                 "kb_id": original.get("kb_id", conversation["kb_id"]),
             }
+            if command["task_id"]:
+                command["accepted_facts_revision"] = original.get(
+                    "accepted_facts_revision", original.get("expected_facts_revision")
+                )
+                if command["accepted_facts_revision"] is None and not previous:
+                    command["accepted_facts_revision"] = self.workspace.service.view(
+                        command["task_id"]
+                    )["facts_revision"]
             db.execute(
                 "INSERT INTO turn_commands(turn_id,revision,conversation_id,payload) VALUES(?,0,?,?)",
                 (turn_id, cid, encoded(command)),
@@ -375,6 +383,8 @@ class ConversationService:
                 "conversation_id": cid,
                 "detailed": command["detailed"],
                 "kb_id": command["kb_id"],
+                "preserve_latest_parameters": len(self.coordinator.attempts(message_id)) > 1
+                and command.get("accepted_facts_revision") != task["facts_revision"],
             }
             await build_service_agent(service).run(task_id, attempt["run_id"], turn=turn)
             with service.store.transaction() as db:
