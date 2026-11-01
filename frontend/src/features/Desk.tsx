@@ -12,6 +12,22 @@ export function Desk() {
         "/api/service-desk",
       ),
   });
+  const [search, setSearch] = useState("");
+  const tickets = q.data?.tickets || [];
+  const term = search.trim().toLocaleLowerCase();
+  const visibleTickets = tickets.filter((row) =>
+    [
+      row.ticket.ticket_id,
+      row.ticket.asset_id,
+      row.kind === "loan" ? "电脑借用" : "IT 报修",
+      row.ticket.status,
+      label[row.ticket.status],
+      ...Object.values(row.ticket.parameters || {}),
+    ]
+      .join(" ")
+      .toLocaleLowerCase()
+      .includes(term),
+  );
   const [selected, setSelected] = useState<JSONRecord | null>(null);
   const [note, setNote] = useState("");
   const [end, setEnd] = useState("");
@@ -73,9 +89,29 @@ export function Desk() {
       <p className="eyebrow">次级工具</p>
       <h1>演示服务台</h1>
       <p className="muted">仅处理本地合成 TEST 工单，不连接企业审批系统。</p>
+      <input
+        type="search"
+        aria-label="搜索工单"
+        placeholder="搜索工单号、设备、用途、故障描述或状态"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      {search && <button onClick={() => setSearch("")}>清空搜索</button>}
       {q.error && <ErrorNotice error={q.error} />}
+      {q.isPending ? (
+        <p>正在读取工单…</p>
+      ) : q.data ? (
+        <p className="muted" role="status">
+          显示 {visibleTickets.length} / {tickets.length} 张工单
+        </p>
+      ) : null}
+      {q.data && !visibleTickets.length && (
+        <p className="empty">
+          {term ? "没有匹配的工单，请缩短关键词或清空搜索。" : "还没有工单。"}
+        </p>
+      )}
       <div className="request-grid">
-        {q.data?.tickets.map((row) => (
+        {visibleTickets.map((row) => (
           <article
             className="card"
             aria-label={"工单 " + row.ticket.ticket_id}
