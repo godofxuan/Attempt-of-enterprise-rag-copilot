@@ -1,21 +1,20 @@
 # 当前工作台入口
 
-## 当前本机演示
+## 当前本机入口
 
-当前验证页面：http://127.0.0.1:8748/ ，0.7.0rc4 / `9b0d3121`（预发布）。
-DATA_DIR 为本轮完整历史TEST副本 `.private/esa-vnext/upgrade-070-next/live-workspace`。
-原 `.private/esa-vnext` 和8740旧实例保留，不能把它当成新版。使用发行包 `ESA.exe` 选已存在的完整目录；在别的电脑明确选自己的工作区。
+默认地址 http://127.0.0.1:8748/ 。维护候选 **0.7.0rc4 / b8291ff7**，需要先启动程序；2026-11-02检查时原8748/8752均未运行，本轮没有重启原工作区或接管用户浏览器。
 
-本机可重复启动（先完整解压当前包）：
+本机双击`.private/esa-vnext/night-check-20261102/打开ESA演示.cmd`，或继续使用已同步的`.private/esa-vnext/rc4-finish-20261101/打开ESA演示.cmd`。快捷脚本包含UTF8代码页切换，支持本机中文路径。DATA_DIR仍`.private/esa-vnext/upgrade-070-next/live-workspace`，不重新init。用户已使用的8752副本保持原目录，不自动清理。
+
+Windows包：`.private/esa-vnext/build/releases/ESA-0.7.0rc4-windows-x64-b8291ff7.zip`。完整解压后可使用：
 
 ```powershell
 .\ESA.exe --data-dir "你的完整TEST工作区" --port 8748
 ```
 
-也可在已配置的源码环境用 `esa open --data-dir "你的完整TEST工作区" --port 8748`。
-`/api/instance` 与设置展开区显示真实commit/build。当前维护EXE已正常切换，刷新网页加载新前端。服务台搜索增量经真实当前页面和390px检查通过，未改业务/API/模型输入。此前b587897e的Windows及真实模型分层检查见[结果](RESULT_RC4_FINISH.md)：中文目录/端口冲突/复用及完整原工作区副本重启通过；原生GUI/物理IME因工具策略停止，未完成。真实模型的字段/知识需要遗漏仍保留，不冒称全自动通过。初版结果见[rc4历史](RESULT_RC4.md)。
+源码已配置环境仍可用`esa open --data-dir "完整工作区" --port 8748`。端口有冲突时以程序实际打开的地址为准。`/api/instance`和设置显示真实commit/build，不只凭URL判断版本。
 
-本机快捷入口为`.private/esa-vnext/rc4-finish-20261101/打开ESA演示.cmd`；Windows包为`.private/esa-vnext/build/releases/ESA-0.7.0rc4-windows-x64-9b0d3121.zip`。其他电脑完整解压后双击ESA.exe，选择自己的完整工作区，不复制本机私人数据。
+本轮[夜间结果](NIGHT_CHECK_20261102.md)与此前[rc4真实模型结果](RESULT_RC4_FINISH.md)分别记录；本轮未修改模型输入/API/事务，不重刷旧模型题。GUI/物理IME未验、自由文本和知识完整性限制仍保留。
 
 ### 五步使用与升级
 
