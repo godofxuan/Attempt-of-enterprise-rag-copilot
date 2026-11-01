@@ -205,7 +205,7 @@ class ConversationService:
         return {"items": items, "next_cursor": following}
 
     def update(self, cid, changes):
-        conversation = self.get(cid)
+        self.get(cid)  # Keep the existing not-found check.
         if "kb_id" in changes:
             if changes["kb_id"]:
                 self.workspace.library.require(changes["kb_id"])
@@ -221,10 +221,12 @@ class ConversationService:
                     db.execute(
                         "UPDATE conversations SET " + field + "=? WHERE id=?", (changes[field], cid)
                     )
-            if changes.get("kb_id") and not conversation["kb_id"]:
-                # Explicit completion only: never silently replace a nonempty historical scope.
+            if changes.get("kb_id"):
+                # Complete only originally missing scope on unfinished turns; this also
+                # recovers rc4 turns stranded after the conversation selected a KB.
+                # Each command with a nonempty historical scope remains untouched.
                 rows = db.execute(
-                    "SELECT c.* FROM turn_commands c JOIN conversation_turns t ON t.id=c.turn_id WHERE c.conversation_id=? AND t.status IN ('FAILED','CANCELLED','INTERRUPTED') AND c.revision=(SELECT MAX(revision) FROM turn_commands WHERE turn_id=c.turn_id)",
+                    "SELECT c.* FROM turn_commands c JOIN conversation_turns t ON t.id=c.turn_id WHERE c.conversation_id=? AND t.status IN ('FAILED','CANCELLED','INTERRUPTED','PARTIAL','WAITING_USER') AND c.revision=(SELECT MAX(revision) FROM turn_commands WHERE turn_id=c.turn_id)",
                     (cid,),
                 ).fetchall()
                 for row in rows:

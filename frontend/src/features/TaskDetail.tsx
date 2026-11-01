@@ -6,6 +6,7 @@ import {
   type JSONRecord,
   type Run,
   type Answer,
+  type Conversation,
   label,
 } from "../api/client";
 import { useTaskActions } from "../api/taskActions";
@@ -33,6 +34,12 @@ export function TaskDetail({
       api<Task>("/api/product/tasks/" + id, "GET", undefined, signal),
   });
   const t = task.data;
+  const conversation = useQuery({
+    queryKey: ["conversation", t?.conversation_id],
+    enabled: !!t?.conversation_id && t?.next_action?.kind === "retry_knowledge",
+    queryFn: () =>
+      api<Conversation>(`/api/conversations/${t!.conversation_id}`),
+  });
   const actions = useTaskActions(id, onRun);
   const [deadlineReached, setDeadlineReached] = useState(false);
   useEffect(() => {
@@ -107,6 +114,7 @@ export function TaskDetail({
         id: t.id,
         cid: t.conversation_id,
         turnId: t.turn_delivery.turn_id,
+        knowledge: true,
       });
     }
   };
@@ -182,11 +190,23 @@ export function TaskDetail({
                     ? "仅生成预览，绝不提交。"
                     : "范围确认不等于提交确认；提交前需核对当前完整预览。"}
             </p>
-            {kind === "retry_knowledge" && (
-              <button className="primary" disabled={pending} onClick={retry}>
-                重试解释
-              </button>
-            )}
+            {kind === "retry_knowledge" &&
+              (!conversation.data?.kb_id ? (
+                <a
+                  href={`/#/assistant?c=${t.conversation_id}`}
+                  onClick={onClose}
+                >
+                  选择资料库后继续解释
+                </a>
+              ) : (
+                <button
+                  className="primary"
+                  disabled={pending || conversation.isPending}
+                  onClick={retry}
+                >
+                  重试解释
+                </button>
+              ))}
             {activeRun && (
               <button
                 onClick={() =>

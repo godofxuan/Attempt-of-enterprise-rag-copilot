@@ -15,7 +15,11 @@ import { AnswerView } from "../components/AnswerView";
 import { Drawer, ErrorNotice, Parameters } from "../components/common";
 import { useRun } from "../api/useRun";
 import { RunTrace } from "../components/RunTrace";
-import { refreshRunScope, refreshTaskScope } from "../api/taskActions";
+import {
+  refreshRunScope,
+  refreshTaskScope,
+  retryConversationTurn,
+} from "../api/taskActions";
 type RequestScope = { locationKey: string; conversationId: string | null };
 export function Assistant({
   drafts,
@@ -107,13 +111,26 @@ export function Assistant({
     refreshRunScope(cache, r);
   };
   const binding = useMutation({
-    mutationFn: (kb_id: string) =>
+    mutationFn: ({ cid, kb_id }: { cid: string; kb_id: string }) =>
       api<Conversation>("/api/conversations/" + cid, "PATCH", {
         kb_id: kb_id || null,
       }),
-    onSuccess: (value) => {
+    onSuccess: async (value) => {
       cache.setQueryData(["conversation", value.id], value);
-      void cache.invalidateQueries({ queryKey: ["conversations"] });
+      const ids = new Set(
+        [value.task_id, value.active_task_id].filter(Boolean),
+      );
+      if (ids.size)
+        await Promise.all(
+          [...ids].map((id) => refreshTaskScope(cache, id!, value.id)),
+        );
+      else
+        await Promise.all([
+          cache.invalidateQueries({ queryKey: ["conversations"] }),
+          cache.invalidateQueries({
+            queryKey: ["conversation-runs", value.id],
+          }),
+        ]);
     },
   });
   const ensure = async () => {
@@ -162,14 +179,14 @@ export function Assistant({
     },
   });
   const retry = useMutation({
-    mutationFn: async (id: string) => {
-      track(
-        await api<Run>(
-          "/api/product/conversations/" + cid + "/turns/" + id + "/retry",
-          "POST",
-          {},
-        ),
-      );
+    mutationFn: async ({
+      id,
+      knowledge,
+    }: {
+      id: string;
+      knowledge: boolean;
+    }) => {
+      track(await retryConversationTurn(cid!, id, knowledge));
     },
   });
   const text = drafts[cid || "new"] || "";
@@ -189,7 +206,9 @@ export function Assistant({
           }
           disabled={binding.isPending || !!runId}
           onChange={(e) =>
-            cid ? binding.mutate(e.target.value) : setBase(e.target.value)
+            cid
+              ? binding.mutate({ cid, kb_id: e.target.value })
+              : setBase(e.target.value)
           }
         >
           <option value="">选择资料库</option>
@@ -209,6 +228,9 @@ export function Assistant({
       )}
       {retry.error && <ErrorNotice error={retry.error} />}
       {binding.error && <ErrorNotice error={binding.error} />}
+      {binding.isSuccess && binding.data.id === cid && binding.data.kb_id && (
+        <p role="status">资料库已选择，可继续刚才的问题。</p>
+      )}
       {cid && !conversation.data?.kb_id && (
         <p className="muted">
           此会话尚未绑定资料库。知识提问可先选择资料库，再重试原消息；纯业务查询不需要资料库。
@@ -273,7 +295,15 @@ export function Assistant({
                 turn={turn}
                 task={task.data}
                 busy={!!runId || retry.isPending}
-                retry={() => retry.mutate(turn.id)}
+                retry={(knowledge) => retry.mutate({ id: turn.id, knowledge })}
+                hasLibrary={!!conversation.data?.kb_id}
+                selectLibrary={() =>
+                  document
+                    .querySelector<HTMLSelectElement>(
+                      '[aria-label="当前资料库"]',
+                    )
+                    ?.focus()
+                }
                 openTask={openTask}
               />
             </article>
@@ -423,11 +453,15 @@ function TurnRecovery({
   busy,
   retry,
   openTask,
+  hasLibrary,
+  selectLibrary,
 }: {
   turn: Conversation["turns"][number];
   task?: Task;
   busy: boolean;
-  retry: () => void;
+  retry: (knowledge: boolean) => void;
+  hasLibrary: boolean;
+  selectLibrary: () => void;
   openTask: (id: string) => void;
 }) {
   if (turn.role !== "user") return null;
@@ -451,6 +485,8 @@ function TurnRecovery({
     delivery?.retryable !== false &&
     status !== "WAITING_USER" &&
     (!finished || delivery?.pending?.includes("knowledge"));
+  const knowledge = !!delivery?.pending?.includes("knowledge");
+  const missingLibrary = (knowledge || !turn.payload?.task_id) && !hasLibrary;
   return (
     <div className="retry-note">
       <span>
@@ -463,8 +499,13 @@ function TurnRecovery({
             : "本次执行已停止或尚未完成"}
       </span>
       {canRetry ? (
-        <button disabled={busy} onClick={retry}>
-          {delivery?.next_action || "重试这条消息"}
+        <button
+          disabled={busy}
+          onClick={() => (missingLibrary ? selectLibrary() : retry(knowledge))}
+        >
+          {missingLibrary
+            ? "选择资料库后继续解释"
+            : delivery?.next_action || "重试这条消息"}
         </button>
       ) : (
         turn.payload?.task_id && (

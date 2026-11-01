@@ -37,7 +37,7 @@ test("existing empty scope is truthful, binds explicitly and retries the same De
   await page.getByLabel("给助理发消息").fill("解释当前制度");
   await page.getByRole("button", { name: "发送", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "重试这条消息" }),
+    page.getByRole("button", { name: "选择资料库后继续解释" }),
   ).toBeVisible();
   const kb = await (
     await request.post("/api/library", {

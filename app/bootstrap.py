@@ -90,7 +90,7 @@ class Workspace:
         calls = 0
         onboarding = False
         if self.db_path.is_file():
-            with sqlite3.connect(self.db_path.as_uri() + "?mode=ro", uri=True) as db:
+            with closing(sqlite3.connect(self.db_path.as_uri() + "?mode=ro", uri=True)) as db:
                 tables = {
                     r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")
                 }

@@ -82,3 +82,6 @@ docs/esa-vnext/reviews/070-next-20261031/evidence/
 # Original incoming review evidence stays local; public design only.
 docs/esa-vnext/reviews/rc2-finish-20261031/evidence/
 docs/esa-vnext/reviews/rc3-final-20261031/evidence/
+
+# Incoming rc4 audit raw evidence remains local.
+docs/esa-vnext/reviews/rc4-finish-20261101/evidence/

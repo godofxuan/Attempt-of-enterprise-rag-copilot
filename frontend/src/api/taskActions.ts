@@ -4,7 +4,40 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import { api, ApiError, type Task, type Run, type JSONRecord } from "./client";
+import {
+  api,
+  ApiError,
+  type Task,
+  type Run,
+  type JSONRecord,
+  type Conversation,
+} from "./client";
+
+export async function retryConversationTurn(
+  cid: string,
+  turnId: string,
+  knowledge = false,
+) {
+  if (knowledge) {
+    const current = await api<Conversation>(`/api/conversations/${cid}`);
+    if (!current.kb_id)
+      throw new ApiError(
+        "KNOWLEDGE_BASE_REQUIRED",
+        "请先选择资料库后继续解释。",
+        409,
+      );
+    // Explicit recovery also repairs old empty commands when the selected KB
+    // has not changed. The host preserves completed and nonempty scopes.
+    await api<Conversation>(`/api/conversations/${cid}`, "PATCH", {
+      kb_id: current.kb_id,
+    });
+  }
+  return api<Run>(
+    `/api/product/conversations/${cid}/turns/${turnId}/retry`,
+    "POST",
+    {},
+  );
+}
 
 export function refreshTaskScope(
   cache: QueryClient,
@@ -142,16 +175,13 @@ export function useTaskActions(
     mutationFn: ({
       cid,
       turnId,
+      knowledge,
     }: {
       id: string;
       cid: string;
       turnId: string;
-    }) =>
-      api<Run>(
-        `/api/product/conversations/${cid}/turns/${turnId}/retry`,
-        "POST",
-        {},
-      ),
+      knowledge?: boolean;
+    }) => retryConversationTurn(cid, turnId, knowledge),
     onSuccess: track,
     onError: (error, target) => failed(error, target.id),
   });

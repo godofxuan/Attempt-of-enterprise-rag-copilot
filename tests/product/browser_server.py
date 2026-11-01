@@ -55,6 +55,15 @@ def main():
                 def test_counters():
                     return counters
 
+                @app.post("/__test/legacy-scope/{cid}/{kb}")
+                def legacy_scope(cid: str, kb: str):
+                    # Reproduce the persisted pre-upgrade shape without changing
+                    # the released API's completion semantics.
+                    w.library.require(kb)
+                    with w.conversations.db() as db:
+                        db.execute("UPDATE conversations SET kb_id=? WHERE id=?", (kb, cid))
+                    return {"historical_test_fixture": True}
+
                 @app.post("/__test/clock")
                 async def test_clock(request: Request):
                     offset = float((await request.json())["offset"])
