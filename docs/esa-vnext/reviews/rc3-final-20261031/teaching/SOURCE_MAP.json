@@ -6,8 +6,8 @@
     "symbol": "open_workspace",
     "start_line": 86,
     "end_line": 187,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -17,8 +17,8 @@
     "symbol": "create_workbench_app",
     "start_line": 11,
     "end_line": 59,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -28,8 +28,8 @@
     "symbol": "Workspace.start",
     "start_line": 28,
     "end_line": 62,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -37,10 +37,10 @@
     "lesson": "L02",
     "path": "app/conversations.py",
     "symbol": "ConversationService.command",
-    "start_line": 240,
-    "end_line": 288,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "start_line": 242,
+    "end_line": 290,
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -50,8 +50,8 @@
     "symbol": "Runs.start",
     "start_line": 54,
     "end_line": 77,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -61,8 +61,8 @@
     "symbol": "TurnCoordinator.result",
     "start_line": 151,
     "end_line": 202,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -72,8 +72,8 @@
     "symbol": "CatalogOperations.upload",
     "start_line": 70,
     "end_line": 133,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -83,8 +83,8 @@
     "symbol": "JobsOperations._build",
     "start_line": 110,
     "end_line": 208,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -94,8 +94,8 @@
     "symbol": "HybridRetrievalPipeline._fuse",
     "start_line": 380,
     "end_line": 422,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -105,8 +105,8 @@
     "symbol": "QueryOperations.answer",
     "start_line": 154,
     "end_line": 388,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -116,8 +116,8 @@
     "symbol": "DeepController.next_decision",
     "start_line": 97,
     "end_line": 194,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -127,8 +127,8 @@
     "symbol": "publish_answer",
     "start_line": 159,
     "end_line": 583,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -138,8 +138,8 @@
     "symbol": "ServiceAgent.run",
     "start_line": 39,
     "end_line": 395,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -149,8 +149,8 @@
     "symbol": "ToolCatalog.call",
     "start_line": 278,
     "end_line": 401,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -160,8 +160,8 @@
     "symbol": "next_task_action",
     "start_line": 38,
     "end_line": 105,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "当前回合知识恢复独立于预览所缺字段；真正运行/待核对修改优先；过期预览重新生成。"
   },
   {
@@ -171,8 +171,8 @@
     "symbol": "ServiceDeskStore.update_facts",
     "start_line": 857,
     "end_line": 896,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -182,8 +182,8 @@
     "symbol": "ServiceDeskStore._submit_bound",
     "start_line": 716,
     "end_line": 766,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -193,8 +193,8 @@
     "symbol": "available",
     "start_line": 24,
     "end_line": 27,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -204,8 +204,8 @@
     "symbol": "product_router.save_facts",
     "start_line": 97,
     "end_line": 102,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -215,8 +215,8 @@
     "symbol": "task_view",
     "start_line": 108,
     "end_line": 169,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "preview_state/server_time只读投影与can_submit一致；提交事务仍最终校验。"
   },
   {
@@ -226,8 +226,8 @@
     "symbol": "TurnCoordinator.prepared_by_user",
     "start_line": 212,
     "end_line": 227,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -237,8 +237,8 @@
     "symbol": "ServiceDeskStore._bound_proposal",
     "start_line": 613,
     "end_line": 635,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "行号只对本候选有效；先按symbol定位当前源码"
   },
   {
@@ -248,8 +248,8 @@
     "symbol": "TaskService.list",
     "start_line": 211,
     "end_line": 213,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "兼容首屏包装，同一page查询按rowid游标分页，产品前端使用/tasks/page。",
     "related_symbols": [
       {
@@ -265,8 +265,8 @@
     "symbol": "QueryOperations.answers",
     "start_line": 410,
     "end_line": 416,
-    "source_commit": "78f7464e4597fe9d368725e1c7d570a4f28d6e89",
-    "verification": "AST_LOCATED_IN_CURRENT_RC4_SOURCE",
+    "source_commit": "b587897e1b87c4a6d440a3f6997f134b7e269d1d",
+    "verification": "AST_LOCATED_IN_CURRENT_RC4_MAINTENANCE",
     "note": "最近列表用于列表；答案详情使用answer_by_id，不在最近50条过滤。",
     "related_symbols": [
       {
