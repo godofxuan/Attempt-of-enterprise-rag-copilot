@@ -1,0 +1,73 @@
+{
+  "metadata": {
+    "question": "借用临时电脑的资格、期限、开始日期和审批有什么规定？押金金额是什么？",
+    "intent": "fact",
+    "request_needs": [
+      {
+        "id": "N1",
+        "question": "借用临时电脑的资格、期限、开始日期和审批有什么规定",
+        "status": "evidence_located"
+      },
+      {
+        "id": "N2",
+        "question": "押金金额是什么",
+        "status": "evidence_located"
+      }
+    ]
+  },
+  "records": [
+    {
+      "aspect": "answer",
+      "authority_level": 90,
+      "context_text": "",
+      "matched_text": "[S1U1]临时电脑仅供有有效维修记录的员工申请，借用期限为1至14天，开始日期不能早于当天。[/S1U1][S1U2]同一员工只能有一个未关闭的借用申请。[/S1U2][S1U3]提交后状态为待审批，不代表设备已分配。[/S1U3][S1U4]当前说明未规定押金金额，需向服务台确认。[/S1U4]",
+      "policy_id": "设备借用说明",
+      "section_path": "设备借用说明",
+      "source_doc_id": "设备借用说明",
+      "source_id": "S1",
+      "source_units": [
+        "S1U1",
+        "S1U2",
+        "S1U3",
+        "S1U4"
+      ],
+      "status": "active",
+      "version": "r4-11"
+    },
+    {
+      "aspect": "answer",
+      "authority_level": 90,
+      "context_text": "",
+      "matched_text": "[S2U1]办公用品单次采购含税金额不超过3000元，由部门负责人审批；[/S2U1][S2U2]超过3000元且不超过20000元，需要部门负责人和财务审批；[/S2U2][S2U3]超过20000元还需要采购委员会批准。[/S2U3][S2U4]不得拆单规避审批。[/S2U4][S2U5]采购申请不等于采购已完成。[/S2U5]",
+      "policy_id": "采购审批",
+      "section_path": "采购审批",
+      "source_doc_id": "采购审批",
+      "source_id": "S2",
+      "source_units": [
+        "S2U1",
+        "S2U2",
+        "S2U3",
+        "S2U4",
+        "S2U5"
+      ],
+      "status": "active",
+      "version": "r4-1"
+    },
+    {
+      "aspect": "answer",
+      "authority_level": 90,
+      "context_text": "",
+      "matched_text": "[S3U1]VPN申请须由直属主管审批，随后IT开通。[/S3U1]",
+      "policy_id": "远程访问",
+      "section_path": "远程访问",
+      "source_doc_id": "远程访问",
+      "source_id": "S3",
+      "source_units": [
+        "S3U1"
+      ],
+      "status": "active",
+      "version": "r4-4"
+    }
+  ],
+  "response_content": "{\n  \"answer\": \"借用临时电脑的资格为：有有效维修记录的员工。借用期限为1至14天，开始日期不能早于当天。同一员工只能有一个未关闭的借用申请。提交后状态为待审批，不代表设备已分配。关于押金金额，当前说明未规定具体金额，需向服务台确认。\",\n  \"claims\": [\n    {\n      \"cited_source_ids\": [\n        \"S1\"\n      ],\n      \"claim_id\": \"C1\",\n      \"condition_claim_ids\": [],\n      \"critical\": true,\n      \"evidence_role\": \"direct\",\n      \"requested_attribute\": \"资格、期限、开始日期和审批\",\n      \"source_unit_id\": \"S1U1\"\n    },\n    {\n      \"cited_source_ids\": [\n        \"S1\"\n      ],\n      \"claim_id\": \"C2\",\n      \"condition_claim_ids\": [],\n      \"critical\": true,\n      \"evidence_role\": \"direct\",\n      \"requested_attribute\": \"期限、开始日期\",\n      \"source_unit_id\": \"S1U1\"\n    },\n    {\n      \"cited_source_ids\": [\n        \"S1\"\n      ],\n      \"claim_id\": \"C3\",\n      \"condition_claim_ids\": [],\n      \"critical\": true,\n      \"evidence_role\": \"direct\",\n      \"requested_attribute\": \"审批状态说明\",\n      \"source_unit_id\": \"S1U3\"\n    },\n    {\n      \"cited_source_ids\": [\n        \"S1\"\n      ],\n      \"claim_id\": \"C4\",\n      \"condition_claim_ids\": [],\n      \"critical\": true,\n      \"evidence_role\": \"direct\",\n      \"requested_attribute\": \"押金金额\",\n      \"source_unit_id\": \"S1U4\"\n    }\n  ],\n  \"request_coverage\": [\n    {\n      \"attribute_matches\": true,\n      \"claim_ids\": [\n        \"C1\",\n        \"C2\",\n        \"C3\",\n        \"C4\"\n      ],\n      \"conditions_preserved\": true,\n      \"need_id\": \"N1\",\"status\": \"supported\",\"subject_matches\": true\n    },\n    {\n      \"attribute_matches\": true,\n      \"claim_ids\": [\n        \"C4\"\n      ],\n      \"conditions_preserved\": true,\n      \"need_id\": \"N2\",\n      \"status\": \"supported\",\n      \"subject_matches\": true\n    }\n  ]\n}"
+}

@@ -21,11 +21,20 @@ class ChatRequest(BaseModel):
     top_k: int | None = None
 
 
+class ClarificationReply(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    asked: str = Field(min_length=1, max_length=300)
+    reply: str = Field(min_length=1, max_length=500)
+
+
 class AgentV2ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     question: str = Field(..., min_length=1, max_length=2000)
     top_k: int | None = Field(default=None, ge=1, le=20)
+    clarification_replies: list[ClarificationReply] = Field(default_factory=list, max_length=2)
+    interaction_mode: Literal["quick", "investigate"] | None = None
 
 
 class SourceItem(BaseModel):

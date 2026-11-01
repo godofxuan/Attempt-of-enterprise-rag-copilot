@@ -181,6 +181,7 @@ class DocumentNavigator:
             start_char=request.start_char,
             source_path=source_path,
             section_path=section_path,
+            source_spans=resource.source_spans if isinstance(resource,ChunkRecord) else [],
         )
 
     def bound_resource_allowed(self, request, resource) -> bool:
@@ -296,7 +297,9 @@ def _tool_error(code: ToolErrorCode) -> ToolError:
         "budget": (False, "The tool budget has been exhausted."),
     }
     retryable, message = messages[code]
-    return ToolError(code=code, retryable=retryable, safe_message=message)
+    return ToolError(code=code, retryable=retryable, safe_message=message,
+                     failure_origin="authorization" if code == "permission" else
+                     "deadline" if code == "timeout" else "unknown")
 
 
 __all__ = [

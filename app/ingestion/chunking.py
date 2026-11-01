@@ -100,6 +100,17 @@ def _make_chunk(
     parent_chunk_id: str | None = None,
 ) -> ChunkRecord:
     version = record.document_version
+    from app.domain.documents import SourceSpan
+    matching=[section for section in record.sections if section.path==section_path and section.locator==locator]
+    start=None
+    if matching:
+        section=matching[0];base=record.text.find(section.text);within=section.text.find(text)
+        if base>=0 and within>=0 and record.text.find(section.text,base+1)<0:start=base+within
+    if start is None and record.text.count(text)==1:start=record.text.find(text)
+    spans=[SourceSpan(document_id=record.doc_id,version_id=version.version_id,section_path=tuple(section_path),
+        locator_kind=locator.kind,locator_start=locator.start,locator_end=locator.end,
+        text_start=start,text_end=start+len(text) if start is not None else None,
+        basis='exact_parsed_text_and_parser_locator' if start is not None else 'parser_locator_only_offset_unestablished')]
     return ChunkRecord(
         chunk_id=_chunk_id(
             record,
@@ -138,6 +149,7 @@ def _make_chunk(
         variant=record.variant,
         checksum=record.checksum,
         text_hash=_text_hash(text),
+        source_spans=spans,
     )
 
 

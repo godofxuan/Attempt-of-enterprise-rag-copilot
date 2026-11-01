@@ -1,331 +1,84 @@
-# Enterprise Agentic RAG Copilot - Evidence-Governed Retrieval, Tool Security, and Reliability Evaluation
+# Enterprise RAG / Service Agent
 
-[![CI](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml?query=branch%3Amain)
-[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB)](https://www.python.org/)
-[![Portfolio status](https://img.shields.io/badge/status-portfolio--ready-2F7D4A)](PROJECT_STATUS.md)
+本地单用户知识与服务工作台：一个 Python / FastAPI 应用、一处数据目录。
+独立 RAG 与 Service Agent 共用检索、模型和来源发布能力。用户明确服务与操作上限，模型根据真实工具观察选择下一步；普通代码负责字段校验、当前预览、精确确认和事务。
 
-> Recruiter or reviewer: `main` is the canonical public entry. Use the
-> [`portfolio-v1.2.0-mainline-closure`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/tree/portfolio-v1.2.0-mainline-closure)
-> tag for a stable portfolio snapshot and the
-> [public review packet](docs/review/FINAL_REVIEW_PACKET.md) for exact historical
-> evidence. Legacy `codex/*` refs remain available only so submitted resumes and
-> earlier review links do not break; see the
-> [branch compatibility policy](docs/BRANCH_COMPATIBILITY.md).
+当前维护候选为 **0.7.0rc4 / b8291ff7**。夜间检查修复了重试/选库反馈串会话，以及工单已读回却持续显示“正在读回”。最终22条浏览器检查通过；未改的Python路径有145项程序回归。已有工单搜索保留。真实模型未新增验证，语义partial和原生IME未验限制保留。[本轮结果](docs/esa-vnext/NIGHT_CHECK_20261102.md)、[当前状态](docs/esa-vnext/STATUS.md)、[启动方式](docs/esa-vnext/START.md)。
 
-Current public status: `MAIN_CANONICAL`, `PORTFOLIO_READY`,
-`PRODUCTION_NOT_VERIFIED`; `DURABILITY_SCOPE = ACCESS_REQUEST_DRAFT_ONLY`.
+## Windows 日常使用
 
-## September 15 Mainline Closure
+完整解压 Windows x64 发行包，双击 `ESA.exe`。包内已有 Python 和固定版本依赖；日常启动不安装软件，不需要 Node、uv 或系统 Python。
 
-The September candidate completed local release verification and mainline
-integration. It includes bounded multi-part query coverage, structure-aware
-document navigation, literal evidence applicability checks, fail-closed answer
-publication, local identity renewal, cooperative cancellation, and a
-loopback-only launcher. The final main worktree verified `4155 passed, 32
-skipped`, with no test failures, and the public leak audit reported `2524
-candidates / 0
-findings`. This is a portfolio engineering release, not a public production
-service or a new model-quality claim. LLM rewriting and learned fusion remain
-offline negative-result experiments. See the
-[release closure report](docs/releases/2026-09-15-mainline-closure/REPORT.md)
-and [candidate runbook](docs/local_closeout_20260910/README.md). Historical
-results below retain their original versions and protocols.
+首次选择已有工作区或新建个人工作区。升级时继续选择原目录，不重新 `init`。再次打开同一构建会复用实例；新旧构建不同会明确选择打开旧版或在空闲时正常切换，不静默当作新版；端口被其他程序占用时自动选择空闲端口，并打开实际页面。关闭网页不删除数据，设置中可停止本地服务。
 
-## What it does
+已登记目录移动后会要求定位原目录或明确新建，不能在旧位置自动生成空库。已有工作区应包含 `workspace.json`、`app.sqlite3` 以及原 `documents/`、`indexes/`；需要重选时运行 `ESA.exe --choose-workspace`。
 
-This is a controlled enterprise knowledge Agent / Agentic RAG Runtime. Teams
-ingest policies, Wiki pages, tickets, email, and meeting notes; an authenticated
-user asks a question; the Agent retrieves only evidence visible to that user
-and returns a cited answer, a bounded partial answer, or a safe refusal. Each
-run can also emit a verifiable trajectory for replay and evaluation.
+模型权重不在包内。当前使用本机 Ollama 中已有的 `qwen3.5:9b` 和 `bge-m3`；没有模型也能进入设置、查看历史。应用不会自动下载模型。首次配置完成后进入助理；业务演示需在设置中明确启用合成 TEST 数据。
 
-## Why it is different
+主入口为**助理、我的事项、资料库**。设置和本地 TEST 服务台为次级工具。一个会话输入框处理提问和补充信息，完整参数、来源、预览及回执在详情中查看。
 
-- Authority stays in server-owned Python code: identity, ACL, budgets,
-  retrieved-content admission, evidence, citations, and terminal policy.
-- The proven bounded controller remains the default; a real LangGraph
-  `StateGraph` is available behind the same `AgentOrchestrator` contract.
-- Official MCP SDK tools still pass through the shared `ToolGateway`; MCP does
-  not bypass permissions or the retrieved-content Guard.
-- Append-only hash-chained trajectories support deterministic replay and a
-  versioned `enterprise.agent-run/1.0` EvalOps artifact.
-- An optional `DurableAccessRequestWorkflow` adds deterministic
-  `DENY > ASK > ALLOW` policy hooks, database CAS/lease/fencing, file-backed
-  LangGraph checkpoints, an atomic draft/completion/approval transaction, and
-  typed privacy-default OpenTelemetry metadata. It covers only one
-  access-request DRAFT workflow and does not replace the bounded default.
+## 从源码开发
 
-## Verified results
-
-### Current serving delivery (September 2026)
-
-The [runtime delivery report](docs/review/runtime_delivery_20260905/RESULTS.md)
-connects the retrieval experiment to a real authenticated API: Guard-before-
-reranker serving, delivered-evidence spans, active-index binding, bounded
-generation and early readiness refresh. `app.serving:create_app` exposes the
-opt-in GPU profiles; the global Hybrid default is unchanged.
-
-The new application-admission WixQA replay measured macro Recall@5
-`65.92% -> 72.25%` for Dense -> raw20, with raw50 reaching `74.25%`.
-These are consumed public-label retrieval results, separate from the historical
-protocols below. The service evidence retains **680 main requests across 40
-synthetic scenarios**, including failures, plus separate warmup/resource rows.
-It is not 680 independent questions or a human answer-accuracy claim.
-[Results and remaining failures](docs/review/runtime_delivery_20260905/RESULTS.md),
-[verifiable case checks](docs/review/runtime_delivery_20260905/service_cases.json),
-[metrics](docs/review/runtime_delivery_20260905/metrics.csv).
-
-### Historical external evidence
-
-| Result | Verified observation | Boundary |
-|---|---:|---|
-| WixQA retrieval | On 200 fixed ExpertWritten questions, BGE-M3 Dense improved Recall@5 `42.75% -> 66.42%` and nDCG@5 `32.15% -> 52.16%` | Public-label retrieval, not answer accuracy. [Evidence](docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json) |
-| WixQA multi-chunk BGE reranking | On the same 200 fixed ExpertWritten questions, representing each Top-10 article with up to two independently scored chunks moved Recall@5 `66.42% -> 69.58%`, nDCG@5 `52.16% -> 56.12%`, and MRR@5 `49.61% -> 55.11%`; MRR's paired 95% CI was `[+0.74pp, +10.46pp]` | Retrospective consumed public labels. Recall/nDCG intervals still cross zero, multi-article completeness did not improve, and local p95 was `693.73 ms`. Retrieval only, not answer accuracy or an unconditional default. [Evidence](docs/wixqa_reranker/article_multi_chunk_evidence.json) |
-| WixQA guarded raw-chunk BGE reranking | On 200 consumed Simulated validation questions, raw-chunk Top-20 improved Recall@5 `61.42% -> 66.92%`, nDCG@5 `47.78% -> 52.54%`, and MRR@5 `45.12% -> 49.96%`; all three paired 95% interval lower bounds were positive | Experimental RTX 5060 profile using pinned `bge-reranker-v2-m3`; retrieved-content Guard runs before model scoring. Local p95 increased `44.17 -> 226.16 ms`. Not blind validation or answer accuracy. [Evidence](docs/wixqa_reranker/raw_chunk_bge_evidence.json) |
-| Final WixQA safe raw-chunk closure | On one paired, frozen-candidate replay of 200 consumed ExpertWritten questions, Guarded Raw Top-20 improved Recall@5 `66.42% -> 72.50%`, nDCG@5 `52.16% -> 59.35%`, and MRR@5 `49.61% -> 57.92%`; corrected online p95 was `302.75 ms`. Guarded Top-50 reached `74.50%` Recall@5 but failed the predeclared local p95 gate (`680.86 ms > 650 ms`) | Guard is before scoring; no Dense backfill. The latency erratum uses the real online raw-chunk path and preserves candidate/ranking identity. Top-20 is the optional GPU quality profile, not the global default. This is retrospective retrieval evidence, not answer accuracy, blind validation, or a production SLA. [Protocol, result, and evidence](docs/wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md) |
-| Bounded query-expansion bake-off | Across three consumed 200-question WixQA ExpertWritten retrieval runs, two validated `qwen3:8b` alternatives per accepted query moved mean Recall@5 `59.25% -> 62.83%` and mean nDCG@5 `47.16% -> 48.44%` | 90/200 cases safely fell back to the original query; MRR declined 0.10pp and p95 increased `197ms -> 1148ms`. Offline experimental mode only, not answer accuracy or the default runtime. [Protocol and evidence](docs/retrieval_strategy_bakeoff_v1/RESULTS.md) |
-| EnterpriseRAG-Bench indexing | Built and atomically activated a `1.37 GiB` SQLite FTS5 index over `511,962` public records in `231.35 s`, at about `1.83 GiB` peak RSS | Single-host lexical baseline, not production capacity. [Evidence](docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json) |
-| Clean retrieval replay | Rebuilt 11,975 embeddings and reproduced `63/63` frozen quality comparisons at tolerance `0.0` | Local replay of consumed public labels. [Evidence](docs/reproduction/evidence/wixqa_clean_reproduction_public_v1.json) |
-| UDA R4 scoped canary | On 64 company-disjoint validation questions, page fusion moved Hit@5 `76.56% -> 81.25%` and nDCG@5 `64.41% -> 72.61%` at `1.066x` p95; misses fell `15 -> 12` | The original 5pp Hit gate still failed and test stayed unrun. A later paired review approved explicit opt-in known-report canary only, not the global default. [Evidence](docs/r4/evidence/uda_finance_r4_canary_review_v1.json) |
-| UDA R5 fresh confirmation | On all 192 questions from the 41 remaining previously unused UDA companies, page fusion moved Hit@5 `80.21% -> 88.02%` and nDCG@5 `70.95% -> 77.60%`; it rescued `15` cases, regressed `0`, and reduced misses `38 -> 23` at `1.058x` p95 | One-shot public-label, company-disjoint known-report page localization. Company-cluster 95% lower bounds were `+4.10pp` Hit and `+3.32pp` nDCG. Promoted only for server-classified finance known reports. [Evidence](docs/r5/evidence/uda_finance_r5_public_v1.json) |
-
-A pinned generic MiniLM WixQA reranker was rejected after all registered arms
-reduced validation quality. A separately frozen BGE follow-up recovered positive
-point estimates; FP16 batching reduced single-chunk p95 from `624.67 ms` to
- `133.04 ms`. A later two-chunk article representation improved the selected
-Top-10 arm and produced a positive ExpertWritten MRR interval, while Recall,
-nDCG, and multi-document evidence still limit the claim. [Protocols and results](docs/wixqa_reranker/RESULTS.md).
-
-## Final Retrieval Selection
-
-`FINAL_DEFAULT` remains the bounded Hybrid RRF runtime: it is the existing
-server-controlled path paired with ACL filtering, retrieved-content admission,
-tool budgets, Evidence Ledger tracking, and citation/grounding publication
-gates. A final same-harness WixQA comparison identifies BGE-M3 Dense as the
-strongest **simple experimental** retrieval arm (`66.42%` Recall@5, `52.16%`
-nDCG@5, `50.06 ms` local p95), but this already-consumed cohort is not evidence
-for a silent global default change. Always-on multi-query is an offline quality
-profile with a substantial latency trade-off. A corrected Oracle study shows
-that multi-query correction can recover first-pass misses, while its LLM retry
-assessor over-triggers and is therefore not enabled. See the [final decision](docs/FINAL_PROJECT_DECISION.md), [evaluation summary](docs/FINAL_EVALUATION_SUMMARY.md), and [claim boundary](docs/RESUME_CLAIM_BOUNDARY.md).
-
-`OPTIONAL_GPU_QUALITY_PROFILE` is Guarded Raw-chunk BGE Top-20. It scans full
-retrieved text before cross-encoder scoring, uses no Dense backfill, and then
-deduplicates articles after score ordering. Its final Top-50 comparison is
-closed: Top-50 improves retrieval-only quality but exceeds the frozen RTX 5060
-interactive p95 budget. [Final paired evidence](docs/wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md).
-
-This repository is an engineering portfolio, not a framework showcase. MCP is
-an in-process protocol adapter rather than a network deployment; LangGraph is
-an alternative orchestrator rather than a claimed quality improvement.
-
-## What Is Finished
-
-| Area | Implemented outcome |
-|---|---|
-| Bounded Agentic RAG | Rule-first query analysis, required-aspect decomposition, typed `search/find/open`, Evidence Ledger, explicit budgets, observable traces, and answer/partial/refuse/stop terminal states |
-| Replaceable Agent Runtime | Common `AgentOrchestrator` contract with the existing bounded adapter and a real LangGraph `StateGraph`, both using the same guarded tool and publication path |
-| MCP tool access | Official MCP SDK adapter for `search/find/open`; opaque server-issued context handles preserve identity, ACL, budget, expiry, and Guard enforcement |
-| Replay and HITL | Append-only SHA-256-chained semantic trajectory, deterministic no-network replay, and a tenant/role-bound one-time human review resume path |
-| Durable draft approval | Idempotent Start generations, recoverable non-authorizing client handles, SQLite CAS/lease/version fencing for Start and Resume, restart recovery, reviewer/tool-hash revalidation, one atomic draft/completion/approval transaction, PostgreSQL checkpointer CI contract, and W3C trace propagation |
-| EvalOps integration | Versioned `enterprise.agent-run/1.0` JSON schema, serializer, verifier, public sample artifact, and reproducible CLI tooling |
-| Enterprise retrieval | BM25, BGE-M3 Dense, RRF ablation, metadata and temporal authority, parent context, ACL filtering before evidence reaches the model |
-| Promoted finance known-report retrieval | An operator-owned `RETRIEVAL_FINANCE_KNOWN_REPORT_POLICY_IDS` classification enables the R5-confirmed page-fusion path for exactly one bound finance report; other requests use the standard pipeline, a kill switch provides rollback, and all candidates still pass through the Guard |
-| Grounded answers | Structured claims, visible-source citations, deterministic numeric/date/negation checks, and removal of unsupported claims |
-| Retrieved-content security | Mandatory injection Guard on search/find/open content, quarantine, clean-candidate recovery, and Guard OFF/ON evaluation |
-| Knowledge lifecycle | Restricted file validation, Markdown/text/PDF/DOCX/EML parsing, revision catalog, tombstones, incremental invalidation, immutable snapshots, atomic activation, and rollback |
-| Industrial evidence | Frozen protocols, exact artifact hashes, negative-result gates, crash injection, cross-platform CI, clean-root reproduction, and public evidence packages |
-
-Engineering judgment is part of the result: equal-weight RRF was not promoted,
-and a bounded multi-document candidate was rejected after producing **zero
-complete-case fixes**, reducing citation precision by `5.83pp`, and increasing
-p95 latency to `1.859x`. The UDA R4 candidate missed its original independent
-Hit@5 gate by 0.3125pp; the immutable rejection remains recorded. A separate
-post-hoc paired review later promoted it only to an explicit known-report
-finance canary, because it rescued 6 cases, regressed 3, reduced misses by 20%,
-and kept p95 at 1.066x. R5 then froze the unchanged candidate and evaluated all
-192 questions from 41 remaining companies: 15 rescues, zero regressions,
-Hit@5 +7.81pp, nDCG@5 +6.65pp and p95 1.058x, with positive company-cluster
-confidence lower bounds. That confirmatory result promotes page fusion as the
-default implementation only for server-classified finance known reports. See the
-[multi-document record](docs/multidoc_candidate/02_RESULTS_AND_DECISION.md) and
-[R4 journal](docs/r4/ENGINEERING_JOURNAL.md) / [R5 journal](docs/r5/ENGINEERING_JOURNAL.md).
-
-## Architecture
-
-![Enterprise Agentic RAG request flow](docs/diagrams/agentic_rag_flow_cn.png)
-
-The runtime loop is:
-
-```text
-verified identity
-  -> BoundedControllerAdapter or LangGraphOrchestratorAdapter
-  -> shared Tool Contract / ToolGateway
-  -> direct or MCP-adapted search / find / open
-  -> ACL filtering, budget, deadline, and retrieved-content admission
-  -> observation updates the Evidence Ledger
-  -> continue, HITL for bounded partial evidence, answer, refuse, or stop
-  -> generate structured claims
-  -> host verifies citations and removes unsupported claims
-  -> append semantic trajectory -> replay / EvalOps artifact
-
-optional sensitive action
-  -> ToolPolicy ASK -> idempotent Start key -> Approval Generation
-  -> fenced Checkpoint creation -> stable non-authorizing Handle
-  -> DurableAccessRequestWorkflow JSON interrupt
-  -> reviewer/tenant/tool-hash revalidation after restart
-  -> idempotent access-request DRAFT (never an ACL grant)
-```
-
-The default V2 controller searches once per required aspect. Completeness
-queries may open an already visible document. `find` is implemented as a typed,
-authorized tool boundary, but the default controller does not currently select
-it. Automatic query rewrite and retrieval retry are also disabled by default.
-This is a bounded enterprise Agent, not an open-ended autonomous Agent.
-
-The paired runtime diagnostic used the same five deterministic mechanism cases,
-tools, ACL, budget, retrieval fixtures, and answer builder. Both adapters passed
-`5/5` with identical terminal behavior and zero permission violations. It did
-**not** show a quality improvement: LangGraph p95 was `6.838 ms` versus bounded
-`1.283 ms` in this tiny local test, so LangGraph remains an alternative for
-explicit state and HITL rather than the default. [Protocol and limits](docs/agent_runtime/08_AB_EVALUATION.md).
-
-Key code paths:
-
-- [Query analysis](app/agent/query_analysis.py)
-- [Agent controller](app/agent/controller_v2.py) and [execution loop](app/agent/runner_v2.py)
-- [Agent Runtime and adapters](app/agent_runtime/orchestrator.py)
-- [Tool contract and authority](app/agent_runtime/tool_contract.py) / [gateway](app/agent_runtime/tool_gateway.py)
-- [Tool policy](app/agent_runtime/tool_policy.py), [durable runtime](app/agent_runtime/durable_orchestrator.py), [idempotent side effects](app/agent_runtime/side_effects.py), and [OTel](app/agent_runtime/telemetry.py)
-- [External harness contract](app/agent_runtime/harness_contract.py) and [CLI](scripts/run_agent_harness.py)
-- [MCP adapter](app/agent_runtime/mcp_adapter.py)
-- [Trajectory](app/agent_runtime/trajectory.py), [replay](app/agent_runtime/replay.py), and [EvalOps artifact](app/agent_runtime/evalops_artifact.py)
-- [Typed tools](app/agent/tools_v2.py) and [Evidence Ledger](app/agent/evidence_ledger.py)
-- [ACL-aware retrieval](app/retrieval/pipeline.py)
-- [Retrieved-content Guard](app/security/retrieved_content.py)
-- [Claim generation](app/agent/generation_v2.py) and [citation verification](app/agent/citation_verifier.py)
-- [Versioned lifecycle](app/lifecycle) and [incremental indexing](app/indexing)
-
-## Demo
-
-The Streamlit workbench exposes three views: the answer, the Agent trace, and
-the frozen evaluation evidence.
-
-### Ask
-
-![Ask page with verified sources](docs/assets/ask.png)
-
-### Trace
-
-![Agent actions, evidence coverage, and budget](docs/assets/trace.png)
-
-### Evaluation
-
-![Retrieval, runtime, and security evidence](docs/assets/evaluation.png)
-
-## Quick Start
-
-The public demo runs locally with Python 3.11 and Ollama. Complete model and
-index setup is documented in the [demo runbook](docs/demo_runbook.md).
+需要 Python 3.11/3.12、uv，以及本机已运行的 Ollama 和已安装模型。当前验证使用 `qwen3.5:9b`、`bge-m3`，不自动下载或更换模型。
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.manage_demo_identity init --force
+uv sync --locked --no-dev
+uv run --no-sync esa init --sample --data-dir .private/esa-vnext
+uv run --no-sync esa open --data-dir .private/esa-vnext --port 8740
+uv run --no-sync esa doctor --data-dir .private/esa-vnext
 ```
+
+`open` 会报告并打开实际地址，默认优先 http://127.0.0.1:8740/ 。已有环境可用 `python -m app.cli` 替代 `esa`，终端前台调试用 `esa serve`。首次 `init --sample` 显式创建本地合成 TEST 数据；已有目录不要再次初始化。默认目录按明确参数、`ESA_DATA_DIR`、启动器工作区注册记录选择。
+
+修改 React 前端时需要构建环境的 Node：`cd frontend`，执行 `npm ci` 和 `npm run build`。静态产物进入 `app/web_dist`，由同一个 FastAPI 提供，没有常驻 Node 服务。Windows 打包见 `packaging/windows/README.md`。
+
+## 日常使用
+
+1. 设置里选择已安装的聊天/嵌入模型，确认连接。
+2. 资料库创建集合，批量上传 MD/TXT/PDF/DOCX 或导入合成规则示例；页面按真实处理任务显示索引进度和错误，无需猜测额外步骤。
+3. 知识入口选 Fast 普通问答或 Deep 分题搜索和锚定阅读；引用可查看原版本和真实页/段。旧索引没有的新定位不会伪装成原页码。
+4. 会话里提问、解释、补充字段或混合改期。开始服务事项时明确只读、仅预览或确认后提交。
+5. 保存参数即更新服务端revision和界面基线；需要设备时自动展示候选，缺字段时补字段。选择真实设备或点击“生成当前预览”直接调用公共业务用例，不额外请求模型选择动作。核对当前参数及预览；改期使旧确认失效。提交先生成待审批借用或待受理报修。
+6. 本地服务台中核对处理预览并确认：借用批准并预留 → 领用 → 归还；报修处理 → 解决 → 关闭。可撤回待审批申请或为已领用借用预览续借。
+7. 回到原会话看当前业务状态。原始提交回执不变；归还或关闭后可在同一目录再次办理，不必重建数据库。
+
+借用同时检查维修资格、静态启用、规格和实际日期预留。日期含结束日，SQLite内部为 `[start,end+1day)`；只有用户允许日期灵活才产生改期候选，仍须用户选择。预览不预留，批准时事务内再次检查冲突。
+IT报修工单与借用资格的 `repairs` 记录是不同来源，不自动联动。服务台仅为本机当前身份的合成TEST处理视角，没有企业审批角色系统。
+
+模型使用 Ollama 原生工具调用；页面展示工具名和实际观察，不展示伪造的思考过程。停用或更新资料后自动排入索引队列；尚未发布时会提示资料变化，原答案与原版本保留。无文本 PDF 不具备 OCR。
+
+0.7 候选按会话恢复运行，重试保留原问题、Deep 和原事项绑定。后续已修改的业务参数优先，旧回合不能重新覆盖；混合请求的预览和知识分别记录交付，部分失败可以只重试解释，已有预览保留，参数变化后只重建当前预览；空绑定会话可明确补选资料库并重试。历史搜索和“更多会话”请求服务器，可重命名、归档或恢复，不限于最近100条。
+
+知识默认交付已验证来源单元与必要条件。0.7的解释、假设推导和比较实验未过真实质量门槛，默认关闭；仅在明确修改工作区配置 `experimental_grounded_expression: true` 后使用，不作为稳定能力。其引用绑定和有限一致性检查不能证明语义正确。新增资料或替换处理中继续使用已发布代次，页面明确更新状态；主动停用立即从新查询排除。原文与旧答案保持原版本。
+
+## 产品回归与构建
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q
+uv sync --locked --extra dev
+uv run --no-sync python -m pytest tests/product tests/vnext tests/agent_v2/test_a1_draft_delivery.py -m "not experimental" -q
+uv run --no-sync python -m pytest tests/product/test_grounded_expression.py -m experimental -q
+cd frontend
+npm ci
+npm run build
+npm run test:ui
+cd ..
+uv run --no-sync python scripts/build_windows_portable.py
 ```
 
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
+浏览器回归自启临时工作区，外部模型使用明确测试替身，不连接活动库，不代表真实模型通过。默认Windows用已有Edge，其他平台需准备Playwright Chromium；`ESA_TEST_PYTHON`、`ESA_BROWSER_CHANNEL`、`ESA_UI_TEST_PORT`可覆盖测试环境。PR自动运行产品回归；解释实验独立显示，保留已知红例，不用 skip/xfail 隐藏。远端未执行不得记为CI通过。实验命令预期仍有已知失败，不能用其代替默认产品质量判断。
 
-```powershell
-.\.venv\Scripts\python.exe -m streamlit run streamlit_app/ui.py --server.address 127.0.0.1 --server.port 8501
-```
+Windows构建需要开发期Node/npm、uv与系统C#编译器，可用`--uv`/`--npm`指定工具；默认按锁准备官方嵌入式Python和依赖并构建同commit前端。`--embed-zip`可复用官方ZIP，`--offline`要求全部构建缓存已存在。日常用户运行包不执行上述安装步骤。具体已实测版本与未完成项以[STATUS](docs/esa-vnext/STATUS.md)为准。
 
-For a faster offline portfolio check that does not require Ollama or private
-benchmark files:
+## 数据与恢复
 
-```powershell
-.\.venv\Scripts\python.exe -m scripts.verify_portfolio_release
-```
+`workspace.json` 保存配置；`app.sqlite3` 保存会话、工单、确认、幂等命令、模型调用和进展；`documents/`、`indexes/`、`cache/` 保存原文、索引和计算缓存。备份需包含整个 DATA_DIR。不要提交数据库、原始调用、私有资料、模型或大索引到 Git。
 
-## Repository Guide
+同一目录只开一个实例。停止本次运行不会撤回已经提交的工单；刷新/重启读取保存状态，不自动重发提交。跨页面并发编辑仅支持现有 revision 冲突检查，不能冒充企业多用户系统。
 
-```text
-app/agent/                 bounded decision loop, tools, evidence, citations
-app/agent_runtime/         orchestrators, guarded tool contract, MCP, trajectory, replay, HITL, EvalOps
-app/retrieval/             hybrid retrieval, navigation, ranking, ACL filtering
-app/security/              identity and retrieved-content security boundaries
-app/ingestion/             validated parsing and revision preparation
-app/indexing/              immutable and incremental index lifecycle
-app/evaluation/            metrics, protocols, attribution, public evidence
-streamlit_app/             Ask, Trace, and Evaluation UI
-tests/                     deterministic, security, failure, and evidence gates
-docs/handoffs/             recruiter, interview, teaching, and resume entry points
-docs/enterprise_eval/      external retrieval protocols and results
-docs/resume_metrics/       resume-safe metrics and forbidden claims
-docs/agent_runtime/        vNext decisions, security review, architecture, schema, and evidence
-docs/production_runtime/   policy, durable checkpoint, idempotency, OTel, failure evidence, and claim limits
-```
+## 状态与限制
 
-The versioned deterministic harness reads one JSON request from stdin:
+当前功能、演示和限制见 [RELEASE](docs/esa-vnext/RELEASE.md)。
+当前升级的逐阶段运行和失败见 [STATUS](docs/esa-vnext/STATUS.md)，启动/错误处理见 [START](docs/esa-vnext/START.md)。源码功能、程序测试和真实模型结果分别登记，不用 COMPLETED 代替内容和数据库验收。
+自由文本 auto 为历史实验路径。尚未证明追平 main；Docker/Streamlit 不是当前默认工作台启动方式，Linux/容器化本轮未验证。
 
-```powershell
-'{"case_id":"readme-smoke","question":"What is the remote policy?"}' | .\.venv\Scripts\python.exe -m scripts.run_agent_harness --state-root .private\harness\readme
-```
-
-Start technical review with the [project evidence map](docs/handoffs/PROJECT_EVIDENCE_MAP.md).
-For interview preparation, use the [teaching handoff](docs/handoffs/TEACHING_CODEX_HANDOFF.md)
-and [interview story bank](docs/handoffs/INTERVIEW_STORY_BANK.md). The concise
-Chinese resume entry is in [FINAL_RESUME_ENTRY_CN.md](docs/handoffs/resume_package/FINAL_RESUME_ENTRY_CN.md).
-
-## Scope and Limitations
-
-Completed engineering mechanisms and measured results are shown above. This
-project does **not** claim:
-
-- production deployment, production traffic, SLOs, or universal security;
-- blind end-to-end answer accuracy or semantic entailment certification;
-- that the current Agent route improves external retrieval quality;
-- independent third-party reproduction;
-- durable production HITL for arbitrary actions, production network MCP/OAuth,
-  multi-Agent execution, GraphRAG, Redis, Kafka, or distributed multi-writer
-  indexing; the durable candidate currently covers one local draft-only action;
-- that LangGraph improved answer quality, or that the five-case diagnostic is a
-  production latency or accuracy benchmark.
-
-The public synthetic corpus exists to exercise ACL, versions, conflicts,
-multi-document questions, and safe refusal without exposing private enterprise
-data. External WixQA, EnterpriseRAG-Bench, and garak evidence is reported
-separately with dataset, denominator, execution revision, and limitation.
-
-Current public state: `main` is canonical, `portfolio-v1.1.0-final-closure` is the stable
-snapshot, and legacy `codex/*` refs are retained only for external-link
-compatibility. This remains a portfolio system, not a production-readiness
-claim. `RAG_VNEXT_CLOSED` is retained as a historical milestone marker, not as
-the name of the current branch.
-
-## Documentation
-
-- [Recruiter summary](docs/handoffs/RECRUITER_SUMMARY.md)
-- [Claim-to-evidence map](docs/handoffs/PROJECT_EVIDENCE_MAP.md)
-- [Resume metric ledger](docs/handoffs/RESUME_METRIC_LEDGER.md)
-- [Evaluation methodology](docs/evaluation.md)
-- [Final project decision](docs/FINAL_PROJECT_DECISION.md)
-- [Final evaluation summary](docs/FINAL_EVALUATION_SUMMARY.md)
-- [Resume claim boundary](docs/RESUME_CLAIM_BOUNDARY.md)
-- [Final interview guide](docs/INTERVIEW_GUIDE.md)
-- [Architecture and trust boundaries](docs/architecture.md)
-- [Known limitations](docs/known_limitations.md)
-- [Full project evolution](docs/history/00_PROJECT_EVOLUTION.md)
-- [Portfolio archive report](docs/handoffs/PORTFOLIO_ARCHIVE_REPORT.md)
-- [Agent Runtime final architecture](docs/agent_runtime/10_FINAL_ARCHITECTURE.md)
-- [Agent Runtime security review](docs/agent_runtime/09_SECURITY_REVIEW.md)
-- [Agent Runtime learning tutorial](docs/learning/AGENT_RUNTIME_TUTORIAL.md)
-- [UDA R4 retrieval and gate tutorial](docs/learning/41_UDA_R4_分层检索_性能优化与失败门禁.md)
-- [UDA R5 fresh confirmation journal](docs/r5/ENGINEERING_JOURNAL.md)
-- [vNext resume-safe evidence](docs/resume/RESUME_SAFE_VNEXT_METRICS.md)
-- [Production runtime candidate architecture](docs/production_runtime/ARCHITECTURE.md)
-- [Production runtime results and limitations](docs/production_runtime/RESULTS.md) / [limitations](docs/production_runtime/KNOWN_LIMITATIONS.md)
+[原 README 与用户既有修改](docs/history/README_PRE_030.md)保留为历史说明，不能作为当前入口指引。实际实现问题及面试口述线索见 [实施记录](docs/esa-vnext/IMPLEMENTATION_INTERVIEW_NOTES.md)。

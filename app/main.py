@@ -46,10 +46,21 @@ def _create_application(
     container: ServiceContainer | None,
 ) -> FastAPI:
     service = container or build_service_container(get_settings())
+    workspace = None
+    if service.settings.workbench_enabled:
+        from app.workspace import Workspace
+        workspace = Workspace(service.settings)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         settings = service.settings
+        if workspace is not None:
+            try:
+                await workspace.start()
+                yield
+            finally:
+                await workspace.close()
+            return
         for path in (
             settings.raw_docs_dir,
             settings.parsed_docs_dir,
@@ -81,6 +92,16 @@ def _create_application(
     application.add_middleware(RequestContextMiddleware, container=service)
     install_error_handlers(application)
     application.include_router(create_lifecycle_router(service))
+    if workspace is not None:
+        from app.workspace import workspace_router, install_workspace_errors
+        from fastapi.staticfiles import StaticFiles
+        from pathlib import Path
+        from starlette.middleware.trustedhost import TrustedHostMiddleware
+        application.state.workspace = workspace
+        install_workspace_errors(application)
+        application.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"])
+        application.include_router(workspace_router(workspace))
+        application.mount("/assets", StaticFiles(directory=Path(__file__).with_name("web")), name="workspace-assets")
 
     @application.get("/health/live", response_model=LivenessResponse)
     def liveness(request: Request) -> LivenessResponse:
@@ -97,6 +118,9 @@ def _create_application(
 
     @application.get("/health/ready")
     def readiness(request: Request) -> JSONResponse:
+        if workspace is not None:
+            return JSONResponse({"status": "ready", "web": True, "storage": workspace.started,
+                                 "generation": "CHECK_API_STATUS"})
         snapshot = service.resources.refresh_if_stale()
         request.state.outcome = snapshot.status
         return JSONResponse(
@@ -115,6 +139,9 @@ def _create_application(
         response: Response,
     ) -> AnswerResponse:
         principal = authenticated_principal(request)
+        if payload.interaction_mode == "investigate" and not service.settings.agent_v2_task_mode_enabled:
+            raise ApiError(status_code=403, code="task_mode_disabled",
+                           message="Agent investigation is not enabled on this server.")
         _require_service_dependencies(service, require_all=True)
         try:
             service.feedback_actor_hasher.ready()
@@ -126,6 +153,9 @@ def _create_application(
                 payload.question,
                 principal.to_user_context(),
                 payload.top_k,
+                **({"interaction_mode":payload.interaction_mode} if payload.interaction_mode else {}),
+                **({"clarification_replies": [reply.model_dump() for reply in payload.clarification_replies]}
+                   if payload.clarification_replies else {}),
             )
         _require_active_request()
         safe_trace = redact_trace_payload(

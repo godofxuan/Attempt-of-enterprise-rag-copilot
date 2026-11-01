@@ -12,7 +12,9 @@ from pydantic import (
     model_validator,
 )
 
-from app.domain.documents import DocumentStatus, SourceLocator
+from app.domain.documents import DocumentStatus, SourceLocator, SourceSpan
+
+MAX_USER_QUESTION_CHARS = 2000
 
 QueryIntent = Literal[
     "fact",
@@ -81,6 +83,7 @@ class QueryFilters(StrictModel):
 
 class QueryAnalysis(StrictModel):
     original_question: str = Field(min_length=1, max_length=2000)
+    prior_user_questions: list[str] = Field(default_factory=list, max_length=4)
     intent: QueryIntent
     entities: list[str] = Field(default_factory=list, max_length=8)
     search_queries: list[str] = Field(default_factory=list, max_length=4)
@@ -146,6 +149,7 @@ class SearchHit(StrictModel):
     source_path: str = Field(min_length=1)
     section_path: list[str] = Field(min_length=1)
     locator: SourceLocator | None = None
+    source_spans: list[SourceSpan] = Field(default_factory=list)
     matched_text: str = Field(min_length=1)
     context_text: str = Field(min_length=1)
     context_from_parent: bool = False
@@ -269,6 +273,7 @@ class OpenResult(StrictModel):
     start_char: int = Field(default=0, ge=0, le=10_000_000)
     source_path: str = Field(min_length=1)
     section_path: list[str] = Field(default_factory=list)
+    source_spans: list[SourceSpan] = Field(default_factory=list)
 
     @field_validator("content")
     @classmethod

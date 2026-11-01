@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-22.04, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     steps:
@@ -156,7 +156,7 @@ jobs:
   container:
     name: linux-container-contract
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
     env:
       TEST_IMAGE: enterprise-rag-test:${{ github.sha }}
@@ -330,7 +330,7 @@ jobs:
 
   postgres-checkpointer:
     name: postgres-checkpointer-integration
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     services:
       postgres:

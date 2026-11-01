@@ -1,0 +1,22 @@
+{
+  "packet_candidate_count": 3,
+  "packet_duplicate_reasons": {
+    "chunk": 0,
+    "open_target": 0,
+    "matched_context": 3,
+    "search_open_text": 0
+  },
+  "packet_drop_reasons": {
+    "source_limit": 0,
+    "packet_budget": 0,
+    "no_complete_unit": 0,
+    "unanchored_open": 0
+  },
+  "packet_truncation_reasons": {
+    "unit_limit": 0,
+    "packet_budget": 1
+  },
+  "packet_hash": "e8b5c4929e78145504d9ca8758ee521e816685f135b199f5bb62b90c6a7772fc",
+  "packet_hash_basis": "sha256_private_delivered_packet_v1",
+  "packet_duplicate_ratio": 0.0
+}

@@ -24,6 +24,7 @@ def _default_runtime_cache_dir() -> Path:
 
 class Settings(BaseSettings):
     app_name: str = "Enterprise RAG Copilot"
+    workbench_enabled: bool = False
 
     data_dir: Path = BASE_DIR / "data"
     raw_docs_dir: Path = data_dir / "raw_docs"
@@ -92,6 +93,8 @@ class Settings(BaseSettings):
     agent_v2_max_context_chars: int = Field(default=12_000, ge=100, le=100_000)
     agent_v2_deadline_ms: int = Field(default=15_000, ge=100, le=300_000)
     agent_v2_task_advisor_enabled: bool = False
+    agent_v2_strategy: Literal["rules", "recovery_once", "hybrid_agent", "task_agent"] = "rules"
+    agent_v2_task_mode_enabled: bool = False
 
     api_request_deadline_ms: int = Field(default=15_000, ge=100, le=300_000)
     model_request_timeout_seconds: float = Field(default=12.0, gt=0, le=300)
@@ -122,6 +125,21 @@ class Settings(BaseSettings):
     )
 
     sqlite_path: Path = BASE_DIR / "data" / "app.db"
+
+    @model_validator(mode="after")
+    def validate_agent_strategy(self) -> "Settings":
+        explicit_strategy = "agent_v2_strategy" in self.model_fields_set
+        explicit_legacy = "agent_v2_task_advisor_enabled" in self.model_fields_set
+        legacy_strategy = "recovery_once" if self.agent_v2_task_advisor_enabled else "rules"
+        if explicit_strategy and explicit_legacy and self.agent_v2_strategy != legacy_strategy:
+            raise ValueError("agent strategy conflicts with explicit legacy advisor flag")
+        if not explicit_strategy:
+            object.__setattr__(self, "agent_v2_strategy", legacy_strategy)
+        return self
+
+    def runner_configuration(self) -> str:
+        # Preserve canonical strategy without turning an implicit False into an explicit flag.
+        return self.model_dump_json(exclude={"agent_v2_task_advisor_enabled"})
 
     @model_validator(mode="after")
     def derive_runtime_paths_from_data_dir(self) -> "Settings":

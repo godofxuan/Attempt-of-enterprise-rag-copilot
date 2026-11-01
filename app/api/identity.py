@@ -120,6 +120,15 @@ class TrustedIdentityMiddleware:
             await self.app(scope, receive, send)
             return
 
+        path = get_route_path(scope)
+        # The local workbench owns these routes and validates loopback/origin
+        # itself. Legacy document/operator APIs retain the bearer boundary.
+        if self.container.settings.workbench_enabled and (
+            path == "/" or path.startswith(("/api/", "/assets/"))
+        ):
+            await self.app(scope, receive, send)
+            return
+
         # Match the same application-relative path Starlette uses for mounted
         # apps and root_path deployments; the raw scope path includes prefixes.
         route = route_access_policy(

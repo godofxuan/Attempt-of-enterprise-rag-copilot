@@ -5,7 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.domain.agent import AgentStopReason, AnswerMode
-from app.domain.documents import DocumentStatus
+from app.domain.documents import DocumentStatus,SourceSpan
 
 EvidenceRelation = Literal["supports", "conflicts"]
 LedgerAction = Literal[
@@ -89,6 +89,7 @@ class Claim(StrictModel):
     text: str = Field(min_length=1, max_length=2000)
     critical: bool = True
     cited_chunk_ids: list[str] = Field(default_factory=list, max_length=20)
+    need_refs: list[str] = Field(default_factory=list, max_length=8, exclude_if=lambda value: not value)
 
 
 class SupportingSpan(StrictModel):
@@ -154,17 +155,38 @@ class AnswerSource(StrictModel):
     target_id: str | None = None
     index_run_id: str | None = None
     version_id: str | None = None
+    source_spans:list[SourceSpan]=Field(default_factory=list)
+    title:str|None=None
+    source_type:str|None=None
+    format:str|None=None
+
+
+class Clarification(StrictModel):
+    question: str = Field(min_length=1, max_length=300)
+    reason: Literal["missing_user_fact", "ambiguous_scope"]
+    missing_need_ids: list[str] = Field(min_length=1, max_length=8)
+    options: list[str] = Field(default_factory=list, max_length=4)
+
+
+class AnswerBlock(StrictModel):
+    """Model explanation with verified provenance, not a proof of entailment."""
+    kind: Literal["explanation", "comparison", "rule", "conditional"] = "explanation"
+    text: str = Field(min_length=1, max_length=1800)
+    claim_ids: list[str] = Field(min_length=1, max_length=20)
+    assumptions: list[str] = Field(default_factory=list, max_length=3)
 
 
 class AnswerResponse(StrictModel):
     mode: AnswerMode
     answer: str = Field(min_length=1, max_length=20_000)
     claims: list[Claim] = Field(default_factory=list)
+    answer_blocks: list[AnswerBlock] = Field(default_factory=list, exclude_if=lambda value: not value)
     citations: list[ClaimCitation] = Field(default_factory=list)
     sources: list[AnswerSource] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     stop_reason: AgentStopReason | None = None
     trace: dict[str, Any] = Field(default_factory=dict)
+    clarification: Clarification | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def validate_response_shape(self) -> AnswerResponse:
@@ -179,6 +201,11 @@ class AnswerResponse(StrictModel):
                 raise ValueError("answered response requires claims, citations, and sources")
             if set(citation_claim_ids) != set(claim_ids):
                 raise ValueError("answered response requires citation for every claim")
+        if self.mode == "clarify":
+            if self.clarification is None or self.claims or self.citations or self.sources:
+                raise ValueError("clarify requires a question and no factual claims or sources")
+        if self.clarification is not None and self.mode not in {"clarify", "partial"}:
+            raise ValueError("clarification is only valid in clarify or partial")
         source_free_modes = {
             "unsafe",
             "permission",

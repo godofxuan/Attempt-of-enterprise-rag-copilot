@@ -7,6 +7,9 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+build/
+dist/
+*.egg-info/
 
 # Local environment
 .env
@@ -69,3 +72,16 @@ Thumbs.db
 
 # Streamlit local secrets
 .streamlit/secrets.toml
+
+# Frontend development/build tools (bundled app/web_dist is tracked)
+frontend/node_modules/
+frontend/*.tsbuildinfo
+# Original incoming audit execution material is local evidence, not public source.
+docs/esa-vnext/reviews/070-next-20261031/evidence/
+
+# Original incoming review evidence stays local; public design only.
+docs/esa-vnext/reviews/rc2-finish-20261031/evidence/
+docs/esa-vnext/reviews/rc3-final-20261031/evidence/
+
+# Incoming rc4 audit raw evidence remains local.
+docs/esa-vnext/reviews/rc4-finish-20261101/evidence/

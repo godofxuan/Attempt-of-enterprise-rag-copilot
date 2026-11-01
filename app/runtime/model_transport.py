@@ -12,6 +12,8 @@ from app.runtime.request_context import (
     current_request_context,
     effective_timeout_seconds,
     remaining_seconds,
+    model_call_remaining,
+    reserve_model_send,
 )
 
 ModelOperation = Literal["chat", "embed"]
@@ -72,19 +74,26 @@ def perform_model_request(
             _record_final_error()
             raise _deadline_error(attempts) from None
 
+        call_remaining = model_call_remaining()
+        if call_remaining is not None:
+            if call_remaining <= 0:
+                raise _deadline_error(attempts)
+            timeout = min(timeout, call_remaining)
+        attempt_id, purpose = reserve_model_send(operation, clock_ms=lambda: clock()*1000)
         attempts += 1
         started = clock()
         try:
             response = send(timeout)
             response.raise_for_status()
             remaining = remaining_seconds(clock_ms=lambda: clock() * 1000.0)
-            if remaining is not None and remaining <= 0:
+            if (remaining is not None and remaining <= 0) or model_call_remaining() == 0:
                 raise RequestDeadlineExceeded("request deadline exhausted")
         except Exception as exc:
             _record_attempt(
                 operation,
                 status="error",
                 duration_ms=max(0.0, (clock() - started) * 1000.0),
+                attempt_id=attempt_id, purpose=purpose,
             )
             if isinstance(exc, RequestDeadlineExceeded):
                 _record_final_error()
@@ -109,6 +118,7 @@ def perform_model_request(
             operation,
             status="ok",
             duration_ms=max(0.0, (clock() - started) * 1000.0),
+            attempt_id=attempt_id, purpose=purpose,
         )
         return ModelRequestResult(
             response=response,
@@ -169,7 +179,7 @@ def _backoff_fits_deadline(
     return remaining is None or remaining > backoff_seconds
 
 
-def _record_attempt(operation: str, *, status: str, duration_ms: float) -> None:
+def _record_attempt(operation: str, *, status: str, duration_ms: float, attempt_id=None, purpose=None) -> None:
     context = current_request_context()
     if context is None:
         return
@@ -181,6 +191,12 @@ def _record_attempt(operation: str, *, status: str, duration_ms: float) -> None:
             "duration_ms": duration_ms,
         }
     )
+    context.model_attempts.append({"attempt_id": attempt_id, "purpose": purpose,
+                                   "status": status, "duration_ms": duration_ms})
+    if context.attempt_budget is not None:
+        for record in context.attempt_budget.attempts:
+            if record["attempt_id"] == attempt_id:
+                record.update(status=status, duration_ms=duration_ms)
 
 
 def _record_retry() -> None:

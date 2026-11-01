@@ -1,0 +1,48 @@
+[
+  {
+    "id": "F01_RETRY_LOSES_MODE",
+    "external_detailed_flags": [
+      true,
+      false
+    ],
+    "initial_input": {
+      "conversation_id": "conversation_c636cf94364a4b11",
+      "message_id": "deep-retry",
+      "text": "比较两个制度",
+      "detailed": true
+    },
+    "retry_input": {
+      "conversation_id": "conversation_c636cf94364a4b11",
+      "text": "比较两个制度",
+      "message_id": "deep-retry"
+    },
+    "retry_status": "succeeded",
+    "defect_reproduced": true
+  },
+  {
+    "id": "F02_NO_KB_CONVERSATION_CANNOT_RECOVER",
+    "initial_error": "ServiceError: KNOWLEDGE_BASE_REQUIRED",
+    "new_kb_exists": true,
+    "stored_kb_after": null,
+    "retry_error": "ServiceError: KNOWLEDGE_BASE_REQUIRED",
+    "external_calls": 0,
+    "binding_update_routes": [],
+    "defect_reproduced": true
+  },
+  {
+    "id": "F03_STALE_WORKSPACE_SILENT_EMPTY_INIT",
+    "selected_missing_registry_path": true,
+    "old_path_recreated": true,
+    "new_instance_conversations": [],
+    "original_data_still_at_moved_path": true,
+    "defect_reproduced": true
+  },
+  {
+    "id": "F04_HISTORY_HIDDEN_AFTER_100",
+    "created": 105,
+    "listed": 100,
+    "earliest_listed": false,
+    "earliest_direct_http": 200,
+    "defect_reproduced": true
+  }
+]

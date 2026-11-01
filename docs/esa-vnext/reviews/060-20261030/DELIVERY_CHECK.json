@@ -1,0 +1,12 @@
+{
+  "kind": "DELIVERY_CONTENT_CHECK_NOT_PRODUCT_ACCEPTANCE",
+  "planned_work_items": 18,
+  "planned_quality_cases": 24,
+  "dependency_dag": "PASS",
+  "required_docs": "PRESENT_NONEMPTY",
+  "json_parse": "PASS",
+  "reproduction_tool_syntax": "PASS",
+  "portable_reproduction_tools": "Executed again on original uploaded source; same five defects reproduced. Duplicate runs not added to test count.",
+  "product_changes_in_package": false,
+  "windows_executable_in_package": false
+}

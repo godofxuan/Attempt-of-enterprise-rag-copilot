@@ -1,0 +1,25 @@
+{
+  "mode": "real 5ff9aac2 DOM/CSS/JS in Chromium via Blob module resolution; localStorage/fetch are synthetic replay adapters, domain fixture real; not full backend or LLM E2E",
+  "browser": "144.0.7559.96",
+  "dom_handoff": {
+    "before_task_panels": 1,
+    "after_switch_back_task_panels": 0,
+    "task_detail_visible_after_switch_back": false,
+    "result": "DEFECT_REPRODUCED"
+  },
+  "visible_message_textareas_before_switch": 2,
+  "page_errors": [],
+  "api_reads": [
+    "/api/services",
+    "/api/settings",
+    "/api/status",
+    "/api/library",
+    "/api/tasks",
+    "/api/services",
+    "/api/conversations",
+    "/api/history",
+    "/api/conversations/conversation_e1209ad272614318",
+    "/api/tasks/6a3366c7716740bbacb1dfb3ba8ba815",
+    "/api/conversations"
+  ]
+}

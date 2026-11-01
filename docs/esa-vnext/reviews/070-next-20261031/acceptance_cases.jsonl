@@ -1,0 +1,16 @@
+{"id": "Q01", "title": "Deep及知识绑定恢复", "track": "default", "setup": "旧失败Deep回合、空KB显式绑定", "expected": "重试保留Deep/KB/任务及新事实；一条用户原消息", "method": "原API+真实SQLite+显式模型替身", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q02", "title": "预览成功解释失败", "track": "default", "setup": "真实preview＋知识边界报错", "expected": "partial可仅重试解释，预览保持有效，不新建票据", "method": "本包独立复现扩为正确断言", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q03", "title": "模型漏选第二诉求", "track": "default", "setup": "用户要求预览和说明，首次模型只准备", "expected": "不假称整轮完整；至多针对性继续或展示缺项", "method": "脚本工具选择＋真实业务", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q04", "title": "明确按钮生成预览", "track": "default", "setup": "完整参数和合法选设备，点击准备", "expected": "0额外chat，真实规则/库存检查，生成可确认预览", "method": "API+UI", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q05", "title": "改期和重复提交", "track": "default", "setup": "旧预览后修改日期，确认当前预览两次", "expected": "旧确认拒绝，当前只1张申请且读回一致", "method": "原领域+SQLite", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q06", "title": "默认窗口中的知识主题", "track": "default", "setup": "实际报修追问与借用对比", "expected": "当前默认不混主体，未知准确描述", "method": "真实模型单独记录", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q07", "title": "并发历史读与事实写", "track": "default", "setup": "历史读快照、短事实更新、可控写争用", "expected": "前者不阻塞提交；后者有界可恢复而非裸500；不重放模型", "method": "SQLite真实连接", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q08", "title": "新包与旧实例", "track": "default", "setup": "旧版运行时双击新版", "expected": "明确版本和正常切换，后台有工作不默默中止", "method": "launcher集成+Windows", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q09", "title": "工作区移动和重启", "track": "default", "setup": "关闭后移动旧目录，再打开", "expected": "找回原库，不在旧路径造空库；历史不变", "method": "原launcher+临时目录", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q10", "title": "界面部分交付和切换", "track": "default", "setup": "部分结果、切换会话、返回、重试", "expected": "一个composer，正确归属，来源/草稿/预览保留", "method": "Playwright当前产品", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q11", "title": "索引更新和停用", "track": "default", "setup": "后台更新失败、停用旧资料、重启", "expected": "旧发布版合理可用，主动停用立即不参与新查询", "method": "真实索引+SQLite", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q12", "title": "同数据两类完整业务", "track": "default", "setup": "借用批准领用归还后再申请；报修处理关闭", "expected": "实际票据和资源正确；原Task可继续不清空库", "method": "程序与真实模型旅程分开", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q13", "title": "干净源码与默认CI", "track": "release", "setup": "拉取feature并按README运行", "expected": "完整依赖明确，当前工厂和静态产物可启动", "method": "受支持Python+前端构建", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q14", "title": "最终Windows原生体验", "track": "release", "setup": "解压同版包、首次选择、自动开页、输入法", "expected": "无需系统Python/Node，输入法不误发，数据位置清楚", "method": "真实Windows；无环境NOT_RUN", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q15", "title": "实验表达正确与误拦", "track": "experiment", "setup": "复合否定、条件性结论、主体比较", "expected": "正确句不误删，矛盾句不被answered掩盖；实际内容评价", "method": "固定证据程序回归+真实模型", "status": "SPEC_NOT_EXECUTED"}
+{"id": "Q16", "title": "实验是否应默认", "track": "experiment", "setup": "default与候选同问题同模型同资料", "expected": "记录关键事实/条件/主体/来源，不以标签计准确；无改善维持关闭", "method": "有限配对及后续少量未调参例", "status": "SPEC_NOT_EXECUTED"}

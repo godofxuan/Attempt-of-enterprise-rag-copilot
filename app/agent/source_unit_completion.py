@@ -2,9 +2,9 @@
 
 from dataclasses import dataclass
 
-from app.agent.citation_verifier import verify_claims
+from app.agent.citation_verifier import verify_claims, narrow_layout_key
 from app.domain.evidence import Claim, ClaimCitation
-from app.domain.evidence_packet import SOURCE_UNIT_END, DeliveredEvidence
+from app.domain.evidence_packet import SOURCE_UNIT_END, DeliveredEvidence, source_unit_ranges
 
 
 @dataclass(frozen=True)
@@ -17,13 +17,15 @@ class SourceUnit:
 
 
 def complete_units(evidence: DeliveredEvidence):
+    seen=set()
     for field, text in (
-        ("matched_text", evidence.matched_text),
+        ("open_content" if evidence.opened else "matched_text", evidence.matched_text),
         ("context_text", evidence.context_text),
     ):
-        start = 0
-        for match in SOURCE_UNIT_END.finditer(text):
-            end = match.end()
+        if text in seen:
+            continue
+        seen.add(text)
+        for start,end in source_unit_ranges(text):
             left = start
             while left < end and text[left].isspace():
                 left += 1
@@ -41,6 +43,10 @@ def complete_claim_quotes(
     counts = {"expanded": 0, "ambiguous": 0, "unmatched": 0}
     for claim, citation in zip(claims, citations, strict=True):
         replacement = None
+        if citation.supported and len(citation.supporting_spans)==1:
+            original=citation.supporting_spans[0].quote
+            if original!=claim.text and narrow_layout_key(original)==narrow_layout_key(claim.text):
+                claim=claim.model_copy(update={"text":original})
         if (
             citation.unsupported_reason == "critical_fact_requires_bound_span"
             and len(claim.cited_chunk_ids) == 1
@@ -50,7 +56,7 @@ def complete_claim_quotes(
                 # Exact bytes and one complete unit only. Never remove a title,
                 # condition, table header, negation or a trailing qualifier.
                 units = {
-                    u.quote: u
+                    (u.field,u.start,u.end): u
                     for u in complete_units(evidence)
                     if claim.text in u.quote and len(claim.text) < len(u.quote) <= 2000
                 }

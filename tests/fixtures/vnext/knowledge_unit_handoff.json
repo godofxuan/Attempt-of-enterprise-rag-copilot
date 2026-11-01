@@ -1,0 +1,40 @@
+{
+  "provenance": "Actual local 9B synthetic J10 model reply; replay is not new inference",
+  "question": "我的电脑正在维修，计划从2026-11-01借到2026-11-03，用途是异地会议。请说明临时电脑借用的资格、期限、开始日期限制、申请数量、待审批是否等于已分配，以及押金规定。",
+  "records": [
+    {
+      "aspect": "answer",
+      "authority_level": 100,
+      "context_text": "",
+      "matched_text": "合成示例：电脑借用制度\n本文仅用于本地合成工作台演示，不是任何真实企业的制度。\n只有存在有效维修记录的员工可以申请临时电脑。\n借用期限为1至14天，开始日期不得早于申请当天。\n同一员工只能有一个未关闭的借用申请。\n提交后工单为待审批；待审批不等于已批准、已分配或已预留。\n本文未规定押金金额，不能由此推断押金为零。",
+      "source_id": "S1",
+      "source_units": [
+        "S1U1",
+        "S1U2",
+        "S1U3",
+        "S1U4",
+        "S1U5",
+        "S1U6",
+        "S1U7"
+      ],
+      "status": "active",
+      "version": "1"
+    },
+    {
+      "aspect": "answer",
+      "authority_level": 100,
+      "context_text": "",
+      "matched_text": "合成示例：会议室说明\n本文仅用于本地知识问答演示。\n会议室每日开放时间为09:00至18:00。\n每次预订不得超过2小时。\n使用结束后必须清理桌面并关闭设备。",
+      "source_id": "S2",
+      "source_units": [
+        "S2U1",
+        "S2U2",
+        "S2U3",
+        "S2U4"
+      ],
+      "status": "active",
+      "version": "1"
+    }
+  ],
+  "response_content": "{\n  \"answer\": \"根据提供的证据，关于临时电脑借用的规定如下：\\n1. **资格**：只有存在有效维修记录的员工可以申请临时电脑。[S1U2]\\n2. **期限**：借用期限为 1 至 14 天。[S1U3]\\n3. **开始日期限制**：开始日期不得早于申请当天。[S1U3]\\n4. **申请数量**：同一员工只能有一个未关闭的借用申请。[S1U4]\\n5. **待审批状态**：提交后工单为待审批；待审批不等于已批准、已分配或已预留。[S1U6]\\n6. **押金规定**：本文未规定押金金额，不能由此推断押金为零。[S1U7]\",\n  \"claims\": [\n    {\n      \"claim_id\": \"C1\",\n      \"critical\": true,\n      \"source_unit_id\": \"S1U2\",\n      \"cited_source_ids\": [\"S1\"],\n      \"need_refs\": [\"N1\"]\n    },\n    {\n      \"claim_id\": \"C2\",\n      \"critical\": true,\n      \"source_unit_id\": \"S1U3\",\n      \"cited_source_ids\": [\"S1\"],\n      \"need_refs\": [\"N1\"]\n    },\n    {\n      \"claim_id\": \"C3\",\n      \"critical\": true,\n      \"source_unit_id\": \"S1U4\",\n      \"cited_source_ids\": [\"S1\"],\n      \"need_refs\": [\"N1\"]\n    },\n    {\n      \"claim_id\": \"C4\",\n      \"critical\": true,\n      \"source_unit_id\": \"S1U6\",\n      \"cited_source_ids\": [\"S1\"],\n      \"need_refs\": [\"N1\"]\n    },\n    {\n      \"claim_id\": \"C5\",\n      \"critical\": true,\n      \"source_unit_id\": \"S1U7\",\n      \"cited_source_ids\": [\"S1\"],\n      \"need_refs\": [\"N1\"]\n    }\n  ],\n  \"request_coverage\": [\n    {\n      \"need_id\": \"N1\",\n      \"claim_ids\": [\"C1\", \"C2\", \"C3\", \"C4\", \"C5\"],\n      \"status\": \"supported\",\n      \"subject_matches\": true,\n      \"attribute_matches\": true,\n      \"conditions_preserved\": true\n    }\n  ]\n}"
+}

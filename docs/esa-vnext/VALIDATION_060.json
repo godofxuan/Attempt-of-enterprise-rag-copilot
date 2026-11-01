@@ -1,0 +1,200 @@
+{
+  "application_commit": "1f9d26626f27a03dfd76683fc551c24aa78227a0",
+  "backend_model_validation_commit": "7d4bfa281942ea7cc1964f4914a2e8f5f53dd4c8",
+  "release_decision": "LOCAL_PREVIEW_WITH_EXPLICIT_UNMET_GATES",
+  "goal_fully_complete": false,
+  "work_items": [
+    {
+      "id": "W01",
+      "status": "PASS",
+      "evidence": "START.json / INSTANCE_1f9d2662.json"
+    },
+    {
+      "id": "W02",
+      "status": "PASS",
+      "evidence": "FINAL_REGRESSION_7d4bfa28.xml; actual primary pending_turns=0"
+    },
+    {
+      "id": "W03",
+      "status": "PASS",
+      "evidence": "UI_NAVIGATION_2026-10-30T17-53-13-317Z.json; cancellation/API regressions"
+    },
+    {
+      "id": "W04",
+      "status": "PASS",
+      "evidence": "OpenAPI TaskView/RunEventView; FINAL_BROWSER_READBACK_2026-10-30T17-55-34-254Z.json"
+    },
+    {
+      "id": "W05",
+      "status": "PASS",
+      "evidence": "WINDOWS_PORTABLE_1f9d2662.json"
+    },
+    {
+      "id": "W06",
+      "status": "PARTIAL",
+      "evidence": "port/reuse/own shutdown PASS; native first choice/automatic browser incomplete after Escape"
+    },
+    {
+      "id": "W07",
+      "status": "PASS",
+      "evidence": [
+        "FULL_WORKSPACE_UPGRADE_20261030T174515Z.json",
+        "FULL_WORKSPACE_UPGRADE_20261030T175538Z.json"
+      ]
+    },
+    {
+      "id": "W08",
+      "status": "PASS",
+      "evidence": "WINDOWS_PORTABLE_1f9d2662.json model-offline shell/settings/history"
+    },
+    {
+      "id": "W09",
+      "status": "PARTIAL",
+      "evidence": "working settings/onboarding and real configured models; full first GUI setup NOT_RUN"
+    },
+    {
+      "id": "W10",
+      "status": "PASS",
+      "evidence": "official embedded runtime + same create_workbench_app; no runtime package installation"
+    },
+    {
+      "id": "W11",
+      "status": "PASS",
+      "evidence": "React TS build and actual API/browser"
+    },
+    {
+      "id": "W12",
+      "status": "PARTIAL",
+      "evidence": "one composer/navigation/IME composition events PASS; physical Chinese IME NOT_RUN"
+    },
+    {
+      "id": "W13",
+      "status": "PASS",
+      "evidence": "actual full business UI chain + current-date vs old-receipt browser readback"
+    },
+    {
+      "id": "W14",
+      "status": "PASS",
+      "evidence": "actual source reader and source span parser regressions"
+    },
+    {
+      "id": "W15",
+      "status": "PASS",
+      "evidence": "tests/vnext library/directory/job/source tests; actual unchanged original index"
+    },
+    {
+      "id": "W16",
+      "status": "PASS",
+      "evidence": "LIVE_050_2026-10-30T17-47-48-585Z.json and referenced attempts"
+    },
+    {
+      "id": "W17",
+      "status": "PARTIAL",
+      "evidence": "0.5 milestone ZIP/runtime/model journeys existed, superseded by 0.6; native first setup still pending"
+    },
+    {
+      "id": "W18",
+      "status": "PASS",
+      "evidence": "bootstrap + api + persistence boundaries and factory tests"
+    },
+    {
+      "id": "W19",
+      "status": "PASS",
+      "evidence": "domain transactions/rules single; product projections separate; legacy operations lazy"
+    },
+    {
+      "id": "W20",
+      "status": "PASS",
+      "evidence": "typed ToolResult; separate parameter updates from read-only preparation; exact confirm unchanged"
+    },
+    {
+      "id": "W21",
+      "status": "PARTIAL",
+      "evidence": "normal long-history followup + actual second option PASS; verbose first-question selection and hypothetical completeness still FAIL"
+    },
+    {
+      "id": "W22",
+      "status": "PASS",
+      "evidence": "catalog/jobs/query one Library; actual Deep subsearch/open"
+    },
+    {
+      "id": "W23",
+      "status": "PASS",
+      "evidence": "one product unit_uses/need_status wire; A1 source/condition regressions"
+    },
+    {
+      "id": "W24",
+      "status": "PASS",
+      "evidence": "Ruff F/E9 scoped current modules; React TS/format; no claim of whole legacy lint"
+    },
+    {
+      "id": "W25",
+      "status": "PASS",
+      "evidence": "CLEAN_SOURCE_FINAL_954626a2.xml:104passed, actual package source imported; FINAL_REGRESSION_7d4bfa28.xml:104passed (overlapping sets, not added)"
+    },
+    {
+      "id": "W26",
+      "status": "PARTIAL",
+      "evidence": "actual browser journeys/readback/mobile/XSS PASS; physical IME NOT_RUN"
+    },
+    {
+      "id": "W27",
+      "status": "PARTIAL",
+      "evidence": "7 core content/observations PASS + mixed/selection/normal followup PASS; negative cases retained, not full accuracy"
+    },
+    {
+      "id": "W28",
+      "status": "PARTIAL",
+      "evidence": "real Windows runtime/upgrade PASS; native first-directory/automatic-browser GUI unfinished"
+    },
+    {
+      "id": "W29",
+      "status": "PASS",
+      "evidence": "5 starts median3.609s/max4.984s/reuse1.016s; measured calls, no invented speedup"
+    },
+    {
+      "id": "W30",
+      "status": "PARTIAL",
+      "evidence": "usable0.6 Windows preview frozen; not all release gates verified"
+    },
+    {
+      "id": "W31",
+      "status": "PASS",
+      "evidence": "README/START/RELEASE/CODE_MAP and current startup"
+    },
+    {
+      "id": "W32",
+      "status": "NOT_RUN",
+      "evidence": "local feature milestones committed; no applicable push authorization, no PR/merge"
+    }
+  ],
+  "primary_current_url": "http://127.0.0.1:8740",
+  "native_gui": "BLOCKED_BY_REPEATED_USER_ESCAPE",
+  "manual_ime": "NOT_RUN",
+  "known_model_failures": [
+    "long first-question: empty unit selection",
+    "hypothetical qualification: correct rule quoted but completeness overly conservative"
+  ],
+  "not_claimed": [
+    "main non-regression",
+    "arbitrary natural-language success",
+    "enterprise multi-user readiness",
+    "remote sync"
+  ],
+  "cleanup": "Cold build deletion rejected by automatic approval (blocked by policy), not performed",
+  "source_identity_integrity_is_not_quality_acceptance": true,
+  "legacy_failure_retained": {
+    "evidence": "BASELINE_NEED_COUNT.xml",
+    "case": "complete_multineed_answer_is_preserved_without_extra_budget",
+    "observation": "same failure independently reproduced on5ff9aac2 module; old expected2 split needs vs original whole-question1. Assertion not deleted, full historical suite not claimed."
+  },
+  "final_accounting": {
+    "new_chat_attempts": 117,
+    "new_chat_ok": 116,
+    "new_chat_unknown_response": 1,
+    "new_query_embedding_texts": 33,
+    "new_index_embedding_texts": 0,
+    "primary_total_chat": 266,
+    "primary_total_embedding_posts": 130
+  }
+}

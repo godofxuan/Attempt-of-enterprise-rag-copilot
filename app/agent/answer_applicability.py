@@ -36,6 +36,25 @@ _PREFIX = {
 _GENERIC = {"my", "your", "our", "their", "this", "that", "any", "each", "every"}
 
 
+def business_scope(question: str, replies: list[dict]) -> str | None:
+    """Finite expense attribution, never an identity or access-control input."""
+    if "餐费" not in question:
+        return None
+    text=question+"\n"+"\n".join(r["reply"] for r in replies)
+    if re.search(r"不是|不由|除外|除非",text):
+        return None
+    found={m[1] for m in re.finditer(r"(总部|分部)业务",text)}
+    return next(iter(found)) if len(found)==1 else None
+
+
+def business_scope_matches(scope: str | None, text: str, *, source_context: bool = False) -> bool:
+    if scope is None:
+        return True
+    found=set(re.findall(r"(总部|分部)业务",text))
+    # A mixed source stays available; its individual claims still require scope.
+    return not found or (scope in found if source_context else found=={scope})
+
+
 def _locations(text: str) -> frozenset[tuple[str, str]]:
     values = set()
     for match in _LOCATION.finditer(text):

@@ -226,6 +226,8 @@ class V2AgentRunner:
         budget: AgentBudget | None = None,
         clock_ms: ClockMs | None = None,
         index_binding: tuple[Path, str, str] | None = None,
+        strategy: str = "rules",
+        policy=None,
     ) -> None:
         self.registry = registry
         self.analyzer = analyzer or RuleFirstQueryAnalyzer()
@@ -234,12 +236,17 @@ class V2AgentRunner:
         self.response_builder = response_builder or ExtractiveResponseBuilder()
         self.budget = budget or budget_from_settings()
         self.index_binding = index_binding
+        if strategy not in {"rules", "recovery_once", "hybrid_agent", "task_agent"}:
+            raise ValueError("unknown controller strategy")
+        self.strategy = strategy
+        self.policy = policy
 
     def run(
         self,
         question: str,
         user: UserContext,
         top_k: int | None = None,
+        *, clarification_replies: list[dict[str, str]] | None = None,
     ) -> AnswerResponse:
         from app.runtime.request_context import (
             bind_request_context,
@@ -257,17 +264,36 @@ class V2AgentRunner:
             existing.deadline_at_ms = min(
                 existing.deadline_at_ms, time.monotonic() * 1000 + self.budget.deadline_ms
             )
+        context = current_request_context()
+        if self.strategy in {"hybrid_agent", "task_agent"} and context.attempt_budget is None:
+            from app.runtime.request_context import ActualModelBudget
+            context.attempt_budget = ActualModelBudget()
         try:
             if remaining_seconds() == 0:
                 return _source_free_response(
                     "system", "system_error", {"request_termination": "cancelled_or_deadline"}
                 )
-            response = self._run_version_bound(question, user, top_k)
+            response = self._run_version_bound(question, user, top_k, clarification_replies=clarification_replies)
             if remaining_seconds() == 0:
                 return _source_free_response(
                     "system", "system_error", {"request_termination": "cancelled_or_deadline"}
                 )
-            return response
+            import hashlib
+            import json
+
+            trace = dict(response.trace)
+            if self.strategy in {"hybrid_agent", "task_agent"}:
+                trace["controller_strategy"] = self.strategy
+            if clarification_replies:
+                trace["clarification_context_sha256"] = hashlib.sha256(
+                    json.dumps(clarification_replies, ensure_ascii=False, sort_keys=True).encode("utf-8")
+                ).hexdigest()
+            if context.attempt_budget is not None:
+                trace["model_attempts"] = {
+                    "counts": dict(context.attempt_budget.counts),
+                    "attempts": list(context.attempt_budget.attempts),
+                }
+            return response.model_copy(update={"trace": trace})
         finally:
             if token is not None:
                 reset_request_context(token)
@@ -279,9 +305,10 @@ class V2AgentRunner:
         question: str,
         user: UserContext,
         top_k: int | None = None,
+        *, clarification_replies: list[dict[str, str]] | None = None,
     ) -> AnswerResponse:
         if self.index_binding is None:
-            return self._run(question, user, top_k)
+            return self._run(question, user, top_k, clarification_replies=clarification_replies)
         from app.indexing.store import load_active_pointer
 
         root, run_id, manifest_sha256 = self.index_binding
@@ -292,7 +319,7 @@ class V2AgentRunner:
                 return _source_free_response(
                     "system", "system_error", {**trace, "index_binding_status": "changed"}
                 )
-            response = self._run(question, user, top_k)
+            response = self._run(question, user, top_k, clarification_replies=clarification_replies)
             trace = {**response.trace, **trace}
             after = load_active_pointer(root)
             # Include activation time to reject activation/rollback during this request.
@@ -318,16 +345,27 @@ class V2AgentRunner:
         question: str,
         user: UserContext,
         top_k: int | None = None,
+        *, clarification_replies: list[dict[str, str]] | None = None,
     ) -> AnswerResponse:
         step_traces: list[dict] = []
         try:
-            analysis = self.analyzer.analyze(question, user)
+            # In task mode the only semantic planner is the first policy call.
+            # The rule analyzer still establishes safety and immutable filters.
+            analysis = (RuleFirstQueryAnalyzer() if self.strategy == "task_agent"
+                        else self.analyzer).analyze(question, user)
             state = self.controller.initialize(
                 analysis,
                 user,
                 top_k=top_k,
                 budget=self.budget,
+                **({"semantic_task": True} if self.strategy == "task_agent" else {}),
             )
+            from app.schemas import AgentV2ChatRequest
+            validated = AgentV2ChatRequest(question=question, top_k=top_k,
+                clarification_replies=clarification_replies or [])
+            state.clarification_replies = [reply.model_dump() for reply in validated.clarification_replies]
+            from app.agent.task_plan import bind_business_scope
+            state.task_plan = bind_business_scope(state.task_plan,question,state.clarification_replies)
         except Exception:
             trace = _build_trace(
                 intent="unknown",
@@ -344,20 +382,56 @@ class V2AgentRunner:
             )
             return _source_free_response("system", "system_error", trace)
 
-        guard_limit = self.budget.max_steps + 2
+        hybrid = None
+        if self.strategy in {"hybrid_agent", "task_agent"} and analysis.intent != "unsafe":
+            from app.agent.hybrid_policy import HybridPolicy
+            from app.agent.model_policy import ModelPolicy
+
+            hybrid = HybridPolicy(
+                self.registry, state,
+                self.policy or ModelPolicy(model=get_settings().chat_model),
+                index_binding=self.index_binding,
+                policy_mode=self.strategy,
+            )
+
+        def abort():
+            response = self._system_response(analysis, state, step_traces)
+            if hybrid is not None:
+                hybrid.stop = hybrid.stop or "cancelled_or_failed"
+                hybrid.seal()
+                response = response.model_copy(update={"trace": {**response.trace, "hybrid": hybrid.trace()}})
+            return response
+
+        guard_limit = self.budget.max_steps + 6
         for _ in range(guard_limit):
             try:
                 from app.runtime.request_context import remaining_seconds
 
                 if remaining_seconds() == 0:
-                    return self._system_response(analysis, state, step_traces)
-                state = self.controller.prepare_advice(state)
-                decision = self.controller.next_decision(state)
+                    return abort()
+                if hybrid is not None and (self.strategy == "task_agent" or state.budget_state.search_calls):
+                    decision = hybrid.next_decision(state)
+                    if decision is None:
+                        continue
+                else:
+                    if hybrid is None:
+                        state = self.controller.prepare_advice(state)
+                    decision = self.controller.next_decision(state)
+                    if hybrid is not None and decision.action.tool == "search":
+                        # Even comparison queries start from the original user task.
+                        decision = decision.model_copy(update={"action": decision.action.model_copy(
+                            update={"search_request": decision.action.search_request.model_copy(
+                                update={"query": question})})})
             except Exception:
-                return self._system_response(analysis, state, step_traces)
+                return abort()
+
+            if remaining_seconds() == 0:
+                return abort()
 
             if decision.terminal_mode is not None:
                 step_traces.append(_terminal_step_trace(decision, state))
+                if hybrid:
+                    step_traces[-1]["selected_by"] = "host"
                 trace = _build_trace(
                     intent=analysis.intent,
                     analysis_source=analysis.source,
@@ -379,6 +453,9 @@ class V2AgentRunner:
                         "status": state.advice_status,
                         "retry_attempted": state.retry_attempted,
                     }
+                    if hybrid is not None:
+                        hybrid.seal()
+                        trace["hybrid"] = hybrid.trace()
                     response = self.response_builder.build(
                         question=question,
                         state=state,
@@ -417,17 +494,23 @@ class V2AgentRunner:
                     decision.action,
                     state.budget_state,
                 )
+                if remaining_seconds() == 0:
+                    return abort()
                 state = self.controller.observe(state, execution)
+                if hybrid is not None:
+                    hybrid.observe(execution, state)
             except Exception:
-                return self._system_response(analysis, state, step_traces)
+                return abort()
             step_traces.append(
                 _tool_step_trace(
                     execution,
                     latency_ms=max(0.0, self.clock_ms() - started),
                 )
             )
+            if hybrid:
+                step_traces[-1]["selected_by"] = "llm" if hybrid.handoffs else "rule"
 
-        return self._system_response(analysis, state, step_traces)
+        return abort()
 
     def _system_response(
         self,
@@ -582,6 +665,7 @@ def _evidence_action_for_mode(mode: AnswerMode) -> str:
         "budget": "budget",
         "system": "system",
         "security_filtered": "security_filtered",
+        "clarify": "clarify",
     }[mode]
 
 
@@ -643,12 +727,20 @@ def budget_from_settings(settings: Settings | None = None) -> AgentBudget:
     )
 
 
-def _get_default_v2_runner() -> V2AgentRunner:
+def _get_default_v2_runner(interaction_mode=None) -> V2AgentRunner:
     from app.indexing.store import load_active_pointer
     from app.retrieval.canary_config import get_retrieval_canary_settings
     from app.retrieval.serving_config import ServingRetrievalSettings
 
     settings = get_settings()
+    if interaction_mode == "investigate":
+        if not settings.agent_v2_task_mode_enabled:
+            raise ValueError("task mode disabled")
+        settings = settings.model_copy(update={"agent_v2_strategy":"task_agent"})
+    elif interaction_mode == "quick":
+        settings = settings.model_copy(update={"agent_v2_strategy":"rules"})
+    elif interaction_mode is not None:
+        raise ValueError("unknown interaction mode")
     root = settings.v2_indexes_dir.resolve()
     pointer = load_active_pointer(root)
     policies = tuple(get_retrieval_canary_settings().page_fusion_policy_ids)
@@ -658,7 +750,7 @@ def _get_default_v2_runner() -> V2AgentRunner:
             str(root),
             pointer.run_id,
             pointer.manifest_sha256,
-            settings.model_dump_json(),
+            settings.runner_configuration(),
             policies,
             ServingRetrievalSettings().model_dump_json(),
         )
@@ -726,6 +818,9 @@ def _get_versioned_v2_runner(
         ),
         budget=budget_from_settings(settings),
         index_binding=(Path(root), run_id, manifest_sha256),
+        strategy=settings.agent_v2_strategy,
+        policy=__import__("app.agent.model_policy", fromlist=["ModelPolicy"]).ModelPolicy(model=settings.chat_model)
+        if settings.agent_v2_strategy in {"hybrid_agent", "task_agent"} else None,
     )
 
 
@@ -735,7 +830,7 @@ def _configured_controller(settings):
     return V2AgentController(
         recovery_advisor=(
             TaskAdvisor(model=settings.chat_model)
-            if settings.agent_v2_task_advisor_enabled
+            if settings.agent_v2_strategy == "recovery_once"
             else None
         )
     )
@@ -745,6 +840,8 @@ def run_agent_v2_chat(
     question: str,
     user: UserContext,
     top_k: int | None = None,
+    *, clarification_replies: list[dict[str, str]] | None = None,
+    interaction_mode: str | None = None,
 ) -> AnswerResponse:
     try:
         analysis = RuleFirstQueryAnalyzer().analyze(question, user)
@@ -799,7 +896,10 @@ def run_agent_v2_chat(
         return _source_free_response("unsafe", "unsafe", trace)
 
     try:
-        return _get_default_v2_runner().run(question, user, top_k)
+        runner = _get_default_v2_runner(interaction_mode) if interaction_mode else _get_default_v2_runner()
+        if clarification_replies:
+            return runner.run(question, user, top_k, clarification_replies=clarification_replies)
+        return runner.run(question, user, top_k)
     except Exception:
         trace = _build_trace(
             intent=analysis.intent,

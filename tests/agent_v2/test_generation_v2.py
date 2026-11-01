@@ -33,7 +33,22 @@ def evidence_records_from_prompt(prompt: str, nonce: str) -> list[dict]:
     end_index = lines.index(end)
     reminder_index = lines.index(reminder)
     assert begin_index < end_index < reminder_index
-    return json.loads("\n".join(lines[begin_index + 1 : end_index]))
+    records = json.loads("\n".join(lines[begin_index + 1 : end_index]))
+    # The vNext model view adds host unit labels; the protected invariant is
+    # still the exact admitted bytes inside the same untrusted JSON envelope.
+    for record in records:
+        units = record.get('source_units', [])
+        for field in ('matched_text', 'context_text'):
+            value = record.get(field, '')
+            for unit in units:
+                if not isinstance(unit, str):
+                    continue
+                opening, closing = '['+unit+']', '[/'+unit+']'
+                assert value.count(opening) == value.count(closing)
+                assert value.count(opening) <= 1
+                value = value.replace(opening, '').replace(closing, '')
+            record[field] = value
+    return records
 
 
 def state_with_evidence(*, include_second: bool = False, include_open: bool = False):

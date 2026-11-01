@@ -62,6 +62,8 @@ class ControllerState(BaseModel):
     retry_attempted: bool = False
     advice_status: str = "off"
     recovery_candidates: list[AdmittedEvidenceChunk] = Field(default_factory=list, max_length=5)
+    terminal_request: dict | None = None
+    clarification_replies: list[dict[str, str]] = Field(default_factory=list, max_length=2)
 
 
 class ControllerDecision(BaseModel):
@@ -88,12 +90,18 @@ class V2AgentController:
         clock_ms: ClockMs | None = None,
         task_advisor: TaskAdvisor | None = None,
         recovery_advisor: TaskAdvisor | None = None,
+        semantic_question: bool = False,
+        search_timeout_ms: int = 5000,
     ) -> None:
         if task_advisor is not None and recovery_advisor is not None:
             raise ValueError("eager and gap-driven advice are mutually exclusive")
         self.clock_ms = clock_ms or (lambda: time.monotonic() * 1000)
         self.task_advisor = task_advisor
         self.recovery_advisor = recovery_advisor
+        self.semantic_question = semantic_question
+        if not 1 <= search_timeout_ms <= 120000:
+            raise ValueError("search timeout must be within the tool contract")
+        self.search_timeout_ms = search_timeout_ms
 
     def initialize(
         self,
@@ -102,12 +110,13 @@ class V2AgentController:
         *,
         top_k: int | None = None,
         budget: AgentBudget | None = None,
+        semantic_task: bool = False,
     ) -> ControllerState:
         active_budget = budget or AgentBudget()
         now = self.clock_ms()
         state = ControllerState(
             analysis=analysis,
-            task_plan=build_task_plan(analysis),
+            task_plan=TaskPlan(mode="task") if semantic_task else build_task_plan(analysis),
             user=user,
             top_k=top_k or 5,
             budget_state=BudgetState(
@@ -115,7 +124,13 @@ class V2AgentController:
                 deadline_at_ms=now + active_budget.deadline_ms,
             ),
         )
-        if self.task_advisor and analysis.intent not in {"unsafe", "comparison"}:
+        if self.semantic_question and not semantic_task and analysis.intent != 'unsafe':
+            # The generative knowledge path uses the existing source/need contract.
+            # Retrieval admits candidates; only the bound generated relation and
+            # unique publisher decide what was actually answered. Do not infer
+            # absence from dates or other user circumstances absent in policy prose.
+            state.task_plan=state.task_plan.model_copy(update={'mode':'task'})
+        if not semantic_task and self.task_advisor and analysis.intent not in {"unsafe", "comparison"}:
             state.task_plan = self.task_advisor.plan(analysis.original_question, state.task_plan)
         return state
 
@@ -297,6 +312,7 @@ class V2AgentController:
                         candidate_k=min(200, max(state.top_k, state.top_k * 4)),
                         mode="hybrid",
                         include_parent=True,
+                        timeout_ms=self.search_timeout_ms,
                     ),
                 )
             )
@@ -318,6 +334,7 @@ class V2AgentController:
                         candidate_k=min(200, max(state.top_k, state.top_k * 4)),
                         mode="hybrid",
                         include_parent=True,
+                        timeout_ms=self.search_timeout_ms,
                     ),
                 )
             )
@@ -443,7 +460,7 @@ class V2AgentController:
                 supported_hits = [
                     hit
                     for hit in result.hits
-                    if has_query_anchor_support(
+                    if state.task_plan.mode == "task" or has_query_anchor_support(
                         state.analysis.original_question
                         if self.recovery_advisor is not None
                         else action.search_request.query,

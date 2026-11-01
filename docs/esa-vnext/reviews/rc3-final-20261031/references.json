@@ -1,0 +1,66 @@
+[
+  {
+    "id": "R01",
+    "title": "Open WebUI：前端随后端发行",
+    "url": "https://raw.githubusercontent.com/open-webui/open-webui/main/pyproject.toml",
+    "checked_date": "2026-10-31",
+    "access": "OPENED_PRIMARY_SOURCE",
+    "use": "保留已有React构建随Python发行的路线，不新增运行时前端服务，不搬完整平台。"
+  },
+  {
+    "id": "R02",
+    "title": "Onyx：上下文与来源表示",
+    "url": "https://raw.githubusercontent.com/onyx-dot-app/onyx/main/backend/onyx/chat/README.md",
+    "checked_date": "2026-10-31",
+    "access": "OPENED_PRIMARY_SOURCE",
+    "use": "模型看简洁相关内容，UI保留丰富来源；学习职责，不复制大系统。"
+  },
+  {
+    "id": "R03",
+    "title": "Dify：工作流到应用事件",
+    "url": "https://raw.githubusercontent.com/langgenius/dify/main/api/core/app/apps/workflow_app_runner.py",
+    "checked_date": "2026-10-31",
+    "access": "OPENED_PRIMARY_SOURCE",
+    "use": "区分等待输入、部分结果、失败、成功的应用呈现；不引入Dify引擎。"
+  },
+  {
+    "id": "R04",
+    "title": "React：状态结构",
+    "url": "https://react.dev/learn/choosing-the-state-structure",
+    "checked_date": "2026-10-31",
+    "access": "OPENED_PRIMARY_SOURCE",
+    "use": "不重复持久化可由服务器事实计算的界面状态。"
+  },
+  {
+    "id": "R05",
+    "title": "TanStack Query：mutation后刷新",
+    "url": "https://tanstack.com/query/latest/docs/framework/react/guides/invalidations-from-mutations",
+    "checked_date": "2026-10-31",
+    "access": "OPENED_PRIMARY_SOURCE",
+    "use": "当前组件使用既有定向缓存更新，保留已成功保存。"
+  },
+  {
+    "id": "R06",
+    "title": "Playwright：用户行为测试",
+    "url": "https://playwright.dev/docs/best-practices",
+    "checked_date": "2026-10-31",
+    "access": "OPENED_PRIMARY_SOURCE",
+    "use": "按按钮/输入/用户结果测试，不通过CSS内部结构证明业务。"
+  },
+  {
+    "id": "R07",
+    "title": "SQLite：WAL",
+    "url": "https://www.sqlite.org/wal.html",
+    "checked_date": "2026-10-31",
+    "access": "OPENED_PRIMARY_SOURCE",
+    "use": "读写并发不等于多写者；保持短事务，不为此迁移数据库。"
+  },
+  {
+    "id": "R08",
+    "title": "FastAPI：lifespan",
+    "url": "https://fastapi.tiangolo.com/advanced/events/",
+    "checked_date": "2026-10-31",
+    "access": "OPENED_PRIMARY_SOURCE",
+    "use": "当前应用工厂管理资源启动/关闭，不在每次请求创建重型依赖。"
+  }
+]

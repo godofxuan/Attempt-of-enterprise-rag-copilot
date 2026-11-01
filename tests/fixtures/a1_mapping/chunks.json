@@ -1,0 +1,59 @@
+[
+  {
+    "chunk_id": "设备借用说明::child::967a738b076f429de62c",
+    "doc_id": "设备借用说明",
+    "policy_id": "设备借用说明",
+    "section_path": [
+      "设备借用说明"
+    ],
+    "tenant_id": "p03r-isolated",
+    "region": "CN",
+    "acl_groups": [
+      "employees"
+    ],
+    "version_id": "r4-11",
+    "version": "r4-11",
+    "status": "active",
+    "authority_level": 90,
+    "text": "临时电脑仅供有有效维修记录的员工申请，借用期限为1至14天，开始日期不能早于当天。同一员工只能有一个未关闭的借用申请。提交后状态为待审批，不代表设备已分配。当前说明未规定押金金额，需向服务台确认。",
+    "source_path": "fixtures/policies/设备借用说明.md"
+  },
+  {
+    "chunk_id": "采购审批::child::f6fa7ea6f62320f497c2",
+    "doc_id": "采购审批",
+    "policy_id": "采购审批",
+    "section_path": [
+      "采购审批"
+    ],
+    "tenant_id": "p03r-isolated",
+    "region": "CN",
+    "acl_groups": [
+      "employees"
+    ],
+    "version_id": "r4-1",
+    "version": "r4-1",
+    "status": "active",
+    "authority_level": 90,
+    "text": "办公用品单次采购含税金额不超过3000元，由部门负责人审批；超过3000元且不超过20000元，需要部门负责人和财务审批；超过20000元还需要采购委员会批准。不得拆单规避审批。采购申请不等于采购已完成。",
+    "source_path": "fixtures/policies/采购审批.md"
+  },
+  {
+    "chunk_id": "远程访问::child::366472397848abc37ef9",
+    "doc_id": "远程访问",
+    "policy_id": "远程访问",
+    "section_path": [
+      "远程访问"
+    ],
+    "tenant_id": "p03r-isolated",
+    "region": "CN",
+    "acl_groups": [
+      "employees"
+    ],
+    "version_id": "r4-4",
+    "version": "r4-4",
+    "status": "active",
+    "authority_level": 90,
+    "text": "VPN申请须由直属主管审批，随后IT开通。外包人员还须提交项目负责人批准和合同结束日期，VPN权限不能超过合同到期日。离职后立即撤销，不提供自动续期。",
+    "source_path": "fixtures/policies/远程访问.md"
+  }
+]

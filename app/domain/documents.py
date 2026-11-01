@@ -45,6 +45,27 @@ class ParseWarning(StrictModel):
     locator: SourceLocator | None = None
 
 
+class SourceSpan(BaseModel):
+    """Immutable parser location plus exact parsed-text offsets when established."""
+    model_config=ConfigDict(extra='forbid',frozen=True)
+    document_id:str
+    version_id:str
+    section_path:tuple[str,...]
+    locator_kind:LocatorKind
+    locator_start:int=Field(ge=1)
+    locator_end:int|None=Field(default=None,ge=1)
+    text_start:int|None=Field(default=None,ge=0)
+    text_end:int|None=Field(default=None,ge=0)
+    basis:str='original_parser_section'
+
+    @model_validator(mode='after')
+    def valid_range(self):
+        if self.locator_end is not None and self.locator_end<self.locator_start:raise ValueError('Invalid parser location range')
+        if (self.text_start is None)!=(self.text_end is None):raise ValueError('Both parsed offsets must be established together')
+        if self.text_start is not None and self.text_end<=self.text_start:raise ValueError('Invalid parsed source range')
+        return self
+
+
 class ParsedSection(StrictModel):
     heading: str = Field(min_length=1)
     level: int = Field(ge=0, le=6)
@@ -180,9 +201,12 @@ class ChunkRecord(StrictModel):
     variant: str = Field(min_length=1)
     checksum: str = Field(pattern=r"^[0-9a-f]{64}$")
     text_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_spans:list[SourceSpan]=Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_relationship(self) -> ChunkRecord:
+        if any(s.document_id!=self.doc_id or s.version_id!=self.version_id for s in self.source_spans):
+            raise ValueError('Source spans must belong to this immutable document version')
         if self.kind == "child" and self.parent_chunk_id is None:
             raise ValueError("child chunk requires parent_chunk_id")
         if self.kind == "parent" and self.indexable:
