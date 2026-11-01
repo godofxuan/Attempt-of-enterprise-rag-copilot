@@ -148,7 +148,9 @@ export function TaskDetail({
             <p>
               {expired
                 ? "预览已过期，参数已保留。重新生成后再确认。"
-                : actions.feedback?.message || t.next_step}
+                : t.current_ticket
+                  ? t.next_step
+                  : actions.feedback?.message || t.next_step}
             </p>
             {actions.feedback?.error != null && (
               <ErrorNotice error={actions.feedback.error} />

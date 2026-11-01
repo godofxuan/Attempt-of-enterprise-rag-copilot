@@ -180,15 +180,19 @@ export function Assistant({
   });
   const retry = useMutation({
     mutationFn: async ({
+      cid,
       id,
       knowledge,
     }: {
+      cid: string;
       id: string;
       knowledge: boolean;
     }) => {
-      track(await retryConversationTurn(cid!, id, knowledge));
+      track(await retryConversationTurn(cid, id, knowledge));
     },
   });
+  const bindingHere = binding.variables?.cid === cid;
+  const retryHere = retry.variables?.cid === cid;
   const text = drafts[cid || "new"] || "";
   return (
     <div className="assistant-page">
@@ -204,7 +208,7 @@ export function Assistant({
               ? conversation.data?.kb_id || ""
               : base || library.data?.bases[0]?.id || ""
           }
-          disabled={binding.isPending || !!runId}
+          disabled={(bindingHere && binding.isPending) || !!runId}
           onChange={(e) =>
             cid
               ? binding.mutate({ cid, kb_id: e.target.value })
@@ -226,8 +230,8 @@ export function Assistant({
       {belongsHere(start.variables) && start.error && (
         <ErrorNotice error={start.error} />
       )}
-      {retry.error && <ErrorNotice error={retry.error} />}
-      {binding.error && <ErrorNotice error={binding.error} />}
+      {retryHere && retry.error && <ErrorNotice error={retry.error} />}
+      {bindingHere && binding.error && <ErrorNotice error={binding.error} />}
       {binding.isSuccess && binding.data.id === cid && binding.data.kb_id && (
         <p role="status">资料库已选择，可继续刚才的问题。</p>
       )}
@@ -294,8 +298,10 @@ export function Assistant({
               <TurnRecovery
                 turn={turn}
                 task={task.data}
-                busy={!!runId || retry.isPending}
-                retry={(knowledge) => retry.mutate({ id: turn.id, knowledge })}
+                busy={!!runId || (retryHere && retry.isPending)}
+                retry={(knowledge) =>
+                  retry.mutate({ cid: cid!, id: turn.id, knowledge })
+                }
                 hasLibrary={!!conversation.data?.kb_id}
                 selectLibrary={() =>
                   document
