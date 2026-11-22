@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.evaluation.prompt_compat import evaluate_live_paired
+
 try:
     import _bootstrap  # noqa: F401
 except ModuleNotFoundError:
@@ -42,7 +44,6 @@ from app.evaluation.indirect_injection_live_runner import (
     LivePairedResultV2,
     LiveSecurityConfig,
     LocalOllamaOnlyBoundary,
-    evaluate_live_paired,
     _summarize_live_mode,
 )
 from app.evaluation.ollama_evaluation_lock import evaluation_lock

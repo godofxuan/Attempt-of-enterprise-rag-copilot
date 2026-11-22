@@ -79,7 +79,7 @@ def test_resume_metric_ledger_derives_from_frozen_public_evidence() -> None:
 def test_vnext_closeout_supersedes_but_preserves_archived_handoffs() -> None:
     archived = "PORTFOLIO_ARCHIVED_READY_FOR_RESUME_AND_INTERVIEW"
     historical = "PORTFOLIO_READY_STOP_DEVELOPMENT"
-    readme = _text(ROOT / "README.md")
+    readme = _text(ROOT / "docs/history/README_PRE_030.md")
     status = _text(ROOT / "PROJECT_STATUS.md")
     evidence_map = _text(HANDOFFS / "PROJECT_EVIDENCE_MAP.md")
     teaching = _text(HANDOFFS / "TEACHING_CODEX_HANDOFF.md")

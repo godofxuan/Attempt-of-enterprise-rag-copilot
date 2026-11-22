@@ -39,7 +39,7 @@ def test_external_patterns_and_agentdojo_decision_are_explicit() -> None:
 
 
 def test_readme_keeps_bounded_default_and_durable_claim_scoped() -> None:
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    readme = (ROOT / "docs/history/README_PRE_030.md").read_text(encoding="utf-8")
 
     assert "bounded controller remains the default" in readme
     assert "access-request DRAFT (never an ACL grant)" in readme

@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -125,7 +126,7 @@ try:
         package / "runtime/Lib/site-packages",
         wheel,
     )
-    compiler = Path(r"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe")
+    compiler = Path(os.environ["WINDIR"]) / "Microsoft.NET/Framework64/v4.0.30319/csc.exe"
     command(
         compiler,
         "/nologo",

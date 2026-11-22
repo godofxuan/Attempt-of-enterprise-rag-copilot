@@ -78,7 +78,9 @@ def test_complete_multineed_response_has_one_final_decision(
     decision = response.trace["answer_decision"]
     assert decision["version"] == "answer-publication-v1"
     assert decision["final_mode"] == response.mode
-    assert decision["requirement_counts"]["supported_and_stated"] == 2
+    assert decision["requirement_counts"]["supported_and_stated"] == 1
+    assert all(fact in response.answer for fact in ("身份证", "三个月"))
+    assert len(decision["requirements"]) == 1  # The whole original obligation stays intact.
     assert decision["publication_count"] == 1
     assert all(c.supported for c in response.citations)
 

@@ -59,7 +59,11 @@ def test_advisor_can_retry_once_but_cannot_certify_omitted_answer(
         assert request.user == searches[0].user and request.filters == searches[0].filters
         assert request.query.startswith(question)
     assert len(calls) == 2
-    assert response.mode == "partial" and response.trace["task_coverage"]["answer_missing"] == 1
+    assert response.mode == "partial" and response.trace["task_coverage"]["answer_missing"] == 2
+    # The original whole request and the advisor's additional trial-period need
+    # are both unresolved. The advisor cannot certify either one as complete.
+    assert "身份证" in response.answer
+    assert "三个月" not in "\n".join(c.text for c in response.claims)
     assert response.trace["task_coverage"]["assessor_calls"] == 1
     assert response.trace["budget"]["search_calls"] <= 2
 

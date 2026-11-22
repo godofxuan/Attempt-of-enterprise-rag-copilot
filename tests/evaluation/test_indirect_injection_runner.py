@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.evaluation.prompt_compat import evaluate_paired
+
 import json
 import socket
 from pathlib import Path
@@ -24,7 +26,6 @@ from app.evaluation.indirect_injection_runner import (
     _first_prompt_matched_text,
     _resource_violation,
     _unit_outcomes,
-    evaluate_paired,
     nearest_rank_percentile,
 )
 from app.security.retrieved_content import normalized_content_length

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.evaluation.prompt_compat import evaluate_live_paired
+
 import hashlib
 import json
 import shutil
@@ -32,7 +34,6 @@ from app.evaluation.indirect_injection_exposure import (
 from app.evaluation.indirect_injection_live_index import build_live_fixture_index
 from app.evaluation.indirect_injection_live_runner import (
     LiveSecurityConfig,
-    evaluate_live_paired,
 )
 from app.evaluation.indirect_injection_live_writer import (
     LiveSecurityRunManifest,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from tests.historical_evidence import release_bytes
 import json
 from pathlib import Path
 
@@ -57,7 +58,8 @@ def test_e16_public_evidence_binds_protocol_sources_and_implementation() -> None
         EVIDENCE / "finqa_shadow_capacity_public_v1.json"
     )
     assert payload["source_binding"]["implementation_sha256"] == {
-        relative: _sha256(ROOT / relative) for relative in IMPLEMENTATION_PATHS
+        relative: hashlib.sha256(release_bytes(relative)).hexdigest()
+        for relative in IMPLEMENTATION_PATHS
     }
     assert payload["claim"] == protocol.claim_label
 

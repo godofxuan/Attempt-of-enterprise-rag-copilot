@@ -10,7 +10,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.agent.query_needs import NEED_LABELS, assess_need_coverage, requested_needs
-from app.agent.question_parts import explicit_question_parts, part_is_addressed
+from app.agent.question_parts import explicit_question_parts, part_is_addressed, claim_is_relevant
 from app.domain.evidence import Claim
 from app.domain.evidence_packet import DeliveredEvidence
 from app.domain.queries import QueryAnalysis
@@ -131,6 +131,11 @@ def need_matches(need: RequestNeed, question: str, texts: list[str]) -> bool:
     if need.clarification_needed:
         return False
     if need.kind == "whole":
+        from app.agent.question_parts import assess_question_parts
+
+        coverage = assess_question_parts(question, texts)
+        if len(coverage.requested) > 1:
+            return not coverage.missing and not coverage.overflow
         return part_is_addressed(question,texts)
     if need.kind == "domain":
         key=need.domain_key or ""
@@ -174,6 +179,8 @@ def observe_task(
                             view.citation_id
                             for view in evidence
                             if (view.citation_id in need.evidence_ids if plan.mode == "task"
+                                else claim_is_relevant(question, view.text)
+                                if need.kind == "whole"
                                 else need_matches(need, question, [view.text]))
                         ),
                     }
@@ -201,18 +208,28 @@ def answer_task(
             "evidence_ids": tuple(dict.fromkeys(cid for c in claims if n.need_id in c.need_refs
                                                for cid in c.cited_chunk_ids if cid in visible))})
             for n in delivered.needs)})
+    whole_claim_ids = {}
+    if plan.mode == "legacy":
+        for need in delivered.needs:
+            if need.kind != "whole":
+                continue
+            candidates = [c for c in claims if set(c.cited_chunk_ids) & set(need.evidence_ids)]
+            whole_claim_ids[need.need_id] = (
+                tuple(c.claim_id for c in candidates)
+                if need_matches(need, question, [c.text for c in candidates]) else ()
+            )
     return delivered.model_copy(
         update={
             "needs": tuple(
                 need.model_copy(
                     update={
-                        "answer_claim_ids": tuple(
+                        "answer_claim_ids": whole_claim_ids.get(need.need_id, tuple(
                             claim.claim_id
                             for claim in claims
                             if (need.need_id in claim.need_refs if plan.mode == "task"
                                 else need_matches(need, question, [claim.text]))
                             and set(claim.cited_chunk_ids) & set(need.evidence_ids)
-                        ),
+                        )),
                     }
                 )
                 for need in delivered.needs

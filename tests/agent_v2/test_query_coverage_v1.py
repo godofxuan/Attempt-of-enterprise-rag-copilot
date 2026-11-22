@@ -32,6 +32,9 @@ def runner_fixture(snapshot_factory, document_factory, chunk_factory, *, texts, 
         records = next(json.loads(line) for line in messages[1]['content'].splitlines()
                        if line.startswith('[{'))
         seen.append(records)
+        from tests.v2_test_support import without_source_unit_labels
+
+        records = without_source_unit_labels(records)
         text, sid = claim(records) if callable(claim) else (claim, 'S1')
         return json.dumps({'answer': text, 'claims': [{'claim_id': 'c1', 'text': text,
                           'critical': True, 'cited_source_ids': [sid]}]}, ensure_ascii=False)

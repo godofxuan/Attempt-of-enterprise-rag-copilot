@@ -74,6 +74,9 @@ def test_http_fallback(service, monkeypatch, case, question, text, mode):
                 if line.startswith("[{") and '"source_id"' in line
             )
         )
+        from tests.v2_test_support import without_source_unit_labels
+
+        records = without_source_unit_labels(records)
         other = next(r for r in records if text not in r["matched_text"])
         return json.dumps(
             dict(

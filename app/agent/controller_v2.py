@@ -599,6 +599,10 @@ class V2AgentController:
     def _focused_read(self, state: ControllerState, sequence: int) -> ControllerDecision | None:
         needs = requested_needs(state.analysis.original_question)
         generic = state.analysis.intent == "process" or len(state.task_plan.needs) > 1
+        if state.task_plan.mode == "legacy":
+            from app.agent.question_parts import explicit_question_parts
+
+            generic = generic or len(explicit_question_parts(state.analysis.original_question)) > 1
         if (
             not ("materials" in needs or len(needs) > 1 or generic)
             or state.analysis.intent == "comparison"

@@ -66,7 +66,7 @@ def test_ci_is_read_only_deterministic_and_does_not_call_live_services() -> None
     for required in [
         "permissions:",
         "contents: read",
-        "os: [ubuntu-latest, windows-latest]",
+        "os: [ubuntu-22.04, windows-latest]",
         "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
         "fetch-depth: 0",
         "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",

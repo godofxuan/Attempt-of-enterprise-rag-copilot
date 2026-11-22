@@ -1,6 +1,6 @@
 # 本次源码定位摘录
 
-来源：用户0.6审核包 source/，应用版本1f9d2662，文档版本75ee211d。以下摘录只用于定位，不替代当前工作区实现；后续修复后行号会变化。
+来源为用户0.6审核包 source/，应用版本1f9d2662，文档版本75ee211d。以下摘录只用于定位，后续修复后行号会变化。2026-11-23公开副本将系统安装目录改用环境变量表示，原始审核包保存原文。
 
 ## F01 Retry reconstructs incomplete command
 
@@ -505,7 +505,7 @@
 50:     command(uv,'build','--offline','--no-build-isolation','--wheel','--python',sys.executable,'--out-dir',output/('wheel-'+commit[:8]),source)
 51:     wheel=next((output/('wheel-'+commit[:8])).glob('*.whl'))
 52:     command(uv,'pip','install','--offline','--no-deps','--python',package/'runtime/python.exe','--target',package/'runtime/Lib/site-packages',wheel)
-53:     compiler=Path(r'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe')
+53:     compiler=Path(os.environ['WINDIR'])/'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 54:     command(compiler,'/nologo','/target:winexe','/reference:System.Windows.Forms.dll','/out:'+str(package/'ESA.exe'),source/'packaging/windows/Launcher.cs')
 55:     if (source/'LICENSE').exists():shutil.copy2(source/'LICENSE',package/'LICENSE')
 56:     (package/'使用说明.txt').write_text('完整解压此目录，然后双击ESA.exe。\n首次明确选择已有工作区或新建；内置Python及依赖，不需要安装Node/Python/uv。\n模型权重不包含；使用已有本机Ollama与模型。模型未连接也可以打开设置和历史。\n数据保存在你明确选择的工作区，升级程序不重建数据库。\n日常启动不安装依赖、不下载模型。服务台仅为本地合成TEST。\n设置中可停止本地服务；关闭浏览器不清空数据。\n','utf8')

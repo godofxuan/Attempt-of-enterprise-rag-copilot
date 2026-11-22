@@ -23,7 +23,7 @@
 | `05_CODEX_START.md` / `GOAL.md` | 自主执行、修复、停止条件与交付要求 |
 | `REFERENCES.md` | 本次核对的一手参考实现与取舍 |
 | `evidence/REVIEW_EXECUTION.json` | 本次执行范围、环境与计数 |
-| `evidence/SOURCE_EXCERPTS.md` | 审核版本的精确源码片段 |
+| `evidence/SOURCE_EXCERPTS.md` | 审核版本源码定位片段，公开副本的系统安装路径已改为环境变量表示 |
 | `tools/` | 仅复现旧版本缺陷的临时数据探针；不是新版通过测试 |
 
 ## 本包是什么，不是什么

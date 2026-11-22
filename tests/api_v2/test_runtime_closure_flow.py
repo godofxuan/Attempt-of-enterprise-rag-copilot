@@ -121,6 +121,9 @@ def service(tmp_path, monkeypatch):
             if line.startswith("[{") and '"source_id"' in line
         )
         sources = json.loads(data)
+        from tests.v2_test_support import without_source_unit_labels
+
+        sources = without_source_unit_labels(sources)
         text = sources[0]["matched_text"]
         return json.dumps(
             dict(

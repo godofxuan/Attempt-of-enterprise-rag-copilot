@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.evaluation.prompt_compat import evaluate_paired
+
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -14,7 +16,6 @@ from app.evaluation.indirect_injection_dataset import (
     build_v1_bundle,
     load_security_bundle,
 )
-from app.evaluation.indirect_injection_runner import evaluate_paired
 from app.evaluation.indirect_injection_writer import (
     SecurityRunManifest,
     build_release_gate,

@@ -55,10 +55,11 @@ def test_generation_receives_same_task_ids_as_controller(
 
     runner.response_builder.chat_fn = capture
     response = runner.run("入职需要哪些材料，试用期多久？", user_context())
-    assert len(captured[0]["request_needs"]) == 2
-    assert [n["id"] for n in captured[0]["request_needs"]] == ["N1", "N2"]
+    assert captured[0]["request_needs"] == [
+        {"id": "N1", "question": "入职需要哪些材料，试用期多久？", "status": "evidence_located"}
+    ]
     coverage = response.trace["task_coverage"]
-    assert coverage["requested"] == 2 and coverage["answer_missing"] == 1
+    assert coverage["requested"] == 1 and coverage["answer_missing"] == 1
     assert coverage["search_attempts"] >= 1
     assert response.mode == "partial"
 
@@ -70,7 +71,8 @@ def test_plan_keeps_unknown_distinct_from_search_attempts():
     user = user_context()
     analysis = RuleFirstQueryAnalyzer().analyze("入职需要哪些材料，试用期多久？", user)
     state = V2AgentController().initialize(analysis, user)
-    assert [n.need_id for n in state.task_plan.needs] == ["N1", "N2"]
+    assert [n.need_id for n in state.task_plan.needs] == ["N1"]
+    assert state.task_plan.needs[0].text == analysis.original_question
     assert all(not n.evidence_ids and not n.answer_claim_ids for n in state.task_plan.needs)
     assert all(n.search_attempts == 0 for n in state.task_plan.needs)
 

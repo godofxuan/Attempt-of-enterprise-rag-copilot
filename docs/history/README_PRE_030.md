@@ -5,7 +5,7 @@
 本分支收敛为一个应用：**知识问答**和**引导式服务任务**两个入口，均使用本机大模型。
 服务任务由用户明确操作上限，模型选择工具，程序负责实际事务。
 下方 main 的历史作品集标记不代表本轮 R1/R2 已全部验收。
-当前进度见 [STATUS](docs/esa-vnext/STATUS.md)，启动见 [START](docs/esa-vnext/START.md)，功能、演示及证据边界见 [RELEASE](docs/esa-vnext/RELEASE.md)。
+当前进度见 [STATUS](../../docs/esa-vnext/STATUS.md)，启动见 [START](../../docs/esa-vnext/START.md)，功能、演示及证据边界见 [RELEASE](../../docs/esa-vnext/RELEASE.md)。
 
 需要 Python 3.11/3.12、uv，以及已安装并运行的本地 Ollama 模型。
 本轮实际验证 Windows/Python 3.11、`qwen3.5:9b`、`bge-m3`。
@@ -22,7 +22,7 @@ uv run --no-sync esa serve --data-dir .private/esa-vnext --port 8740
 当前是本地单用户工作台，不是多人企业部署。
 
 资料库支持 Markdown、TXT、PDF、DOCX 及明确选择目录的增量导入，再建立 FAISS/BM25 索引。
-可使用 [合成制度示例](examples/esa/demo_policies)。索引完成后提问、打开来源，
+可使用 [合成制度示例](../../examples/esa/demo_policies)。索引完成后提问、打开来源，
 选择任务范围进入服务任务；补日期/用途、查看工具进展、核对预览、改期，最后对当前预览精确确认。
 提交只产生本地 TEST 的 **PENDING_APPROVAL**，不会审批、分配或预留设备。
 已有申请时读取实际结果，不创建重复业务单。
@@ -37,15 +37,15 @@ uv run --no-sync esa serve --data-dir .private/esa-vnext --port 8740
 
 [![CI](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/actions/workflows/ci.yml?query=branch%3Amain)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB)](https://www.python.org/)
-[![Portfolio status](https://img.shields.io/badge/status-portfolio--ready-2F7D4A)](PROJECT_STATUS.md)
+[![Portfolio status](https://img.shields.io/badge/status-portfolio--ready-2F7D4A)](../../PROJECT_STATUS.md)
 
 > Recruiter or reviewer: `main` is the canonical public entry. Use the
 > [`portfolio-v1.2.0-mainline-closure`](https://github.com/godofxuan/Attempt-of-enterprise-rag-copilot/tree/portfolio-v1.2.0-mainline-closure)
 > tag for a stable portfolio snapshot and the
-> [public review packet](docs/review/FINAL_REVIEW_PACKET.md) for exact historical
+> [public review packet](../../docs/review/FINAL_REVIEW_PACKET.md) for exact historical
 > evidence. Legacy `codex/*` refs remain available only so submitted resumes and
 > earlier review links do not break; see the
-> [branch compatibility policy](docs/BRANCH_COMPATIBILITY.md).
+> [branch compatibility policy](../../docs/BRANCH_COMPATIBILITY.md).
 
 Current public status: `MAIN_CANONICAL`, `PORTFOLIO_READY`,
 `PRODUCTION_NOT_VERIFIED`; `DURABILITY_SCOPE = ACCESS_REQUEST_DRAFT_ONLY`.
@@ -71,7 +71,7 @@ All six actions have scripted-policy/shared-tool mechanism coverage; useful
 autonomous multi-step behavior and necessary clarification are **not fully
 verified for the final candidate**. Independent validation and human review
 are NOT_RUN. Default enablement and new resume-effect claims are not approved.
-See [implementation, limits and audit entry](docs/task_agent_next_20260920/README.md).
+See implementation, limits and audit entry（本地历史记录，未公开）`docs/task_agent_next_20260920/README.md`.
 This section describes uncommitted local work, not a published GitHub release.
 
 ## September 19 Local Hybrid Candidate (Not Released)
@@ -92,10 +92,10 @@ one-shot recovery; both paired intervals crossed zero, and hybrid p95 was
 11.73 seconds. This is not answer accuracy or independent validation. Autonomous
 clarification did not succeed; context/no-progress stops remain recorded.
 Opt-in use, default enablement and new resume-effect claims remain **NOT_APPROVED**.
-See the [supplemental results and limitations](docs/hybrid_agent/SUPPLEMENT_RESULTS.md).
+See the supplemental results and limitations（本地历史记录，未公开）`docs/hybrid_agent/SUPPLEMENT_RESULTS.md`.
 This does not replace the historical release or its results below. See the
-[candidate support and rollback notes](docs/hybrid_agent/CONFIG_SUPPORT_MATRIX.md)
-and [architecture](docs/architecture.md#hybrid-candidate-september-19-not-released).
+candidate support and rollback notes（本地历史记录，未公开）`docs/hybrid_agent/CONFIG_SUPPORT_MATRIX.md`
+and [architecture](../../docs/architecture.md#hybrid-candidate-september-19-not-released).
 
 ## September 15 Mainline Closure
 
@@ -109,8 +109,8 @@ candidates / 0
 findings`. This is a portfolio engineering release, not a public production
 service or a new model-quality claim. LLM rewriting and learned fusion remain
 offline negative-result experiments. See the
-[release closure report](docs/releases/2026-09-15-mainline-closure/REPORT.md)
-and [candidate runbook](docs/local_closeout_20260910/README.md). Historical
+[release closure report](../../docs/releases/2026-09-15-mainline-closure/REPORT.md)
+and [candidate runbook](../../docs/local_closeout_20260910/README.md). Historical
 results below retain their original versions and protocols.
 
 ## What it does
@@ -141,7 +141,7 @@ run can also emit a verifiable trajectory for replay and evaluation.
 
 ### Current serving delivery (September 2026)
 
-The [runtime delivery report](docs/review/runtime_delivery_20260905/RESULTS.md)
+The [runtime delivery report](../../docs/review/runtime_delivery_20260905/RESULTS.md)
 connects the retrieval experiment to a real authenticated API: Guard-before-
 reranker serving, delivered-evidence spans, active-index binding, bounded
 generation and early readiness refresh. `app.serving:create_app` exposes the
@@ -153,30 +153,30 @@ These are consumed public-label retrieval results, separate from the historical
 protocols below. The service evidence retains **680 main requests across 40
 synthetic scenarios**, including failures, plus separate warmup/resource rows.
 It is not 680 independent questions or a human answer-accuracy claim.
-[Results and remaining failures](docs/review/runtime_delivery_20260905/RESULTS.md),
-[verifiable case checks](docs/review/runtime_delivery_20260905/service_cases.json),
-[metrics](docs/review/runtime_delivery_20260905/metrics.csv).
+[Results and remaining failures](../../docs/review/runtime_delivery_20260905/RESULTS.md),
+[verifiable case checks](../../docs/review/runtime_delivery_20260905/service_cases.json),
+[metrics](../../docs/review/runtime_delivery_20260905/metrics.csv).
 
 ### Historical external evidence
 
 | Result | Verified observation | Boundary |
 |---|---:|---|
-| WixQA retrieval | On 200 fixed ExpertWritten questions, BGE-M3 Dense improved Recall@5 `42.75% -> 66.42%` and nDCG@5 `32.15% -> 52.16%` | Public-label retrieval, not answer accuracy. [Evidence](docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json) |
-| WixQA multi-chunk BGE reranking | On the same 200 fixed ExpertWritten questions, representing each Top-10 article with up to two independently scored chunks moved Recall@5 `66.42% -> 69.58%`, nDCG@5 `52.16% -> 56.12%`, and MRR@5 `49.61% -> 55.11%`; MRR's paired 95% CI was `[+0.74pp, +10.46pp]` | Retrospective consumed public labels. Recall/nDCG intervals still cross zero, multi-article completeness did not improve, and local p95 was `693.73 ms`. Retrieval only, not answer accuracy or an unconditional default. [Evidence](docs/wixqa_reranker/article_multi_chunk_evidence.json) |
-| WixQA guarded raw-chunk BGE reranking | On 200 consumed Simulated validation questions, raw-chunk Top-20 improved Recall@5 `61.42% -> 66.92%`, nDCG@5 `47.78% -> 52.54%`, and MRR@5 `45.12% -> 49.96%`; all three paired 95% interval lower bounds were positive | Experimental RTX 5060 profile using pinned `bge-reranker-v2-m3`; retrieved-content Guard runs before model scoring. Local p95 increased `44.17 -> 226.16 ms`. Not blind validation or answer accuracy. [Evidence](docs/wixqa_reranker/raw_chunk_bge_evidence.json) |
-| Final WixQA safe raw-chunk closure | On one paired, frozen-candidate replay of 200 consumed ExpertWritten questions, Guarded Raw Top-20 improved Recall@5 `66.42% -> 72.50%`, nDCG@5 `52.16% -> 59.35%`, and MRR@5 `49.61% -> 57.92%`; corrected online p95 was `302.75 ms`. Guarded Top-50 reached `74.50%` Recall@5 but failed the predeclared local p95 gate (`680.86 ms > 650 ms`) | Guard is before scoring; no Dense backfill. The latency erratum uses the real online raw-chunk path and preserves candidate/ranking identity. Top-20 is the optional GPU quality profile, not the global default. This is retrospective retrieval evidence, not answer accuracy, blind validation, or a production SLA. [Protocol, result, and evidence](docs/wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md) |
-| Bounded query-expansion bake-off | Across three consumed 200-question WixQA ExpertWritten retrieval runs, two validated `qwen3:8b` alternatives per accepted query moved mean Recall@5 `59.25% -> 62.83%` and mean nDCG@5 `47.16% -> 48.44%` | 90/200 cases safely fell back to the original query; MRR declined 0.10pp and p95 increased `197ms -> 1148ms`. Offline experimental mode only, not answer accuracy or the default runtime. [Protocol and evidence](docs/retrieval_strategy_bakeoff_v1/RESULTS.md) |
-| EnterpriseRAG-Bench indexing | Built and atomically activated a `1.37 GiB` SQLite FTS5 index over `511,962` public records in `231.35 s`, at about `1.83 GiB` peak RSS | Single-host lexical baseline, not production capacity. [Evidence](docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json) |
-| Clean retrieval replay | Rebuilt 11,975 embeddings and reproduced `63/63` frozen quality comparisons at tolerance `0.0` | Local replay of consumed public labels. [Evidence](docs/reproduction/evidence/wixqa_clean_reproduction_public_v1.json) |
-| UDA R4 scoped canary | On 64 company-disjoint validation questions, page fusion moved Hit@5 `76.56% -> 81.25%` and nDCG@5 `64.41% -> 72.61%` at `1.066x` p95; misses fell `15 -> 12` | The original 5pp Hit gate still failed and test stayed unrun. A later paired review approved explicit opt-in known-report canary only, not the global default. [Evidence](docs/r4/evidence/uda_finance_r4_canary_review_v1.json) |
-| UDA R5 fresh confirmation | On all 192 questions from the 41 remaining previously unused UDA companies, page fusion moved Hit@5 `80.21% -> 88.02%` and nDCG@5 `70.95% -> 77.60%`; it rescued `15` cases, regressed `0`, and reduced misses `38 -> 23` at `1.058x` p95 | One-shot public-label, company-disjoint known-report page localization. Company-cluster 95% lower bounds were `+4.10pp` Hit and `+3.32pp` nDCG. Promoted only for server-classified finance known reports. [Evidence](docs/r5/evidence/uda_finance_r5_public_v1.json) |
+| WixQA retrieval | On 200 fixed ExpertWritten questions, BGE-M3 Dense improved Recall@5 `42.75% -> 66.42%` and nDCG@5 `32.15% -> 52.16%` | Public-label retrieval, not answer accuracy. [Evidence](../../docs/enterprise_eval/evidence/wixqa_retrieval_baseline_public_v2.json) |
+| WixQA multi-chunk BGE reranking | On the same 200 fixed ExpertWritten questions, representing each Top-10 article with up to two independently scored chunks moved Recall@5 `66.42% -> 69.58%`, nDCG@5 `52.16% -> 56.12%`, and MRR@5 `49.61% -> 55.11%`; MRR's paired 95% CI was `[+0.74pp, +10.46pp]` | Retrospective consumed public labels. Recall/nDCG intervals still cross zero, multi-article completeness did not improve, and local p95 was `693.73 ms`. Retrieval only, not answer accuracy or an unconditional default. [Evidence](../../docs/wixqa_reranker/article_multi_chunk_evidence.json) |
+| WixQA guarded raw-chunk BGE reranking | On 200 consumed Simulated validation questions, raw-chunk Top-20 improved Recall@5 `61.42% -> 66.92%`, nDCG@5 `47.78% -> 52.54%`, and MRR@5 `45.12% -> 49.96%`; all three paired 95% interval lower bounds were positive | Experimental RTX 5060 profile using pinned `bge-reranker-v2-m3`; retrieved-content Guard runs before model scoring. Local p95 increased `44.17 -> 226.16 ms`. Not blind validation or answer accuracy. [Evidence](../../docs/wixqa_reranker/raw_chunk_bge_evidence.json) |
+| Final WixQA safe raw-chunk closure | On one paired, frozen-candidate replay of 200 consumed ExpertWritten questions, Guarded Raw Top-20 improved Recall@5 `66.42% -> 72.50%`, nDCG@5 `52.16% -> 59.35%`, and MRR@5 `49.61% -> 57.92%`; corrected online p95 was `302.75 ms`. Guarded Top-50 reached `74.50%` Recall@5 but failed the predeclared local p95 gate (`680.86 ms > 650 ms`) | Guard is before scoring; no Dense backfill. The latency erratum uses the real online raw-chunk path and preserves candidate/ranking identity. Top-20 is the optional GPU quality profile, not the global default. This is retrospective retrieval evidence, not answer accuracy, blind validation, or a production SLA. [Protocol, result, and evidence](../../docs/wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md) |
+| Bounded query-expansion bake-off | Across three consumed 200-question WixQA ExpertWritten retrieval runs, two validated `qwen3:8b` alternatives per accepted query moved mean Recall@5 `59.25% -> 62.83%` and mean nDCG@5 `47.16% -> 48.44%` | 90/200 cases safely fell back to the original query; MRR declined 0.10pp and p95 increased `197ms -> 1148ms`. Offline experimental mode only, not answer accuracy or the default runtime. [Protocol and evidence](../../docs/retrieval_strategy_bakeoff_v1/RESULTS.md) |
+| EnterpriseRAG-Bench indexing | Built and atomically activated a `1.37 GiB` SQLite FTS5 index over `511,962` public records in `231.35 s`, at about `1.83 GiB` peak RSS | Single-host lexical baseline, not production capacity. [Evidence](../../docs/enterprise_eval/evidence/enterprise_rag_bench_bm25_public_v1.json) |
+| Clean retrieval replay | Rebuilt 11,975 embeddings and reproduced `63/63` frozen quality comparisons at tolerance `0.0` | Local replay of consumed public labels. [Evidence](../../docs/reproduction/evidence/wixqa_clean_reproduction_public_v1.json) |
+| UDA R4 scoped canary | On 64 company-disjoint validation questions, page fusion moved Hit@5 `76.56% -> 81.25%` and nDCG@5 `64.41% -> 72.61%` at `1.066x` p95; misses fell `15 -> 12` | The original 5pp Hit gate still failed and test stayed unrun. A later paired review approved explicit opt-in known-report canary only, not the global default. [Evidence](../../docs/r4/evidence/uda_finance_r4_canary_review_v1.json) |
+| UDA R5 fresh confirmation | On all 192 questions from the 41 remaining previously unused UDA companies, page fusion moved Hit@5 `80.21% -> 88.02%` and nDCG@5 `70.95% -> 77.60%`; it rescued `15` cases, regressed `0`, and reduced misses `38 -> 23` at `1.058x` p95 | One-shot public-label, company-disjoint known-report page localization. Company-cluster 95% lower bounds were `+4.10pp` Hit and `+3.32pp` nDCG. Promoted only for server-classified finance known reports. [Evidence](../../docs/r5/evidence/uda_finance_r5_public_v1.json) |
 
 A pinned generic MiniLM WixQA reranker was rejected after all registered arms
 reduced validation quality. A separately frozen BGE follow-up recovered positive
 point estimates; FP16 batching reduced single-chunk p95 from `624.67 ms` to
  `133.04 ms`. A later two-chunk article representation improved the selected
 Top-10 arm and produced a positive ExpertWritten MRR interval, while Recall,
-nDCG, and multi-document evidence still limit the claim. [Protocols and results](docs/wixqa_reranker/RESULTS.md).
+nDCG, and multi-document evidence still limit the claim. [Protocols and results](../../docs/wixqa_reranker/RESULTS.md).
 
 ## Final Retrieval Selection
 
@@ -189,13 +189,13 @@ nDCG@5, `50.06 ms` local p95), but this already-consumed cohort is not evidence
 for a silent global default change. Always-on multi-query is an offline quality
 profile with a substantial latency trade-off. A corrected Oracle study shows
 that multi-query correction can recover first-pass misses, while its LLM retry
-assessor over-triggers and is therefore not enabled. See the [final decision](docs/FINAL_PROJECT_DECISION.md), [evaluation summary](docs/FINAL_EVALUATION_SUMMARY.md), and [claim boundary](docs/RESUME_CLAIM_BOUNDARY.md).
+assessor over-triggers and is therefore not enabled. See the [final decision](../../docs/FINAL_PROJECT_DECISION.md), [evaluation summary](../../docs/FINAL_EVALUATION_SUMMARY.md), and [claim boundary](../../docs/RESUME_CLAIM_BOUNDARY.md).
 
 `OPTIONAL_GPU_QUALITY_PROFILE` is Guarded Raw-chunk BGE Top-20. It scans full
 retrieved text before cross-encoder scoring, uses no Dense backfill, and then
 deduplicates articles after score ordering. Its final Top-50 comparison is
 closed: Top-50 improves retrieval-only quality but exceeds the frozen RTX 5060
-interactive p95 budget. [Final paired evidence](docs/wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md).
+interactive p95 budget. [Final paired evidence](../../docs/wixqa_reranker/RAW_CHUNK_GUARD_FINAL_RESULTS.md).
 
 This repository is an engineering portfolio, not a framework showcase. MCP is
 an in-process protocol adapter rather than a network deployment; LangGraph is
@@ -230,12 +230,12 @@ and kept p95 at 1.066x. R5 then froze the unchanged candidate and evaluated all
 Hit@5 +7.81pp, nDCG@5 +6.65pp and p95 1.058x, with positive company-cluster
 confidence lower bounds. That confirmatory result promotes page fusion as the
 default implementation only for server-classified finance known reports. See the
-[multi-document record](docs/multidoc_candidate/02_RESULTS_AND_DECISION.md) and
-[R4 journal](docs/r4/ENGINEERING_JOURNAL.md) / [R5 journal](docs/r5/ENGINEERING_JOURNAL.md).
+[multi-document record](../../docs/multidoc_candidate/02_RESULTS_AND_DECISION.md) and
+[R4 journal](../../docs/r4/ENGINEERING_JOURNAL.md) / [R5 journal](../../docs/r5/ENGINEERING_JOURNAL.md).
 
 ## Architecture
 
-![Enterprise Agentic RAG request flow](docs/diagrams/agentic_rag_flow_cn.png)
+![Enterprise Agentic RAG request flow](../../docs/diagrams/agentic_rag_flow_cn.png)
 
 The runtime loop is:
 
@@ -270,23 +270,23 @@ tools, ACL, budget, retrieval fixtures, and answer builder. Both adapters passed
 `5/5` with identical terminal behavior and zero permission violations. It did
 **not** show a quality improvement: LangGraph p95 was `6.838 ms` versus bounded
 `1.283 ms` in this tiny local test, so LangGraph remains an alternative for
-explicit state and HITL rather than the default. [Protocol and limits](docs/agent_runtime/08_AB_EVALUATION.md).
+explicit state and HITL rather than the default. [Protocol and limits](../../docs/agent_runtime/08_AB_EVALUATION.md).
 
 Key code paths:
 
-- [Query analysis](app/agent/query_analysis.py)
-- [Agent controller](app/agent/controller_v2.py) and [execution loop](app/agent/runner_v2.py)
-- [Agent Runtime and adapters](app/agent_runtime/orchestrator.py)
-- [Tool contract and authority](app/agent_runtime/tool_contract.py) / [gateway](app/agent_runtime/tool_gateway.py)
-- [Tool policy](app/agent_runtime/tool_policy.py), [durable runtime](app/agent_runtime/durable_orchestrator.py), [idempotent side effects](app/agent_runtime/side_effects.py), and [OTel](app/agent_runtime/telemetry.py)
-- [External harness contract](app/agent_runtime/harness_contract.py) and [CLI](scripts/run_agent_harness.py)
-- [MCP adapter](app/agent_runtime/mcp_adapter.py)
-- [Trajectory](app/agent_runtime/trajectory.py), [replay](app/agent_runtime/replay.py), and [EvalOps artifact](app/agent_runtime/evalops_artifact.py)
-- [Typed tools](app/agent/tools_v2.py) and [Evidence Ledger](app/agent/evidence_ledger.py)
-- [ACL-aware retrieval](app/retrieval/pipeline.py)
-- [Retrieved-content Guard](app/security/retrieved_content.py)
-- [Claim generation](app/agent/generation_v2.py) and [citation verification](app/agent/citation_verifier.py)
-- [Versioned lifecycle](app/lifecycle) and [incremental indexing](app/indexing)
+- [Query analysis](../../app/agent/query_analysis.py)
+- [Agent controller](../../app/agent/controller_v2.py) and [execution loop](../../app/agent/runner_v2.py)
+- [Agent Runtime and adapters](../../app/agent_runtime/orchestrator.py)
+- [Tool contract and authority](../../app/agent_runtime/tool_contract.py) / [gateway](../../app/agent_runtime/tool_gateway.py)
+- [Tool policy](../../app/agent_runtime/tool_policy.py), [durable runtime](../../app/agent_runtime/durable_orchestrator.py), [idempotent side effects](../../app/agent_runtime/side_effects.py), and [OTel](../../app/agent_runtime/telemetry.py)
+- [External harness contract](../../app/agent_runtime/harness_contract.py) and [CLI](../../scripts/run_agent_harness.py)
+- [MCP adapter](../../app/agent_runtime/mcp_adapter.py)
+- [Trajectory](../../app/agent_runtime/trajectory.py), [replay](../../app/agent_runtime/replay.py), and [EvalOps artifact](../../app/agent_runtime/evalops_artifact.py)
+- [Typed tools](../../app/agent/tools_v2.py) and [Evidence Ledger](../../app/agent/evidence_ledger.py)
+- [ACL-aware retrieval](../../app/retrieval/pipeline.py)
+- [Retrieved-content Guard](../../app/security/retrieved_content.py)
+- [Claim generation](../../app/agent/generation_v2.py) and [citation verification](../../app/agent/citation_verifier.py)
+- [Versioned lifecycle](../../app/lifecycle) and [incremental indexing](../../app/indexing)
 
 ## Demo
 
@@ -295,20 +295,20 @@ the frozen evaluation evidence.
 
 ### Ask
 
-![Ask page with verified sources](docs/assets/ask.png)
+![Ask page with verified sources](../../docs/assets/ask.png)
 
 ### Trace
 
-![Agent actions, evidence coverage, and budget](docs/assets/trace.png)
+![Agent actions, evidence coverage, and budget](../../docs/assets/trace.png)
 
 ### Evaluation
 
-![Retrieval, runtime, and security evidence](docs/assets/evaluation.png)
+![Retrieval, runtime, and security evidence](../../docs/assets/evaluation.png)
 
 ## Quick Start
 
 The public demo runs locally with Python 3.11 and Ollama. Complete model and
-index setup is documented in the [demo runbook](docs/demo_runbook.md).
+index setup is documented in the [demo runbook](../../docs/demo_runbook.md).
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.manage_demo_identity init --force
@@ -358,10 +358,10 @@ The versioned deterministic harness reads one JSON request from stdin:
 '{"case_id":"readme-smoke","question":"What is the remote policy?"}' | .\.venv\Scripts\python.exe -m scripts.run_agent_harness --state-root .private\harness\readme
 ```
 
-Start technical review with the [project evidence map](docs/handoffs/PROJECT_EVIDENCE_MAP.md).
-For interview preparation, use the [teaching handoff](docs/handoffs/TEACHING_CODEX_HANDOFF.md)
-and [interview story bank](docs/handoffs/INTERVIEW_STORY_BANK.md). The concise
-Chinese resume entry is in [FINAL_RESUME_ENTRY_CN.md](docs/handoffs/resume_package/FINAL_RESUME_ENTRY_CN.md).
+Start technical review with the [project evidence map](../../docs/handoffs/PROJECT_EVIDENCE_MAP.md).
+For interview preparation, use the [teaching handoff](../../docs/handoffs/TEACHING_CODEX_HANDOFF.md)
+and [interview story bank](../../docs/handoffs/INTERVIEW_STORY_BANK.md). The concise
+Chinese resume entry is in [FINAL_RESUME_ENTRY_CN.md](../../docs/handoffs/resume_package/FINAL_RESUME_ENTRY_CN.md).
 
 ## Scope and Limitations
 
@@ -391,23 +391,23 @@ the name of the current branch.
 
 ## Documentation
 
-- [Recruiter summary](docs/handoffs/RECRUITER_SUMMARY.md)
-- [Claim-to-evidence map](docs/handoffs/PROJECT_EVIDENCE_MAP.md)
-- [Resume metric ledger](docs/handoffs/RESUME_METRIC_LEDGER.md)
-- [Evaluation methodology](docs/evaluation.md)
-- [Final project decision](docs/FINAL_PROJECT_DECISION.md)
-- [Final evaluation summary](docs/FINAL_EVALUATION_SUMMARY.md)
-- [Resume claim boundary](docs/RESUME_CLAIM_BOUNDARY.md)
-- [Final interview guide](docs/INTERVIEW_GUIDE.md)
-- [Architecture and trust boundaries](docs/architecture.md)
-- [Known limitations](docs/known_limitations.md)
-- [Full project evolution](docs/history/00_PROJECT_EVOLUTION.md)
-- [Portfolio archive report](docs/handoffs/PORTFOLIO_ARCHIVE_REPORT.md)
-- [Agent Runtime final architecture](docs/agent_runtime/10_FINAL_ARCHITECTURE.md)
-- [Agent Runtime security review](docs/agent_runtime/09_SECURITY_REVIEW.md)
-- [Agent Runtime learning tutorial](docs/learning/AGENT_RUNTIME_TUTORIAL.md)
-- [UDA R4 retrieval and gate tutorial](docs/learning/41_UDA_R4_分层检索_性能优化与失败门禁.md)
-- [UDA R5 fresh confirmation journal](docs/r5/ENGINEERING_JOURNAL.md)
-- [vNext resume-safe evidence](docs/resume/RESUME_SAFE_VNEXT_METRICS.md)
-- [Production runtime candidate architecture](docs/production_runtime/ARCHITECTURE.md)
-- [Production runtime results and limitations](docs/production_runtime/RESULTS.md) / [limitations](docs/production_runtime/KNOWN_LIMITATIONS.md)
+- [Recruiter summary](../../docs/handoffs/RECRUITER_SUMMARY.md)
+- [Claim-to-evidence map](../../docs/handoffs/PROJECT_EVIDENCE_MAP.md)
+- [Resume metric ledger](../../docs/handoffs/RESUME_METRIC_LEDGER.md)
+- [Evaluation methodology](../../docs/evaluation.md)
+- [Final project decision](../../docs/FINAL_PROJECT_DECISION.md)
+- [Final evaluation summary](../../docs/FINAL_EVALUATION_SUMMARY.md)
+- [Resume claim boundary](../../docs/RESUME_CLAIM_BOUNDARY.md)
+- [Final interview guide](../../docs/INTERVIEW_GUIDE.md)
+- [Architecture and trust boundaries](../../docs/architecture.md)
+- [Known limitations](../../docs/known_limitations.md)
+- [Full project evolution](../../docs/history/00_PROJECT_EVOLUTION.md)
+- [Portfolio archive report](../../docs/handoffs/PORTFOLIO_ARCHIVE_REPORT.md)
+- [Agent Runtime final architecture](../../docs/agent_runtime/10_FINAL_ARCHITECTURE.md)
+- [Agent Runtime security review](../../docs/agent_runtime/09_SECURITY_REVIEW.md)
+- [Agent Runtime learning tutorial](../../docs/learning/AGENT_RUNTIME_TUTORIAL.md)
+- [UDA R4 retrieval and gate tutorial](../../docs/learning/41_UDA_R4_分层检索_性能优化与失败门禁.md)
+- [UDA R5 fresh confirmation journal](../../docs/r5/ENGINEERING_JOURNAL.md)
+- [vNext resume-safe evidence](../../docs/resume/RESUME_SAFE_VNEXT_METRICS.md)
+- [Production runtime candidate architecture](../../docs/production_runtime/ARCHITECTURE.md)
+- [Production runtime results and limitations](../../docs/production_runtime/RESULTS.md) / [limitations](../../docs/production_runtime/KNOWN_LIMITATIONS.md)

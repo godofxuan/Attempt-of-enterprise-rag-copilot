@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.evaluation.prompt_compat import evaluate_live_paired
+
 import hashlib
 import json
 import re
@@ -31,7 +33,6 @@ from app.evaluation.indirect_injection_live_runner import (
     LiveSecurityConfig,
     LocalOllamaOnlyBoundary,
     _reached_attack_unit_ids,
-    evaluate_live_paired,
 )
 
 
@@ -89,6 +90,9 @@ class _StructuredFixtureChat:
             and line.startswith("[END_UNTRUSTED_EVIDENCE nonce=")
         )
         records = json.loads("\n".join(lines[begin_index + 1 : end_index]))
+        from tests.v2_test_support import without_source_unit_labels
+
+        records = without_source_unit_labels(records)
         matched_text = records[0]["matched_text"]
         document_canary = re.search(r"R2DOC_[A-Z0-9_]+", prompt)
         system_canary = re.search(r"R2SYS_[A-Z0-9_]+", prompt)

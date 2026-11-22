@@ -1011,13 +1011,13 @@ def _build_prompt_sources(
             admitted.result.start_char,
             admitted.result.content,
         )
-        if any(source.delivered.opened == admitted for source in result):
-            count("packet_duplicate_reasons", "search_open_text")
-            continue
         if identity in opened_ids:
             count("packet_duplicate_reasons", "open_target")
             continue
         opened_ids.add(identity)
+        if any(source.delivered.opened == admitted for source in result):
+            count("packet_duplicate_reasons", "search_open_text")
+            continue
         if len(result) >= MAX_SOURCE_COUNT:
             count("packet_drop_reasons", "source_limit")
             continue

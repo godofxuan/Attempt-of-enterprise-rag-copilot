@@ -278,12 +278,11 @@ def _preview_start(text: str, pattern: str, max_chars: int = 240) -> int:
 
     position = text.casefold().find(pattern.casefold())
     if position < 0:
-        position = 0
-    start = max(0, position - max_chars // 3)
-    end = min(len(text), start + max_chars)
-    start = max(0, end - max_chars)
+        return 0
     # Keep the start of the containing sentence; a window must not erase its "if/not".
-    boundaries = [match.end() for match in SOURCE_UNIT_END.finditer(text[:start])]
+    # Do not backfill a short tail with unrelated units. Their labels can consume
+    # the packet allocation before the located condition itself is delivered.
+    boundaries = [match.end() for match in SOURCE_UNIT_END.finditer(text[:position])]
     return boundaries[-1] if boundaries else 0
 
 

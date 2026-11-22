@@ -3,7 +3,7 @@
 本地单用户知识与服务工作台：一个 Python / FastAPI 应用、一处数据目录。
 独立 RAG 与 Service Agent 共用检索、模型和来源发布能力。用户明确服务与操作上限，模型根据真实工具观察选择下一步；普通代码负责字段校验、当前预览、精确确认和事务。
 
-当前维护候选为 **0.7.0rc4 / b8291ff7**。夜间检查修复了重试/选库反馈串会话，以及工单已读回却持续显示“正在读回”。最终22条浏览器检查通过；未改的Python路径有145项程序回归。已有工单搜索保留。真实模型未新增验证，语义partial和原生IME未验限制保留。[本轮结果](docs/esa-vnext/NIGHT_CHECK_20261102.md)、[当前状态](docs/esa-vnext/STATUS.md)、[启动方式](docs/esa-vnext/START.md)。
+当前源码版本为 **0.7.0rc4**，包含11月23日的CI维护修复。本地完整回归4308通过、35项原有条件跳过，22条浏览器程序旅程通过。已有Windows发行包仍为 **b8291ff7**。真实模型未新增验证，语义partial和原生IME未验限制保留。[CI维护记录](docs/esa-vnext/CI_MAIN_20261123.md)、[当前状态](docs/esa-vnext/STATUS.md)、[启动方式](docs/esa-vnext/START.md)。
 
 ## Windows 日常使用
 
@@ -65,7 +65,7 @@ cd ..
 uv run --no-sync python scripts/build_windows_portable.py
 ```
 
-浏览器回归自启临时工作区，外部模型使用明确测试替身，不连接活动库，不代表真实模型通过。默认Windows用已有Edge，其他平台需准备Playwright Chromium；`ESA_TEST_PYTHON`、`ESA_BROWSER_CHANNEL`、`ESA_UI_TEST_PORT`可覆盖测试环境。PR自动运行产品回归；解释实验独立显示，保留已知红例，不用 skip/xfail 隐藏。远端未执行不得记为CI通过。实验命令预期仍有已知失败，不能用其代替默认产品质量判断。
+浏览器回归自启临时工作区，外部模型使用明确测试替身，不连接活动库，不代表真实模型通过。默认Windows用已有Edge，其他平台需准备Playwright Chromium；`ESA_TEST_PYTHON`、`ESA_BROWSER_CHANNEL`、`ESA_UI_TEST_PORT`可覆盖测试环境。PR自动运行产品回归，解释实验独立显示。11月23日修复的实验程序检查不能代替真实语义评测，实验功能继续默认关闭。远端状态按实际CI记录判断。
 
 Windows构建需要开发期Node/npm、uv与系统C#编译器，可用`--uv`/`--npm`指定工具；默认按锁准备官方嵌入式Python和依赖并构建同commit前端。`--embed-zip`可复用官方ZIP，`--offline`要求全部构建缓存已存在。日常用户运行包不执行上述安装步骤。具体已实测版本与未完成项以[STATUS](docs/esa-vnext/STATUS.md)为准。
 

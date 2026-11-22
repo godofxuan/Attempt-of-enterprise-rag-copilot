@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.evaluation.prompt_compat import evaluate_paired
+
 try:
     import _bootstrap  # noqa: F401
 except ModuleNotFoundError:
@@ -26,7 +28,6 @@ from app.evaluation.indirect_injection_dataset import load_security_bundle
 from app.evaluation.indirect_injection_runner import (
     DeterministicSecurityConfig,
     PairedSecurityResult,
-    evaluate_paired,
 )
 from app.evaluation.indirect_injection_writer import (
     R1_FROZEN_EXPECTED_HASHES,

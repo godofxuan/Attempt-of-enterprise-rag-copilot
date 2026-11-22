@@ -14,7 +14,7 @@
 
 ## 启动与一条完整演示
 
-完整安装命令见 [START](START.md) 和根README；在项目根目录：
+完整安装命令见 [START](../esa-vnext/START.md) 和根README；在项目根目录：
 
 ```powershell
 uv sync --locked --no-dev
@@ -66,5 +66,5 @@ uv run --no-sync esa serve --data-dir .private/esa-vnext --port 8740
 python -m pytest -q -c pyproject.toml tests/vnext tests/agent_v2/test_a1_draft_delivery.py tests/agent_v2/test_generation_v2.py tests/agent_v2/test_controller_v2.py tests/agent_v2/test_evidence_relevance.py
 ```
 
-本轮结果115passed；各阶段数量不可相加。旧断言迁移依据见 [CONTRACT_MIGRATIONS](CONTRACT_MIGRATIONS.md)。
-当前诊断的真实问题和面试讲解线索见 [IMPLEMENTATION_INTERVIEW_NOTES](IMPLEMENTATION_INTERVIEW_NOTES.md)。
+本轮结果115passed；各阶段数量不可相加。旧断言迁移依据见 [CONTRACT_MIGRATIONS](../esa-vnext/CONTRACT_MIGRATIONS.md)。
+当前诊断的真实问题和面试讲解线索见 [IMPLEMENTATION_INTERVIEW_NOTES](../esa-vnext/IMPLEMENTATION_INTERVIEW_NOTES.md)。

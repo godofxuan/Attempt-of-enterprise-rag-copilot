@@ -883,7 +883,7 @@ def test_audit_rejects_runtime_paths_invalid_snapshot_png_and_any_bad_doc_link(
 
 
 def test_readme_is_a_current_evidence_first_entrypoint() -> None:
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    readme = (ROOT / "docs/history/README_PRE_030.md").read_text(encoding="utf-8")
     headings = [
         "## What it does",
         "## Why it is different",
@@ -925,8 +925,6 @@ def test_readme_is_a_current_evidence_first_entrypoint() -> None:
         r".\.venv\Scripts\python.exe -m scripts.verify_portfolio_release",
     ]
     assert "synthetic" in readme.casefold()
-    for historical_snapshot in ("526 passed", "574 passed", "28/28", "23/24"):
-        assert historical_snapshot not in readme
     assert "Portfolio archive report" in readme
 
 
@@ -2213,3 +2211,14 @@ def test_exact_public_exposure_package_tree_rejects_nested_extra_path(
             package,
             R2_S3_PUBLIC_PACKAGE_PATHS,
         )
+
+
+def test_current_readme_points_to_the_single_workbench_entry():
+    readme = (ROOT / "README.md").read_text(encoding="utf8")
+    for command in ("uv sync --locked --no-dev", "uv run --no-sync esa open", "npm run build"):
+        assert command in readme
+    for path in ("docs/esa-vnext/STATUS.md", "docs/esa-vnext/START.md", "docs/history/README_PRE_030.md"):
+        assert path in readme and (ROOT / path).is_file()
+    assert "ESA.exe" in readme and "workspace.json" in readme
+    for historical_snapshot in ("526 passed", "574 passed", "28/28", "23/24"):
+        assert historical_snapshot not in readme

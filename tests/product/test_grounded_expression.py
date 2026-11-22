@@ -199,7 +199,7 @@ def test_compound_expression_checks_each_bound_clause_without_mixing_polarities(
 def test_provenance_only_experiment_preserves_diagnostics_without_weakening_reference_binding():
     claims=[Claim(claim_id="C1", text="会议室每日开放时间为09:00至18:00。", cited_chunk_ids=["d"]),
             Claim(claim_id="C2", text="每次预订不得超过2小时。", cited_chunk_ids=["d"])]
-    block=AnswerBlock(text="会议室每日开放时间为09:00至18:00，单次预订不得超过2小时。",claim_ids=["C1","C2"])
+    block=AnswerBlock(text="会议室每日开放时间为09:00至18:00，单次预订可以超过2小时。",claim_ids=["C1","C2"])
     audit=[]
     kept,errors=retained_blocks([block],claims,"开放时间和时长？",diagnostics_only=True,audit=audit)
     assert kept==[block] and not errors and audit[0]["reason"]=="polarity_mismatch"

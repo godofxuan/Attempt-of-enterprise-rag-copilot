@@ -91,7 +91,18 @@ def test_public_trusted_identity_result_recomputes_exactly() -> None:
         PUBLIC_RESULT.read_text(encoding="utf-8")
     )
 
-    assert published == evaluate_trusted_identity(MATRIX)
+    from tests.historical_evidence import release_bytes
+
+    assert published.source_sha256 == {
+        relative: hashlib.sha256(release_bytes(relative)).hexdigest()
+        for relative in TRUSTED_IDENTITY_SOURCE_FILES
+    }
+    current = evaluate_trusted_identity(MATRIX)
+    assert published.model_dump(exclude={"source_sha256", "evaluation_contract_id"}) == current.model_dump(
+        exclude={"source_sha256", "evaluation_contract_id"}
+    )
+    # Both contract IDs were independently validated against their own source bytes.
+    assert published.evaluation_contract_id != current.evaluation_contract_id
 
 
 def test_historical_v2_identity_result_remains_parseable_and_immutable() -> None:

@@ -5,7 +5,10 @@ not semantic entailment; live content evaluation is recorded separately.
 """
 
 import re
-from app.agent.citation_verifier import _content_tokens, _date_mismatch, _negation_mismatch
+from app.agent.citation_verifier import (
+    _content_tokens, _date_mismatch, _negation_mismatch,
+    _has_explicit_negation, _negation_comparable,
+)
 from app.domain.evidence import AnswerBlock
 from app.security.retrieved_content import RetrievedContentGuard
 
@@ -14,6 +17,18 @@ def scalar_literals(text):
     # Markdown ordinals and ASCII identifiers are syntax, not quantities.
     text = re.sub(r"(?m)^\s{0,3}\d+[.)]\s+(?=\S)", "", text)
     return set(re.findall(r"(?<![A-Za-z0-9_])\d+(?:\.\d+)?(?![A-Za-z0-9_])", text))
+
+
+def polarity_mismatch(text, evidence):
+    boundaries = r"[，；;。!?！？\n]|(?<!\d)[,.](?!\d)"
+    statements = [s for s in re.split(boundaries, text) if s.strip()]
+    facts = [s for s in re.split(boundaries, evidence) if s.strip()]
+    if any(_negation_mismatch(s, "\n".join(facts)) for s in statements):
+        return True
+    return any(
+        not any(_negation_comparable(fact, s) and _has_explicit_negation(s) for s in statements)
+        for fact in facts if _has_explicit_negation(fact)
+    )
 
 
 def retained_blocks(blocks, claims, question, provenance_by_claim=None, *, diagnostics_only=False, audit=None):
@@ -60,7 +75,7 @@ def retained_blocks(blocks, claims, question, provenance_by_claim=None, *, diagn
                 reason = "unbound_user_premise"
             elif block.kind != "conditional" and block.assumptions:
                 reason = "premises_require_conditional_expression"
-            elif _negation_mismatch(
+            elif polarity_mismatch(
                 block.text, evidence + ("\n" + assumptions if block.kind == "conditional" else "")
             ):
                 reason = "polarity_mismatch"

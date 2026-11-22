@@ -15,6 +15,9 @@ def test_three_supported_needs_survive_approval_publication(snapshot_factory, do
 
     def chat(model, messages, **kwargs):
         records = next(json.loads(line) for line in messages[1]['content'].splitlines() if line.startswith('[{'))
+        from tests.v2_test_support import without_source_unit_labels
+
+        records = without_source_unit_labels(records)
         claims = [dict(claim_id=f'c{i}', text=r['matched_text'], critical=True,
                        cited_source_ids=[r['source_id']]) for i, r in enumerate(records)]
         return json.dumps(dict(answer='\n'.join(c['text'] for c in claims), claims=claims), ensure_ascii=False)

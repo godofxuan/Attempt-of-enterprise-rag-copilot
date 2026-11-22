@@ -57,16 +57,30 @@ def test_verified_workday_claim_does_not_get_a_missing_warning(
             },
         ],
     }
+    def chat(model, messages, **kwargs):
+        from tests.v2_test_support import without_source_unit_labels
+
+        records = without_source_unit_labels(next(
+            json.loads(line) for line in messages[1]["content"].splitlines()
+            if line.startswith("[{")
+        ))
+        for row, original in zip(wire["claims"], texts, strict=True):
+            source = next(record for record in records if original in record["matched_text"])
+            row["cited_source_ids"] = [source["source_id"]]
+        return json.dumps(wire, ensure_ascii=False)
+
     runner.response_builder = GenerationV2ResponseBuilder(
-        model="stub", max_attempts=1, chat_fn=lambda *a, **kw: json.dumps(wire, ensure_ascii=False)
+        model="stub", max_attempts=1, chat_fn=chat
     )
     result = runner.run("连续年假申请提前多久，远程办公申请又提前多久？", user_context())
     assert texts[0] in result.answer
     assert "尚未核验这一问题：连续年假" not in result.answer
     assert all(c.supported for c in result.citations)
     if paraphrase:
-        assert result.mode == "partial" and len(result.claims) == 1
-        assert "尚未核验这一问题：远程办公" in result.answer
+        assert result.mode == "partial" and len(result.claims) == 2
+        assert all(c.text != wire["claims"][1]["text"] for c in result.claims)
+        assert texts[1] in result.answer
+        assert result.trace["generation_draft_units"]["restored_claim_ids"]
         assert result.trace["unsupported_claim_reasons"]["critical_fact_requires_bound_span"] == 1
     else:
         assert result.mode == "answered" and len(result.claims) == 2

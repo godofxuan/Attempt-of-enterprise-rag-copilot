@@ -218,3 +218,15 @@ __all__ = [
     "search_result",
     "user_context",
 ]
+def without_source_unit_labels(records):
+    """Decode host display labels for legacy model doubles, preserving evidence bytes."""
+    decoded = []
+    for record in records:
+        row = dict(record)
+        for field in ("matched_text", "context_text"):
+            text = row.get(field, "")
+            for unit_id in row.get("source_units", []):
+                text = text.replace("[" + unit_id + "]", "").replace("[/" + unit_id + "]", "")
+            row[field] = text
+        decoded.append(row)
+    return decoded

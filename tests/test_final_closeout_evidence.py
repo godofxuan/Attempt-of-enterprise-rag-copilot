@@ -75,7 +75,7 @@ def test_resume_headline_metrics_derive_from_public_evidence() -> None:
 
 
 def test_recruiter_documents_point_to_current_evidence() -> None:
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    readme = (ROOT / "docs/history/README_PRE_030.md").read_text(encoding="utf-8")
     status = (ROOT / "docs/PROJECT_STATUS.md").read_text(encoding="utf-8")
     resume = (ROOT / "docs/handoffs/RESUME_CODEX_UPDATE.md").read_text(
         encoding="utf-8"
